@@ -1,5 +1,7 @@
 export const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]!));
-export const format = (value: unknown, digits = 2): string => value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value).toLocaleString('tr-TR', { maximumFractionDigits: digits }) : '—';
+let defaultDigits=2;
+export const configureFormat=(digits:number)=>{defaultDigits=digits;};
+export const format = (value: unknown, digits = defaultDigits): string => value !== null && value !== undefined && Number.isFinite(Number(value)) ? Number(value).toLocaleString('tr-TR', { maximumFractionDigits: digits }) : '—';
 export function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag); e.className = className; if (text !== undefined) e.textContent = text; return e;
 }

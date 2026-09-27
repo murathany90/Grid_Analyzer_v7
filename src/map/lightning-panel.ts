@@ -1,0 +1,15 @@
+import type {AppContext} from '../app/contracts';
+import {element,button} from '../ui/components/dom';
+import {ResultTable} from '../features/analysis/result-table';
+import {scenarioChanged} from '../domain/scenario/overlay';
+export function createLightningPanel(ctx:AppContext){
+  const panel=element('section','ga-lightning'),head=element('header','ga-lightning-head'),title=element('strong','','⚡ Elektriksel Sonuçlar'),body=element('div','ga-lightning-body'),status=element('p','ga-scenario-state');panel.hidden=true;
+  const minimize=button('−',()=>{body.hidden=!body.hidden;minimize.textContent=body.hidden?'□':'−';},'Paneli küçült / geri aç'),close=button('×',()=>{panel.hidden=true;},'Sonuç panelini kapat');head.append(title,minimize,close);panel.append(head,body);
+  const main=element('div','ga-tabs-small'),kinds=element('div','ga-tabs-small'),toolbar=element('div','ga-result-toolbar'),container=element('div','ga-result-container'),table=new ResultTable(ctx,container);
+  for(const[key,label]of[['results','Sonuçlar'],['delta','Senaryo Δ'],['energize','Devreye Alma']]as const){const b=button(label,()=>{table.tab=key;table.page=0;render();});b.dataset.main=key;main.append(b);}
+  for(const[key,label]of[['line','Hatlar'],['trafo','Trafolar'],['bus','Baralar']]as const){const b=button(label,()=>{table.kind=key;table.page=0;render();});b.dataset.kind=key;kinds.append(b);}
+  const search=element('input');search.type='search';search.placeholder='Ad veya FID ara';search.setAttribute('aria-label','Elektriksel sonuçlarda ara');search.oninput=()=>{table.search=search.value;table.page=0;table.render();};
+  const calculate=button('Hesapla',()=>void ctx.run(ctx.resultStore.analysisType)),source=element('small','ga-result-source');toolbar.append(search,calculate,source);body.append(status,main,kinds,toolbar,container);
+  function render(){const changed=scenarioChanged(ctx.scenario.current);status.hidden=!changed;status.textContent=ctx.resultStore.get('scenario')?'Senaryo güncel':'Senaryo değişti · Güncel hesap bekleniyor';const r=ctx.resultStore.active;source.textContent=`${ctx.resultStore.analysisType==='powerFlow'?'Tam AC':ctx.resultStore.analysisType==='dc'?'DC':'Hızlı AC'} · ${ctx.resultStore.role==='base'?'Baz':'Senaryo'}${r&&!r.converged?' · '+r.status:''}`;calculate.disabled=ctx.busy||!ctx.network;main.querySelectorAll<HTMLButtonElement>('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.main===table.tab)));kinds.querySelectorAll<HTMLButtonElement>('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===table.kind)));if(!panel.hidden)table.render();}
+  return{element:panel,render,table,toggle(){panel.hidden=!panel.hidden;render();}};
+}

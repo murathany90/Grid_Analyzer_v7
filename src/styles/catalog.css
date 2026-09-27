@@ -1,0 +1,51 @@
+.ga-feature { color: var(--text, #e9f2fa); display: grid; gap: 12px; }
+.ga-feature-heading h2, .ga-feature h3, .ga-feature h4, .ga-feature p { margin: 0; }
+.ga-feature-heading { display: grid; gap: 4px; }
+.ga-muted { color: var(--muted, #93a8bf); font-size: .9em; }
+.ga-panel, .ga-detail, .ga-sld-group { padding: 14px; border: 1px solid var(--edge, #294059); border-radius: 10px; background: var(--panel, #121f31); }
+.ga-toolbar, .ga-actions, .ga-pager, .ga-tabs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ga-toolbar > input { flex: 1 1 220px; }
+.ga-button, .ga-tab, .ga-drop button { border: 1px solid var(--edge, #294059); border-radius: 7px; background: var(--panel2, #17273a); color: var(--text, #e9f2fa); padding: 8px 10px; cursor: pointer; }
+.ga-button:disabled { opacity: .45; cursor: default; }
+.ga-tab-active { border-color: var(--accent, #45bfcc); background: #1d3b4a; }
+.ga-drop { display: grid; justify-items: center; gap: 10px; padding: 24px; border: 1px dashed #407b90; border-radius: 10px; background: #122638; }
+.ga-drop-active { outline: 2px solid var(--accent, #45bfcc); }
+.ga-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ga-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; }
+.ga-card, .ga-count-row { display: flex; justify-content: space-between; align-items: center; gap: 9px; padding: 10px; border: 1px solid var(--edge, #294059); border-radius: 8px; background: var(--panel, #121f31); }
+.ga-card { display: grid; align-content: start; }
+.ga-count-row code { color: var(--accent, #45bfcc); }
+.ga-class-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
+.ga-warning-list { margin: 0; padding-left: 22px; }
+.ga-notice { padding: 10px 12px; border-left: 3px solid var(--accent, #45bfcc); border-radius: 6px; background: #153047; }
+.ga-notice-error { border-color: var(--danger, #ef7b7b); }
+.ga-empty { padding: 20px; color: var(--muted, #93a8bf); text-align: center; }
+.ga-table-wrap { max-width: 100%; overflow: auto; border: 1px solid var(--edge, #294059); border-radius: 8px; }
+.ga-table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.ga-table th, .ga-table td { padding: 8px 10px; border-bottom: 1px solid var(--edge, #294059); text-align: left; }
+.ga-table th { position: sticky; top: 0; background: #20374d; }
+.ga-table tbody tr { cursor: pointer; }
+.ga-table tbody tr:hover, .ga-table tbody .ga-selected { background: #22475b; }
+.ga-detail { overflow: auto; }
+.ga-attribute-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 7px; margin: 10px 0; }
+.ga-attribute { min-width: 0; padding: 7px; border: 1px solid var(--edge, #294059); border-radius: 6px; overflow-wrap: anywhere; }
+.ga-attribute dt { color: var(--muted, #93a8bf); font-size: .85em; }
+.ga-attribute dd { margin: 4px 0 0; }
+.ga-pager { justify-content: space-between; }
+.ga-state { font-size: .85em; }
+.ga-state-ready { color: var(--good, #6dd3a3); }
+.ga-state-partial { color: var(--accent2, #e4ad55); }
+.ga-state-blocked { color: var(--danger, #ef7b7b); }
+.ga-sld-diagram { display: grid; gap: 10px; }
+.ga-sld-canvas { display: grid; gap: 10px; }
+.ga-sld-banner, .ga-sld-station { padding: 10px 12px; border-radius: 7px; background: #153047; }
+.ga-sld-buses { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 9px; }
+.ga-sld-bus { display: grid; align-content: start; gap: 7px; padding: 9px; border: 1px solid var(--edge, #294059); border-left: 3px solid #599fd1; border-radius: 8px; background: var(--panel, #121f31); }
+.ga-sld-equipment, .ga-sld-bays { display: flex; flex-wrap: wrap; gap: 6px; }
+.ga-sld-node { max-width: 100%; border: 1px solid var(--edge, #294059); border-radius: 6px; background: var(--panel2, #17273a); color: var(--text, #e9f2fa); padding: 6px 8px; text-align: left; overflow-wrap: anywhere; }
+.ga-sld-node-bus { border-color: #599fd1; }
+.ga-sld-node-line { border-color: #e85f5a; }
+.ga-sld-node-transformer { border-color: #e4ad55; }
+.ga-sld-node-device, .ga-sld-node-bay { border-color: #45bfcc; }
+.ga-sld-edges { margin: 0; padding-left: 20px; color: var(--muted, #93a8bf); }
+@media (max-width: 700px) { .ga-toolbar { align-items: stretch; } .ga-toolbar > * { flex: 1 1 100%; } }

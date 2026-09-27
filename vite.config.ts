@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: mode === 'portable' ? [{
     name: 'portable-html',
+    enforce: 'post',
     generateBundle(_options, bundle) {
       const html = bundle['index.html'];
       if (!html || html.type !== 'asset') return;
