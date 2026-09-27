@@ -1,0 +1,978 @@
+{
+  "General": {
+    "Attributes": [
+      "FID",
+      "Val"
+    ],
+    "Values": [
+      [
+        "GENERAL",
+        "PowerFactory 2026.1"
+      ]
+    ]
+  },
+  "SetTime": {
+    "Attributes": [
+      "FID",
+      "cDate",
+      "cTime"
+    ],
+    "Values": [
+      [
+        "TIME",
+        "20260923",
+        "120000"
+      ]
+    ]
+  },
+  "IntCase": {
+    "Attributes": [
+      "FID",
+      "loc_name"
+    ],
+    "Values": [
+      [
+        "CASE",
+        "Small regression model"
+      ]
+    ]
+  },
+  "ElmNet": {
+    "Attributes": [
+      "FID",
+      "loc_name"
+    ],
+    "Values": [
+      [
+        "N1",
+        "National Grid"
+      ]
+    ]
+  },
+  "ElmSite": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "sType"
+    ],
+    "Values": [
+      [
+        "S400",
+        "400 kV Station",
+        "N1",
+        "GERCEK"
+      ],
+      [
+        "S154",
+        "154 kV Station",
+        "N1",
+        "GERCEK"
+      ]
+    ]
+  },
+  "ElmSubstat": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "GPSlat",
+      "GPSlon"
+    ],
+    "Values": [
+      [
+        "G400",
+        "400 kV Yard",
+        "S400",
+        39.9,
+        32.8
+      ],
+      [
+        "G154",
+        "154 kV Yard",
+        "S154",
+        39.8,
+        32.7
+      ]
+    ]
+  },
+  "ElmBay": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id"
+    ],
+    "Values": [
+      [
+        "B400",
+        "400 kV Bay",
+        "G400"
+      ],
+      [
+        "B154",
+        "154 kV Bay",
+        "G154"
+      ]
+    ]
+  },
+  "ElmTerm": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "uknom",
+      "outserv",
+      "iUsage"
+    ],
+    "Values": [
+      [
+        "T400-SLACK",
+        "400 kV Slack",
+        "G400",
+        400,
+        0,
+        0
+      ],
+      [
+        "T400-2",
+        "400 kV Bus 2",
+        "G400",
+        400,
+        0,
+        0
+      ],
+      [
+        "T400-3",
+        "400 kV Bus 3",
+        "G400",
+        400,
+        0,
+        0
+      ],
+      [
+        "T154-PV",
+        "154 kV PV Bus",
+        "G154",
+        154,
+        0,
+        0
+      ],
+      [
+        "T154-2",
+        "154 kV Bus 2",
+        "G154",
+        154,
+        0,
+        0
+      ],
+      [
+        "T154-3",
+        "154 kV Load Bus",
+        "G154",
+        154,
+        0,
+        0
+      ],
+      [
+        "T154-OFF",
+        "154 kV Restored Bus",
+        "G154",
+        154,
+        1,
+        0
+      ]
+    ]
+  },
+  "StaCubic": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "obj_id",
+      "obj_bus",
+      "cimRdfId"
+    ],
+    "Values": [
+      [
+        "C_L400-01_A",
+        "Cubicle C_L400-01_A",
+        "T400-SLACK",
+        "L400-01",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_L400-01_B",
+        "Cubicle C_L400-01_B",
+        "T400-2",
+        "L400-01",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_L400-02_A",
+        "Cubicle C_L400-02_A",
+        "T400-2",
+        "L400-02",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_L400-02_B",
+        "Cubicle C_L400-02_B",
+        "T400-3",
+        "L400-02",
+        "T400-3",
+        ""
+      ],
+      [
+        "C_L400-03_A",
+        "Cubicle C_L400-03_A",
+        "T400-3",
+        "L400-03",
+        "T400-3",
+        ""
+      ],
+      [
+        "C_L400-03_B",
+        "Cubicle C_L400-03_B",
+        "T400-SLACK",
+        "L400-03",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_L400-04_A",
+        "Cubicle C_L400-04_A",
+        "T400-SLACK",
+        "L400-04",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_L400-04_B",
+        "Cubicle C_L400-04_B",
+        "T400-2",
+        "L400-04",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_L400-05_A",
+        "Cubicle C_L400-05_A",
+        "T400-2",
+        "L400-05",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_L400-05_B",
+        "Cubicle C_L400-05_B",
+        "T400-3",
+        "L400-05",
+        "T400-3",
+        ""
+      ],
+      [
+        "C_L400-06_A",
+        "Cubicle C_L400-06_A",
+        "T400-3",
+        "L400-06",
+        "T400-3",
+        ""
+      ],
+      [
+        "C_L400-06_B",
+        "Cubicle C_L400-06_B",
+        "T400-SLACK",
+        "L400-06",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_L154-01_A",
+        "Cubicle C_L154-01_A",
+        "T154-PV",
+        "L154-01",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-01_B",
+        "Cubicle C_L154-01_B",
+        "T154-2",
+        "L154-01",
+        "T154-2",
+        ""
+      ],
+      [
+        "C_L154-02_A",
+        "Cubicle C_L154-02_A",
+        "T154-2",
+        "L154-02",
+        "T154-2",
+        ""
+      ],
+      [
+        "C_L154-02_B",
+        "Cubicle C_L154-02_B",
+        "T154-3",
+        "L154-02",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-03_A",
+        "Cubicle C_L154-03_A",
+        "T154-3",
+        "L154-03",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-03_B",
+        "Cubicle C_L154-03_B",
+        "T154-PV",
+        "L154-03",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-04_A",
+        "Cubicle C_L154-04_A",
+        "T154-PV",
+        "L154-04",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-04_B",
+        "Cubicle C_L154-04_B",
+        "T154-2",
+        "L154-04",
+        "T154-2",
+        ""
+      ],
+      [
+        "C_L154-05_A",
+        "Cubicle C_L154-05_A",
+        "T154-2",
+        "L154-05",
+        "T154-2",
+        ""
+      ],
+      [
+        "C_L154-05_B",
+        "Cubicle C_L154-05_B",
+        "T154-3",
+        "L154-05",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-06_A",
+        "Cubicle C_L154-06_A",
+        "T154-3",
+        "L154-06",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-06_B",
+        "Cubicle C_L154-06_B",
+        "T154-PV",
+        "L154-06",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-07_A",
+        "Cubicle C_L154-07_A",
+        "T154-PV",
+        "L154-07",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-07_B",
+        "Cubicle C_L154-07_B",
+        "T154-3",
+        "L154-07",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-08_A",
+        "Cubicle C_L154-08_A",
+        "T154-2",
+        "L154-08",
+        "T154-2",
+        ""
+      ],
+      [
+        "C_L154-08_B",
+        "Cubicle C_L154-08_B",
+        "T154-PV",
+        "L154-08",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_L154-OFF_A",
+        "Cubicle C_L154-OFF_A",
+        "T154-3",
+        "L154-OFF",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_L154-OFF_B",
+        "Cubicle C_L154-OFF_B",
+        "T154-OFF",
+        "L154-OFF",
+        "T154-OFF",
+        ""
+      ],
+      [
+        "C_TR_HV",
+        "Cubicle C_TR_HV",
+        "T400-2",
+        "TR400-154",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_TR_LV",
+        "Cubicle C_TR_LV",
+        "T154-PV",
+        "TR400-154",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_GRID",
+        "Cubicle C_GRID",
+        "T400-SLACK",
+        "GRID400",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_GEN",
+        "Cubicle C_GEN",
+        "T154-PV",
+        "GEN154",
+        "T154-PV",
+        ""
+      ],
+      [
+        "C_LOAD",
+        "Cubicle C_LOAD",
+        "T154-3",
+        "LOAD154",
+        "T154-3",
+        ""
+      ],
+      [
+        "C_SW_A",
+        "Cubicle C_SW_A",
+        "T400-SLACK",
+        "SW_TIE",
+        "T400-SLACK",
+        ""
+      ],
+      [
+        "C_SW_B",
+        "Cubicle C_SW_B",
+        "T400-2",
+        "SW_TIE",
+        "T400-2",
+        ""
+      ],
+      [
+        "C_RESTORE_A",
+        "Restoration terminal",
+        "T154-OFF",
+        "SW_RESTORE",
+        "T154-OFF",
+        ""
+      ],
+      [
+        "C_RESTORE_B",
+        "Restoration bus",
+        "T154-PV",
+        "SW_RESTORE",
+        "T154-PV",
+        ""
+      ]
+    ]
+  },
+  "TypLne": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "uline",
+      "sline",
+      "rline",
+      "xline",
+      "bline"
+    ],
+    "Values": [
+      [
+        "TL400",
+        "400 kV line",
+        400,
+        1.2,
+        0.03,
+        0.3,
+        3
+      ],
+      [
+        "TL154",
+        "154 kV line",
+        154,
+        0.8,
+        0.08,
+        0.4,
+        2
+      ]
+    ]
+  },
+  "ElmLne": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "typ_id",
+      "dline",
+      "outserv",
+      "bus1",
+      "bus2",
+      "fline",
+      "cimRdfId",
+      "GPScoords:MATRIX"
+    ],
+    "Values": [
+      [
+        "L400-01",
+        "400 kV Örnek hat 01",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-01_A",
+        "C_L400-01_B",
+        1,
+        "",
+        "Matrix_route_400_01"
+      ],
+      [
+        "L400-02",
+        "400 kV Örnek hat 02",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-02_A",
+        "C_L400-02_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L400-03",
+        "400 kV Örnek hat 03",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-03_A",
+        "C_L400-03_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L400-04",
+        "400 kV Örnek hat 04",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-04_A",
+        "C_L400-04_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L400-05",
+        "400 kV Örnek hat 05",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-05_A",
+        "C_L400-05_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L400-06",
+        "400 kV Örnek hat 06",
+        "G400",
+        "TL400",
+        10,
+        0,
+        "C_L400-06_A",
+        "C_L400-06_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-01",
+        "154 kV Örnek hat 01",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-01_A",
+        "C_L154-01_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-02",
+        "154 kV Örnek hat 02",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-02_A",
+        "C_L154-02_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-03",
+        "154 kV Örnek hat 03",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-03_A",
+        "C_L154-03_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-04",
+        "154 kV Örnek hat 04",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-04_A",
+        "C_L154-04_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-05",
+        "154 kV Örnek hat 05",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-05_A",
+        "C_L154-05_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-06",
+        "154 kV Örnek hat 06",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-06_A",
+        "C_L154-06_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-07",
+        "154 kV Örnek hat 07",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-07_A",
+        "C_L154-07_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-08",
+        "154 kV Örnek hat 08",
+        "G154",
+        "TL154",
+        10,
+        0,
+        "C_L154-08_A",
+        "C_L154-08_B",
+        1,
+        "",
+        ""
+      ],
+      [
+        "L154-OFF",
+        "154 kV Yedek bağlantı",
+        "G154",
+        "TL154",
+        10,
+        1,
+        "C_L154-OFF_A",
+        "C_L154-OFF_B",
+        1,
+        "",
+        ""
+      ]
+    ]
+  },
+  "Matrix": {
+    "Attributes": [
+      "FID",
+      "MatRow",
+      "MatColumn",
+      "Val"
+    ],
+    "Values": [
+      [
+        "Matrix_route_400_01",
+        0,
+        0,
+        39.9
+      ],
+      [
+        "Matrix_route_400_01",
+        0,
+        1,
+        32.8
+      ],
+      [
+        "Matrix_route_400_01",
+        1,
+        0,
+        39.91
+      ],
+      [
+        "Matrix_route_400_01",
+        1,
+        1,
+        32.81
+      ]
+    ]
+  },
+  "TypTr2": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "strn",
+      "utrn_h",
+      "utrn_l",
+      "pcutr",
+      "uktr",
+      "curmg",
+      "pfe",
+      "itapch",
+      "tap_side",
+      "ntpmx",
+      "ntpmn",
+      "nntap0",
+      "dutap"
+    ],
+    "Values": [
+      [
+        "TT400-154",
+        "100 MVA transformer",
+        100,
+        400,
+        154,
+        800,
+        12,
+        0.5,
+        80,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "ElmTr2": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "typ_id",
+      "outserv",
+      "nntap",
+      "bushv",
+      "buslv"
+    ],
+    "Values": [
+      [
+        "TR400-154",
+        "400/154 kV Transformer",
+        "G400",
+        "TT400-154",
+        0,
+        0,
+        "C_TR_HV",
+        "C_TR_LV"
+      ]
+    ]
+  },
+  "ElmXnet": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "bus1",
+      "outserv",
+      "pgini",
+      "qgini",
+      "usetp"
+    ],
+    "Values": [
+      [
+        "GRID400",
+        "External grid",
+        "G400",
+        "C_GRID",
+        0,
+        0,
+        0,
+        1
+      ]
+    ]
+  },
+  "ElmGenStat": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "bus1",
+      "outserv",
+      "pgini",
+      "qgini",
+      "usetp",
+      "Pmin_uc",
+      "Pmax_uc",
+      "av_mode",
+      "pQlimType",
+      "cCategory"
+    ],
+    "Values": [
+      [
+        "GEN154",
+        "PV generator",
+        "G154",
+        "C_GEN",
+        0,
+        30,
+        5,
+        1.02,
+        0,
+        100,
+        "constv",
+        "",
+        1
+      ]
+    ]
+  },
+  "ElmLod": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "bus1",
+      "plini",
+      "qlini",
+      "outserv"
+    ],
+    "Values": [
+      [
+        "LOAD154",
+        "154 kV load",
+        "G154",
+        "C_LOAD",
+        45,
+        12,
+        0
+      ]
+    ]
+  },
+  "ElmCoup": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "typ_id",
+      "on_off",
+      "aUsage",
+      "bus1",
+      "bus2",
+      "outserv"
+    ],
+    "Values": [
+      [
+        "SW_TIE",
+        "400 kV bus tie",
+        "B400",
+        "",
+        1,
+        0,
+        "C_SW_A",
+        "C_SW_B",
+        0
+      ],
+      [
+        "SW_RESTORE",
+        "154 kV restoration isolator",
+        "B154",
+        "",
+        0,
+        0,
+        "C_RESTORE_A",
+        "C_RESTORE_B",
+        0
+      ]
+    ]
+  },
+  "ComLdf": {
+    "Attributes": [
+      "FID",
+      "fold_id"
+    ],
+    "Values": [
+      [
+        "LDF",
+        ""
+      ]
+    ]
+  }
+}

@@ -2,7 +2,7 @@ import type { CanonicalNetwork } from '../domain/model/network';
 export class UnionFind {
   private parent = new Map<string,string>(); private rank = new Map<string,number>();
   constructor(ids: Iterable<string>) { for (const id of ids) this.parent.set(id,id); }
-  find(id: string): string | null { let p = this.parent.get(id); if (p === undefined) return null; while (p !== id) { const next = this.parent.get(p)!; this.parent.set(id,next); id=p; p=next; } return id; }
+  find(id: string): string | null { if(!this.parent.has(id))return null;let p:string=this.parent.get(id)!;while(p!==id){const next:string=this.parent.get(p)!;this.parent.set(id,next);id=p;p=next;}return id; }
   union(a: string,b: string): void { const x=this.find(a),y=this.find(b); if (x===null || y===null || x===y) return; const ra=this.rank.get(x)||0,rb=this.rank.get(y)||0; if(ra<rb)this.parent.set(x,y);else{this.parent.set(y,x);if(ra===rb)this.rank.set(x,ra+1);} }
 }
 export interface ElectricalBus { id: string; name: string; vnKv: number; terms: string[]; siteIds: string[] }

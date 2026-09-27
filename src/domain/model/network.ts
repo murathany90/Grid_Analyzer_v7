@@ -1,3 +1,5 @@
+import type { LineCapacityMetadata } from './capacity';
+
 export interface SourceRef { readonly sourceClass: string; readonly sourceId: string; readonly field: string; readonly unit?: string }
 export interface Entity {
   readonly id: string; readonly name: string; readonly sourceClass: string; readonly sourceId: string;
@@ -8,8 +10,10 @@ export interface Bus extends Entity { readonly vnKv: number; readonly parentId: 
 export interface Line extends Entity {
   readonly from: string; readonly to: string; readonly vnKv: number; readonly lengthKm: number;
   readonly rOhm: number; readonly xOhm: number; readonly bSiemens: number;
-  readonly ratingMva: number | null; readonly coordinates: readonly (readonly [number, number])[];
+  /** Solver display/rating field; use capacity metadata for nominal and seasonal loading limits. */
+  readonly ratingMva: number | null; readonly capacity?: LineCapacityMetadata; readonly coordinates: readonly (readonly [number, number])[];
   readonly sections: number;
+  readonly fastParameters?: { readonly rOhm:number; readonly xOhm:number; readonly bSiemens:number; readonly vnKv:number };
 }
 export interface Transformer2W extends Entity {
   readonly from: string; readonly to: string; readonly vnKv: number; readonly lvKv: number;
@@ -22,7 +26,7 @@ export interface Generator extends Entity {
   readonly qMin: number | null; readonly qMax: number | null;
 }
 export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number }
-export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number }
+export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number; readonly nominalQMvar?: number }
 export interface SeriesCompensator extends Entity { readonly from: string; readonly to: string; readonly rOhm: number; readonly xOhm: number }
 export interface ExternalGrid extends Load { readonly vmSet: number }
 export interface Switch extends Entity { readonly from: string; readonly to: string; readonly closed: boolean; readonly cubicleId?: string; readonly equipmentId?: string }

@@ -19,11 +19,21 @@ export class ResultStore {
   get active(): CalculationResult | null { return this.get(this.role === 'base' ? 'base' : 'scenario'); }
   invalidateScenario(): void { for (const key of [...this.expected.keys()]) if (key.startsWith('scenario.')) this.expected.delete(key); }
   clear(): void { this.expected.clear(); this.results.clear(); this.role = 'base'; }
-  delta(): { id: string; name: string; pMw: number | null; loading: number | null; state: string }[] {
+  comparable(): boolean {
     const a = this.get('base'), b = this.get('scenario');
-    if (!a || !b || a.identity.modelHash !== b.identity.modelHash || a.identity.optionsHash !== b.identity.optionsHash || !a.converged || !b.converged) return [];
-    const old = new Map(a.branches.map(e => [e.id, e]));
-    return b.branches.map(e => { const before = old.get(e.id); return { id: e.id, name: e.name, pMw: before ? e.pf - before.pf : null,
-      loading: before?.loading != null && e.loading != null ? e.loading - before.loading : null, state: before ? 'COMPARED' : 'ADDED' }; });
+    return !!a && !!b && a.identity.modelHash === b.identity.modelHash && a.identity.optionsHash === b.identity.optionsHash && a.identity.engine === b.identity.engine && a.identity.engineVersion === b.identity.engineVersion && a.converged && b.converged;
+  }
+  delta(): { id: string; name: string; sourceClass: string; pMw: number | null; loading: number | null; state: string }[] {
+    if (!this.comparable()) return [];
+    const a = this.get('base')!, b = this.get('scenario')!;
+    const old = new Map(a.branches.map(e => [`${e.sourceClass}|${e.id}`, e]));
+    const current = new Map(b.branches.map(e => [`${e.sourceClass}|${e.id}`, e]));
+    return [...new Set([...old.keys(), ...current.keys()])].map(key => {
+      const before = old.get(key), after = current.get(key), entity = after || before!;
+      return { id: entity.id, name: entity.name, sourceClass: entity.sourceClass,
+        pMw: before && after && Number.isFinite(after.pf-before.pf) ? after.pf-before.pf : null,
+        loading: before?.loading != null && after?.loading != null ? after.loading-before.loading : null,
+        state: before ? after ? 'COMPARED' : 'REMOVED' : 'ADDED' };
+    });
   }
 }
