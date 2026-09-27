@@ -1,0 +1,25 @@
+{
+  "name": "grid-analyzer-v7",
+  "version": "7.0.3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "lint": "node tools/lint.mjs",
+    "test": "node --import tsx --test tests/unit/*.test.ts tests/regression/*.test.ts",
+    "test:full": "node --import tsx tools/full-model.ts",
+    "build": "vite build",
+    "build:portable": "vite build --mode portable"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
+  }
+}

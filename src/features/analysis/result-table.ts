@@ -1,0 +1,60 @@
+import {branchDelta,deltaSummary,difference} from '../../domain/results/delta';
+import {voltageMatches} from '../../domain/model/voltage-band';
+import {displayBranches} from '../../domain/results/presentation';
+import type {AppContext} from '../../app/contracts';
+import type {Bus,Line,Transformer2W} from '../../domain/model/network';
+import {resultColumns,sortResultRows,busVoltageKv,type ResultRow as Row,type ResultKind as Kind,type ResultTab as Tab} from './result-columns';
+import {displayDelta,signedValue} from '../../map/delta-style';
+import {escapeHtml as h,format as f,button} from '../../ui/components/dom';
+import {planEnergization} from '../../topology/energization';
+import {effectiveNetwork} from '../../domain/scenario/overlay';
+export class ResultTable {
+  kind:Kind='line';tab:Tab='results';search='';page=0;pageSize=14;sort:string|null=null;descending=false;expanded='';
+  constructor(private ctx:AppContext,readonly element:HTMLElement,private mapScope=true){}
+  private rows(kind:Kind=this.kind):Row[]{
+    const n=this.ctx.network;if(!n)return[];const role=this.ctx.resultStore.role==='base'?'base':'scenario',s=this.ctx.scenario.current,result=this.ctx.resultStore.get(role),base=this.ctx.resultStore.get('base'),scenario=this.ctx.resultStore.get('scenario');
+    const branches=displayBranches(n,this.tab==='delta'?scenario:result),baseBranches=displayBranches(n,base),term=new Map(n.buses.map(b=>[b.id,b]));
+    let rows:Row[]=[];
+    if(kind==='bus'){
+      const data=(this.tab==='delta'?scenario:result)?.buses||[],baseBuses=new Map(base?.buses.map(b=>[[...b.terms].sort().join('|'),b])||[]);
+      rows=data.map(b=>{const members=b.terms.map(t=>term.get(t)).filter((t):t is Bus=>!!t);return{id:b.id,name:b.name,cls:'ElmTerm',vnKv:b.vnKv,siteIds:b.siteIds,source:members.some(t=>t.inService),on:members.some(t=>s.busOrTerminalStatus[t.id]??(s.restoredTerminals.includes(t.id)||t.inService)),terms:b.terms,bus:b,baseBus:baseBuses.get([...b.terms].sort().join('|'))};});
+      if(this.tab==='delta'){const currentKeys=new Set(data.map(b=>[...b.terms].sort().join('|')));for(const[key,b]of baseBuses)if(!currentKeys.has(key))rows.push({id:b.id,name:b.name,cls:'ElmTerm',vnKv:b.vnKv,siteIds:b.siteIds,source:true,on:false,terms:b.terms,baseBus:b});}
+      const included=new Set(data.flatMap(b=>b.terms));if(this.tab==='energize'||!data.length)rows.push(...n.buses.filter(b=>!included.has(b.id)&&(this.tab!=='energize'||!b.inService||b.id in s.busOrTerminalStatus||s.restoredTerminals.includes(b.id))).map(b=>({id:b.id,name:b.name,cls:b.sourceClass,vnKv:b.vnKv,siteIds:b.siteIds,source:b.inService,on:s.busOrTerminalStatus[b.id]??(s.restoredTerminals.includes(b.id)||b.inService),terms:[b.id]})));
+    }else{
+      const list:readonly(Line|Transformer2W)[]=kind==='line'?n.lines:n.transformers,override=kind==='line'?s.lineStatus:s.transformerStatus;
+      rows=list.map(e=>({id:e.id,name:e.name,cls:e.sourceClass,vnKv:e.vnKv,siteIds:e.siteIds,source:e.inService,on:override[e.id]??e.inService,terms:[],branch:branches.get(`${e.sourceClass}|${e.id}`),baseBranch:baseBranches.get(`${e.sourceClass}|${e.id}`)}));
+    }
+    const siteMap=new Map(n.sites.map(s=>[s.id,s])),search=this.search.trim().toLocaleLowerCase('tr-TR');
+    rows=rows.filter(r=>voltageMatches(r.vnKv,this.ctx.filters.voltages)&&(!this.mapScope||((!this.ctx.filters.areaId||r.siteIds.some(id=>siteMap.get(id)?.areaId===this.ctx.filters.areaId))&&voltageMatches(r.vnKv,this.ctx.filters.voltages)))&&(!search||`${r.name} ${r.id} ${r.siteIds.map(id=>siteMap.get(id)?.name||'').join(' ')}`.toLocaleLowerCase('tr-TR').includes(search))&&(this.tab!=='energize'||!r.source||!r.on||r.source!==r.on));
+    for(const r of rows)r.state=this.tab==='energize'?`${r.source?'Serviste':'Dışı'} → ${r.on?'Serviste':'Dışı'}`:this.tab!=='delta'&&this.ctx.resultStore.role==='base'?(r.source?'Serviste':'Servis dışı'):r.source!==r.on?(r.on?'Senaryoda serviste':'Senaryoda dışı'):(r.on?'Serviste':'Servis dışı');
+    return sortResultRows(rows,this.sort,this.descending);
+  }
+
+  render(resetScroll=false){
+    const n=this.ctx.network;if(!n){this.element.innerHTML='<p class="ga-empty">Önce JSON modeli yükleyin.</p>';return;}
+    if(this.tab==='delta'&&!this.ctx.resultStore.comparable()){this.element.innerHTML='<p class="ga-empty">Karşılaştırma için aynı model, motor ve seçeneklerle yakınsamış güncel baz ve senaryo hesabı gerekiyor.</p>';if(!this.ctx.resultStore.get('base'))this.element.append(button('Bazı Hesapla',()=>void this.ctx.run(this.ctx.resultStore.analysisType,'base')));return;}
+    const oldScroll=this.element.querySelector<HTMLElement>('.ga-result-scroll'),scrollTop=resetScroll?0:oldScroll?.scrollTop||0,scrollLeft=resetScroll?0:oldScroll?.scrollLeft||0;
+    const columns=resultColumns(this.kind,this.tab),keys=columns.flatMap(c=>c.metrics.map(m=>m.key));if(this.sort&&!keys.includes(this.sort)){this.sort=null;this.descending=false;}
+    const rows=this.rows(),pages=Math.max(1,Math.ceil(rows.length/this.pageSize));this.page=Math.min(pages-1,Math.max(0,this.page));const selected=rows.slice(this.page*this.pageSize,(this.page+1)*this.pageSize),isBus=this.kind==='bus';
+    const header=columns.map(c=>`<th scope="col"${c.metrics.some(m=>m.key===this.sort)?` aria-sort="${this.descending?'descending':'ascending'}"`:''}>${c.metrics.map(m=>`<button class="ga-sort" data-sort="${m.key}" title="${h(m.label)}${m.unit?' · '+m.unit:''} · Sırala" aria-label="${h(m.key==='q'&&!isBus?(this.kind==='trafo'?'YG Q':'A Q'):m.key==='qt'?(this.kind==='trafo'?'AG Q':'B Q'):m.key==='qLoss'?'Kayıp Q':m.label)} sırala" aria-pressed="${this.sort===m.key}">${h(m.label)}${this.sort===m.key?(this.descending?' ▼':' ▲'):''}</button>`).join(' / ')}${c.label||''}${c.metrics.some(m=>m.unit)?`<small>${c.metrics.filter(m=>m.unit).map(m=>h(m.unit)).join(' · ')}</small>`:''}</th>`).join('');
+    const summary=deltaSummary(this.tab==='delta'?(['line','trafo','bus'] as const).flatMap(kind=>kind===this.kind?rows:this.rows(kind)):[]);
+    const summaryHtml=this.tab==='delta'?`<div class="ga-delta-summary" aria-label="Filtreli şebeke fark özeti"><span>Yeni aşırı yük: ${f(summary.newOverloads,0)}</span><span>Giderilen: ${f(summary.resolvedOverloads,0)}</span><span>Max |ΔP| ${f(summary.maxP)} MW</span><span>|ΔQ| ${f(summary.maxQ)} MVAr</span><span>|ΔV| ${f(summary.maxV,5)} pu</span><span>|ΔYük| ${f(summary.maxLoading,1)} %</span></div>`:'';
+    const delta=(value:number|null|undefined,digits=2)=>{const shown=displayDelta(value,digits);return `<span style="color:${shown==null?'inherit':shown===0?this.ctx.settings.value.deltaNeutral:shown>0?this.ctx.settings.value.deltaUp:this.ctx.settings.value.deltaDown}">${signedValue(value,digits)}</span>`;};
+    this.element.innerHTML=`${summaryHtml}<div class="ga-result-scroll"><table class="ga-result-table"><colgroup>${columns.map(c=>`<col style="width:${c.width}%">`).join('')}</colgroup><thead><tr>${header}</tr></thead><tbody>${selected.map(r=>{
+      const sites=r.siteIds.map(id=>n.sites.find(s=>s.id===id)?.name).filter(Boolean).join(' ↔ '),d=branchDelta(r.baseBranch,r.branch);
+      let cells='';if(this.tab==='energize')cells=`<td>${h(r.state)}</td><td><button data-toggle="${h(r.id)}">${r.on?'Servis dışı':'Servise al'}</button></td>`;
+      else if(this.tab==='delta')cells=isBus?`<td>${f(r.baseBus?.vmPu,5)}<small>${f(r.baseBus?r.baseBus.angleRad*180/Math.PI:null)}°</small></td><td>${f(r.bus?.vmPu,5)}<small>${f(r.bus?r.bus.angleRad*180/Math.PI:null)}°</small></td><td>${delta(difference(r.baseBus?.vmPu,r.bus?.vmPu),5)}<small>${delta(r.baseBus&&r.bus?difference(r.baseBus.angleRad,r.bus.angleRad)!*180/Math.PI:null)}°</small></td>`:`<td>${f(r.baseBranch?.pf)} / ${f(r.baseBranch?.qf)}<small>Yük ${f(r.baseBranch?.loading,1)} %</small></td><td>${f(r.branch?.pf)} / ${f(r.branch?.qf)}<small>Yük ${f(r.branch?.loading,1)} %</small></td><td>${delta(d.pMw)} / ${delta(d.qMvar)}<small>ΔYük ${delta(d.loading,1)} %</small></td><td>${delta(d.pLoss)}<small>${delta(d.qLoss)}</small></td>`;
+      else cells=isBus?`<td>${f(r.bus?.vmPu,5)}</td><td>${f(busVoltageKv(r.bus),2)}</td><td>${f(r.bus?r.bus.angleRad*180/Math.PI:null)}</td><td>${f(r.bus?.pMw)}<small>${f(r.bus?.qMvar)}</small></td><td><span class="ga-badge">${h(r.state)}</span></td>`:`<td>${f(r.branch?.pf)}<small>${f(r.branch?.qf)}</small></td><td>${f(r.branch?.pt)}<small>${f(r.branch?.qt)}</small></td><td>${f(r.branch?.pLoss)}<small>${f(r.branch?.qLoss)}</small></td><td>${f(r.branch?.loading,1)}</td><td><span class="ga-badge">${h(r.state)}</span></td>`;
+      const plan=this.expanded===r.id&&r.cls==='ElmLne'?planEnergization(effectiveNetwork(n,this.ctx.scenario.current),r.id):null;
+      const detail=this.expanded!==r.id?'':`<tr class="ga-detail-row"><td colspan="${columns.length}"><div class="ga-row-actions"><button data-map="${h(r.id)}">Harita</button><button data-sld="${h(r.id)}">Tek hat</button><button data-toggle="${h(r.id)}">${r.on?'Servis dışı':'Servise al'}</button><button data-calc="${h(r.id)}">Değiştir + hesapla</button><button data-source="${h(r.id)}">Kaynağa dön</button></div><div class="ga-row-summary">${r.branch?`<span>Akım A / B: ${f(r.branch.ifA)} / ${f(r.branch.itA)} A</span>`:''}${this.tab==='delta'&&!isBus?`<span>ΔKayıp: ${delta(d.pLoss)} MW / ${delta(d.qLoss)} MVAr</span>`:''}${plan?`<span>${plan.ready?'Bağlantı yolu hazır':h(plan.blockers.join(' '))} · ${plan.restoredTerminals.length} terminal · ${plan.closeSwitches.length} anahtar</span>`:''}</div></td></tr>`;
+      return `<tr data-row="${h(r.id)}" tabindex="0" aria-expanded="${this.expanded===r.id}" class="${this.expanded===r.id?'ga-selected':''}"><td class="ga-equipment"><strong title="${h(r.name)} · ${h(r.id)}">${h(r.name)}</strong><small title="${h(sites)}">${h(sites)}</small></td><td>${f(r.vnKv)}</td>${cells}</tr>${detail}`;
+    }).join('')||`<tr><td colspan="${columns.length}" class="ga-empty">Bu filtrelerde kayıt yok.</td></tr>`}</tbody></table></div><div class="ga-pager"><button data-page="-1" ${this.page===0?'disabled':''}>Önceki</button><span>${rows.length.toLocaleString('tr-TR')} kayıt · ${this.page+1}/${pages}</span><button data-page="1" ${this.page===pages-1?'disabled':''}>Sonraki</button></div>`;
+    const scroll=this.element.querySelector<HTMLElement>('.ga-result-scroll')!;scroll.scrollTop=scrollTop;scroll.scrollLeft=scrollLeft;
+    this.element.querySelectorAll<HTMLButtonElement>('[data-sort]').forEach(b=>b.onclick=()=>{if(this.sort===b.dataset.sort)this.descending=!this.descending;else{this.sort=b.dataset.sort!;this.descending=true;}this.page=0;this.render(true);});
+    this.element.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{this.page+=Number(b.dataset.page);this.render(true);});
+    this.element.querySelectorAll<HTMLTableRowElement>('[data-row]').forEach(tr=>{const act=()=>{this.expanded=this.expanded===tr.dataset.row?'':tr.dataset.row!;this.render();const replacement=[...this.element.querySelectorAll<HTMLTableRowElement>('[data-row]')].find(r=>r.dataset.row===tr.dataset.row);replacement?.focus({preventScroll:true});};tr.onclick=e=>{if(!(e.target as HTMLElement).closest('button'))act();};tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act();}};});
+    this.element.querySelectorAll<HTMLButtonElement>('[data-map],[data-sld],[data-toggle],[data-calc],[data-source]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const id=b.dataset.map||b.dataset.sld||b.dataset.toggle||b.dataset.calc||b.dataset.source,r=selected.find(r=>r.id===id);if(!r)return;if(b.dataset.map||b.dataset.sld){this.ctx.select(r.cls==='ElmTerm'?(r.terms[0]||r.id):r.id,r.cls,b.dataset.sld?'sld':'map');return;}const key=r.cls==='ElmLne'?'lineStatus':r.cls==='ElmTr2'?'transformerStatus':'busOrTerminalStatus',desired=b.dataset.source!==undefined?r.source:!r.on;
+      if(r.cls==='ElmTerm')await this.ctx.setBusStatus(r.terms,b.dataset.source!==undefined?'source':desired,b.dataset.calc!==undefined);
+      else await this.ctx.setStatus(key,r.id,desired,r.source,b.dataset.calc!==undefined);this.render();});
+  }
+}

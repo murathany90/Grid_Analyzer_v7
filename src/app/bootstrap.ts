@@ -1,0 +1,11 @@
+import {Application} from './controller';
+import {mountShell} from './app-shell';
+import '../styles/tokens.css';
+import '../styles/layout.css';
+import '../styles/catalog.css';
+import '../styles/components.css';
+import '../styles/map.css';
+import '../styles/analysis.css';
+import '../styles/responsive.css';
+const app=new Application();
+mountShell(app,document.getElementById('app')!);

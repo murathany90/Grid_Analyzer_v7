@@ -1,0 +1,86 @@
+{
+  "created": "2026-09-27T15:48:35.130Z",
+  "environment": "Codex in-app Chromium; static HTTP portable page at 127.0.0.1:4173",
+  "fileProtocol": {
+    "status": "NOT_VERIFIED",
+    "reason": "Browser tool policy permits only http/https; direct file:// navigation blocked. No alternate browser workaround attempted."
+  },
+  "largeModel": {
+    "file": "20260923_1200_SN3_TR0.json",
+    "loadStatus": "20260923_1200_SN3_TR0.json · 576.001 kayıt · 3.08 s",
+    "browserHeap": "NOT_AVAILABLE",
+    "duringSolveStatus": "Hesap hazırlanıyor",
+    "fullAcStatus": "Tam AC · Baz · Yakınsadı · 13 adım · 9.27 s",
+    "cancelStatus": "Hesap iptal edildi.",
+    "blankClickDisabledSelection": "ADANA\nElmSite · M42\nTek hat\nTemizle",
+    "blankClickEnabledSelection": "TM veya hat seçin · Tekerlek: yakınlaştır · Sürükle: kaydır",
+    "filterClearedSelection": "TM veya hat seçin · Tekerlek: yakınlaştır · Sürükle: kaydır",
+    "consoleErrors": [],
+    "mobile": {
+      "documentWidth": 375,
+      "panelWidth": 343.6000061035156,
+      "tableOverflow": false,
+      "width": 390
+    },
+    "topology": {
+      "rawTerminals": 86479,
+      "inServiceTerminals": 50110,
+      "electricalBuses": 4116,
+      "solveBuses": 4115,
+      "branches": 5192,
+      "closedSwitches": 46023,
+      "stationControllers": 356,
+      "preparationMs": 251.80000000447035,
+      "pvToPqCount": 165
+    }
+  },
+  "smallModel": {
+    "file": "tests/fixtures/small-dgs.json",
+    "records": 85,
+    "baseAc": "CONVERGED_FULL_NR / 3 iterations",
+    "lineScenarioAc": "CONVERGED_FULL_NR / 3 iterations",
+    "delta": "Observed changed P/Q/loading values, unavailable removed branch values shown as dash",
+    "energization": "L154-OFF enabled through restored terminal / SW_RESTORE; scenario AC converged; reset returns base",
+    "filters": "400 kV off: 15 to 9 line rows; 400 kV station disappears from selector",
+    "panel": {
+      "domRows": 14,
+      "fullyVisibleRows": 10,
+      "height": 720,
+      "width": 1280,
+      "xOverflow": false
+    },
+    "capacity": {
+      "analysisSummer": "21.56%",
+      "mapSummer": "21.6%",
+      "mapWinter": "10.8%",
+      "manualMva": {
+        "summer": 20,
+        "winter": 40
+      }
+    },
+    "sld": "Station SVG 500x497 intrinsic size; bay shows 2 terminals/1 switch; back button works; regional has 2 sites/1 transformer",
+    "svgExport": "Button invoked; download bytes not independently inspected",
+    "persistence": "Non-default loading/separated map settings survived reload; saved scenario reload message observed",
+    "finalConsoleErrors": []
+  },
+  "scope": "Interactive browser checks are recorded observations, not a headless automated CI browser suite.",
+  "largeSld": {
+    "station": "KEBAN HES",
+    "bayTotal": 28,
+    "page1Count": 20,
+    "page2Count": 8,
+    "drilldown": "GTR-5 SEKONDER FIDERI",
+    "realTerminals": 4,
+    "sourceSwitches": 3,
+    "unresolvedEndpoints": 0
+  },
+  "finalPortableRun": {
+    "loadSeconds": 3.23,
+    "fullAcSeconds": 8.99,
+    "fullAcIterations": 13,
+    "converged": true,
+    "bytes": 224146,
+    "transport": "Static HTTP; final built HTML",
+    "consoleErrors": []
+  }
+}

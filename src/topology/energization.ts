@@ -1,0 +1,34 @@
+import type { CanonicalNetwork, Switch } from '../domain/model/network';
+import type { ScenarioOverlay, EnergizationOperation } from '../domain/scenario/overlay';
+export interface EnergizationPlan { lineId: string; ready: boolean; restoredTerminals: string[]; closeSwitches: string[]; blockers: string[]; paths: string[][] }
+export function planEnergization(network: CanonicalNetwork, lineId: string): EnergizationPlan {
+  const line=network.lines.find(l=>l.id===lineId), byId=new Map(network.buses.map(b=>[b.id,b]));
+  const plan:EnergizationPlan={lineId,ready:false,restoredTerminals:[],closeSwitches:[],blockers:[],paths:[]};
+  if(!line){plan.blockers.push('Hat bulunamadı.');return plan;}
+  const adjacency=new Map<string,{to:string;sw:Switch}[]>();
+  for(const sw of network.switches.filter(s=>s.sourceClass==='ElmCoup'))for(const [from,to]of[[sw.from,sw.to],[sw.to,sw.from]]){if(!adjacency.has(from))adjacency.set(from,[]);adjacency.get(from)!.push({to,sw});}
+  for(const start of[line.from,line.to]){
+    const queue=[{id:start,terms:[start],switches:[] as Switch[]}],seen=new Set([start]);let found:typeof queue[number]|undefined;
+    for(let qi=0;qi<queue.length;qi++){
+      const current=queue[qi];if(byId.get(current.id)?.inService){found=current;break;}
+      if(current.switches.length>=14)continue;
+      for(const edge of adjacency.get(current.id)||[]){if(seen.has(edge.to)||!edge.sw.inService)continue;seen.add(edge.to);queue.push({id:edge.to,terms:[...current.terms,edge.to],switches:[...current.switches,edge.sw]});}
+    }
+    if(!found){plan.blockers.push(`${byId.get(start)?.name||'Terminal'}: servis içi bara yolu bulunamadı.`);continue;}
+    plan.paths.push(found.terms);plan.restoredTerminals.push(...found.terms.filter(t=>!byId.get(t)?.inService));plan.closeSwitches.push(...found.switches.filter(s=>!s.closed).map(s=>s.id));
+  }
+  for(const sw of network.switches.filter(s=>s.sourceClass==='StaSwitch'&&s.equipmentId===line.id)){
+    if(!sw.inService)plan.blockers.push(`${sw.name}: anahtar servis dışı.`);else if(!sw.closed)plan.closeSwitches.push(sw.id);
+  }
+  plan.restoredTerminals=[...new Set(plan.restoredTerminals)];plan.closeSwitches=[...new Set(plan.closeSwitches)];plan.ready=plan.paths.length===2&&!plan.blockers.length;return plan;
+}
+export function applyEnergization(s:ScenarioOverlay,p:EnergizationPlan):ScenarioOverlay{
+  if(!p.ready)throw Error('Sanal devreye alma yolu tamamlanmadı.');
+  if(s.energizations?.[p.lineId])return s;
+  const introduced=p.restoredTerminals.filter(id=>!s.restoredTerminals.includes(id));
+  const operation:EnergizationOperation={type:'energization',lineId:p.lineId,previousLineStatus:s.lineStatus[p.lineId],terminals:[...new Set([...p.paths.flat(),...p.restoredTerminals])],switches:[...p.closeSwitches],introducedTerminals:introduced,previousSwitches:Object.fromEntries(p.closeSwitches.map(id=>[id,s.switchState[id]??null])),previousTerminalStatus:Object.fromEntries(p.restoredTerminals.map(id=>[id,s.busOrTerminalStatus[id]??null]))};
+  // A later line may reuse a terminal restored by an earlier activation. Retain its prerequisites.
+  for(const prior of Object.values(s.energizations||{}))if(prior.introducedTerminals.some(id=>operation.terminals.includes(id))){operation.terminals=[...new Set([...operation.terminals,...prior.introducedTerminals])];operation.switches=[...new Set([...operation.switches,...prior.switches])];}
+  const busOrTerminalStatus={...s.busOrTerminalStatus};for(const id of p.restoredTerminals)delete busOrTerminalStatus[id];
+  return{...s,energizations:{...s.energizations,[p.lineId]:operation},lineStatus:{...s.lineStatus,[p.lineId]:true},busOrTerminalStatus,switchState:{...s.switchState,...Object.fromEntries(p.closeSwitches.map(id=>[id,true]))},restoredTerminals:[...new Set([...s.restoredTerminals,...p.restoredTerminals])]};
+}
