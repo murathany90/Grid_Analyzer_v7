@@ -8,12 +8,13 @@ import {lineStyle} from './result-style';
 import {BasemapRenderer} from './basemap';
 import {projectWgs84} from './projection';
 import {aggregateStationVoltages,stationVoltageDeltas,flowScale,voltageColor,type StationVoltage} from './electrical-overlays';
-import {format as f} from '../ui/components/dom';
+import {mapDetailText} from './detail-text';
+import {deltaColor} from './delta-style';
 export interface MapRenderer {render():void;focus(id:string,sourceClass:string):void;reset():void;dispose():void}
 export class CanvasMapRenderer implements MapRenderer {
   private basemap=new BasemapRenderer();private voltages=new Map<string,StationVoltage>();private voltageDeltas=new Map<string,number>();
   private geometry:NetworkGeometry|null=null;private zoom=1;private panX=0;private panY=0;private width=1;private height=1;private scale=1;
-  private flowRows=new Map<string,BranchResult>();private lengths=new Map<string,{segments:number[];total:number}>();
+  private baseRows=new Map<string,BranchResult>();private flowRows=new Map<string,BranchResult>();private lengths=new Map<string,{segments:number[];total:number}>();
   private paths=new Map<string,[number,number][]>();private screenKey='';private visibleLines:Line[]=[];private visibleSites:Site[]=[];
   private resize:ResizeObserver;private raf=0;private pointer:{x:number;y:number;px:number;py:number;dragged:boolean}|null=null;
   showSites=true;showLabels=false;simple=false;
@@ -43,22 +44,16 @@ export class CanvasMapRenderer implements MapRenderer {
     this.visibleLines=n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&(!area||l.siteIds.some(id=>sites.get(id)?.areaId===area)));
     this.visibleSites=this.showSites?n.sites.filter(s=>s.lat!=null&&s.lon!=null&&(!area||s.areaId===area)&&s.voltages.some(v=>voltageMatches(v,volts))):[];
     const result=settings.displayMode==='delta'?this.ctx.resultStore.get('scenario'):this.ctx.resultStore.active,results=new Map([...displayBranches(n,result).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b])),base=new Map([...displayBranches(n,this.ctx.resultStore.get('base')).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));
-    this.flowRows=results;this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.voltageDeltas=this.ctx.resultStore.comparable()?stationVoltageDeltas(this.ctx.resultStore.get('base')?.buses||[],this.ctx.resultStore.get('scenario')?.buses||[],volts):new Map();
+    this.tooltip.hidden=true;this.baseRows=this.ctx.resultStore.comparable()?base:new Map();this.flowRows=results;this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.voltageDeltas=this.ctx.resultStore.comparable()?stationVoltageDeltas(this.ctx.resultStore.get('base')?.buses||[],this.ctx.resultStore.get('scenario')?.buses||[],volts):new Map();
     const magnitudeScale=flowScale(this.visibleLines.filter(l=>this.paths.get(l.id)?.some(([x,y])=>x>=0&&x<=this.width&&y>=0&&y<=this.height)).map(l=>results.get(l.id)),settings.displayMode==='q'?'q':'p');
     for(const line of this.visibleLines){const inService=settings.displayMode!=='delta'&&this.ctx.resultStore.role==='base'?line.inService:this.ctx.scenario.current.lineStatus[line.id]??line.inService,style=lineStyle(line,inService,settings.displayMode==='delta'?'scenario':this.ctx.resultStore.role,settings,results.get(line.id),(settings.displayMode!=='delta'||this.ctx.resultStore.comparable())?base.get(line.id):undefined,magnitudeScale),path=this.paths.get(line.id);if(!path?.length)continue;g.beginPath();path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.strokeStyle=style.color;g.lineWidth=style.width;g.setLineDash(style.dash);g.globalAlpha=style.alpha;g.stroke();if(this.ctx.selection?.id===line.id){selection.beginPath();path.forEach(([x,y],i)=>i?selection.lineTo(x,y):selection.moveTo(x,y));selection.strokeStyle='#fff2b0';selection.lineWidth=style.width+2;selection.setLineDash(style.dash);selection.stroke();}}
-    g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id;const delta=this.voltageDeltas.get(s.id);g.fillStyle=settings.displayMode==='v'?voltageColor(this.voltages.get(s.id)?.worst.vmPu,settings.voltageMin,settings.voltageMax):settings.displayMode==='delta'&&settings.deltaMetric==='v'?(delta==null?'#708596':Math.abs(delta)<1e-9?settings.deltaNeutral:delta>0?settings.deltaUp:settings.deltaDown):'#b8e1e3';g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.fillText(s.name,x+5,y-5);}}
+    g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id;const delta=this.voltageDeltas.get(s.id);g.fillStyle=settings.displayMode==='v'?voltageColor(this.voltages.get(s.id)?.worst.vmPu,settings.voltageMin,settings.voltageMax):settings.displayMode==='delta'&&settings.deltaMetric==='v'?deltaColor(delta,settings):'#b8e1e3';g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.fillText(s.name,x+5,y-5);}}
     cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.clearRect(0,0,this.overlay.width,this.overlay.height);if(settings.flowDefault&&!['q','v','delta'].includes(settings.displayMode)&&result?.branches.length)this.animate();
   }
   detailText(entity:Site|Line):string {
-    const settings=this.ctx.settings.value;
-    if(entity.sourceClass==='ElmSite'){
-      const voltage=this.voltages.get(entity.id);if(settings.displayMode==='delta'&&settings.deltaMetric==='v')return `${entity.name}\nΔV ${f(this.voltageDeltas.get(entity.id),5)} pu`;
-      if(settings.displayMode!=='v')return `${entity.name} · TM`;
-      if(!voltage)return `${entity.name}\n— / Sonuç yok`;
-      const bus=voltage.worst;return `${entity.name}\n${voltage.groups.map(g=>`${f(g.kv)} kV: Min ${f(g.min,4)} pu · Max ${f(g.max,4)} pu`).join('\n')}\n${voltage.count===1?'Bara':'En kritik bara'}: ${bus.name}\n${f(bus.vmPu*bus.vnKv,2)} kV · ${f(bus.vmPu,4)} pu · Açı ${f(bus.angleRad*180/Math.PI)}°`;
-    }
-    const line=entity as Line,row=this.flowRows.get(line.id),names=line.siteIds.map(id=>this.ctx.network?.sites.find(s=>s.id===id)?.name||'—');
-    const metric=settings.displayMode==='q'?'Q':'P',unit=metric==='Q'?'MVAr':'MW';return `${line.name} · ${f(line.vnKv)} kV\n${names.join(' → ')}\nA ${metric} ${f(metric==='Q'?row?.qf:row?.pf)} ${unit}\nB ${metric} ${f(metric==='Q'?row?.qt:row?.pt)} ${unit}${!row?'\nSonuç yok':''}`;
+    const settings=this.ctx.settings.value,line=entity as Line,sites=entity.sourceClass==='ElmLne'?line.siteIds.map(id=>({id,name:this.ctx.network?.sites.find(s=>s.id===id)?.name||'—'})):[];
+    const inService=settings.displayMode!=='delta'&&this.ctx.resultStore.role==='base'?entity.inService:this.ctx.scenario.current.lineStatus[entity.id]??entity.inService;
+    return mapDetailText(entity,{settings,inService,names:sites.map(s=>s.name),row:this.flowRows.get(entity.id),base:this.baseRows.get(entity.id),voltage:this.voltages.get(entity.id),voltageDelta:this.voltageDeltas.get(entity.id),endpointVoltages:sites.map(s=>({name:s.name,voltage:this.voltages.get(s.id),delta:this.voltageDeltas.get(s.id)}))});
   }
   private animate=()=>{
     if(this.ctx.view!=='map'||document.hidden||!this.ctx.settings.value.flowDefault){this.raf=0;return;}const result=this.ctx.resultStore.active;if(!result){this.raf=0;return;}const dpr=devicePixelRatio||1,g=this.overlay.getContext('2d')!,rows=this.flowRows;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);const cells=new Map<string,number>(),settings=this.ctx.settings.value;

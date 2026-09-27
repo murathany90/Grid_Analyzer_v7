@@ -42,7 +42,7 @@ export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SV
   const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
 }
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  if(!d.graph)return;const layout=layoutStation(d.graph,d.voltageBands,d.page),graph=d.graph;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
+  if(!d.graph)return;const layout=layoutStation(d.graph,d.voltageBands),graph=d.graph;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
   text(root,24,30,d.station.name,21);text(root,24,52,`TM genel · ${graph.busSections.length} bara bölümü · ${graph.sourceFeederCount} kaynak fider · kaynak anahtar bağlantıları`,12,muted);
   const positions=new Map(layout.sections.map(p=>[p.section.id,p]));
   for(const level of layout.levels)text(root,24,level.y,`${level.kv||'—'} kV`,17,'#f1cf8a');
@@ -129,7 +129,7 @@ export class SvgSldRenderer {
   fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {
-    const key=[d.station.id,d.scope,d.selectedBay?.id,d.orientation,d.page,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
+    const key=[d.station.id,d.scope,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
     const root=svg('svg',{xmlns:NS,viewBox:'0 0 1240 600',width:'100%',height:540,role:'img','aria-label':`${d.station.name} ${d.scope==='bay'?d.selectedBay?.name||'fider':d.scope==='regional'?'bölgesel':'TM genel'} tek hat şeması`,class:'ga-sld-svg',preserveAspectRatio:'xMidYMid meet'});
     root.style.background='#102033';root.style.touchAction='none';root.style.display='block';root.style.width='100%';root.style.height='clamp(360px,60vh,740px)';
     host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);this.fitBox=this.box();if(previous)root.setAttribute('viewBox',previous.join(' '));

@@ -37,17 +37,6 @@
 .ga-state-partial { color: var(--accent2, #e4ad55); }
 .ga-state-blocked { color: var(--danger, #ef7b7b); }
 .ga-sld-diagram { display: grid; gap: 10px; }
-.ga-sld-canvas { display: grid; gap: 10px; }
-.ga-sld-banner, .ga-sld-station { padding: 10px 12px; border-radius: 7px; background: #153047; }
-.ga-sld-buses { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 9px; }
-.ga-sld-bus { display: grid; align-content: start; gap: 7px; padding: 9px; border: 1px solid var(--edge, #294059); border-left: 3px solid #599fd1; border-radius: 8px; background: var(--panel, #121f31); }
-.ga-sld-equipment, .ga-sld-bays { display: flex; flex-wrap: wrap; gap: 6px; }
-.ga-sld-node { max-width: 100%; border: 1px solid var(--edge, #294059); border-radius: 6px; background: var(--panel2, #17273a); color: var(--text, #e9f2fa); padding: 6px 8px; text-align: left; overflow-wrap: anywhere; }
-.ga-sld-node-bus { border-color: #599fd1; }
-.ga-sld-node-line { border-color: #e85f5a; }
-.ga-sld-node-transformer { border-color: #e4ad55; }
-.ga-sld-node-device, .ga-sld-node-bay { border-color: #45bfcc; }
-.ga-sld-edges { margin: 0; padding-left: 20px; color: var(--muted, #93a8bf); }
 @media (max-width: 700px) { .ga-toolbar { align-items: stretch; } .ga-toolbar > * { flex: 1 1 100%; } }
 
 .ga-feature,.ga-shell,.ga-analysis-view{min-width:0;max-width:100%}.ga-voltage-layers{flex-wrap:wrap;padding:3px 0}.ga-semantic-table{table-layout:fixed;white-space:normal;font-size:12px}.ga-semantic-table th,.ga-semantic-table td{overflow-wrap:anywhere;padding:7px}.ga-semantic-table th:first-child{width:23%}.ga-semantic-name strong,.ga-semantic-name small{display:block}.ga-semantic-name small{font-size:10px;margin-top:3px}.ga-source-refs{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}.ga-breadcrumb{font-size:12px;margin:8px 0!important}.ga-sld-diagram{width:100%;min-width:0;overflow:hidden;border:1px solid var(--edge);border-radius:8px}.ga-sld-view .ga-toolbar select{max-width:310px}.ga-sld-view .ga-toolbar input[type=search]{max-width:220px}.ga-sld-view .ga-pager{gap:7px}.ga-sld-view .ga-detail{max-height:260px}.ga-sld-svg{cursor:grab}.ga-sld-svg:active{cursor:grabbing}.ga-delta-summary,.ga-delta-loss{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10px;padding:5px 8px;background:var(--panel2)}.ga-delta-loss{white-space:normal}.ga-result-table th{white-space:normal}.ga-result-table .ga-detail-row td{white-space:normal}.ga-result-table .ga-row-actions{flex-wrap:wrap}
