@@ -1,0 +1,667 @@
+{
+  "source": {
+    "html": "YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html",
+    "sha256": "9b68dff81789c3c68ca50705f340f2edff2ae3f24a736100734fd590824eb6e9",
+    "originalWorkerLines": [
+      2651,
+      2863
+    ],
+    "originalBuilderLines": [
+      2866,
+      2930
+    ]
+  },
+  "input": {
+    "name": "20260923_1200_SN3_TR0.json",
+    "sizeBytes": 143026320,
+    "sha256": "1bb8858c57e599bd6be159b91690efb96c8469e6714d535f6eba1b183c2ada7b"
+  },
+  "counts": {
+    "original": {
+      "buses": 4115,
+      "branches": 5192,
+      "electricalBuses": 4116,
+      "solveBuses": 4115
+    },
+    "prepared": {
+      "buses": 4115,
+      "branches": 5192,
+      "electricalBuses": 4116,
+      "solveBuses": 4115
+    },
+    "alignedBuses": 4115,
+    "originalBusGroupsMissingInPrepared": 0,
+    "preparedBusGroupsMissingInOriginal": 0
+  },
+  "modelParity": {
+    "busFields": {
+      "pSpec": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      },
+      "qSpec": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      },
+      "busType": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      },
+      "vmSet": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      },
+      "shuntG": {
+        "compared": 4115,
+        "differing": 184,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 4.336808689942018e-19,
+        "examples": [
+          {
+            "busTerms": "B103782\u001fB103785\u001fB103786\u001fB103787\u001fB103788\u001fB103789\u001fB103790\u001fB103793\u001fB103794\u001fB103795",
+            "original": 0.0002728,
+            "prepared": 0.00027279999999999996,
+            "absDiff": 5.421010862427522e-20
+          },
+          {
+            "busTerms": "B105315\u001fB105318\u001fB105319\u001fB105320\u001fB105321\u001fB105322\u001fB105323\u001fB105324\u001fB105325\u001fB105326",
+            "original": 0.00027,
+            "prepared": 0.00027000000000000006,
+            "absDiff": 5.421010862427522e-20
+          },
+          {
+            "busTerms": "B106359\u001fB106360\u001fB106363\u001fB106364\u001fB106365\u001fB106366\u001fB106367\u001fB106368\u001fB106369\u001fB106370\u001fB106371\u001fB106372\u001fB106373\u001fB106374\u001fB106381\u001fB106382",
+            "original": 0.0006531,
+            "prepared": 0.0006531000000000001,
+            "absDiff": 1.0842021724855044e-19
+          },
+          {
+            "busTerms": "B108512\u001fB108516\u001fB108517\u001fB108518\u001fB108519\u001fB108520\u001fB108521\u001fB108524\u001fB108525\u001fB108526\u001fB108530\u001fB108531\u001fB108532",
+            "original": 0.0006542,
+            "prepared": 0.0006542000000000001,
+            "absDiff": 1.0842021724855044e-19
+          }
+        ]
+      },
+      "shuntB": {
+        "compared": 4115,
+        "differing": 234,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 3.469446951953614e-18,
+        "examples": [
+          {
+            "busTerms": "B103782\u001fB103785\u001fB103786\u001fB103787\u001fB103788\u001fB103789\u001fB103790\u001fB103793\u001fB103794\u001fB103795",
+            "original": -0.0002663301006270226,
+            "prepared": -0.00026633010062702256,
+            "absDiff": 5.421010862427522e-20
+          },
+          {
+            "busTerms": "B104549\u001fB104551\u001fB104552\u001fB104553\u001fB104557\u001fB104558\u001fB104559",
+            "original": -0.0002374868417407583,
+            "prepared": -0.00023748684174075828,
+            "absDiff": 2.710505431213761e-20
+          },
+          {
+            "busTerms": "B104677\u001fB104680\u001fB104681\u001fB104682\u001fB104686\u001fB104687\u001fB104688",
+            "original": -0.0002374868417407583,
+            "prepared": -0.00023748684174075828,
+            "absDiff": 2.710505431213761e-20
+          },
+          {
+            "busTerms": "B105704\u001fB105708\u001fB105709\u001fB105710\u001fB105711\u001fB105712\u001fB105713\u001fB105784\u001fB105785\u001fB105786",
+            "original": -0.00026598526274964934,
+            "prepared": -0.0002659852627496493,
+            "absDiff": 5.421010862427522e-20
+          }
+        ]
+      },
+      "qMinNet": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      },
+      "qMaxNet": {
+        "compared": 4115,
+        "differing": 0,
+        "nullabilityDiffs": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      }
+    },
+    "branchIds": {
+      "sameSet": true,
+      "originalCount": 5192,
+      "preparedCount": 5192,
+      "originalOnly": [],
+      "preparedOnly": []
+    },
+    "branchParameters": {
+      "r": {
+        "compared": 5192,
+        "differing": 35,
+        "maxAbsDiff": 6.938893903907228e-18,
+        "examples": [
+          {
+            "id": "H3488",
+            "original": 0.00029885114124999997,
+            "prepared": 0.0002988511412499999,
+            "absDiff": 5.421010862427522e-20
+          },
+          {
+            "id": "H6511",
+            "original": 0.018688098170011807,
+            "prepared": 0.018688098170011803,
+            "absDiff": 3.469446951953614e-18
+          },
+          {
+            "id": "H6522",
+            "original": 0.0010974880249620509,
+            "prepared": 0.001097488024962051,
+            "absDiff": 2.168404344971009e-19
+          },
+          {
+            "id": "H5695",
+            "original": 0.0025796600875000004,
+            "prepared": 0.0025796600874999995,
+            "absDiff": 8.673617379884035e-19
+          }
+        ]
+      },
+      "x": {
+        "compared": 5192,
+        "differing": 48,
+        "maxAbsDiff": 2.7755575615628914e-17,
+        "examples": [
+          {
+            "id": "H4758",
+            "original": 0.08121287657699443,
+            "prepared": 0.08121287657699444,
+            "absDiff": 1.3877787807814457e-17
+          },
+          {
+            "id": "H5605",
+            "original": 0.09043992551020408,
+            "prepared": 0.09043992551020406,
+            "absDiff": 1.3877787807814457e-17
+          },
+          {
+            "id": "H5603",
+            "original": 0.059524282589812794,
+            "prepared": 0.05952428258981279,
+            "absDiff": 6.938893903907228e-18
+          },
+          {
+            "id": "H3436",
+            "original": 0.022828529426875,
+            "prepared": 0.022828529426874997,
+            "absDiff": 3.469446951953614e-18
+          }
+        ]
+      },
+      "bch": {
+        "compared": 5192,
+        "differing": 46,
+        "maxAbsDiff": 2.220446049250313e-16,
+        "examples": [
+          {
+            "id": "H3885",
+            "original": 0.013443814159104558,
+            "prepared": 0.01344381415910456,
+            "absDiff": 1.734723475976807e-18
+          },
+          {
+            "id": "H5605",
+            "original": 0.03334243171916888,
+            "prepared": 0.033342431719168876,
+            "absDiff": 6.938893903907228e-18
+          },
+          {
+            "id": "H5603",
+            "original": 0.023053617432384006,
+            "prepared": 0.023053617432384002,
+            "absDiff": 3.469446951953614e-18
+          },
+          {
+            "id": "H5608",
+            "original": 0.0267429880148508,
+            "prepared": 0.026742988014850796,
+            "absDiff": 3.469446951953614e-18
+          }
+        ]
+      },
+      "tap": {
+        "compared": 5192,
+        "differing": 123,
+        "maxAbsDiff": 2.220446049250313e-16,
+        "examples": [
+          {
+            "id": "T2340",
+            "original": 0.9805630026809652,
+            "prepared": 0.9805630026809651,
+            "absDiff": 1.1102230246251565e-16
+          },
+          {
+            "id": "T2345",
+            "original": 0.9805630026809652,
+            "prepared": 0.9805630026809651,
+            "absDiff": 1.1102230246251565e-16
+          },
+          {
+            "id": "T2351",
+            "original": 0.9619936875328773,
+            "prepared": 0.9619936875328774,
+            "absDiff": 1.1102230246251565e-16
+          },
+          {
+            "id": "T2398",
+            "original": 0.9805630026809652,
+            "prepared": 0.9805630026809651,
+            "absDiff": 1.1102230246251565e-16
+          }
+        ]
+      },
+      "phase": {
+        "compared": 5192,
+        "differing": 0,
+        "maxAbsDiff": 0,
+        "examples": []
+      }
+    },
+    "endpointMismatches": 0,
+    "endpointExamples": []
+  },
+  "solverParity": {
+    "originalSolverOnOriginalBuild": {
+      "status": "CONVERGED_FULL_NR",
+      "converged": true,
+      "iterations": 13,
+      "rounds": 4,
+      "maxMismatchMW": 9.606537787476555e-10,
+      "linear": {
+        "method": "ILU0-BiCGSTAB",
+        "iterations": 338,
+        "residual": 9.265599329930382e-9
+      }
+    },
+    "portedSolverOnSameOriginalBuild": {
+      "status": "CONVERGED_FULL_NR",
+      "converged": true,
+      "iterations": 13,
+      "rounds": 4,
+      "maxMismatchMW": 9.606537787476555e-10,
+      "linear": {
+        "method": "ILU0-BiCGSTAB",
+        "iterations": 338,
+        "residual": 9.265599329930382e-9
+      }
+    },
+    "portedSolverOnPreparedModel": {
+      "status": "CONVERGED_FULL_NR",
+      "converged": true,
+      "iterations": 13,
+      "rounds": 4,
+      "maxMismatchMW": 1.4551915228366852e-9,
+      "linear": {
+        "method": "ILU0-BiCGSTAB",
+        "iterations": 336,
+        "residual": 9.310923630512336e-9
+      }
+    },
+    "originalVsPortedSameModel": {
+      "original": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 13,
+        "rounds": 4,
+        "maxMismatchMW": 9.606537787476555e-10,
+        "linear": {
+          "method": "ILU0-BiCGSTAB",
+          "iterations": 338,
+          "residual": 9.265599329930382e-9
+        }
+      },
+      "ported": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 13,
+        "rounds": 4,
+        "maxMismatchMW": 9.606537787476555e-10,
+        "linear": {
+          "method": "ILU0-BiCGSTAB",
+          "iterations": 338,
+          "residual": 9.265599329930382e-9
+        }
+      },
+      "arrays": {
+        "Vm": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 0,
+          "index": -1
+        },
+        "Va": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 0,
+          "index": -1
+        },
+        "P": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 0,
+          "index": -1
+        },
+        "Q": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 0,
+          "index": -1
+        }
+      }
+    },
+    "originalVsPortedProgress": {
+      "original": [
+        {
+          "round": 1,
+          "iteration": 1,
+          "maxMismatchMW": 659.7248813851793
+        },
+        {
+          "round": 1,
+          "iteration": 2,
+          "maxMismatchMW": 996.3422050985226
+        },
+        {
+          "round": 1,
+          "iteration": 3,
+          "maxMismatchMW": 153.9050534618923
+        },
+        {
+          "round": 1,
+          "iteration": 4,
+          "maxMismatchMW": 9.578830280598538
+        },
+        {
+          "round": 1,
+          "iteration": 5,
+          "maxMismatchMW": 0.19391613810029185
+        },
+        {
+          "round": 1,
+          "iteration": 6,
+          "maxMismatchMW": 0.0003854353696652879
+        },
+        {
+          "round": 1,
+          "iteration": 7,
+          "maxMismatchMW": 2.1827872842550278e-9
+        },
+        {
+          "round": 2,
+          "iteration": 1,
+          "maxMismatchMW": 75.75196776302666
+        },
+        {
+          "round": 2,
+          "iteration": 2,
+          "maxMismatchMW": 3.3821357261879847
+        },
+        {
+          "round": 2,
+          "iteration": 3,
+          "maxMismatchMW": 0.013060288462035663
+        },
+        {
+          "round": 2,
+          "iteration": 4,
+          "maxMismatchMW": 0.0000010361777658118854
+        },
+        {
+          "round": 3,
+          "iteration": 1,
+          "maxMismatchMW": 9.062759780531543
+        },
+        {
+          "round": 3,
+          "iteration": 2,
+          "maxMismatchMW": 0.0648852845487935
+        },
+        {
+          "round": 3,
+          "iteration": 3,
+          "maxMismatchMW": 0.000007954600153917135
+        },
+        {
+          "round": 4,
+          "iteration": 1,
+          "maxMismatchMW": 0.3741610388112493
+        },
+        {
+          "round": 4,
+          "iteration": 2,
+          "maxMismatchMW": 0.0003264136913871951
+        },
+        {
+          "round": 4,
+          "iteration": 3,
+          "maxMismatchMW": 9.606537787476555e-10
+        }
+      ],
+      "portedSameModel": [
+        {
+          "round": 1,
+          "iteration": 1,
+          "maxMismatchMW": 659.7248813851793
+        },
+        {
+          "round": 1,
+          "iteration": 2,
+          "maxMismatchMW": 996.3422050985226
+        },
+        {
+          "round": 1,
+          "iteration": 3,
+          "maxMismatchMW": 153.9050534618923
+        },
+        {
+          "round": 1,
+          "iteration": 4,
+          "maxMismatchMW": 9.578830280598538
+        },
+        {
+          "round": 1,
+          "iteration": 5,
+          "maxMismatchMW": 0.19391613810029185
+        },
+        {
+          "round": 1,
+          "iteration": 6,
+          "maxMismatchMW": 0.0003854353696652879
+        },
+        {
+          "round": 1,
+          "iteration": 7,
+          "maxMismatchMW": 2.1827872842550278e-9
+        },
+        {
+          "round": 2,
+          "iteration": 1,
+          "maxMismatchMW": 75.75196776302666
+        },
+        {
+          "round": 2,
+          "iteration": 2,
+          "maxMismatchMW": 3.3821357261879847
+        },
+        {
+          "round": 2,
+          "iteration": 3,
+          "maxMismatchMW": 0.013060288462035663
+        },
+        {
+          "round": 2,
+          "iteration": 4,
+          "maxMismatchMW": 0.0000010361777658118854
+        },
+        {
+          "round": 3,
+          "iteration": 1,
+          "maxMismatchMW": 9.062759780531543
+        },
+        {
+          "round": 3,
+          "iteration": 2,
+          "maxMismatchMW": 0.0648852845487935
+        },
+        {
+          "round": 3,
+          "iteration": 3,
+          "maxMismatchMW": 0.000007954600153917135
+        },
+        {
+          "round": 4,
+          "iteration": 1,
+          "maxMismatchMW": 0.3741610388112493
+        },
+        {
+          "round": 4,
+          "iteration": 2,
+          "maxMismatchMW": 0.0003264136913871951
+        },
+        {
+          "round": 4,
+          "iteration": 3,
+          "maxMismatchMW": 9.606537787476555e-10
+        }
+      ]
+    },
+    "portedOriginalModelVsPrepared": {
+      "original": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 13,
+        "rounds": 4,
+        "maxMismatchMW": 9.606537787476555e-10,
+        "linear": {
+          "method": "ILU0-BiCGSTAB",
+          "iterations": 338,
+          "residual": 9.265599329930382e-9
+        }
+      },
+      "ported": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 13,
+        "rounds": 4,
+        "maxMismatchMW": 1.4551915228366852e-9,
+        "linear": {
+          "method": "ILU0-BiCGSTAB",
+          "iterations": 336,
+          "residual": 9.310923630512336e-9
+        }
+      },
+      "arrays": {
+        "Vm": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 1.7275070263167436e-13,
+          "index": 326
+        },
+        "Va": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 6.125655538369301e-14,
+          "index": 504
+        },
+        "P": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 2.7284841053187847e-10,
+          "index": 2874
+        },
+        "Q": {
+          "available": true,
+          "lengthA": 4115,
+          "lengthB": 4115,
+          "maxAbsDiff": 1.616484723854228e-9,
+          "index": 3210
+        }
+      }
+    },
+    "originalSelfTests": [
+      {
+        "name": "2-bus slack-load",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 0.9730913474638834
+      },
+      {
+        "name": "3-bus slack-PV-PQ",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 1.02
+      },
+      {
+        "name": "PV Q-limit to PQ",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 1
+      },
+      {
+        "name": "transformer off-nominal tap",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 0.9523809524061324
+      },
+      {
+        "name": "series capacitor negative X",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 0.005188930894018284
+      },
+      {
+        "name": "branch active loss invariant",
+        "pass": true,
+        "status": "CONVERGED_FULL_NR",
+        "value": 0.3062603508266122
+      },
+      {
+        "name": "island without slack",
+        "pass": true,
+        "status": "NO_SLACK",
+        "value": null
+      }
+    ]
+  },
+  "notes": [
+    "The original v6.8 model builder and solver were extracted to static .mjs modules from the inspected HTML; no eval or Function constructor is used.",
+    "Scenario maps are empty, matching the baseline no-override run. Bus comparison aligns by sorted member ElmTerm FIDs; branch comparison aligns by equipment FID."
+  ],
+  "diagnosis": {
+    "modelPreparation": "No semantic topology, dispatch, bus-type, PV/Q-limit, or setpoint drift was found. Parameter deltas are at floating-point ULP scale and consistent with conversion/accumulation order: original line builder sorts ElmLnesec by section index (line 2881) before adding R/X/B and converts at lines 2902-2903; canonical mapping accumulates section rows in table order before preparation converts to per-unit. Original transformer shunt scaling is g*(sn/base) and b*(sn/base) at line 2908, while canonical.ts uses (g*sn)/base and (b*sn)/base. Transformer tap conversion is algebraically equivalent but staged differently in canonical.ts versus original line 2907. These operation-order causes are source-grounded; exact per-branch cause was not separately attributed.",
+    "solverPort": "No arithmetic port drift on Node: original v6.8 solver and TypeScript solver on the same original model returned identical Vm/Va/P/Q arrays, iterations, rounds, mismatch, linear method, linear iterations, and residual.",
+    "browserBaseline": "The supplied v6.8 browser baseline reports LINEAR_SOLVER_FAILED near 0.0003264136912983773 MW in round 4. The extracted original v6.8 builder+solver and ported solver both converge on Node for the same 1200 model. This makes browser/runtime or browser-built-input rounding sensitivity the remaining explanation; the harness did not execute the exact same arrays in a browser, so those two causes are not distinguishable from this run alone.",
+    "thresholdPolicy": "No convergence threshold was loosened."
+  }
+}

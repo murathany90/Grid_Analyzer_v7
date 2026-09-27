@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source without large model files
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Architecture lint
+        run: npm run lint
+      - name: Unit and regression tests
+        run: npm test
+      - name: Build standard app
+        run: npm run build
+      - name: Build portable app
+        run: npm run build:portable
+      - name: Upload portable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ytbs-v7-portable
+          path: dist-portable/
+          if-no-files-found: error
+          retention-days: 14

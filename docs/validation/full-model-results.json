@@ -1,0 +1,263 @@
+{
+  "created": "2026-09-27T15:35:40.168Z",
+  "selfTests": [
+    {
+      "name": "2-bus slack-load",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 0.9730913474638834
+    },
+    {
+      "name": "3-bus slack-PV-PQ",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 1.02
+    },
+    {
+      "name": "PV Q-limit to PQ",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 1
+    },
+    {
+      "name": "transformer off-nominal tap",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 0.9523809524061324
+    },
+    {
+      "name": "series capacitor negative X",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 0.005188930894018284
+    },
+    {
+      "name": "branch active loss invariant",
+      "pass": true,
+      "status": "CONVERGED_FULL_NR",
+      "value": 0.3062603508266122
+    },
+    {
+      "name": "island without slack",
+      "pass": true,
+      "status": "NO_SLACK",
+      "value": null
+    }
+  ],
+  "models": [
+    {
+      "name": "20260923_1200_SN3_TR0.json",
+      "size": 143026320,
+      "records": 576001,
+      "counts": {
+        "sites": 1612,
+        "lines": 2382,
+        "transformers": 3682,
+        "generators": 2841,
+        "loads": 2523
+      },
+      "rawTerminals": 86479,
+      "inServiceTerminals": 50110,
+      "electricalBuses": 4116,
+      "solveBuses": 4115,
+      "unsuppliedBuses": 1,
+      "branches": 5192,
+      "lines": 2286,
+      "transformers": 2896,
+      "generators": 1999,
+      "loads": 1989,
+      "closedSwitches": 46023,
+      "stationControllers": 356,
+      "stationControllersTotal": 488,
+      "controlFidelity": "PARTIAL_MAPPING_ONLY",
+      "referenceValidation": "NOT_AVAILABLE",
+      "timing": {
+        "parseMs": 630.6478,
+        "importMs": 1126.8688,
+        "canonicalMs": 1966.0746000000004,
+        "preparationMs": 202.82610000000022,
+        "fullAcMs": 8736.1232,
+        "scenarioAcMs": 3731.596800000001,
+        "totalMs": 17726.346400000002
+      },
+      "fullAc": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 13,
+        "rounds": 4,
+        "maxMismatchMW": 1.4551915228366852e-9
+      },
+      "scenarioAc": {
+        "lineId": "H2525",
+        "status": "LINEAR_SOLVER_FAILED",
+        "iterations": 5,
+        "maxMismatchMw": 0.00038674955362694163
+      },
+      "fast": {
+        "status": "CONVERGED_REDUCED_AC",
+        "diagnostics": {
+          "scope": "REDUCED_GE66",
+          "highBuses": 1730,
+          "branches": 2642,
+          "islands": 1,
+          "noSourceIslands": 0,
+          "projectedInputs": 4441,
+          "excludedInputs": 5,
+          "seriesApplied": 10,
+          "seriesUnresolved": 0,
+          "internationalConnections": "Excluded as in v6.8 reduced engine",
+          "solvedIslands": 1,
+          "islandStatuses": [
+            {
+              "status": "CONVERGED_PQ_APPROX",
+              "nrReason": "Seyrek Jacobian doğrusal çözümü başarısız",
+              "nrFallback": true
+            }
+          ]
+        },
+        "runtimeMs": 832.6725000000006
+      },
+      "dc": {
+        "status": "CONVERGED_DC",
+        "diagnostics": {
+          "scope": "REDUCED_GE66",
+          "highBuses": 1730,
+          "branches": 2642,
+          "islands": 1,
+          "noSourceIslands": 0,
+          "projectedInputs": 4441,
+          "excludedInputs": 5,
+          "seriesApplied": 10,
+          "seriesUnresolved": 0,
+          "internationalConnections": "Excluded as in v6.8 reduced engine",
+          "solvedIslands": 1,
+          "islandStatuses": [
+            {
+              "status": "CONVERGED_DC",
+              "iterations": 730
+            }
+          ]
+        },
+        "runtimeMs": 310.4477000000006
+      },
+      "memory": {
+        "source": "Node process.heapUsed; not browser heap",
+        "heapBefore": 11732784,
+        "heapAfterParse": 142842624,
+        "heapAfterCanonical": 424440912,
+        "heapAfterSolve": 498194640
+      },
+      "warnings": [
+        "Kapalı anahtar farklı nominal gerilim: Fider Bara 1 Ayiricisi",
+        "Kapalı anahtar farklı nominal gerilim: Kuplaj 2436 Kesici",
+        "1 bara referans adası dışında; hesap sonucu yok."
+      ]
+    },
+    {
+      "name": "20260923_1600_SN3_TR0.json",
+      "size": 143047373,
+      "records": 576074,
+      "counts": {
+        "sites": 1612,
+        "lines": 2382,
+        "transformers": 3682,
+        "generators": 2845,
+        "loads": 2525
+      },
+      "rawTerminals": 86479,
+      "inServiceTerminals": 50228,
+      "electricalBuses": 4171,
+      "solveBuses": 4170,
+      "unsuppliedBuses": 1,
+      "branches": 5256,
+      "lines": 2297,
+      "transformers": 2949,
+      "generators": 1972,
+      "loads": 2045,
+      "closedSwitches": 46087,
+      "stationControllers": 398,
+      "stationControllersTotal": 489,
+      "controlFidelity": "PARTIAL_MAPPING_ONLY",
+      "referenceValidation": "NOT_AVAILABLE",
+      "timing": {
+        "parseMs": 878.6617000000006,
+        "importMs": 1352.2466000000022,
+        "canonicalMs": 1674.6263999999974,
+        "preparationMs": 210.34749999999985,
+        "fullAcMs": 7169.8338,
+        "scenarioAcMs": 5755.502300000004,
+        "totalMs": 19578.089
+      },
+      "fullAc": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 10,
+        "rounds": 3,
+        "maxMismatchMW": 1.4551915228366852e-9
+      },
+      "scenarioAc": {
+        "lineId": "H2525",
+        "status": "CONVERGED_FULL_NR",
+        "iterations": 10,
+        "maxMismatchMw": 2.1827872842550278e-9
+      },
+      "fast": {
+        "status": "CONVERGED_REDUCED_AC",
+        "diagnostics": {
+          "scope": "REDUCED_GE66",
+          "highBuses": 1730,
+          "branches": 2651,
+          "islands": 1,
+          "noSourceIslands": 0,
+          "projectedInputs": 4534,
+          "excludedInputs": 5,
+          "seriesApplied": 10,
+          "seriesUnresolved": 0,
+          "internationalConnections": "Excluded as in v6.8 reduced engine",
+          "solvedIslands": 1,
+          "islandStatuses": [
+            {
+              "status": "CONVERGED_NR_EXPERIMENTAL"
+            }
+          ]
+        },
+        "runtimeMs": 2040.8204999999944
+      },
+      "dc": {
+        "status": "CONVERGED_DC",
+        "diagnostics": {
+          "scope": "REDUCED_GE66",
+          "highBuses": 1730,
+          "branches": 2651,
+          "islands": 1,
+          "noSourceIslands": 0,
+          "projectedInputs": 4534,
+          "excludedInputs": 5,
+          "seriesApplied": 10,
+          "seriesUnresolved": 0,
+          "internationalConnections": "Excluded as in v6.8 reduced engine",
+          "solvedIslands": 1,
+          "islandStatuses": [
+            {
+              "status": "CONVERGED_DC",
+              "iterations": 684
+            }
+          ]
+        },
+        "runtimeMs": 217.72639999999956
+      },
+      "memory": {
+        "source": "Node process.heapUsed; not browser heap",
+        "heapBefore": 498226400,
+        "heapAfterParse": 459988128,
+        "heapAfterCanonical": 566885272,
+        "heapAfterSolve": 694572592
+      },
+      "warnings": [
+        "Kapalı anahtar farklı nominal gerilim: Fider Bara 1 Ayiricisi",
+        "Kapalı anahtar farklı nominal gerilim: Kuplaj 2436 Kesici",
+        "1 bara referans adası dışında; hesap sonucu yok."
+      ]
+    }
+  ]
+}
