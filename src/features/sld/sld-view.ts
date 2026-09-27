@@ -53,7 +53,7 @@ function equipmentRecord(entity: Entity, network: CanonicalNetwork, buses: Map<s
   const closed = switchEntity ? (scenario.switchState[switchEntity.id] ?? switchEntity.closed) : undefined;
   return { id: entity.id, name: entity.name || entity.id, sourceClass: entity.sourceClass, busIds, siteIds: [...siteIds], inService,sourceInService:entity.inService,sourceClosed:switchEntity?.closed,
     ...(closed === undefined ? {} : { closed }), fromSiteId: buses.get(busIds[0] || '')?.siteIds[0], toSiteId: buses.get(busIds[1] || '')?.siteIds[0],
-    voltageKv: line?.vnKv ?? transformer?.vnKv };
+    voltageKv: line?.vnKv ?? transformer?.vnKv,lvKv:transformer?.lvKv,ratingMva:transformer?.ratingMva };
 }
 
 function effectiveEquipment(item: SldEquipment, index: NetworkIndex, ctx: AppContext): SldEquipment {
@@ -150,7 +150,7 @@ export function createSldView(ctx: AppContext): Feature {
   const toolbar = element('div', 'ga-toolbar');
   const siteSelect = element('select'); siteSelect.setAttribute('aria-label', 'Trafo merkezi');
   const scopeSelect = element('select'); scopeSelect.setAttribute('aria-label', 'Şema kapsamı');
-  scopeSelect.append(new Option('TM genel', 'station'), new Option('Bölgesel bağlı TM–hat', 'regional'));
+  scopeSelect.append(new Option('TM Genel — Tam İstasyon', 'station'), new Option('Bölgesel bağlı TM–hat', 'regional'));
   const layoutSelect = element('select'); layoutSelect.setAttribute('aria-label', 'Fider şema yönü');
   layoutSelect.append(new Option('Yatay bara + dikey fider', 'vertical'), new Option('Yatay fider ayrıntısı', 'horizontal'));
   const voltageFilter=createVoltageFilter(ctx,'SLD gerilim grupları'),technical=element('input');technical.type='checkbox';const technicalLabel=element('label','ga-check','Teknik görünüm');technicalLabel.append(technical);
@@ -291,7 +291,7 @@ export function createSldView(ctx: AppContext): Feature {
     const effectiveGroups = groups.map(group => ({ ...group, buses: group.buses.map(bus => ({ ...bus,
       inService: ctx.scenario.current.busOrTerminalStatus[bus.id] ?? (ctx.scenario.current.restoredTerminals.includes(bus.id) || bus.inService) })) }));
     return { scope: bay, orientation: layoutSelect.value === 'vertical' ? 'vertical' : 'horizontal', station: site, selectedId: selected?.id || null, groups: effectiveGroups, equipment,
-      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?{...data.graph,feeders:filteredFeeders(data)}:null,voltageBands:ctx.filters.voltages,page:stationPage,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value };
+      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?{...data.graph,feeders:filteredFeeders(data)}:null,voltageBands:ctx.filters.voltages,page:bay==='station'?0:stationPage,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value };
   }
   function makeRenderKey(network: CanonicalNetwork | null, site: Site | null): string {
     return JSON.stringify([network?.modelHash || '', ctx.view, site?.id || '', scope, stationPage, selectedBayId,
@@ -361,7 +361,7 @@ export function createSldView(ctx: AppContext): Feature {
   lineOn.addEventListener('click', () => { const line = currentLine(), source = line ? findEntity(line.id, 'ElmLne')?.inService : undefined; if (line && typeof source === 'boolean') void updateStatus('lineStatus', line.id, true, source); });
   downloadButton.addEventListener('click', () => {
     const svg = diagramHost.querySelector('svg'); if (!svg) { ctx.setMessage('Önce SVG şeması oluşturulmalıdır.'); return; }
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = renderer.exportSvg();if(!xml)return;
     const site = currentSite(); downloadText(xml, `YTBS_SLD_${site?.id || 'TM'}.svg`, 'image/svg+xml;charset=utf-8');
   });
   const unsubscribe = () => {};

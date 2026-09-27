@@ -1,6 +1,6 @@
 import type { AppContext,CatalogQuery,CatalogPage } from './contracts';
 import type { CanonicalNetwork } from '../domain/model/network';
-import { ScenarioStore,emptyScenario,scenarioChanged,type StatusKey } from '../domain/scenario/overlay';
+import { ScenarioStore,calculationScenario,scenarioChanged,type StatusKey } from '../domain/scenario/overlay';
 import { ResultStore } from '../domain/results/store';
 import { identity,type AnalysisType } from '../domain/calculation/identity';
 import { SettingsStore } from '../persistence/settings';
@@ -34,12 +34,12 @@ export class Application implements AppContext {
     }catch(e){if(job===this.job){this.status=`Model yüklenemedi: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','import',this.status,e);}}
     finally{if(job===this.job){this.loadingModel=false;this.busy=false;this.notify();}}
   }
-  async run(type:AnalysisType){if(!this.network||this.busy)return;const network=this.network,job=++this.job,scenario=structuredClone(this.scenario.current),role=scenarioChanged(scenario)?'scenario':'base';
+  async run(type:AnalysisType, requestedRole:'base'|'scenario'=this.resultStore.role==='base'?'base':'scenario'){if(!this.network||this.busy)return;const network=this.network,job=++this.job,role=requestedRole,scenario=calculationScenario(this.scenario.current,role);
     const id=identity(network.modelHash,scenario,type);this.resultStore.analysisType=type;this.resultStore.expect(role,id);this.busy=true;this.setMessage('Hesap hazırlanıyor');
     try{if(this.calcLoadedHash!==network.modelHash){await this.calculation.request({type:'PREPARE',network});if(job!==this.job)return;this.calcLoadedHash=network.modelHash;}
       const packed=await this.calculation.request<PackedResult>({type:type==='dc'?'RUN_DC':type==='fastAc'?'RUN_FAST':'RUN_AC',scenario,identity:id});if(job!==this.job)return;
       const result=unpackResult(packed);if(!this.resultStore.accept(role,result)){this.status='Senaryo/model değişti; eski hesap reddedildi.';return;}
-      this.resultStore.role=role;const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
+      const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
       this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${result.converged?'Yakınsadı':result.status} · ${result.iterations} adım · ${(result.elapsedMs/1000).toFixed(2)} s`;
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'Hesap iptal edildi.':`Hesap hatası: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','analysis',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
@@ -53,13 +53,13 @@ export class Application implements AppContext {
     const requested=new Set(termIds),members=this.network.buses.filter(b=>requested.has(b.id)).map(b=>({id:b.id,source:b.inService}));
     if(!members.length)return;
     this.scenario.setBusStatus(members,value);this.scenarioUpdated();
-    if(calculate)await this.run(this.resultStore.analysisType);
+    if(calculate)await this.run(this.resultStore.analysisType,'scenario');
   }
   async setStatus(key:StatusKey,id:string,value:boolean,source:boolean,calculate=false){
     if(!this.network)return;
     if(key==='lineStatus'&&value&&!source){const effective=effectiveNetwork(this.network,this.scenario.current),plan=planEnergization(effective,id);if(!plan.ready){this.setMessage(`Devreye alma engeli: ${plan.blockers.join(' ')}`);return;}this.scenario.replace(applyEnergization(this.scenario.current,plan));}
     else this.scenario.setStatus(key,id,value,source);
-    this.scenarioUpdated();if(calculate)await this.run(this.resultStore.analysisType);
+    this.scenarioUpdated();if(calculate)await this.run(this.resultStore.analysisType,'scenario');
   }
   clearModel(){this.cancel();this.source.cancel();this.network=null;this.selection=null;this.scenario=new ScenarioStore();this.resultStore.clear();this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.status='Model bellekten temizlendi.';this.notify();}
   resetScenario(){this.scenario.reset();this.scenarioUpdated();}

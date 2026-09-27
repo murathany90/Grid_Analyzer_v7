@@ -1,5 +1,5 @@
 import type { CanonicalNetwork, Switch } from '../domain/model/network';
-import type { ScenarioOverlay } from '../domain/scenario/overlay';
+import type { ScenarioOverlay, EnergizationOperation } from '../domain/scenario/overlay';
 export interface EnergizationPlan { lineId: string; ready: boolean; restoredTerminals: string[]; closeSwitches: string[]; blockers: string[]; paths: string[][] }
 export function planEnergization(network: CanonicalNetwork, lineId: string): EnergizationPlan {
   const line=network.lines.find(l=>l.id===lineId), byId=new Map(network.buses.map(b=>[b.id,b]));
@@ -24,5 +24,11 @@ export function planEnergization(network: CanonicalNetwork, lineId: string): Ene
 }
 export function applyEnergization(s:ScenarioOverlay,p:EnergizationPlan):ScenarioOverlay{
   if(!p.ready)throw Error('Sanal devreye alma yolu tamamlanmadı.');
-  return{...s,lineStatus:{...s.lineStatus,[p.lineId]:true},switchState:{...s.switchState,...Object.fromEntries(p.closeSwitches.map(id=>[id,true]))},restoredTerminals:[...new Set([...s.restoredTerminals,...p.restoredTerminals])]};
+  if(s.energizations?.[p.lineId])return s;
+  const introduced=p.restoredTerminals.filter(id=>!s.restoredTerminals.includes(id));
+  const operation:EnergizationOperation={type:'energization',lineId:p.lineId,previousLineStatus:s.lineStatus[p.lineId],terminals:[...new Set([...p.paths.flat(),...p.restoredTerminals])],switches:[...p.closeSwitches],introducedTerminals:introduced,previousSwitches:Object.fromEntries(p.closeSwitches.map(id=>[id,s.switchState[id]??null])),previousTerminalStatus:Object.fromEntries(p.restoredTerminals.map(id=>[id,s.busOrTerminalStatus[id]??null]))};
+  // A later line may reuse a terminal restored by an earlier activation. Retain its prerequisites.
+  for(const prior of Object.values(s.energizations||{}))if(prior.introducedTerminals.some(id=>operation.terminals.includes(id))){operation.terminals=[...new Set([...operation.terminals,...prior.introducedTerminals])];operation.switches=[...new Set([...operation.switches,...prior.switches])];}
+  const busOrTerminalStatus={...s.busOrTerminalStatus};for(const id of p.restoredTerminals)delete busOrTerminalStatus[id];
+  return{...s,energizations:{...s.energizations,[p.lineId]:operation},lineStatus:{...s.lineStatus,[p.lineId]:true},busOrTerminalStatus,switchState:{...s.switchState,...Object.fromEntries(p.closeSwitches.map(id=>[id,true]))},restoredTerminals:[...new Set([...s.restoredTerminals,...p.restoredTerminals])]};
 }

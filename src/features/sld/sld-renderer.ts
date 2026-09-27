@@ -1,11 +1,11 @@
 import type { Bus, Site } from '../../domain/model/network';
 import type { CatalogRow } from '../../app/contracts';
-import { layoutStation, type StationTopologyGraph } from '../../domain/model/station-topology';
+import { layoutStation, feederSwitchPaths, stationTerminalLinks, type StationTopologyGraph } from '../../domain/model/station-topology';
 import type { VoltageBand } from '../../domain/model/voltage-band';
 import type { ScenarioOverlay } from '../../domain/scenario/overlay';
 import type { Settings } from '../../persistence/settings';
 export type SldScope='station'|'bay'|'regional';
-export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number }
+export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
 export interface SldTerminal {id:string;name:string;bayId:string;external:boolean;equipment:readonly SldEquipment[]}
 export interface SldSwitch {id:string;name:string;sourceClass:'ElmCoup'|'StaSwitch';kind:'breaker'|'isolator'|'other';from:string|null;to:string|null;modelClosed:boolean;closed:boolean;inService:boolean}
@@ -31,12 +31,19 @@ function symbol(parent:SVGElement,x:number,y:number,cls:string,color:string,clos
     if(kind==='isolator'){svg('rect',{x:x-9,y:y-12,width:18,height:24,fill:'#102033'},parent);path(parent,[[x,y+10],[closed?x:x+9,y-10]],color);svg('circle',{cx:x,cy:y-11,r:2,fill:color},parent);svg('circle',{cx:x,cy:y+11,r:2,fill:color},parent);}
     else svg('rect',{x:x-7,y:y-8,width:14,height:16,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);
   }
-  else if(cls==='ElmLne'){svg('path',{d:`M${x-6},${y-6} L${x},${y} L${x+6},${y-6}`,fill:'none',stroke:color,'stroke-width':2},parent);}
+  else if(cls==='ElmLne'){svg('path',{d:`M${x},${y-16} L${x},${y} M${x-6},${y-6} L${x},${y} L${x+6},${y-6}`,fill:'none',stroke:color,'stroke-width':2},parent);}
   else{svg('circle',{cx:x,cy:y,r:12,stroke:color,fill:'#102033','stroke-width':2},parent);text(parent,x,y+4,cls==='ElmLod'?'Y':cls==='ElmShnt'?'Ş':'G',11,color,'middle');}
+}
+function wrappedText(parent:SVGElement,x:number,y:number,label:string,limit=18,size=10,color=ink){
+  const words=label.split(/\s+/);let first='';while(words.length&&(!first||first.length+words[0].length+1<=limit)){first+=(first?' ':'')+words.shift();}
+  text(parent,x,y,shorten(first,limit),size,color,'middle');if(words.length)text(parent,x,y+14,shorten(words.join(' '),limit),size,color,'middle');
+}
+export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SVGSVGElement {
+  const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
 }
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   if(!d.graph)return;const layout=layoutStation(d.graph,d.voltageBands,d.page),graph=d.graph;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
-  text(root,24,30,d.station.name,21);text(root,24,52,`TM genel · ${graph.busSections.length} bara bölümü · ${graph.sourceFeederCount} kaynak fider · iç anahtarlar ayrıntıda`,12,muted);
+  text(root,24,30,d.station.name,21);text(root,24,52,`TM genel · ${graph.busSections.length} bara bölümü · ${graph.sourceFeederCount} kaynak fider · kaynak anahtar bağlantıları`,12,muted);
   const positions=new Map(layout.sections.map(p=>[p.section.id,p]));
   for(const level of layout.levels)text(root,24,level.y,`${level.kv||'—'} kV`,17,'#f1cf8a');
   for(const p of layout.sections){const b=p.section,current=d.scenario.busOrTerminalStatus[b.id]??(d.scenario.restoredTerminals.includes(b.id)||b.inService),style=stateStyle(d,b.inService,current),g=group(root,b.id,'ElmTerm',b.name,select,`${b.voltageKv} kV · ${current?'Serviste':'Servis dışı'}`);
@@ -44,32 +51,49 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     if(d.technical)text(g,p.x2,p.y-7,b.id,9,muted,'end');
   }
   const eq=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
-  const terminalSections=(id:string)=>positions.has(id)?[id]:graph.feeders.filter(f=>f.terminalIds.includes(id)).flatMap(f=>f.busSectionIds);
-  const bridges=graph.equipment.filter(e=>e.kind==='transformer').flatMap(e=>{
-    const lane=layout.feeders.find(p=>p.feeder.equipmentKeys.includes(`${e.sourceClass}|${e.id}`)),item=eq.get(`${e.sourceClass}|${e.id}`);
-    const from=[...new Set(terminalSections(e.terminals[0]))].map(id=>positions.get(id)).filter((p):p is NonNullable<typeof p>=>!!p),to=[...new Set(terminalSections(e.terminals[1]))].map(id=>positions.get(id)).filter((p):p is NonNullable<typeof p>=>!!p);
-    if(!lane||!item||!from.length||!to.length||from.some(a=>to.some(b=>a.section.voltageKv===b.section.voltageKv)))return[];
-    return[{e,item,lane,ends:[...from,...to]}];
-  });
+  const terminalLinks=stationTerminalLinks(graph,layout),linkedFeeders=new Set(terminalLinks.flatMap(link=>link.points.map(p=>p.feederId)));
+  for(const {terminal,points}of terminalLinks){const current=d.scenario.busOrTerminalStatus[terminal.id]??(d.scenario.restoredTerminals.includes(terminal.id)||terminal.inService),style=stateStyle(d,terminal.inService,current),g=group(root,terminal.id,'ElmTerm',terminal.name,select,'Kaynakta ortak terminal'),y=Math.min(...points.map(p=>p.y))-18;
+    path(g,[[Math.min(...points.map(p=>p.x)),y],[Math.max(...points.map(p=>p.x)),y]],style.color,style.dash);
+    for(const p of points){path(g,[[p.x,y],[p.x,p.y-12]],style.color,style.dash);svg('circle',{cx:p.x,cy:y,r:2,fill:style.color},g);}
+  }
+  const switchById=new Map(graph.switches.map(sw=>[sw.id,sw]));
+  const drawSwitch=(parent:SVGElement,id:string,x:number,y:number)=>{const sw=switchById.get(id),item=d.equipment.find(e=>e.id===id);if(!sw||!item)return;const closed=item.closed??false,style=stateStyle(d,(item.sourceClosed??closed)&&(item.sourceInService??true),closed&&item.inService),g=group(parent,id,item.sourceClass,item.name,select,`${sw.kind} · ${closed?'Kapalı':'Açık'}`);symbol(g,x,y,item.sourceClass,style.color,closed,sw.kind);};
+  const equipmentPositions=new Map<string,{x:number;y:number;feederId:string}[]>();
   for(const p of layout.feeders){const f=p.feeder,entity=f.equipmentKeys.map(k=>eq.get(k)).find(Boolean),identity=f.sourceClass==='ElmBay'?f.id:entity?.id||f.id;
-    if(entity&&bridges.some(b=>b.item.id===entity.id&&b.item.sourceClass===entity.sourceClass))continue;
     const g=group(root,identity,f.sourceClass,f.name,select,`${f.terminalIds.length} terminal · ${f.switchIds.length} anahtar · ${f.equipmentKeys.length} ekipman`),style=entity?equipmentState(d,entity):{color:normal,dash:''};
-    const switches=f.switchIds.map(id=>d.equipment.find(e=>e.id===id)).filter((e):e is SldEquipment=>!!e),changed=switches.find(e=>e.closed!==e.sourceClosed),opened=switches.some(e=>e.closed===false);
-    if(changed)style.color=changed.closed?d.settings.colorScenarioOn:d.settings.colorScenarioOff;
-    else if(switches.some(e=>!e.inService))style.color=d.settings.colorOut;
-    if(p.busYs.length){for(const by of p.busYs){path(g,[[p.x,by],[p.x,p.y-13]],style.color,opened?'5 4':style.dash);svg('circle',{cx:p.x,cy:by,r:3,fill:style.color},g);}}
-    else text(g,p.x,p.y-22,'Uç belirsiz',9,muted,'middle');
-    symbol(g,p.x,p.y,entity?.sourceClass||'ElmCoup',style.color,!opened);
-    text(g,p.x,p.y+29,shorten(f.name.slice(0,16),17),10,ink,'middle');if(f.name.length>16)text(g,p.x,p.y+43,shorten(f.name.slice(16),17),10,ink,'middle');
-    if(d.technical)text(g,p.x,p.y+57,identity,8,muted,'middle');
+    g.setAttribute('data-feeder',f.id);
+    const connections=feederSwitchPaths(graph,f).filter(c=>positions.has(c.busId));
+    // StaSwitch belongs to the equipment cubicle (canonical from===to), not a new bus edge.
+    const cubicleSwitches=f.switchIds.filter(id=>{const sw=switchById.get(id);return sw&&sw.from===sw.to&&entity?.busIds.includes(sw.from);});
+    let common:string[]=[];
+    if(connections.length){common=[...connections[0].switchIds];for(const connection of connections.slice(1)){let count=0;while(count<common.length&&count<connection.switchIds.length&&common[common.length-1-count]===connection.switchIds[connection.switchIds.length-1-count])count++;common=count?common.slice(-count):[];}}
+    const barBottom=Math.max(0,...layout.sections.filter(b=>b.section.voltageKv===f.voltageKv).map(b=>b.y)),junction=barBottom+45+(p.y-barBottom-65)*.5;
+    const directPorts=entity&&f.sourceClass!=='ElmBay'&&entity.busIds.filter(id=>positions.has(id)).length===2?entity.busIds:[];
+    for(const[c,connection]of (directPorts.length?[]:connections).entries()){const bus=positions.get(connection.busId)!,x=p.x+(c-(connections.length-1)/2)*32,branch=connection.switchIds.slice(0,connection.switchIds.length-common.length);
+      path(g,[[x,bus.y],[x,junction],[p.x,junction]],style.color,style.dash);svg('circle',{cx:x,cy:bus.y,r:3,fill:style.color},g);
+      branch.forEach((id,i)=>drawSwitch(g,id,x,barBottom+25+(i+.5)*(junction-barBottom-30)/Math.max(1,branch.length)));
+    }
+    if(directPorts.length){directPorts.forEach((id,i)=>{const bus=positions.get(id);if(!bus)return;const x=p.x+(i?35:0),y=p.y+(i?15:-15);path(g,[[x,bus.y],[x,y],[p.x,y]],style.color,style.dash);svg('circle',{cx:x,cy:bus.y,r:3,fill:style.color},g);});}
+    else if(connections.length){path(g,[[p.x,junction],[p.x,p.y-13]],style.color,style.dash);const chain=[...common,...cubicleSwitches];chain.forEach((id,i)=>drawSwitch(g,id,p.x,junction+(i+.5)*(p.y-junction-20)/Math.max(1,chain.length)));}
+    else if(!linkedFeeders.has(f.id))text(g,p.x,p.y-25,'Uç belirsiz',9,muted,'middle');
+    if(!entity||entity.sourceClass==='ElmTr2')svg('circle',{cx:p.x,cy:p.y,r:4,fill:style.color},g);else symbol(g,p.x,p.y,entity.sourceClass,style.color);
+    const label=entity&&entity.sourceClass!=='ElmTr2'?entity.name:f.name;wrappedText(g,p.x,p.y+28,label);
+    if(d.technical)text(g,p.x,p.y+59,identity,8,muted,'middle');
+    for(const key of f.equipmentKeys)equipmentPositions.set(key,[...(equipmentPositions.get(key)||[]),{x:p.x,y:p.y,feederId:f.id}]);
   }
-  for(const {e,item,lane,ends} of bridges){const style=equipmentState(d,item),x=lane.x,top=Math.min(...ends.map(p=>p.y)),bottom=Math.max(...ends.map(p=>p.y)),mid=(top+bottom)/2,g=group(root,e.id,e.sourceClass,e.name,select);
-    path(g,[[x,top],[x,bottom]],style.color,style.dash);for(const end of ends)svg('circle',{cx:x,cy:end.y,r:3,fill:style.color},g);
-    symbol(g,x,mid,'ElmTr2',style.color);text(g,x+16,mid-8,shorten(e.name,17),11,style.color);if(d.technical)text(g,x+16,mid+8,e.id,9,muted);
+  let bridge=0;
+  for(const e of graph.equipment.filter(e=>e.kind==='transformer')){
+    const key=`${e.sourceClass}|${e.id}`,lanes=equipmentPositions.get(key)||[],item=eq.get(key);if(!item||!lanes.length)continue;
+    const style=equipmentState(d,item),first=lanes[0],last=lanes[lanes.length-1];
+    if(first===last){const g=group(root,e.id,e.sourceClass,e.name,select);symbol(g,first.x,first.y,'ElmTr2',style.color);continue;}
+    const x=Math.max(...layout.sections.map(p=>p.x2))+70+bridge++*160,mid=(first.y+last.y)/2,g=group(root,e.id,e.sourceClass,e.name,select);
+    path(g,[[first.x,first.y],[x,first.y],[x,last.y],[last.x,last.y]],style.color,style.dash);symbol(g,x,mid,'ElmTr2',style.color);wrappedText(g,x,mid+33,e.name,20);
+    const rating=[item.voltageKv&&item.lvKv?`${item.voltageKv} / ${item.lvKv} kV`:'',item.ratingMva?`${item.ratingMva} MVA`:''].filter(Boolean).join(' · ');if(rating)wrappedText(g,x,mid+65,rating,22,9,muted);
+    if(d.technical)text(g,x,mid-25,e.id,9,muted,'middle');
   }
-  let coupler=0;for(const sw of graph.switches){const a=positions.get(sw.from),b=positions.get(sw.to);if(!a||!b||a.section.voltageKv!==b.section.voltageKv||a.section.id===b.section.id)continue;const x=232+(coupler++%10)*13,item=d.equipment.find(e=>e.id===sw.id),closed=item?.closed??true,style=stateStyle(d,(item?.sourceClosed??closed)&&(item?.sourceInService??true),closed&&(item?.inService??true)),g=group(root,sw.id,item?.sourceClass||'ElmCoup',item?.name||'Bara kuplajı',select);path(g,[[x,a.y],[x,b.y]],style.color,style.dash);symbol(g,x,(a.y+b.y)/2,'ElmCoup',style.color,closed,sw.kind);}
-  if(graph.equipment.filter(e=>e.kind==='transformer').length>bridges.length)text(root,24,layout.height-34,`${bridges.length} gösterilen trafo köprüsü · diğer trafolar fider seçicisinde`,10,muted);
-  text(root,24,layout.height-15,`Fider görünümü ${d.page+1}/${layout.pageCount} · ${layout.feeders.length} gösteriliyor${layout.omitted?` · diğer ${layout.omitted} bağlantı sonraki sayfalarda`:''}`,11,muted);
+  let coupler=0;for(const sw of graph.switches){const a=positions.get(sw.from),b=positions.get(sw.to);if(!a||!b||a.section.voltageKv!==b.section.voltageKv||a.section.id===b.section.id)continue;const x=238+coupler++*28,item=d.equipment.find(e=>e.id===sw.id),closed=item?.closed??false,style=stateStyle(d,(item?.sourceClosed??closed)&&(item?.sourceInService??true),closed&&(item?.inService??true));path(root,[[x,a.y],[x,b.y]],style.color,style.dash);drawSwitch(root,sw.id,x,(a.y+b.y)/2);}
+  text(root,24,layout.height-15,`Tam istasyon · ${layout.feeders.length} bağlantı · ${graph.unresolvedEndpoints} çözülemeyen uç`,11,muted);
+
 }
 function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   const terminals=[...d.terminals].sort((a,b)=>a.id.localeCompare(b.id)),adj=new Map(terminals.map(t=>[t.id,[] as string[]]));
@@ -101,6 +125,7 @@ function regional(root:SVGSVGElement,d:SldDiagram,select:Select):void {
 export class SvgSldRenderer {
   private root:SVGSVGElement|null=null;private fitBox=[0,0,1200,600];private key='';
   zoom(factor:number){if(!this.root)return;const[x,y,w,h]=this.box(),nextW=Math.max(this.fitBox[2]/12,Math.min(this.fitBox[2]*2,w/factor)),nextH=nextW*h/w;this.root.setAttribute('viewBox',[x+(w-nextW)/2,y+(h-nextH)/2,nextW,nextH].join(' '));}
+  exportSvg():string|null{return this.root?new XMLSerializer().serializeToString(fullDiagramClone(this.root,this.fitBox)):null;}
   fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {

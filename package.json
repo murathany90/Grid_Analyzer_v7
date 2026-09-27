@@ -1,6 +1,6 @@
 {
   "name": "grid-analyzer-v7",
-  "version": "7.0.1",
+  "version": "7.0.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,5 +18,8 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
   }
 }

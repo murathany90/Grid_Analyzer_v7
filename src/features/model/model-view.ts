@@ -1,3 +1,4 @@
+import {inspectModelFile,type ModelEntry} from '../../importers/model-file';
 import type { AppContext, Feature } from '../../app/contracts';
 import { element, button, csvCell, downloadText, format } from '../../ui/components/dom';
 
@@ -15,17 +16,17 @@ export function createModelView(ctx: AppContext): Feature {
   const drop = element('div', 'ga-drop');
   drop.tabIndex = 0;
   drop.setAttribute('role', 'group');
-  drop.setAttribute('aria-label', 'DGS JSON modelini yükle');
-  const dropTitle = element('strong', '', 'DGS JSON dosyasını seçin veya buraya bırakın');
+  drop.setAttribute('aria-label', 'YTBS / DIgSILENT modeli JSON veya ZIP yükle');
+  const dropTitle = element('strong', '', 'YTBS / DIgSILENT modeli — JSON veya ZIP');
   const input = element('input');
-  input.id = 'modelFileInput'; input.type = 'file'; input.accept = '.json,application/json';
+  input.id = 'modelFileInput'; input.type = 'file'; input.accept = '.json,.zip,application/json,application/zip';
   input.className = 'ga-visually-hidden';
-  input.setAttribute('aria-label', 'DGS JSON dosyaları');
+  input.setAttribute('aria-label', 'JSON veya ZIP dosyaları');
   const choose = button('Dosya seç', () => input.click());
   const fileLabel = element('label', 'ga-file-label', 'Dosya seçin'); fileLabel.htmlFor = input.id;
   fileLabel.append(input);
   const loading = element('span', 'ga-muted', 'JSON dosyası bu tarayıcı oturumuna yüklenir.');
-  drop.append(dropTitle, element('p', 'ga-muted', 'PowerFactory DGS 7.x JSON'), choose, fileLabel, loading);
+  drop.append(dropTitle, element('p', 'ga-muted', 'JSON veya ZIP · Dosyalar bu tarayıcıda işlenir'), choose, fileLabel, loading);
 
   const message = element('p', 'ga-notice');
   const summary = element('div', 'ga-card-grid');
@@ -53,6 +54,16 @@ export function createModelView(ctx: AppContext): Feature {
   root.append(heading, drop, message, summary, capabilityPanel, warningsPanel, classPanel);
 
   let loadingNow = false;
+  function selectEntry(entries:ModelEntry[]):Promise<ModelEntry|null>{
+    return new Promise(resolve=>{const dialog=element('dialog','ga-zip-dialog'),select=element('select'),size=element('p','ga-muted');
+      dialog.setAttribute('aria-label','ZIP içinden model seç');select.setAttribute('aria-label','ZIP JSON dosyası');
+      entries.forEach((e,i)=>select.append(new Option(e.name,String(i))));
+      const update=()=>{size.textContent=`Açılmış boyut: ${format(entries[Number(select.value)].size/1024**2,2)} MiB`;};select.onchange=update;update();
+      const finish=(entry:ModelEntry|null)=>{dialog.close();dialog.remove();resolve(entry);};
+      dialog.append(element('h3','','ZIP içinden model seç'),select,size,button('Seçilen JSON’u yükle',()=>finish(entries[Number(select.value)])),button('Vazgeç',()=>finish(null)));
+      dialog.oncancel=e=>{e.preventDefault();finish(null);};root.append(dialog);dialog.showModal();
+    });
+  }
   const load = async (files: FileList | File[]) => {
     if (!files.length || loadingNow) return;
     const selectedFiles = Array.from(files).slice(0, 1);
@@ -62,7 +73,10 @@ export function createModelView(ctx: AppContext): Feature {
     choose.disabled = true;
     loading.textContent = `Yükleniyor · ${selectedFiles[0].name}`;
     try {
-      await ctx.loadFiles(selectedFiles);
+      const archive=await inspectModelFile(selectedFiles[0]);
+      const entry=archive.entries.length===1?archive.entries[0]:await selectEntry(archive.entries);
+      if(!entry)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
+      await ctx.loadFiles([await archive.extract(entry)]);
     } catch (error) {
       ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
     } finally {

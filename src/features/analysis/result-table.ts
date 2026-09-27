@@ -4,7 +4,7 @@ import {displayBranches} from '../../domain/results/presentation';
 import type {AppContext} from '../../app/contracts';
 import type {Bus,Line,Transformer2W} from '../../domain/model/network';
 import type {BranchResult,BusResult} from '../../domain/results/types';
-import {escapeHtml as h,format as f} from '../../ui/components/dom';
+import {escapeHtml as h,format as f,button} from '../../ui/components/dom';
 import {planEnergization} from '../../topology/energization';
 import {effectiveNetwork} from '../../domain/scenario/overlay';
 type Kind='line'|'trafo'|'bus';type Tab='results'|'delta'|'energize';
@@ -32,7 +32,7 @@ export class ResultTable {
   }
   render(){
     const n=this.ctx.network;if(!n){this.element.innerHTML='<p class="ga-empty">Önce JSON modeli yükleyin.</p>';return;}
-    if(this.tab==='delta'&&!this.ctx.resultStore.comparable()){this.element.innerHTML='<p class="ga-empty">Karşılaştırma için aynı model, motor ve seçeneklerle yakınsamış güncel baz ve senaryo hesabı gerekiyor.</p>';return;}
+    if(this.tab==='delta'&&!this.ctx.resultStore.comparable()){this.element.innerHTML='<p class="ga-empty">Karşılaştırma için aynı model, motor ve seçeneklerle yakınsamış güncel baz ve senaryo hesabı gerekiyor.</p>';if(!this.ctx.resultStore.get('base'))this.element.append(button('Bazı Hesapla',()=>void this.ctx.run(this.ctx.resultStore.analysisType,'base')));return;}
     const rows=this.rows(),pages=Math.max(1,Math.ceil(rows.length/this.pageSize));this.page=Math.min(pages-1,Math.max(0,this.page));const selected=rows.slice(this.page*this.pageSize,(this.page+1)*this.pageSize),isBus=this.kind==='bus';
     const th=(label:string,key:string)=>`<th><button class="ga-sort" data-sort="${key}">${label}${this.sort===key?(this.descending?' ▼':' ▲'):''}</button></th>`;
     const header=this.tab==='energize'?'<th>Kaynak → Senaryo</th><th>İşlem</th>':this.tab==='delta'?(isBus?'<th>Baz V / açı</th><th>Senaryo V / açı</th><th>ΔV / Δaçı</th>':'<th>Baz P/Q · Yük</th><th>Senaryo P/Q · Yük</th><th>ΔP/Q · ΔYük</th>'):isBus?`${th('V pu','v')}<th>Açı °</th><th>P/Q</th><th>Durum</th>`:`${th('A P/Q','p')}<th>B P/Q</th><th>Kayıp P/Q</th>${th('Yük %','loading')}<th>Durum</th>`;

@@ -17,7 +17,7 @@ export interface AppContext {
   subscribe(fn: () => void): () => void;
   notify(): void; setView(view: string): void;
   loadFiles(files: FileList | File[]): Promise<void>;
-  run(type: AnalysisType): Promise<void>; cancel(): void;
+  run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
   catalog(query: CatalogQuery): Promise<CatalogPage>;
   select(id: string, sourceClass: string, view?: string): void;
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean, calculate?: boolean): Promise<void>;

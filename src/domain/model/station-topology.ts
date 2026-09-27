@@ -46,18 +46,46 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
     unresolvedEndpoints:switches.reduce((n,s)=>n+Number(!termById.has(s.from))+Number(!termById.has(s.to)),0)};
 }
 export interface StationLayout {width:number;height:number;sections:{section:BusSection;x1:number;x2:number;y:number}[];feeders:{feeder:Feeder;x:number;y:number;busYs:number[]}[];levels:{kv:number;y:number}[];omitted:number;pageCount:number}
-/** Bounded overview page, exact nominal levels, horizontal busbars and stable vertical lanes. */
-export function layoutStation(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>,page=0,size=12):StationLayout {
-  const all=graph.feeders.filter(f=>voltageMatches(f.voltageKv,bands)),pages=Math.max(1,Math.ceil(all.length/size)),shown=all.slice(Math.min(page,pages-1)*size,(Math.min(page,pages-1)+1)*size);
+/** Full station by default; each nominal voltage owns its independent deterministic lanes. */
+export function layoutStation(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>,page=0,size=Infinity):StationLayout {
+  const all=graph.feeders.filter(f=>voltageMatches(f.voltageKv,bands)),pages=Number.isFinite(size)?Math.max(1,Math.ceil(all.length/size)):1,shown=Number.isFinite(size)?all.slice(Math.min(page,pages-1)*size,(Math.min(page,pages-1)+1)*size):all;
   const levels=graph.voltageLevels.filter(kv=>voltageMatches(kv,bands));
-  const result:StationLayout={width:1240,height:0,sections:[],feeders:[],levels:[],omitted:all.length-shown.length,pageCount:pages};
+  const couplers=graph.switches.filter(s=>graph.busSections.some(b=>b.id===s.from)&&graph.busSections.some(b=>b.id===s.to)).length;
+  const left=250+couplers*28,laneWidth=Math.max(700,...levels.map(kv=>shown.filter(f=>f.voltageKv===kv).length*125)),right=100+graph.equipment.filter(e=>e.kind==='transformer').length*160;
+  const result:StationLayout={width:Math.max(1200,left+laneWidth+right),height:0,sections:[],feeders:[],levels:[],omitted:all.length-shown.length,pageCount:pages};
   let y=82;
   for(const kv of levels){const sections=graph.busSections.filter(b=>b.voltageKv===kv),feeders=shown.filter(f=>f.voltageKv===kv);if(!sections.length&&!feeders.length)continue;
     result.levels.push({kv,y});const busTop=y+28;
-    sections.forEach((section,i)=>result.sections.push({section,x1:225,x2:1204,y:busTop+i*31}));
-    const bottom=busTop+Math.max(1,sections.length)*31+35;
-    feeders.forEach((feeder,i)=>result.feeders.push({feeder,x:260+(i+.5)*900/Math.max(1,feeders.length),y:bottom+45,busYs:feeder.busSectionIds.map(id=>result.sections.find(s=>s.section.id===id)?.y).filter((v):v is number=>v!=null)}));
-    y=bottom+125;
+    sections.forEach((section,i)=>result.sections.push({section,x1:225,x2:left+laneWidth,y:busTop+i*34}));
+    const bottom=busTop+Math.max(1,sections.length)*34+40,depth=Math.max(2,...feeders.map(f=>f.switchIds.length));
+    feeders.forEach((feeder,i)=>result.feeders.push({feeder,x:left+(i+.5)*laneWidth/Math.max(1,feeders.length),y:bottom+Math.min(320,depth*28)+30,busYs:feeder.busSectionIds.map(id=>result.sections.find(s=>s.section.id===id)?.y).filter((v):v is number=>v!=null)}));
+    y=bottom+Math.min(320,depth*28)+140;
   }
   result.height=Math.max(400,y+30);return result;
+}
+/** Actual bus-to-equipment switch paths, without deriving a switching sequence. */
+export function feederSwitchPaths(graph:StationTopologyGraph,feeder:Feeder):{busId:string;switchIds:string[]}[]{
+  const switches=graph.switches.filter(s=>feeder.switchIds.includes(s.id));
+  const targets=new Set(graph.equipment.filter(e=>feeder.equipmentKeys.includes(`${e.sourceClass}|${e.id}`)).flatMap(e=>e.terminals).filter(id=>feeder.terminalIds.includes(id)));
+  if(!targets.size){
+    const leaves=graph.terminals.filter(t=>t.parentId===feeder.id&&switches.filter(s=>s.from===t.id||s.to===t.id).length===1);
+    if(leaves.length===1)targets.add(leaves[0].id);
+    else if(feeder.busSectionIds.length>1)targets.add(feeder.busSectionIds.at(-1)!);
+  }
+  if(!targets.size)return [];
+  return feeder.busSectionIds.flatMap(busId=>{const queue=[{id:busId,switchIds:[] as string[]}],seen=new Set([busId]);
+    for(let i=0;i<queue.length;i++){const item=queue[i];if(targets.has(item.id))return[{busId,switchIds:item.switchIds}];
+      for(const sw of switches){const next=sw.from===item.id?sw.to:sw.to===item.id?sw.from:null;if(next&&!seen.has(next)){seen.add(next);queue.push({id:next,switchIds:[...item.switchIds,sw.id]});}}
+    }return[];
+  });
+}
+/** Equipment may share an internal terminal without a physical busbar (e.g. generator/GSU). */
+export function stationTerminalLinks(graph:StationTopologyGraph,layout:StationLayout):{terminal:Bus;points:{x:number;y:number;feederId:string}[]}[]{
+  const sections=new Set(graph.busSections.map(b=>b.id));
+  return graph.terminals.filter(t=>!sections.has(t.id)).flatMap(terminal=>{
+    const equipmentKeys=new Set(graph.equipment.filter(e=>e.terminals.includes(terminal.id)).map(e=>`${e.sourceClass}|${e.id}`));
+    if(equipmentKeys.size<2)return[];
+    const points=layout.feeders.filter(p=>p.feeder.voltageKv===terminal.vnKv&&p.feeder.terminalIds.includes(terminal.id)&&p.feeder.equipmentKeys.some(key=>equipmentKeys.has(key))).map(p=>({x:p.x,y:p.y,feederId:p.feeder.id}));
+    return points.length>1?[{terminal,points}]:[];
+  });
 }
