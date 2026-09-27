@@ -1,5 +1,5 @@
 import { abs, finite } from './math';
-import type { ILU0Factor, LinearSolution, SparseMatrix } from './types';
+import type { ILU0Factor, LinearSolution, LinearSolveDiagnostics, SparseMatrix } from './types';
 
 const dot=(a:ArrayLike<number>,b:ArrayLike<number>):number=>{let z=0;for(let i=0;i<a.length;i++)z+=a[i]*b[i];return z;};
 const norm=(a:ArrayLike<number>):number=>Math.sqrt(Math.max(0,dot(a,a)));
@@ -7,7 +7,7 @@ const norm=(a:ArrayLike<number>):number=>Math.sqrt(Math.max(0,dot(a,a)));
 export function csrMatVec(A: SparseMatrix, x: Float64Array, out: Float64Array): void {for(let i=0;i<A.N;i++){let z=0;for(let k=A.rowPtr[i];k<A.rowPtr[i+1];k++)z+=A.values[k]*x[A.colIdx[k]];out[i]=z;}}
 
 export function ilu0(A: SparseMatrix): ILU0Factor {
- const n=A.N,lu=Float64Array.from(A.values),diag=Int32Array.from(A.diagPos),pos=A.pos;
+ const n=A.N,lu=Float64Array.from(A.values),diag=Int32Array.from(A.diagPos),pos=A.pos;let minPivot=Infinity;
  for(let i=0;i<n;i++){
   const rs=A.rowPtr[i],re=A.rowPtr[i+1];
   for(let pk=rs;pk<re;pk++){
@@ -19,9 +19,10 @@ export function ilu0(A: SparseMatrix): ILU0Factor {
    }
   }
   const dp=diag[i];if(dp<0)throw Error('ILU_DIAGONAL_MISSING');
+  if(finite(lu[dp]))minPivot=Math.min(minPivot,abs(lu[dp]));
   if(!finite(lu[dp])||abs(lu[dp])<1e-10)lu[dp]=(lu[dp]<0?-1:1)*1e-10;
  }
- return {lu,diag};
+ return {lu,diag,minPivot:Number.isFinite(minPivot)?minPivot:null};
 }
 
 export function iluSolve(A: SparseMatrix, M: ILU0Factor, b: Float64Array, out: Float64Array): Float64Array {
@@ -65,4 +66,8 @@ export function bicgstab(A: SparseMatrix, b: Float64Array, M: ILU0Factor, relTol
  csrMatVec(A,x,Ax);for(let i=0;i<n;i++)r[i]=b[i]-Ax[i];const rr=norm(r)/bnorm;return rr<1e-5?{x,iterations:maxIter,residual:rr}:null;
 }
 
-export function solveLinear(A: SparseMatrix, b: Float64Array): LinearSolution | null {const M=ilu0(A);let r=gmres(A,b,M,1e-8,38,5);if(r)return {...r,method:'ILU0-GMRES'};r=bicgstab(A,b,M,1e-8,Math.min(1200,Math.max(200,A.N)));if(r)return {...r,method:'ILU0-BiCGSTAB'};return null;}
+export function solveLinear(A: SparseMatrix, b: Float64Array, diagnostics?: LinearSolveDiagnostics): LinearSolution | null {
+ const M=ilu0(A);if(diagnostics){diagnostics.minPivot=M.minPivot;diagnostics.stage='ILU0_READY';}
+ if(diagnostics)diagnostics.stage='ILU0_GMRES';let r=gmres(A,b,M,1e-8,38,5);if(r)return {...r,method:'ILU0-GMRES'};
+ if(diagnostics)diagnostics.stage='ILU0_BICGSTAB';r=bicgstab(A,b,M,1e-8,Math.min(1200,Math.max(200,A.N)));if(r)return {...r,method:'ILU0-BiCGSTAB'};return null;
+}

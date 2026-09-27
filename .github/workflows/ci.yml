@@ -28,6 +28,10 @@ jobs:
         run: npm run lint
       - name: Unit and regression tests
         run: npm test
+      - name: Install Chromium for browser smoke
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke
+        run: npm run test:e2e
       - name: Build standard app
         run: npm run build
       - name: Build portable app

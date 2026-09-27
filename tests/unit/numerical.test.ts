@@ -3,6 +3,7 @@ import test from 'node:test';
 import { selfTests, solveNR, type NumericalModel } from '../../src/analysis/power-flow/js';
 import { solveIsland, solveIslandV52, type FastAcIsland } from '../../src/analysis/fast-ac/js';
 import { solveIslandDC, type DcIsland } from '../../src/analysis/dc/js';
+import { mapResults } from '../../src/analysis/power-flow/results';
 
 test('Full NR numerical self-tests preserve all seven legacy cases', () => {
   const results = selfTests();
@@ -44,6 +45,15 @@ test('Full NR rejects a Q-limit change on its final allowed control round', () =
   assert.equal(result.status, 'Q_LIMIT_MAX_ROUNDS');
   assert.equal(result.converged, false);
   assert.equal(result.rounds, 1);
+});
+
+test('Full NR persists a structured missing-reference diagnostic without changing status',()=>{
+ const result=solveNR({n:2,baseMVA:100,slack:-1,pSpec:new Float64Array(2),qSpec:new Float64Array(2),busType:new Int8Array(2),branches:[]});
+ assert.equal(result.status,'NO_SLACK');assert.equal(result.failure?.failureStage,'NO_SLACK');
+ assert.equal(result.failure?.iteration,null);assert.equal(result.failure?.maxMismatch,null);assert.equal(result.failure?.islandCount,2);assert.equal(result.failure?.unsuppliedBusCount,2);
+ assert.equal(result.failure?.referenceBus,null);assert.ok(result.failure?.message);
+ const prepared={diagnostics:{islandCount:2,unsuppliedBuses:2},buses:[],warnings:[]} as never;
+ const mapped=mapResults(prepared,result,{} as never);assert.equal((mapped.diagnostics.numericalFailure as {failureStage:string}).failureStage,'NO_SLACK');
 });
 
 test('Fast AC two-bus legacy baseline keeps its approximate operating point', () => {
