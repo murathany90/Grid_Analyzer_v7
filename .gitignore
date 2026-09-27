@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-portable/
+test-results/
+playwright-report/
+.tmp/
+# Original user inputs stay in place; versioned copies live in legacy/ and control1/.
+/YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html
+/kontrol1/
