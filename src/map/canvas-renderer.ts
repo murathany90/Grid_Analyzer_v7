@@ -1,3 +1,4 @@
+import {voltageMatches} from '../domain/model/voltage-band';
 import {displayBranches} from '../domain/results/presentation';
 import type {AppContext} from '../app/contracts';
 import type {BranchResult} from '../domain/results/types';
@@ -36,8 +37,8 @@ export class CanvasMapRenderer implements MapRenderer {
     if(screenKey!==this.screenKey){this.screenKey=screenKey;const siteById=new Map(n.sites.map(s=>[s.id,s]));this.paths.clear();this.lengths.clear();for(const l of n.lines){let pts=this.geometry.paths.get(l.id)||[];if(this.simple||!settings.routeDetail)pts=l.siteIds.map(id=>siteById.get(id)).filter(s=>s?.lat!=null&&s.lon!=null).map(s=>[s!.lat!,s!.lon!]as const);const parallel=this.geometry.parallel.get(l.id),off=settings.layoutMode==='separated'&&parallel?(parallel.index-(parallel.count-1)/2)*5:0;this.paths.set(l.id,offsetPath(pts.map(p=>this.point(p[1],p[0])),off));}}
     if(!this.lengths.size)for(const[id,path]of this.paths){const segments=path.slice(1).map((p,i)=>Math.hypot(p[0]-path[i][0],p[1]-path[i][1]));this.lengths.set(id,{segments,total:segments.reduce((a,b)=>a+b,0)});}
     const area=this.ctx.filters.areaId,sites=new Map(n.sites.map(s=>[s.id,s])),volts=this.ctx.filters.voltages;
-    this.visibleLines=n.lines.filter(l=>volts.has(l.vnKv)&&(!area||l.siteIds.some(id=>sites.get(id)?.areaId===area)));
-    this.visibleSites=this.showSites?n.sites.filter(s=>s.lat!=null&&s.lon!=null&&(!area||s.areaId===area)&&s.voltages.some(v=>volts.has(v))):[];
+    this.visibleLines=n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&(!area||l.siteIds.some(id=>sites.get(id)?.areaId===area)));
+    this.visibleSites=this.showSites?n.sites.filter(s=>s.lat!=null&&s.lon!=null&&(!area||s.areaId===area)&&s.voltages.some(v=>voltageMatches(v,volts))):[];
     const result=this.ctx.resultStore.active,results=new Map([...displayBranches(n,result).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b])),base=new Map([...displayBranches(n,this.ctx.resultStore.get('base')).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));
     this.flowRows=results;
     for(const line of this.visibleLines){const inService=this.ctx.resultStore.role==='base'?line.inService:this.ctx.scenario.current.lineStatus[line.id]??line.inService,style=lineStyle(line,inService,this.ctx.resultStore.role,settings,results.get(line.id),(settings.displayMode!=='delta'||this.ctx.resultStore.comparable())?base.get(line.id):undefined),path=this.paths.get(line.id);if(!path?.length)continue;g.beginPath();path.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.strokeStyle=this.ctx.selection?.id===line.id?'#fff2b0':style.color;g.lineWidth=style.width+(this.ctx.selection?.id===line.id?2:0);g.setLineDash(style.dash);g.globalAlpha=style.alpha;g.stroke();}

@@ -30,14 +30,25 @@ export type StatusKey = 'lineStatus' | 'transformerStatus' | 'busOrTerminalStatu
 export class ScenarioStore {
   private value: ScenarioOverlay = emptyScenario();
   private history: ScenarioOverlay[] = [];
+  revision = 0;
+  get historyLength(): number { return this.history.length; }
   get current(): ScenarioOverlay { return this.value; }
-  replace(value: ScenarioOverlay): void { this.history.push(this.value); this.value = structuredClone(value); }
+  replace(value: ScenarioOverlay): void { this.history.push(this.value); this.value = structuredClone(value); this.revision++; }
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean): void {
     const values = { ...this.value[key] };
     if (value === source) delete values[id]; else values[id] = value;
-    this.replace({ ...this.value, [key]: values });
+    this.replace({ ...this.value, [key]: values, ...(key==='busOrTerminalStatus'?{restoredTerminals:this.value.restoredTerminals.filter(term=>term!==id)}:{}) });
   }
   restoreTerminals(ids: readonly string[]): void { this.replace({ ...this.value, restoredTerminals: [...new Set([...this.value.restoredTerminals, ...ids])] }); }
-  undo(): void { this.value = this.history.pop() ?? this.value; }
+  setBusStatus(terminals: readonly { id: string; source: boolean }[], value: boolean | 'source'): void {
+    const values = { ...this.value.busOrTerminalStatus };
+    for (const terminal of terminals) {
+      const desired = value === 'source' ? terminal.source : value;
+      if (desired === terminal.source) delete values[terminal.id]; else values[terminal.id] = desired;
+    }
+    const ids=new Set(terminals.map(terminal=>terminal.id));
+    this.replace({ ...this.value, busOrTerminalStatus: values,restoredTerminals:this.value.restoredTerminals.filter(id=>!ids.has(id)) });
+  }
+  undo(): void { const previous = this.history.pop(); if (previous) { this.value = previous; this.revision++; } }
   reset(): void { this.replace(emptyScenario()); }
 }

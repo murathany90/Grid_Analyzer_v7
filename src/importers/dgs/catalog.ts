@@ -1,5 +1,7 @@
 import type { CatalogPage, CatalogQuery, CatalogRow } from '../../app/contracts';
 import { cloneDgsValue, type DgsModel, type DgsTable } from './index';
+import { nominalVoltage, resolveEngineeringContext,groupNominalVoltages } from './context';
+import { voltageMatches } from '../../domain/model/voltage-band';
 
 const MAX_CACHED_QUERIES = 16;
 // Uint32Array storage is compact (4 bytes per result); keep query indexes under 6 MiB/model.
@@ -61,6 +63,7 @@ function cacheKey(query: CatalogQuery, search: string): string {
     query.siteId || '',
     query.areaId || '',
     voltage,
+    query.voltageBands?.slice().sort(),
     query.sort || '',
     Boolean(query.sort) && Boolean(query.descending),
   ]);
@@ -128,6 +131,7 @@ function makeQueryIndices(model: DgsModel, query: CatalogQuery, table: DgsTable,
   const nameColumn = columns.get('loc_name') ?? -1;
   const foldColumn = columns.get('fold_id') ?? -1;
   const voltageColumnPresent = query.voltage != null;
+  const bands=query.voltageBands?new Set(query.voltageBands):null;
   const collator = query.sort ? new Intl.Collator('tr') : null;
   const matched: number[] = [];
 
@@ -147,6 +151,11 @@ function makeQueryIndices(model: DgsModel, query: CatalogQuery, table: DgsTable,
     }
 
     if (voltageColumnPresent && (className==='ElmSite' ? !model.siteById(id)?.volts.has(query.voltage!) : voltageForRow(model, table, raw, columns, id) !== query.voltage)) continue;
+    if(bands&&bands.size!==5){
+      if(className==='ElmSite'){if(![...(model.siteById(id)?.volts||[])].some(v=>voltageMatches(v,bands)))continue;}
+      else if(className==='ElmSubstat'||className==='ElmBay'){if(![...groupNominalVoltages(model,id)].some(v=>voltageMatches(v,bands)))continue;}
+      else {const attrs:Record<string,unknown>={};for(const field of ['uknom','uline','utrn_h','typ_id','bus1','bushv','fold_id'])attrs[field]=raw[columns.get(field)??-1];if(!voltageMatches(nominalVoltage(model,className,id,attrs),bands))continue;}
+    }
     matched.push(rowIndex);
   }
 
@@ -189,7 +198,7 @@ function detachedCatalogRow(model: DgsModel, table: DgsTable, className: string,
     });
   }
   const siteIds = rowSiteIds(model, className, table, rowIndex, idColumn, model.attrAt(className, 'fold_id'));
-  return { id, name, siteIds, attributes };
+  return { id, name, siteIds, attributes, context:resolveEngineeringContext(model,className,id,attributes,siteIds) };
 }
 
 export function catalogPage(model: DgsModel, query: CatalogQuery): CatalogPage {

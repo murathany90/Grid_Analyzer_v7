@@ -1,3 +1,4 @@
+import {voltageMatches} from '../../domain/model/voltage-band';
 import type { AppContext } from '../../app/contracts';
 import { capacityLimit, capacitySession, loadingFromResult, removeManualCapacity, setCapacitySeason, setManualCapacity, type CapacitySeason } from '../../domain/model/capacity';
 import type { Line } from '../../domain/model/network';
@@ -109,7 +110,7 @@ export function createCapacityView(ctx: AppContext) {
     if (!network) { notice.textContent = 'Önce DGS JSON modeli yükleyin.'; stats.replaceChildren(); tableHost.replaceChildren(); pager.replaceChildren(); return; }
     const session = capacitySession(network.modelHash);
     season.value = session.season;
-    const rows = network.lines.map((line) => ({ line, capacity: line.capacity }));
+    const rows = network.lines.filter(line=>voltageMatches(line.vnKv,ctx.filters.voltages)).map((line) => ({ line, capacity: line.capacity }));
     const report = {
       all: rows.length,
       covered: rows.filter(({ capacity }) => capacity?.nominalMVA != null).length,

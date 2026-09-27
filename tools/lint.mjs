@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +46,8 @@ function isUnder(directory, parent) {
 }
 
 const errors = [];
+const trackedModels = execFileSync('git', ['ls-files', '--', 'control1/*.json', 'control1/**/*.json'], {cwd: root, encoding: 'utf8'}).trim();
+if (trackedModels) errors.push('Real model JSON must remain local and untracked: '+trackedModels);
 const files = (await Promise.all(roots.map(rootName => collect(path.resolve(root, rootName))))).flat();
 for (const file of files) {
   const relative = path.relative(root, file).replaceAll(path.sep, '/');

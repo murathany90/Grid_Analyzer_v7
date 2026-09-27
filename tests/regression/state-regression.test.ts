@@ -143,7 +143,7 @@ test('result identity rejects stale scenario results and delta requires matching
   store.expect('scenario', scenarioId);
   const scenarioResult = result(scenarioId, 120, 52);
   assert.equal(store.accept('scenario', scenarioResult), true);
-  assert.deepEqual(store.delta(), [{ id: 'L400-01', name: 'L400-01', sourceClass: 'ElmLne', pMw: 20, loading: 7, state: 'COMPARED' }]);
+  assert.deepEqual(store.delta(), [{ id: 'L400-01', name: 'L400-01', sourceClass: 'ElmLne', pMw: 20, qMvar: 0, loading: 7, pLoss: 0, qLoss: 0, state: 'COMPARED' }]);
 
   const updatedId = identity('small-model-hash', scenario.current, 'powerFlow', { tolerance: 1e-5 });
   store.expect('scenario', updatedId);

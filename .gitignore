@@ -4,6 +4,8 @@ dist-portable/
 test-results/
 playwright-report/
 .tmp/
-# Original user inputs stay in place; versioned copies live in legacy/ and control1/.
+# Original user inputs and real models remain local.
 /YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html
 /kontrol1/
+control1/*.json
+control1/**/*.json

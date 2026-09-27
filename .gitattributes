@@ -1,1 +1,1 @@
-control1/*.json filter=lfs diff=lfs merge=lfs -text
+# Real control1 JSON models are local-only; do not track them with Git or LFS.

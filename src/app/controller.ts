@@ -10,10 +10,11 @@ import { unpackResult,type PackedResult } from '../workers/result-codec';
 import { logger } from '../analysis/diagnostics/logger';
 import { planEnergization,applyEnergization } from '../topology/energization';
 import { effectiveNetwork } from '../domain/scenario/overlay';
+import { allVoltageBands } from '../domain/model/voltage-band';
 
 export class Application implements AppContext {
   network:CanonicalNetwork|null=null;resultStore=new ResultStore();scenario=new ScenarioStore();settings=new SettingsStore();
-  selection:AppContext['selection']=null;filters={areaId:'',siteId:'',voltages:new Set<number>(),search:''};busy=false;status='Hazır · JSON modeli seçin';view='model';
+  selection:AppContext['selection']=null;filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};busy=false;status='Hazır · JSON modeli seçin';view='model';
   private listeners=new Set<()=>void>();private database=new BrowserDatabase();private job=0;private loadingModel=false;private calcLoadedHash='';
   private source=new WorkerTransport((stage,detail)=>this.progress(stage,detail));
   private calculation=new WorkerTransport((stage,detail)=>this.progress(stage,detail));
@@ -25,7 +26,7 @@ export class Application implements AppContext {
     this.status=String(detail?.message||labels[stage]||stage)+(detail?.iteration?` ${detail.iteration}`:'')+(typeof detail?.maxMismatchMW==='number'?` · Δ ${detail.maxMismatchMW.toPrecision(4)} MW`:'');this.notify();}
   async loadFiles(files:FileList|File[]){const file=files[0];if(!file)return;this.cancel();const job=++this.job;this.loadingModel=true;this.busy=true;this.network=null;this.source.cancel();this.resultStore.clear();this.scenario=new ScenarioStore();this.selection=null;this.setMessage(`${file.name} · Yükleniyor`);
     try{const loaded=await this.source.request<{network:CanonicalNetwork;timing:Record<string,number>}>({type:'LOAD_MODEL',file});if(job!==this.job)return;
-      this.network=loaded.network;this.filters={areaId:'',siteId:'',voltages:new Set(loaded.network.lines.map(l=>l.vnKv)),search:''};this.calcLoadedHash='';
+      this.network=loaded.network;this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.calcLoadedHash='';
       this.status=`${loaded.network.name} · ${loaded.network.records.toLocaleString('tr-TR')} kayıt · ${(loaded.timing.totalMs/1000).toFixed(2)} s`;
       void this.database.put('model-metadata',{hash:loaded.network.modelHash,name:file.name,size:file.size,timing:loaded.timing}).catch(()=>{});
       const saved=await this.database.get<import('../domain/scenario/overlay').ScenarioOverlay>(`scenario:${loaded.network.modelHash}`).catch(()=>undefined);
@@ -43,17 +44,24 @@ export class Application implements AppContext {
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'Hesap iptal edildi.':`Hesap hatası: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','analysis',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
-  cancel(){++this.job;if(this.loadingModel){this.source.cancel();this.loadingModel=false;}this.calculation.cancel();this.calcLoadedHash='';this.busy=false;this.status='Hesap iptal edildi.';this.notify();}
+  cancel(silent=false){++this.job;if(this.loadingModel){this.source.cancel();this.loadingModel=false;}this.calculation.cancel();this.calcLoadedHash='';this.busy=false;this.status='Hesap iptal edildi.';if(!silent)this.notify();}
   catalog(query:CatalogQuery):Promise<CatalogPage>{return this.source.request({type:'CATALOG',query});}
   select(id:string,sourceClass:string,view?:string){this.selection={id,sourceClass};if(view)this.view=view;this.notify();}
-  private scenarioUpdated(){this.cancel();this.resultStore.invalidateScenario();this.resultStore.role=scenarioChanged(this.scenario.current)?'scenario':'base';this.status=scenarioChanged(this.scenario.current)?'Senaryo değişti · Güncel hesap bekleniyor':'Baz model etkin';if(this.network)void this.database.put(`scenario:${this.network.modelHash}`,this.scenario.current).catch(()=>{});this.notify();}
+  private scenarioUpdated(){this.cancel(true);this.resultStore.invalidateScenario();this.resultStore.role=scenarioChanged(this.scenario.current)?'scenario':'base';this.status=scenarioChanged(this.scenario.current)?'Senaryo değişti · Güncel hesap bekleniyor':'Baz model etkin';if(this.network)void this.database.put(`scenario:${this.network.modelHash}`,this.scenario.current).catch(()=>{});this.notify();}
+  async setBusStatus(termIds: readonly string[], value: boolean | 'source', calculate=false){
+    if(!this.network)return;
+    const requested=new Set(termIds),members=this.network.buses.filter(b=>requested.has(b.id)).map(b=>({id:b.id,source:b.inService}));
+    if(!members.length)return;
+    this.scenario.setBusStatus(members,value);this.scenarioUpdated();
+    if(calculate)await this.run(this.resultStore.analysisType);
+  }
   async setStatus(key:StatusKey,id:string,value:boolean,source:boolean,calculate=false){
     if(!this.network)return;
     if(key==='lineStatus'&&value&&!source){const effective=effectiveNetwork(this.network,this.scenario.current),plan=planEnergization(effective,id);if(!plan.ready){this.setMessage(`Devreye alma engeli: ${plan.blockers.join(' ')}`);return;}this.scenario.replace(applyEnergization(this.scenario.current,plan));}
     else this.scenario.setStatus(key,id,value,source);
     this.scenarioUpdated();if(calculate)await this.run(this.resultStore.analysisType);
   }
-  clearModel(){this.cancel();this.source.cancel();this.network=null;this.selection=null;this.scenario=new ScenarioStore();this.resultStore.clear();this.filters={areaId:'',siteId:'',voltages:new Set<number>(),search:''};this.status='Model bellekten temizlendi.';this.notify();}
+  clearModel(){this.cancel();this.source.cancel();this.network=null;this.selection=null;this.scenario=new ScenarioStore();this.resultStore.clear();this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.status='Model bellekten temizlendi.';this.notify();}
   resetScenario(){this.scenario.reset();this.scenarioUpdated();}
   undoScenario(){this.scenario.undo();this.scenarioUpdated();}
 }

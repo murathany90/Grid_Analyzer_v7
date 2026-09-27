@@ -1,4 +1,4 @@
-# Grid Analyzer v7
+# Grid Analyzer v7.0.1
 
 Grid Analyzer reads PowerFactory DGS JSON locally in the browser. It builds a
 network model for inventory, map, scenario and electrical-analysis views. The
@@ -42,14 +42,21 @@ The small deterministic DGS model in `tests/fixtures/small-dgs.json` is used by
 unit and regression tests. Full-model checks are optional and run with:
 
 ```powershell
-git lfs install
-git lfs pull
 npm run test:full
+# Bounded stabilization acceptance (12:00 base + H2525 only):
+node --import tsx tools/stabilization-acceptance.ts
 ```
 
-The two reference snapshots in `control1/` are stored with Git LFS and require
-about 286 MB to download. Without the LFS objects, the full-model command will
-see pointer files instead of the model JSON.
+Place locally authorized model JSON files in `control1/`. They are ignored and
+must not be committed; lint/CI rejects tracked model JSON. v7.0.1 removes both
+reference snapshots from the current repository tree while preserving local
+copies. Historical Git/LFS objects may remain; no history was rewritten.
+
+All views share five voltage filter groups: ≥300 → 400 kV; ≥180 → 220 kV;
+≥100 → 154 kV; >36 → 66 kV; positive ≤36 → ≤36 kV. Actual source nominal
+values remain unchanged. Inventory and operating data share engineering labels,
+parent context and raw CSV export. SLD offers a paged station overview,
+source-connected feeder detail and regional links, with pan/zoom and SVG export.
 
 ## Scope and validation
 
@@ -79,3 +86,6 @@ Future architecture notes describe the planned [SLD editor](docs/sld-editor-arch
 roadmaps, not implemented capabilities.
 
 See [architecture](docs/architecture.md), [checkpoints](docs/checkpoints.md), and the [final migration report](docs/final-report.md) for boundaries, measured outcomes and remaining validation limits.
+
+The [v7.0.1 stabilization report](docs/v7.0.1-stabilization.md) supersedes the
+migration report's model-distribution and UI acceptance notes.

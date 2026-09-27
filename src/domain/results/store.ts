@@ -1,5 +1,6 @@
 import { identityKey, type AnalysisType, type CalculationIdentity } from '../calculation/identity';
 import type { CalculationResult } from './types';
+import { branchDelta } from './delta';
 export type ResultRole = 'base' | 'scenario';
 export class ResultStore {
   private expected = new Map<string, string>();
@@ -23,7 +24,7 @@ export class ResultStore {
     const a = this.get('base'), b = this.get('scenario');
     return !!a && !!b && a.identity.modelHash === b.identity.modelHash && a.identity.optionsHash === b.identity.optionsHash && a.identity.engine === b.identity.engine && a.identity.engineVersion === b.identity.engineVersion && a.converged && b.converged;
   }
-  delta(): { id: string; name: string; sourceClass: string; pMw: number | null; loading: number | null; state: string }[] {
+  delta() {
     if (!this.comparable()) return [];
     const a = this.get('base')!, b = this.get('scenario')!;
     const old = new Map(a.branches.map(e => [`${e.sourceClass}|${e.id}`, e]));
@@ -31,8 +32,7 @@ export class ResultStore {
     return [...new Set([...old.keys(), ...current.keys()])].map(key => {
       const before = old.get(key), after = current.get(key), entity = after || before!;
       return { id: entity.id, name: entity.name, sourceClass: entity.sourceClass,
-        pMw: before && after && Number.isFinite(after.pf-before.pf) ? after.pf-before.pf : null,
-        loading: before?.loading != null && after?.loading != null ? after.loading-before.loading : null,
+        ...branchDelta(before, after),
         state: before ? after ? 'COMPARED' : 'REMOVED' : 'ADDED' };
     });
   }
