@@ -63,5 +63,24 @@
     "persistence": "Non-default loading/separated map settings survived reload; saved scenario reload message observed",
     "finalConsoleErrors": []
   },
-  "scope": "Interactive browser checks are recorded observations, not a headless automated CI browser suite."
+  "scope": "Interactive browser checks are recorded observations, not a headless automated CI browser suite.",
+  "largeSld": {
+    "station": "KEBAN HES",
+    "bayTotal": 28,
+    "page1Count": 20,
+    "page2Count": 8,
+    "drilldown": "GTR-5 SEKONDER FIDERI",
+    "realTerminals": 4,
+    "sourceSwitches": 3,
+    "unresolvedEndpoints": 0
+  },
+  "finalPortableRun": {
+    "loadSeconds": 3.23,
+    "fullAcSeconds": 8.99,
+    "fullAcIterations": 13,
+    "converged": true,
+    "bytes": 224146,
+    "transport": "Static HTTP; final built HTML",
+    "consoleErrors": []
+  }
 }

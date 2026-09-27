@@ -346,7 +346,7 @@ export function createSldView(ctx: AppContext): Feature {
     let data: StationData | null = null;
     if (scope !== 'regional') {
       try {
-        if(!stationCache.has(cacheKey)){diagramHost.replaceChildren(element('p','ga-muted','Şema kaynakları hazırlanıyor…'));info.textContent='';}
+        if(!stationCache.has(cacheKey)){bayList.replaceChildren();bayPager.replaceChildren();diagramHost.replaceChildren(element('p','ga-muted','Şema kaynakları hazırlanıyor…'));info.textContent='';}
         data = stationCache.get(cacheKey) || await fetchStationData(ctx, network, site);
         stationCache.set(cacheKey, data); stationData = data;
       } catch (error) {
