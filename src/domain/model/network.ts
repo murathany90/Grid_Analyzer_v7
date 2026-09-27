@@ -1,0 +1,48 @@
+export interface SourceRef { readonly sourceClass: string; readonly sourceId: string; readonly field: string; readonly unit?: string }
+export interface Entity {
+  readonly id: string; readonly name: string; readonly sourceClass: string; readonly sourceId: string;
+  readonly inService: boolean; readonly siteIds: readonly string[];
+  readonly sourceRefs: Readonly<Record<string, readonly SourceRef[]>>;
+}
+export interface Bus extends Entity { readonly vnKv: number; readonly parentId: string }
+export interface Line extends Entity {
+  readonly from: string; readonly to: string; readonly vnKv: number; readonly lengthKm: number;
+  readonly rOhm: number; readonly xOhm: number; readonly bSiemens: number;
+  readonly ratingMva: number | null; readonly coordinates: readonly (readonly [number, number])[];
+  readonly sections: number;
+}
+export interface Transformer2W extends Entity {
+  readonly from: string; readonly to: string; readonly vnKv: number; readonly lvKv: number;
+  readonly rPu: number; readonly xPu: number; readonly tap: number; readonly phase: number;
+  readonly ratingMva: number; readonly tapPosition: number; readonly gPu: number; readonly bPu: number;
+}
+export interface Generator extends Entity {
+  readonly bus: string; readonly pMw: number; readonly qMvar: number;
+  readonly vmSet: number; readonly voltageControl: boolean;
+  readonly qMin: number | null; readonly qMax: number | null;
+}
+export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number }
+export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number }
+export interface SeriesCompensator extends Entity { readonly from: string; readonly to: string; readonly rOhm: number; readonly xOhm: number }
+export interface ExternalGrid extends Load { readonly vmSet: number }
+export interface Switch extends Entity { readonly from: string; readonly to: string; readonly closed: boolean; readonly cubicleId?: string; readonly equipmentId?: string }
+export interface StationController extends Entity { readonly remoteBus: string; readonly unitIds: readonly string[]; readonly droop: boolean; readonly vmSet: number }
+export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
+export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
+export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[] }
+export interface CanonicalNetwork {
+  readonly schemaVersion: 1; readonly modelHash: string; readonly name: string; readonly size: number;
+  readonly baseMva: number; readonly buses: readonly Bus[]; readonly lines: readonly Line[];
+  readonly transformers: readonly Transformer2W[]; readonly generators: readonly Generator[];
+  readonly loads: readonly Load[]; readonly shunts: readonly Shunt[];
+  readonly seriesCompensators: readonly SeriesCompensator[]; readonly externalGrids: readonly ExternalGrid[];
+  readonly internationalConnections: readonly Load[]; readonly switches: readonly Switch[];
+  readonly stationControllers: readonly StationController[]; readonly secondaryControllers: readonly Entity[];
+  readonly boundaries: readonly Entity[]; readonly sites: readonly Site[];
+  readonly classCounts: Readonly<Record<string, number>>; readonly records: number;
+  readonly warnings: readonly string[]; readonly capabilities: ModelCapabilities;
+}
+export type Equipment = Bus | Line | Transformer2W | Generator | Load | Shunt | SeriesCompensator | Switch | Site;
+export function equipment(network: CanonicalNetwork): readonly Equipment[] {
+  return [...network.lines, ...network.transformers, ...network.buses, ...network.generators, ...network.loads, ...network.switches];
+}

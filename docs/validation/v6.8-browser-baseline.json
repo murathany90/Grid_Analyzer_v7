@@ -1,0 +1,45 @@
+{
+  "model": "20260923_1200_SN3_TR0.json",
+  "statusText": "Tam ağ AC yakınsamadı: LINEAR_SOLVER_FAILED · max uyumsuzluk 0,00033 MW",
+  "diagnostics": {
+    "status": "LINEAR_SOLVER_FAILED",
+    "converged": false,
+    "fullNetwork": true,
+    "electricalBuses": 4115,
+    "branches": 5192,
+    "innerIterations": 12,
+    "qLimitRounds": 4,
+    "pvToPq": 0,
+    "maxMismatchMW": 0.0003264136912983773,
+    "linearSolver": {
+      "method": "ILU0-BiCGSTAB",
+      "iterations": 526,
+      "residual": 7.388549417446242e-9
+    },
+    "solverTimeMs": 6954.19999999553,
+    "modelBuildMs": 413.29999999701977,
+    "controllers": {
+      "total": 356,
+      "nonDroop": 146,
+      "droop": 210,
+      "mapped": 356,
+      "applied": 0,
+      "fidelity": "PARTIAL_MAPPING_ONLY"
+    },
+    "ComLdf": {
+      "iopt_lim": 1,
+      "itrlx": 100,
+      "ictrlx": 50,
+      "errlf": 5,
+      "erreq": 0.2,
+      "iPbalancing": 3
+    },
+    "unsupportedCount": 2,
+    "unsupported": [
+      "Kapalı anahtar farklı nominal gerilim: C121528",
+      "Kapalı anahtar farklı nominal gerilim: C114765"
+    ]
+  },
+  "parseMs": "NOT_AVAILABLE",
+  "heap": "NOT_AVAILABLE"
+}
