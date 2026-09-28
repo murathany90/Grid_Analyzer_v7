@@ -11,12 +11,12 @@ function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusC
  return{islandCount,unsuppliedBusCount:model.n-supplied.reduce((a,b)=>a+b,0)};
 }
 
-export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { maxQLimitRounds?: number } = {}): PowerFlowResult {
+export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number> } = {}): PowerFlowResult {
  const t0=performance.now?.()||Date.now(),n=model.n,base=model.baseMVA||100,slack=model.slack,counts=topologyCounts(model),elapsed=()=>((performance.now?.()||Date.now())-t0);
  const failure=(failureStage:NumericalFailureDiagnostic['failureStage'],message:string,iteration:number|null,controlRound:number,maxMismatchMw:number|null,extra:Partial<NumericalFailureDiagnostic>={})=>({failureStage,iteration,controlRound,maxMismatchMw,minPivot:null,islandCount:counts.islandCount,unsuppliedBusCount:counts.unsuppliedBusCount,referenceBus:Number.isInteger(slack)&&slack>=0&&slack<n?slack:null,message,...(extra.minPivot==null?{}:{pivotSource:'ILU0_PRE_REGULARIZATION' as const}),...extra});
  if(!(Number.isInteger(slack)&&slack>=0&&slack<n)){const diagnostic=failure('NO_SLACK','Geçerli referans bara bulunamadı.',null,0,null);return{status:'NO_SLACK',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
  let Y;try{Y=buildY(model);}catch(e){const message=e instanceof Error?e.message:String(e),diagnostic=failure('YBUS_BUILD',message,null,0,null);return{status:'MODEL_INVALID',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}progress?.('YBUS_READY',{buses:n,nnz:Y.colIdx.length});
- const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=new Float64Array(n).fill(1),Va=new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
+ const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=options.initialVm?.length===n?Float64Array.from(options.initialVm,v=>finite(v)&&v>.35&&v<1.85?v:1):new Float64Array(n).fill(1),Va=options.initialVa?.length===n?Float64Array.from(options.initialVa,v=>finite(v)?v:0):new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
  Vm[slack]=model.slackVm||1;for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
  const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number}>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
  const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??8));

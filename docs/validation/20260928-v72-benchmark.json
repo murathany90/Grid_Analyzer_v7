@@ -1,0 +1,199 @@
+{
+  "source": {
+    "model": "20260928_0900_SN1_TR0.zip",
+    "sha256": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+    "reference": "GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx",
+    "referenceWorkbookCommit": "2c7d52afb5bbbc2288576db6ddf439386fd43eff",
+    "note": "Workbook baseline may have been produced at a different commit; row-level metrics recomputed from this file."
+  },
+  "run": {
+    "status": "CONVERGED_FULL_NR",
+    "converged": true,
+    "iterations": 8,
+    "qLimitRounds": 3,
+    "outerControlRounds": 9,
+    "elapsedMs": 219962.23189999998,
+    "pvToPq": 82,
+    "stationControllerSummary": {
+      "active": 372,
+      "satisfied": 2,
+      "qLimitSaturated": 5,
+      "unsupported": 284,
+      "remoteResolved": 372,
+      "remoteUnresolved": 0,
+      "unitsResolved": 618,
+      "unitsUnresolved": 0,
+      "unitsOutOfService": 129,
+      "unitDuplicates": 0,
+      "localVoltageConflicts": 601,
+      "mode": "SAFE_REMOTE_VOLTAGE_SUBSET",
+      "droop": "ZERO_DROOP_ONLY",
+      "qDistribution": "ONE_ELECTRICAL_BUS_ONLY",
+      "supported": 88,
+      "saturated": 5,
+      "outerControlRounds": 9,
+      "maxVoltageResidualPu": 0.0578056009843636,
+      "meanVoltageResidualPu": 0.01830276635452263,
+      "statusCounts": {
+        "SATISFIED": 2,
+        "SATURATED_QMAX": 4,
+        "SATURATED_QMIN": 1,
+        "SENSITIVITY_UNAVAILABLE": 81,
+        "UNSUPPORTED_DISTRIBUTION": 70,
+        "UNSUPPORTED_DROOP": 214
+      }
+    },
+    "islands": [
+      {
+        "islandId": "island-1",
+        "busCount": 4154,
+        "branchCount": 5249,
+        "referenceSource": "SL1",
+        "referenceBusId": "B116147",
+        "referenceCount": 1,
+        "status": "CONVERGED",
+        "iterations": 8
+      },
+      {
+        "islandId": "island-2",
+        "busCount": 1,
+        "branchCount": 0,
+        "referenceSource": null,
+        "referenceBusId": null,
+        "referenceCount": 0,
+        "status": "NO_REFERENCE",
+        "iterations": null
+      }
+    ],
+    "referenceBusId": "B116147"
+  },
+  "before": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334927558,
+      "mae": 9.15699846373495,
+      "p95": 43.43688911405359
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.06448318102846656,
+      "mae": 5.4287267565210255,
+      "p95": 17.148635626921276
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090689161,
+      "mae": 31.555340648556644,
+      "p95": 81.44789089217988
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46475817873734954,
+      "mae": 3.709807126933948,
+      "p95": 13.28785119079648
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.04739246731097644,
+      "mae": 6.232215139113267,
+      "p95": 28.307897657808414
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279494965776,
+      "mae": 1.3996141613641795,
+      "p95": 7.2473420094081735
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319021725,
+      "mae": 0.016958826608457694,
+      "p95": 0.037022575573012306
+    },
+    "angle": {
+      "offsetDeg": 1.7586061652828255,
+      "count": 1663,
+      "bias": 0.04586439370438383,
+      "mae": 1.3351004507154176,
+      "p95": 3.2749097999864207
+    }
+  },
+  "after": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6470600823657842,
+      "mae": 9.142700522179885,
+      "p95": 43.753107004480256
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.059839218132924775,
+      "mae": 5.424381196485101,
+      "p95": 17.14751174993511
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.127559128685343,
+      "mae": 31.481501665590237,
+      "p95": 81.60507372777013
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46488254040661375,
+      "mae": 3.7093408603251925,
+      "p95": 13.250383847732122
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.2018660500629936,
+      "mae": 6.66076751547411,
+      "p95": 27.737538911073777
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07925739949266498,
+      "mae": 1.40862955501501,
+      "p95": 7.277294379468623
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.013824412121761056,
+      "mae": 0.01612447447310047,
+      "p95": 0.03742350856967521
+    },
+    "angle": {
+      "method": "MEDIAN",
+      "offsetDeg": 1.7232192920494027,
+      "count": 1663,
+      "bias": 0.06624740350957595,
+      "mae": 1.3433008226040046,
+      "p95": 3.323694777605415
+    }
+  },
+  "targets": {
+    "line154P": {
+      "mae": 2,
+      "p95": 8
+    },
+    "line400P": {
+      "mae": 10,
+      "p95": 30
+    },
+    "busVpu": {
+      "mae": 0.005,
+      "p95": 0.015
+    },
+    "angle": {
+      "mae": 0.5,
+      "p95": 1.5
+    }
+  },
+  "targetMet": {
+    "line154P": false,
+    "line400P": false,
+    "busVpu": false,
+    "angle": false
+  },
+  "validationQuality": "BENCHMARKED_PARTIAL",
+  "qComparison": "magnitude-only: |Grid Q_from| - sqrt(max(0,YTBS S²-YTBS P²))"
+}

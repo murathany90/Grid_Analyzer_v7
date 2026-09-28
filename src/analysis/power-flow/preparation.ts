@@ -6,7 +6,7 @@ export interface NumericModel {
   shuntG:Float64Array;shuntB:Float64Array;qMinNet:(number|null)[];qMaxNet:(number|null)[];branches:NumericBranch[];
 }
 export interface BranchMeta { id:string;name:string;sourceClass:string;from:string;to:string;siteIds:string[];vnKv:number;ratingMva:number|null;i:number;j:number }
-export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[] }
+export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
 export function prepareModel(n:CanonicalNetwork):PreparedModel{
   const topology=buildTopology(n),N=topology.buses.length,bi=topology.terminalToBus,warnings=[...topology.warnings];
   const pSpec=new Float64Array(N),qSpec=new Float64Array(N),busType=new Int8Array(N),vmSet=new Float64Array(N).fill(1),shuntG=new Float64Array(N),shuntB=new Float64Array(N),qMinNet:(number|null)[]=Array(N).fill(null),qMaxNet:(number|null)[]=Array(N).fill(null);

@@ -1,0 +1,40 @@
+{
+  "source": "20260928_0900_SN1_TR0.zip",
+  "counts": {
+    "total": 483,
+    "active": 372,
+    "inactive": 111,
+    "droop0": 158,
+    "droop1": 214,
+    "droopOther": 0,
+    "remoteResolved": 372,
+    "remoteUnresolved": 0,
+    "activeUnitReferences": 489,
+    "activeUniqueUnits": 489,
+    "noActiveUnit": 0,
+    "singleActiveUnit": 295,
+    "multipleSameBus": 7,
+    "multipleDifferentBus": 70,
+    "completeQLimits": 364,
+    "incompleteQLimits": 8,
+    "noReferenceIsland": 0,
+    "unitDifferentIsland": 0,
+    "localVoltageControlConflicts": 355,
+    "sharedUnitControllers": 0,
+    "eligibleTopologyAndLimits": 88
+  },
+  "notes": [
+    "Numeric i_ctrl/imode meanings remain unverified.",
+    "Eligibility is topology/limit audit only; it does not establish control enum semantics."
+  ],
+  "islands": [
+    {
+      "islandId": "island-1",
+      "referenceSource": "SL1"
+    },
+    {
+      "islandId": "island-2",
+      "referenceSource": null
+    }
+  ]
+}

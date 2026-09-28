@@ -42,7 +42,7 @@ export function voltageColor(vm:number|undefined,settings:Settings):string {retu
 export interface StationAngle {count:number;min:number;max:number;median:number;representative:BusResult;groups:number;islandIds:string[]}
 /** Median of solved buses in the active voltage filter; never averages unrelated island references. */
 export function aggregateStationAngles(rows:readonly BusResult[],bands:ReadonlySet<VoltageBand>):Map<string,StationAngle>{
-  const sites=new Map<string,BusResult[]>();for(const bus of rows)if(finite(bus.angleRad)&&voltageMatches(bus.vnKv,bands))for(const id of new Set(bus.siteIds)){const list=sites.get(id)||[];list.push(bus);sites.set(id,list);}
+  const sites=new Map<string,BusResult[]>();for(const bus of rows)if(bus.vnKv>=66&&finite(bus.angleRad)&&finite(bus.vmPu)&&voltageMatches(bus.vnKv,bands))for(const id of new Set(bus.siteIds)){const list=sites.get(id)||[];list.push(bus);sites.set(id,list);}
   const out=new Map<string,StationAngle>();for(const[id,buses]of sites){const byIsland=new Map<string,BusResult[]>();for(const bus of buses){const key=bus.islandId||'default';const list=byIsland.get(key)||[];list.push(bus);byIsland.set(key,list);}
     // A single site may contain electrically isolated islands with arbitrary angle origins.
     const group=[...byIsland].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0]))[0]?.[1]||[];

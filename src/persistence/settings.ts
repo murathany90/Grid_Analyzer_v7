@@ -2,7 +2,7 @@ export interface Settings {
   precision:number;pageSize:number;siteSize:number;routeDetail:boolean;
   color400: string; color220:string; color154:string; color66:string; colorLow:string; colorMid: string;
   colorOut: string; colorScenarioOff: string; colorScenarioOn: string; colorNoResult:string;
-  loadingColor0:string;loadingColor1:string;loadingColor2:string;loadingColor3:string;loadingColor4:string;
+  loadingColor0:string;loadingColor1:string;loadingColor2:string;loadingColor3:string;loadingColor4:string;loadingColor5:string;loadingColor6:string;
   thresholds: number[]; palette: 'voltage' | 'green'; width400: number; widthMid: number; widthOther: number;
   deltaUp: string; deltaDown: string; deltaNeutral: string; deltaLoad: number; deltaP: number; deltaQ: number; deltaV: number; layoutMode: 'standard' | 'separated'; flowDefault: boolean;
   clearOnBlank: boolean; legend: boolean; displayMode: 'nominal' | 'loading' | 'p' | 'q' | 'v' | 'angle' | 'delta';
@@ -20,8 +20,8 @@ export const defaultSettings = (): Settings => ({
   basemapStyle:'dark',showProvinceBorders:true,basemapOpacity:.7,precision:2,pageSize:20,siteSize:2.5,routeDetail:true,
   color400:'#e6534e',color220:'#8d80d8',color154:'#449bda',color66:'#51b6bc',colorLow:'#8fb0a0',colorMid:'#449bda',
   colorOut:'#708596',colorScenarioOff:'#e18b55',colorScenarioOn:'#53d2a4',colorNoResult:'#708596',
-  loadingColor0:'#c5dbe3',loadingColor1:'#a9d4d3',loadingColor2:'#e5c66b',loadingColor3:'#e58b58',loadingColor4:'#c94345',
-  thresholds:[50,65,80,100],palette:'voltage',width400:3,widthMid:2,widthOther:1.4,
+  loadingColor0:'#c5dbe3',loadingColor1:'#b6dedf',loadingColor2:'#a9d4d3',loadingColor3:'#e5c66b',loadingColor4:'#e9a96a',loadingColor5:'#e58b58',loadingColor6:'#c94345',
+  thresholds:[25,50,65,80,90,100],palette:'voltage',width400:3,widthMid:2,widthOther:1.4,
   deltaUp:'#e75e6c',deltaDown:'#43baca',deltaNeutral:'#b4bec4',deltaLoad:30,deltaP:300,deltaQ:100,deltaV:.05,
   layoutMode:'standard',flowDefault:true,clearOnBlank:true,legend:true,displayMode:'nominal',flowSpeed:'normal',flowDensity:4,theme:'dark'
 });
@@ -34,9 +34,15 @@ export class SettingsStore {
       const value = input[key];
       if (typeof value === typeof next[key] && value !== undefined) Object.assign(next, { [key]: value });
     }
-    for (const key of ['color400','color220','color154','color66','colorLow','colorMid','colorOut','colorScenarioOff','colorScenarioOn','colorNoResult','loadingColor0','loadingColor1','loadingColor2','loadingColor3','loadingColor4','voltageLowColor','voltageNeutralColor','voltageHighColor','angleNegativeColor','angleNeutralColor','anglePositiveColor','deltaUp','deltaDown','deltaNeutral'] as const)
+    if(Array.isArray(input.thresholds)&&input.thresholds.length===4&&input.thresholds.every(Number.isFinite)){
+      const old=[...input.thresholds].sort((a,b)=>a-b);
+      next.thresholds=[Math.min(25,old[0]/2),old[0],old[1],old[2],(old[2]+old[3])/2,old[3]];
+      const colors=[next.loadingColor0,next.loadingColor1,next.loadingColor2,next.loadingColor3,next.loadingColor4];
+      [next.loadingColor0,next.loadingColor1,next.loadingColor2,next.loadingColor3,next.loadingColor4,next.loadingColor5,next.loadingColor6]=[colors[0],colors[0],colors[1],colors[2],colors[3],colors[3],colors[4]];
+    }
+    for (const key of ['color400','color220','color154','color66','colorLow','colorMid','colorOut','colorScenarioOff','colorScenarioOn','colorNoResult','loadingColor0','loadingColor1','loadingColor2','loadingColor3','loadingColor4','loadingColor5','loadingColor6','voltageLowColor','voltageNeutralColor','voltageHighColor','angleNegativeColor','angleNeutralColor','anglePositiveColor','deltaUp','deltaDown','deltaNeutral'] as const)
       if (!/^#[0-9a-f]{6}$/i.test(next[key])) next[key] = this.value[key];
-    next.thresholds = Array.isArray(next.thresholds) && next.thresholds.length === 4 && next.thresholds.every(Number.isFinite) ? next.thresholds.map(x => Math.max(0, Math.min(300, x))).sort((a,b) => a-b) : [...this.value.thresholds];
+    next.thresholds = Array.isArray(next.thresholds) && next.thresholds.length === 6 && next.thresholds.every(Number.isFinite) ? next.thresholds.map(x => Math.max(0, Math.min(300, x))).sort((a,b) => a-b) : [...this.value.thresholds];
     for (const key of ['width400', 'widthMid', 'widthOther', 'deltaLoad', 'deltaP', 'deltaQ', 'deltaV', 'flowDensity'] as const) if (!Number.isFinite(next[key]) || next[key] <= 0) next[key] = this.value[key];
     const enums = {palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
     for (const key of Object.keys(enums) as (keyof typeof enums)[]) if (!(enums[key] as readonly string[]).includes(next[key])) Object.assign(next,{[key]:this.value[key]});

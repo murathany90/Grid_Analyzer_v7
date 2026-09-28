@@ -14,7 +14,7 @@ export function createSettingsView(ctx: AppContext): Feature {
     const colors=([
       ['400 kV','color400'],['220 kV','color220'],['154 kV','color154'],['66 kV','color66'],['≤36 kV','colorLow'],
     ] as const).map(([label,key])=>color(label,key,s[key],`${label} nominal hat rengi. ${mapOnly}`)).join('');
-    const loadingColors=([s.loadingColor0,s.loadingColor1,s.loadingColor2,s.loadingColor3,s.loadingColor4] as const)
+    const loadingColors=([s.loadingColor0,s.loadingColor1,s.loadingColor2,s.loadingColor3,s.loadingColor4,s.loadingColor5,s.loadingColor6] as const)
       .map((value,i)=>color(`Kademe ${i} rengi`,(`loadingColor${i}` as keyof Settings),value,`Yüklenme renk kademesi ${i}. ${mapOnly}`)).join('');
     const thresholds=s.thresholds.map((value,i)=>`<label title="Yüklenme eşiği ${i+1}: yalnız harita rengini değiştirir; ekipman limitini değiştirmez.">Yüklenme eşiği ${i+1} (%)<input type="number" data-threshold="${i}" value="${value}" min="0" max="300" step="1" aria-label="Yüklenme eşiği ${i+1} yüzde" title="Yalnız harita rengini etkiler."></label>`).join('');
     form.innerHTML=`
