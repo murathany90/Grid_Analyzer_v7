@@ -24,7 +24,7 @@ export interface LinearSolution { x:Float64Array; iterations:number; residual:nu
 export interface LinearSolveDiagnostics { minPivot:number|null; stage:string; }
 export interface NumericalFailureDiagnostic {
   failureStage:'NO_SLACK'|'YBUS_BUILD'|'LINEAR_SOLVE'|'LINE_SEARCH'|'NEWTON_ITERATION'|'Q_LIMIT';
-  iteration:number|null; controlRound:number; maxMismatch:number|null; maxMismatchMw:number|null; minPivot:number|null;
+  iteration:number|null; controlRound:number; maxMismatchMw:number|null; minPivot:number|null;
   islandCount:number; unsuppliedBusCount:number; referenceBus:number|null; message:string;
   linearStage?:string; pivotSource?:'ILU0_PRE_REGULARIZATION';
   lineSearchAccepted?:boolean;

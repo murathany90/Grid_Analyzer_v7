@@ -1,4 +1,5 @@
 import type { CalculationResult } from '../../domain/results/types';
+import { voltageBand, type VoltageBand } from '../../domain/model/voltage-band';
 
 export type ReferenceKind='bus'|'line'|'transformer';
 export interface PowerFactoryReferenceRecord {
@@ -7,10 +8,17 @@ export interface PowerFactoryReferenceRecord {
   pLvMw?:number; qLvMvar?:number; loadingPercent?:number;
 }
 type Metric=Exclude<keyof PowerFactoryReferenceRecord,'kind'|'fid'|'name'>;
-interface ActualRecord {kind:ReferenceKind;ids:string[];name:string;values:Partial<Record<Metric,number>>}
-export interface MetricError {kind:ReferenceKind;metric:Metric;count:number;mae:number;maxAbsoluteError:number}
+type ComparisonMetric=Metric|'alignedAngleDeg';
+interface ActualRecord {kind:ReferenceKind;ids:string[];name:string;nominalKv:number;islandId?:string;values:Partial<Record<Metric,number>>}
+export interface MetricError {kind:ReferenceKind;metric:ComparisonMetric;count:number;mae:number;maxAbsoluteError:number;p95AbsoluteError:number;meanBias:number}
 export interface MatchIssue {kind:ReferenceKind;fid?:string;name:string;reason:'UNMATCHED'|'AMBIGUOUS'}
-export interface PowerFactoryComparison {matched:Record<ReferenceKind,number>;unmatchedActual:Record<ReferenceKind,number>;unmatched:MatchIssue[];ambiguous:MatchIssue[];metrics:MetricError[]}
+export interface PowerFactoryComparison {
+ matched:Record<ReferenceKind,number>;unmatchedActual:Record<ReferenceKind,number>;unmatched:MatchIssue[];ambiguous:MatchIssue[];
+ summary:{matchedTotal:number;unmatchedReference:number;ambiguousReference:number;unmatchedActualTotal:number};
+ metrics:MetricError[];voltageBands:(MetricError&{band:VoltageBand})[];
+ angleAlignment:{method:'REFERENCE_BUS'|'MEDIAN'|'PER_ISLAND'|'NONE';offsetDeg:number|null;matchedBusCount:number;islands:{islandId:string;method:'REFERENCE_BUS'|'MEDIAN';offsetDeg:number;matchedBusCount:number}[]};
+ quality:'AVAILABLE_NOT_ACCEPTED'|'BENCHMARKED_PARTIAL';
+}
 
 const aliases:Record<string,keyof PowerFactoryReferenceRecord>={
  kind:'kind',type:'kind',class:'kind',objecttype:'kind',elementtype:'kind',fid:'fid',id:'fid',loc_name:'name',name:'name',objectname:'name',
@@ -41,19 +49,36 @@ export function importPowerFactoryReference(text:string):PowerFactoryReferenceRe
  return records;
 }
 function actualRecords(result:CalculationResult):ActualRecord[]{
- const buses:ActualRecord[]=result.buses.map(b=>({kind:'bus',ids:[b.id,...b.terms],name:b.name,values:{nominalKv:b.vnKv,voltageKv:b.vmPu*b.vnKv,voltagePu:b.vmPu,angleDeg:b.angleRad*180/Math.PI}}));
+ const buses:ActualRecord[]=result.buses.map(b=>({kind:'bus',ids:[b.id,...b.terms],name:b.name,nominalKv:b.vnKv,islandId:b.islandId,values:{nominalKv:b.vnKv,voltageKv:b.vmPu*b.vnKv,voltagePu:b.vmPu,angleDeg:b.angleRad*180/Math.PI}}));
  const voltageByTerm=new Map<string,number>();for(const b of result.buses)for(const id of [b.id,...b.terms])voltageByTerm.set(id,b.vnKv);
- const branches:ActualRecord[]=result.branches.map(b=>{const tr=b.sourceClass.toLowerCase().includes('tr'),common:ActualRecord={kind:tr?'transformer':'line',ids:[b.id],name:b.name,values:{loadingPercent:b.loading??undefined}};
+ const branches:ActualRecord[]=result.branches.map(b=>{const tr=b.sourceClass.toLowerCase().includes('tr'),common:ActualRecord={kind:tr?'transformer':'line',ids:[b.id],name:b.name,nominalKv:b.vnKv,values:{loadingPercent:b.loading??undefined}};
   if(tr){const fromKv=voltageByTerm.get(b.from)??b.vnKv,toKv=voltageByTerm.get(b.to)??b.vnKv;const fromHigh=fromKv>=toKv;Object.assign(common.values,fromHigh?{pHvMw:b.pf,qHvMvar:b.qf,pLvMw:b.pt,qLvMvar:b.qt}:{pHvMw:b.pt,qHvMvar:b.qt,pLvMw:b.pf,qLvMvar:b.qf});}
   else Object.assign(common.values,{pFromMw:b.pf,qFromMvar:b.qf,pToMw:b.pt,qToMvar:b.qt});return common;});return [...buses,...branches];
 }
 function metricKeys(kind:ReferenceKind):Metric[]{return kind==='bus'?['nominalKv','voltageKv','voltagePu','angleDeg']:kind==='line'?['pFromMw','qFromMvar','pToMw','qToMvar','loadingPercent']:['pHvMw','qHvMvar','pLvMw','qLvMvar','loadingPercent'];}
 export function comparePowerFactoryReference(reference:readonly PowerFactoryReferenceRecord[],result:CalculationResult):PowerFactoryComparison{
- const actual=actualRecords(result),matched:Record<ReferenceKind,number>={bus:0,line:0,transformer:0},unmatched:MatchIssue[]=[],ambiguous:MatchIssue[]=[],errors=new Map<string,{kind:ReferenceKind;metric:Metric;values:number[]}>(),used=new Set<ActualRecord>();
- for(const ref of reference){const candidates=actual.filter(a=>a.kind===ref.kind);let hits=ref.fid?candidates.filter(a=>a.ids.includes(ref.fid!)):[];if(hits.length!==1){if(hits.length>1){ambiguous.push({kind:ref.kind,fid:ref.fid,name:ref.name,reason:'AMBIGUOUS'});continue;}const nameHits=candidates.filter(a=>a.name===ref.name);if(nameHits.length!==1){(nameHits.length?ambiguous:unmatched).push({kind:ref.kind,fid:ref.fid,name:ref.name,reason:nameHits.length?'AMBIGUOUS':'UNMATCHED'});continue;}hits=nameHits;}
+ const actual=actualRecords(result),matched:Record<ReferenceKind,number>={bus:0,line:0,transformer:0},unmatched:MatchIssue[]=[],ambiguous:MatchIssue[]=[],used=new Set<ActualRecord>();
+ const errors=new Map<string,{kind:ReferenceKind;metric:ComparisonMetric;band:VoltageBand|null;values:number[]}>();
+ const anglePairs:{target:ActualRecord;expected:number;observed:number;band:VoltageBand|null}[]=[];
+ const addError=(kind:ReferenceKind,metric:ComparisonMetric,difference:number,band:VoltageBand|null)=>{for(const scope of ['all','band'] as const){if(scope==='band'&&!band)continue;const key=`${scope}:${band??''}:${kind}:${metric}`,entry=errors.get(key)||{kind,metric,band:scope==='band'?band:null,values:[]};entry.values.push(difference);errors.set(key,entry);}};
+ for(const ref of reference){const candidates=actual.filter(a=>a.kind===ref.kind);let hits=ref.fid?candidates.filter(a=>a.ids.includes(ref.fid!)):[];
+  if(hits.length!==1){if(hits.length>1){ambiguous.push({kind:ref.kind,fid:ref.fid,name:ref.name,reason:'AMBIGUOUS'});continue;}const nameHits=candidates.filter(a=>a.name===ref.name);if(nameHits.length!==1){(nameHits.length?ambiguous:unmatched).push({kind:ref.kind,fid:ref.fid,name:ref.name,reason:nameHits.length?'AMBIGUOUS':'UNMATCHED'});continue;}hits=nameHits;}
   const target=hits[0];if(used.has(target)){ambiguous.push({kind:ref.kind,fid:ref.fid,name:ref.name,reason:'AMBIGUOUS'});continue;}used.add(target);matched[ref.kind]++;
-  for(const metric of metricKeys(ref.kind)){const expected=ref[metric],observed=target.values[metric];if(typeof expected!=='number'||typeof observed!=='number'||!Number.isFinite(observed))continue;const key=`${ref.kind}:${metric}`,entry=errors.get(key)||{kind:ref.kind,metric,values:[]};entry.values.push(Math.abs(observed-expected));errors.set(key,entry);}
+  const band=voltageBand(target.nominalKv);for(const metric of metricKeys(ref.kind)){const expected=ref[metric],observed=target.values[metric];if(typeof expected!=='number'||typeof observed!=='number'||!Number.isFinite(observed))continue;addError(ref.kind,metric,observed-expected,band);}
+  if(ref.kind==='bus'&&typeof ref.angleDeg==='number'&&typeof target.values.angleDeg==='number')anglePairs.push({target,expected:ref.angleDeg,observed:target.values.angleDeg,band});
  }
+ const referenceId=result.diagnostics.referenceBusId,referenceName=result.diagnostics.referenceBusName;
+ const byIsland=new Map<string,typeof anglePairs>();for(const pair of anglePairs){const id=pair.target.islandId||'default',group=byIsland.get(id)||[];group.push(pair);byIsland.set(id,group);}
+ const alignments:{islandId:string;method:'REFERENCE_BUS'|'MEDIAN';offsetDeg:number;matchedBusCount:number}[]=[];
+ for(const[islandId,pairs]of byIsland){const slackPair=pairs.find(p=>typeof referenceId==='string'&&p.target.ids.includes(referenceId))||pairs.find(p=>typeof referenceName==='string'&&p.target.name===referenceName);
+  const offsets=pairs.map(p=>p.expected-p.observed).sort((a,b)=>a-b),middle=Math.floor(offsets.length/2),offsetDeg=slackPair?slackPair.expected-slackPair.observed:offsets.length%2?offsets[middle]:(offsets[middle-1]+offsets[middle])/2;
+  alignments.push({islandId,method:slackPair?'REFERENCE_BUS':'MEDIAN',offsetDeg,matchedBusCount:pairs.length});
+  for(const pair of pairs)addError('bus','alignedAngleDeg',pair.observed+offsetDeg-pair.expected,pair.band);
+ }
+ const angleAlignment={method:alignments.length>1?'PER_ISLAND' as const:alignments[0]?.method||'NONE' as const,offsetDeg:alignments.length===1?alignments[0].offsetDeg:null,matchedBusCount:anglePairs.length,islands:alignments};
+ const percentile=(values:number[],fraction:number)=>{const sorted=values.map(Math.abs).sort((a,b)=>a-b),index=(sorted.length-1)*fraction,lo=Math.floor(index),hi=Math.ceil(index);return sorted[lo]+(sorted[hi]-sorted[lo])*(index-lo);};
+ const summarize=(e:{kind:ReferenceKind;metric:ComparisonMetric;values:number[]}):MetricError=>({kind:e.kind,metric:e.metric,count:e.values.length,mae:e.values.reduce((a,b)=>a+Math.abs(b),0)/e.values.length,maxAbsoluteError:Math.max(...e.values.map(Math.abs)),p95AbsoluteError:percentile(e.values,.95),meanBias:e.values.reduce((a,b)=>a+b,0)/e.values.length});
+ const metrics:MetricError[]=[],voltageBands:(MetricError&{band:VoltageBand})[]=[];for(const entry of errors.values()){if(entry.band)voltageBands.push({...summarize(entry),band:entry.band});else metrics.push(summarize(entry));}
  const unmatchedActual:Record<ReferenceKind,number>={bus:0,line:0,transformer:0};for(const row of actual)if(!used.has(row))unmatchedActual[row.kind]++;
- const metrics=[...errors.values()].map(e=>({kind:e.kind,metric:e.metric,count:e.values.length,mae:e.values.reduce((a,b)=>a+b,0)/e.values.length,maxAbsoluteError:Math.max(...e.values)}));return{matched,unmatchedActual,unmatched,ambiguous,metrics};
+ return{matched,unmatchedActual,unmatched,ambiguous,summary:{matchedTotal:matched.bus+matched.line+matched.transformer,unmatchedReference:unmatched.length,ambiguousReference:ambiguous.length,unmatchedActualTotal:unmatchedActual.bus+unmatchedActual.line+unmatchedActual.transformer},metrics,voltageBands,angleAlignment,quality:result.converged?'BENCHMARKED_PARTIAL':'AVAILABLE_NOT_ACCEPTED'};
 }

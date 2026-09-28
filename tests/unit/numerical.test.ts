@@ -50,9 +50,9 @@ test('Full NR rejects a Q-limit change on its final allowed control round', () =
 test('Full NR persists a structured missing-reference diagnostic without changing status',()=>{
  const result=solveNR({n:2,baseMVA:100,slack:-1,pSpec:new Float64Array(2),qSpec:new Float64Array(2),busType:new Int8Array(2),branches:[]});
  assert.equal(result.status,'NO_SLACK');assert.equal(result.failure?.failureStage,'NO_SLACK');
- assert.equal(result.failure?.iteration,null);assert.equal(result.failure?.maxMismatch,null);assert.equal(result.failure?.islandCount,2);assert.equal(result.failure?.unsuppliedBusCount,2);
+ assert.equal(result.failure?.iteration,null);assert.equal(result.failure?.maxMismatchMw,null);assert.equal(result.failure?.islandCount,2);assert.equal(result.failure?.unsuppliedBusCount,2);
  assert.equal(result.failure?.referenceBus,null);assert.ok(result.failure?.message);
- const prepared={diagnostics:{islandCount:2,unsuppliedBuses:2},buses:[],warnings:[]} as never;
+ const prepared={model:{slack:-1},diagnostics:{islandCount:2,unsuppliedBuses:2},buses:[],warnings:[]} as never;
  const mapped=mapResults(prepared,result,{} as never);assert.equal((mapped.diagnostics.numericalFailure as {failureStage:string}).failureStage,'NO_SLACK');
 });
 

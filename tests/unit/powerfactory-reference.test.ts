@@ -24,7 +24,7 @@ test('PowerFactory comparison prioritizes FID and reports MAE, maximum error and
  ]);
  const refs=importPowerFactoryReference(JSON.stringify({buses:[{fid:'FID-B1',name:'Different display name',voltagePu:1}],lines:[{fid:'L1',name:'Hat 1',pFromMw:10,pToMw:-10}],transformers:[{fid:'T1',name:'Trafo 1',pHvMw:20,pLvMw:-19}],records:[{kind:'line',name:'Missing'}]}));
  const report=comparePowerFactoryReference(refs,calc);assert.deepEqual(report.matched,{bus:1,line:1,transformer:1});assert.equal(report.unmatched.length,1);
- assert.deepEqual(report.metrics.find(m=>m.kind==='line'&&m.metric==='pFromMw'),{kind:'line',metric:'pFromMw',count:1,mae:2,maxAbsoluteError:2});
+ assert.deepEqual(report.metrics.find(m=>m.kind==='line'&&m.metric==='pFromMw'),{kind:'line',metric:'pFromMw',count:1,mae:2,maxAbsoluteError:2,p95AbsoluteError:2,meanBias:2});
 });
 
 test('PowerFactory name-only matching refuses duplicate names as ambiguous',()=>{
@@ -34,4 +34,19 @@ test('PowerFactory name-only matching refuses duplicate names as ambiguous',()=>
  ],[]);
  const report=comparePowerFactoryReference([{kind:'bus',name:'Duplicate',voltagePu:1}],calc);
  assert.equal(report.matched.bus,0);assert.equal(report.ambiguous.length,1);assert.equal(report.ambiguous[0].reason,'AMBIGUOUS');
+});
+
+test('PowerFactory comparison reports interpolated p95, signed bias, voltage bands and aligned angles',()=>{
+ const calc=result([
+  {id:'B1',name:'Slack',terms:[],siteIds:[],vnKv:154,vmPu:1.01,angleRad:10*Math.PI/180,pMw:0,qMvar:0},
+  {id:'B2',name:'Remote',terms:[],siteIds:[],vnKv:154,vmPu:0.99,angleRad:12*Math.PI/180,pMw:0,qMvar:0},
+ ],[]);calc.diagnostics.referenceBusId='B1';
+ const refs=importPowerFactoryReference(JSON.stringify({buses:[{fid:'B1',name:'Slack',voltagePu:1,angleDeg:0},{fid:'B2',name:'Remote',voltagePu:1,angleDeg:1}]}));
+ const report=comparePowerFactoryReference(refs,calc),v=report.metrics.find(m=>m.metric==='voltagePu'),angle=report.metrics.find(m=>m.metric==='alignedAngleDeg');
+ assert.equal(report.angleAlignment.method,'REFERENCE_BUS');assert.ok(Math.abs((report.angleAlignment.offsetDeg??0)+10)<1e-9);
+ assert.equal(v?.count,2);assert.ok(Math.abs((v?.p95AbsoluteError??0)-.01)<1e-10);assert.ok(Math.abs(v?.meanBias??1)<1e-10);
+ assert.equal(angle?.count,2);assert.ok(Math.abs((angle?.mae??0)-.5)<1e-10);assert.ok(report.voltageBands.some(m=>m.band==='154'&&m.metric==='voltagePu'));
+ const separate=result([{id:'A',name:'A',terms:[],siteIds:[],vnKv:154,vmPu:1,angleRad:10*Math.PI/180,pMw:0,qMvar:0,islandId:'one'},{id:'B',name:'B',terms:[],siteIds:[],vnKv:154,vmPu:1,angleRad:100*Math.PI/180,pMw:0,qMvar:0,islandId:'two'}],[]);
+ const separateReport=comparePowerFactoryReference([{kind:'bus',fid:'A',name:'A',angleDeg:0},{kind:'bus',fid:'B',name:'B',angleDeg:0}],separate);
+ assert.equal(separateReport.angleAlignment.method,'PER_ISLAND');assert.equal(separateReport.metrics.find(m=>m.metric==='alignedAngleDeg')?.mae,0);
 });
