@@ -5,7 +5,8 @@ import type { CalculationResult } from '../../domain/results/types';
 export type ProgressStage='MODEL'|'TOPOLOGY'|'YBUS'|'INIT'|'INNER_NR'|'Q_LIMIT'|'OUTER_CONTROL'|'RESULT';
 export type Progress=(stage:ProgressStage,detail?:Record<string,unknown>)=>void;
 export type StationControlMode='off'|'ownership'|'zeroDroop'|'droop';
-export interface AnalysisRequest { network:CanonicalNetwork;scenario:ScenarioOverlay;identity:CalculationIdentity;/** Local validation override; production defaults to zeroDroop. */stationControlMode?:StationControlMode }
+export type StationControlImplementation='SENSITIVITY'|'INTEGRATED_EXPERIMENTAL';
+export interface AnalysisRequest { network:CanonicalNetwork;scenario:ScenarioOverlay;identity:CalculationIdentity;/** Local validation override; production defaults to zeroDroop. */stationControlMode?:StationControlMode;/** Production defaults to SENSITIVITY; direct Newton remains experimental. */stationControlImplementation?:StationControlImplementation }
 export interface AnalysisEngine {
   readonly name:string;readonly version:string;
   capabilities(network:CanonicalNetwork):ModelCapabilities;

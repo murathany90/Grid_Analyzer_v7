@@ -7,8 +7,8 @@ import {allocateReactiveDelta,dispatchedPWeights,stationParticipation} from '../
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
 import {calcPQ,fillJacobian,makeLayout} from '../../src/analysis/power-flow/js/jacobian';
-import {gmres,iluFill} from '../../src/analysis/power-flow/js/linear-solver';
-import {solveSensitivityRhs} from '../../src/analysis/power-flow/js/sensitivity-interleaved';
+import {gmres,ilu0,iluFill} from '../../src/analysis/power-flow/js/linear-solver';
+import {probeAdjointSensitivities,solveSensitivityRhs} from '../../src/analysis/power-flow/js/sensitivity-interleaved';
 import {APP_VERSION} from '../../src/version';
 import packageJson from '../../package.json';
 import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
@@ -22,7 +22,7 @@ function fixture(multi=true,remote='B3'):CanonicalNetwork {
   const generator=(id:string,bus:string,pMw:number)=>({...entity(id,'ElmSym'),bus,pMw,qMvar:0,vmSet:1.04,voltageControl:true,qMin:-100,qMax:100});
   return {schemaVersion:1,modelHash:'v73',name:'v73',size:0,baseMva:100,buses,lines:[line('L01','B0','B1'),line('L02','B0','B2'),line('L13','B1','B3'),line('L23','B2','B3')],transformers:[],generators:multi?[generator('G1','B1',20),generator('G2','B2',60)]:[generator('G1','B1',20)],loads:[{...entity('D3','ElmLod'),bus:'B3',pMw:70,qMvar:20}],shunts:[],seriesCompensators:[],externalGrids:[{...entity('X0','ElmXnet'),bus:'B0',pMw:0,qMvar:0,vmSet:1}],internationalConnections:[],switches:[],stationControllers:[{...entity('C1','ElmStactrl'),remoteBus:remote,unitIds:multi?['G1','G2']:['G1'],vmSet:1.02,controlModeRaw:0,selectedBusModeRaw:0,distributionModeRaw:0,droopModeRaw:0,qOrientationRaw:0,qSetpointRaw:0,modeSemantics:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'}],secondaryControllers:[],boundaries:[],sites:[],classCounts:{},records:0,warnings:[],capabilities:{powerFlow:{state:'READY',reasons:[]},shortCircuit3Phase:{state:'BLOCKED',reasons:[]},shortCircuitGround:{state:'BLOCKED',reasons:[]},n1:{state:'BLOCKED',reasons:[]}}};
 }
-const run=(network:CanonicalNetwork,mode:'off'|'ownership'|'zeroDroop'='zeroDroop')=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],mode);};
+const run=(network:CanonicalNetwork,mode:'off'|'ownership'|'zeroDroop'='zeroDroop')=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],mode,undefined,'INTEGRATED_EXPERIMENTAL');};
 
 test('current profile participation is dispatched P, with no equal fallback',()=>{
   assert.deepEqual([...dispatchedPWeights([{id:'A',pMw:20},{id:'B',pMw:60}])!],[['A',.25],['B',.75]]);
@@ -52,6 +52,29 @@ test('legacy diagnostic sensitivity solver falls back from ILU1 and checks true 
   const matrix={N:1,rowPtr:Int32Array.from([0,1]),colIdx:Int32Array.from([0]),values:Float64Array.from([1]),pos:[new Map([[0,0]])],diagPos:Int32Array.from([0])},weak=iluFill(matrix,1);weak.lu[0]=0;
   let fallbackBuilds=0;const solved=solveSensitivityRhs(matrix,Float64Array.from([1]),weak,()=>{fallbackBuilds++;return iluFill(matrix,2);});
   assert.equal(fallbackBuilds,1);assert.equal(solved.method,'ILU2-GMRES');assert.ok(solved.solution);assert.ok(solved.residual!=null&&solved.residual<=1e-6);
+  assert.equal(solved.fallbackCount,1);assert.equal(solved.attempts.length,2);
+});
+test('ILU reports raw and regularized pivots separately',()=>{
+  const matrix={N:2,rowPtr:Int32Array.from([0,1,2]),colIdx:Int32Array.from([0,1]),values:Float64Array.from([0,2]),pos:[new Map([[0,0]]),new Map([[1,1]])],diagPos:Int32Array.from([0,1])};
+  const factor=ilu0(matrix);assert.equal(factor.minPivotBeforeRegularization,0);assert.equal(factor.minPivotAfterRegularization,1e-10);assert.equal(factor.regularizedPivotCount,1);
+});
+test('natural and full RCM adjoint solves preserve sensitivities and true residual with cached remote RHS',()=>{
+  const part=prepareModel(fixture()),baseline=solveNR(part.model);assert.equal(baseline.converged,true);
+  const model={...part.model,busType:Int8Array.from(part.model.busType),qSpec:Float64Array.from(part.model.qSpec),qMinNet:[...part.model.qMinNet],qMaxNet:[...part.model.qMaxNet]};
+  const g1=part.generators.find(g=>g.id==='G1')!.index,g2=part.generators.find(g=>g.id==='G2')!.index,remote=part.buses.findIndex(b=>b.terms.includes('B3')||b.id==='B3');
+  for(const bus of [g1,g2]){model.busType[bus]=0;model.qSpec[bus]=baseline.Q![bus];model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}
+  const solved=solveNR(model,undefined,{initialVm:baseline.Vm,initialVa:baseline.Va});assert.equal(solved.converged,true);
+  const groups=[{remoteBus:remote,actuators:[{bus:g1,weight:.25},{bus:g2,weight:.75}]},{remoteBus:remote,actuators:[{bus:g1,weight:1}]}];
+  const natural=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'NATURAL'}),rcm=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'RCM'});
+  for(let i=0;i<groups.length;i++){
+    assert.equal(natural.probes[i].reason,rcm.probes[i].reason);
+    assert.ok(Math.abs(natural.probes[i].slope!-rcm.probes[i].slope!)<1e-8);
+  }
+  for(const batch of [natural,rcm]){
+    assert.equal(batch.solverDiagnostics.rhsCount,2);assert.equal(batch.solverDiagnostics.uniqueRemoteRhsCount,1);assert.equal(batch.solverDiagnostics.cachedRhsHits,1);
+    assert.ok(batch.solverDiagnostics.rhs[0].trueResidual!<=1e-6);
+  }
+  assert.equal(natural.solverDiagnostics.ordering,'NATURAL');assert.equal(rcm.solverDiagnostics.ordering,'RCM');
 });
 test('package, application engine and calculation identity share one version',()=>{
   assert.equal(packageJson.version,'7.4.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
@@ -132,4 +155,13 @@ test('one controller reaching a Q limit leaves its peer controller active',()=>{
   assert.equal(byId.get('C2')!.status,'SATISFIED');
   assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
   assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
+});
+test('zero-droop production selects sensitivity while direct integrated remains an explicit experiment',async()=>{
+  const network=fixture(false),scenario=emptyScenario(),calculationIdentity=identity(network.modelHash,scenario,'powerFlow'),engine=new BrowserJsPowerFlowEngine();
+  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
+  assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
+  assert.equal((production.diagnostics.stationControllerSummary as {implementation:string}).implementation,'SENSITIVITY');
+  assert.equal((production.diagnostics.sensitivitySolver as {ordering:string}).ordering,'RCM');
+  assert.equal(experimental.converged,true);assert.equal(experimental.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');
+  assert.equal((experimental.diagnostics.stationControllerSummary as {implementation:string}).implementation,'INTEGRATED_EXPERIMENTAL');
 });

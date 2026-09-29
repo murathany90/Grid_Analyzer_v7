@@ -62,6 +62,13 @@ test('Full NR persists a structured missing-reference diagnostic without changin
  const prepared={model:{slack:-1},diagnostics:{islandCount:2,unsuppliedBuses:2},buses:[],warnings:[]} as never;
  const mapped=mapResults(prepared,result,{} as never);assert.equal((mapped.diagnostics.numericalFailure as {failureStage:string}).failureStage,'NO_SLACK');
 });
+test('line-search failure identifies an invalid fixed-voltage bus before residual evaluation',()=>{
+ const model:NumericalModel={n:2,baseMVA:100,slack:0,slackVm:1.9,pSpec:Float64Array.from([0,-40]),qSpec:Float64Array.from([0,-20]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]};
+ const result=solveNR(model,undefined,{busIds:['SLACK','LOAD']});
+ assert.equal(result.status,'NR_LINE_SEARCH_FAILED');assert.equal(result.failure?.firstInvalidCandidate?.busId,'SLACK');
+ assert.equal(result.failure?.firstInvalidCandidate?.stateUpdated,false);assert.equal(result.failure?.lineSearchBestNormRatio,Infinity);
+ assert.ok(result.failure?.maxDxVm!=null&&result.failure.maxDxTheta!=null);
+});
 
 test('Fast AC two-bus legacy baseline keeps its approximate operating point', () => {
   const model: FastAcIsland = {
