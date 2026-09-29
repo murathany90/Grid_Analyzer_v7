@@ -19,6 +19,10 @@ export function stationParticipation(units:readonly Pick<ReactiveUnitState,'id'|
 export function activeParticipation(units:readonly ReactiveUnitState[],direction:1|-1):Map<string,number>|null {
   return dispatchedPWeights(units.filter(unit=>unit.pMw>0&&(direction>0?unit.qMvar<unit.qMax-EPS:unit.qMvar>unit.qMin+EPS)));
 }
+/** Units at either Q limit are excluded from the unrestricted participation set. */
+export function interiorParticipation(units:readonly ReactiveUnitState[]):Map<string,number>|null {
+  return dispatchedPWeights(units.filter(unit=>unit.qMvar>unit.qMin+EPS&&unit.qMvar<unit.qMax-EPS));
+}
 /** Bounded weighted water-fill; units at a limit leave the directional active set. */
 export function allocateReactiveDelta(units:readonly ReactiveUnitState[],requestedDelta:number):ReactiveAllocation {
   const qByUnit=new Map(units.map(unit=>[unit.id,unit.qMvar]));

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,classifyMonotoneActiveSet} from '../../src/analysis/power-flow/station-controls-v73';
-import {allocateReactiveDelta,dispatchedPWeights,stationParticipation} from '../../src/analysis/power-flow/station-participation';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
 import {calcPQ,fillJacobian,makeLayout} from '../../src/analysis/power-flow/js/jacobian';
@@ -46,6 +46,11 @@ test('unit Q limits clamp and redistribute the remaining request',()=>{
   assert.equal(allocation.qByUnit.get('A'),5);assert.equal(allocation.qByUnit.get('B'),35);assert.equal(allocation.saturated,false);
   const saturated=allocateReactiveDelta([{id:'A',bus:1,pMw:20,qMvar:0,qMin:-5,qMax:5},{id:'B',bus:2,pMw:60,qMvar:0,qMin:-10,qMax:10}],40);
   assert.equal(saturated.appliedDelta,15);assert.equal(saturated.saturated,true);
+});
+test('units at either Q limit do not regain unrestricted participation',()=>{
+  const units=[{id:'MIN',bus:1,pMw:20,qMvar:-5,qMin:-5,qMax:5},{id:'MID',bus:2,pMw:60,qMvar:0,qMin:-5,qMax:5},{id:'MAX',bus:3,pMw:20,qMvar:5,qMin:-5,qMax:5}];
+  assert.deepEqual([...interiorParticipation(units)!],[['MID',1]]);
+  assert.deepEqual([...activeParticipation(units,1)!],[['MIN',.25],['MID',.75]]);
 });
 test('signed negative droop changes target in the source direction',()=>{
   assert.equal(droopTarget(1.02,25,100,-5),1.0075);
@@ -136,6 +141,35 @@ test('coupled station solve uses cross-controller voltage effects',()=>{
   const coupledResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*solved.solution![j],0)-target[i]);
   const diagonalDelta=matrix.map((row,i)=>target[i]/row[i]),diagonalResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*diagonalDelta[j],0)-target[i]);
   assert.ok(Math.hypot(...coupledResidual)<Math.hypot(...diagonalResidual));
+});
+test('uniform trust scaling keeps a coupled descent direction and changes the applied Q vector',()=>{
+  const n=128,matrix:number[][]=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:i<2&&j<2?.99:0)),target:number[]=Array.from({length:n},(_,i)=>i===0?1:0),scales=Array.from({length:n},(_,i)=>i===1?10:1),raw=solveCoupledLeastSquares(matrix,target,scales).solution!;
+  const bounds=Array.from({length:n},(_,i)=>i===0?.25:i===1?2.5:1),clipped=raw.map((value,i)=>Math.max(-bounds[i],Math.min(bounds[i],value)));
+  const error=(delta:number[])=>Math.hypot(...target.map((value,i)=>value-matrix[i].reduce((sum,slope,j)=>sum+slope*delta[j],0)));
+  const zero=Array<number>(n).fill(0);assert.ok(error(clipped)>error(zero));
+  const first=scaleCoupledProposal(raw,bounds),second=scaleCoupledProposal(raw,bounds.map(value=>value/2));
+  assert.ok(error(first)<error(zero));assert.ok(error(second)<error(zero));
+  assert.ok(Math.max(...second.map(Math.abs))<Math.max(...first.map(Math.abs)));
+  assert.ok(first.every((value,i)=>Math.abs(value)<=bounds[i]+1e-12));
+  assert.ok(second.every((value,i)=>Math.abs(value)<=bounds[i]/2+1e-12));
+});
+test('non-descent proposals never invoke a full NR trial callback',()=>{
+  let solves=0;const run=()=>{solves++;return 'CONVERGED';};
+  const skipped=runPredictedDescentTrial(1,1.01,run);assert.equal(skipped.result,null);assert.ok(skipped.predictedReduction<0);assert.equal(solves,0);
+  assert.equal(runPredictedDescentTrial(1,.9,run).result,'CONVERGED');assert.equal(solves,1);
+});
+test('sensitivity controller accepts a bounded Q step and reduces remote voltage error',()=>{
+  const network=fixture(),part=prepareModel(network),controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop');
+  const row=controlled.controllers[0];assert.ok(controlled.outerRounds>0);assert.equal(controlled.resultProvenance,'SENSITIVITY_STATION_CONTROL');
+  assert.ok(Math.abs(row.voltageResidualPu!)<Math.abs(row.targetVpu-row.initialVpu!));
+  for(const unit of part.generators){const q=controlled.unitOverrides.get(unit.id)?.qMvar;assert.ok(q!=null&&q>=unit.qMin!-1e-8&&q<=unit.qMax!+1e-8);}
+  assert.ok(controlled.trialAttempts?.some(attempt=>attempt.accepted));
+});
+test('accepted sensitivity Q step leaves a limited unit out of remaining participation',()=>{
+  const base=fixture(),network={...base,generators:base.generators.map(g=>g.id==='G1'?{...g,qMin:-.25,qMax:.25}:{...g,qMin:-10000,qMax:10000})},part=prepareModel(network);
+  const controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop'),row=controlled.controllers[0];
+  assert.ok(controlled.outerRounds>0);assert.equal(Math.abs(controlled.unitOverrides.get('G1')?.qMvar??NaN),.25);
+  assert.deepEqual(row.participationKi,{G2:1});
 });
 test('integrated Q limit active set clamps one unit and redistributes to its peer',()=>{
   const base=fixture(),network={...base,generators:base.generators.map(g=>g.id==='G1'?{...g,qMin:-.25,qMax:.25}:{...g,qMin:-10000,qMax:10000})},controlled=run(network,'zeroDroop'),row=controlled.controllers[0];
