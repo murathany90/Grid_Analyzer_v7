@@ -33,6 +33,7 @@ export interface NumericalFailureDiagnostic {
   islandCount:number; unsuppliedBusCount:number; referenceBus:number|null; message:string;
   linearStage?:string; pivotSource?:'ILU0_PRE_REGULARIZATION';
   lineSearchAccepted?:boolean;
+  lineSearchStepCap?:number; lineSearchBestNormRatio?:number;
 }
 export interface PowerFlowBranchResult { index:number; pf:number; qf:number; pt:number; qt:number; }
 export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number}>; Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[]; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[]; }

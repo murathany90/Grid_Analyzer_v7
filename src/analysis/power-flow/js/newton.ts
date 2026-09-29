@@ -4,6 +4,11 @@ import { calcPQ, fillJacobian, makeLayout } from './jacobian';
 import { solveLinear,solveLinearFill1 } from './linear-solver';
 import type { AdmittanceMatrix, IntegratedStationControl, JacobianLayout, LinearSolution, NumericalFailureDiagnostic, NumericalModel, PowerFlowResult, ProgressCallback } from './types';
 
+/** Armijo decrease is proportional to the step actually applied after capping. */
+export function acceptsNewtonStep(baseNorm:number,nextNorm:number,stepFraction:number,maxMismatch:number):boolean {
+ return nextNorm<baseNorm*(1-1e-5*stepFraction)||maxMismatch<1e-6;
+}
+
 function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusCount:number}{
  const adjacency:number[][]=Array.from({length:model.n},()=>[]);for(const e of model.branches){if(e.i<0||e.j<0||e.i>=model.n||e.j>=model.n)continue;adjacency[e.i].push(e.j);adjacency[e.j].push(e.i);}
  const seen=new Uint8Array(model.n);let islandCount=0;for(let i=0;i<model.n;i++)if(!seen[i]){islandCount++;seen[i]=1;const q=[i];while(q.length){for(const j of adjacency[q.pop()!]||[])if(!seen[j]){seen[j]=1;q.push(j);}}}
@@ -38,7 +43,8 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    const linearDiagnostics={minPivot:null as number|null,stage:'START'};try{lin=(options.linearFill===1?solveLinearFill1:solveLinear)(A,rhs,linearDiagnostics);}catch(e){nrReason='LINEAR_SOLVER_FAILED';nrFailure=failure('LINEAR_SOLVE',e instanceof Error?e.message:String(e),it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage});lin=null;}lastMinPivot=linearDiagnostics.minPivot;lastLinearStage=linearDiagnostics.stage;
    if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),baseNorm=Math.sqrt(ss);let accepted=false;
    let stepCap=1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
-   for(let scale=1;scale>=1/256;scale/=2){
+    let bestNorm=Infinity;
+    for(let scale=1;scale>=1/256;scale/=2){
     Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);
     for(let k=0;k<L.ang.length;k++){const i=L.ang[k];Va[i]+=dx[k]*stepCap*scale;}
     for(const i of L.vm)Vm[i]+=dx[L.vIndex[i]]*stepCap*scale;
@@ -47,9 +53,10 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
     calcPQ(Y,Vm,Va,P,Q);refreshEffectiveQ();let ss2=0,mx2=0;
     for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]-P[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
     for(let k=0;k<L.pq.length;k++){const i=L.pq[k],d=effectiveQ[i]-Q[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
-    if(Math.sqrt(ss2)<baseNorm*(1-1e-5*scale)||mx2<1e-6){accepted=true;break;}
-   }
-   if(!accepted){Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);nrReason='NR_LINE_SEARCH_FAILED';nrFailure=failure('LINE_SEARCH','Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.',it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:lin.method||linearDiagnostics.stage,lineSearchAccepted:false});break;}totalIter++;
+     const nextNorm=Math.sqrt(ss2);bestNorm=Math.min(bestNorm,nextNorm);
+     if(acceptsNewtonStep(baseNorm,nextNorm,stepCap*scale,mx2)){accepted=true;break;}
+    }
+   if(!accepted){Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);nrReason='NR_LINE_SEARCH_FAILED';nrFailure=failure('LINE_SEARCH','Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.',it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:lin.method||linearDiagnostics.stage,lineSearchAccepted:false,lineSearchStepCap:stepCap,lineSearchBestNormRatio:bestNorm/baseNorm});break;}totalIter++;
   }
   if(!converged){nrFailure??=failure('NEWTON_ITERATION',nrReason||'Newton iteration limit reached.',30,round+1,maxMismatch*base,{minPivot:lastMinPivot,linearStage:lastLinear?.method||lastLinearStage});return {status:nrReason||'NR_MAX_ITERATION',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:nrFailure,elapsedMs:elapsed()};}
   calcPQ(Y,Vm,Va,P,Q);let changed=false;

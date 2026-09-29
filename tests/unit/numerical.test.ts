@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { selfTests, solveNR, type NumericalModel } from '../../src/analysis/power-flow/js';
+import {acceptsNewtonStep} from '../../src/analysis/power-flow/js/newton';
+
+test('Newton sufficient decrease uses the capped step actually applied',()=>{
+  const cap=1e-7,base=1;
+  assert.equal(acceptsNewtonStep(base,base-0.5*cap,cap,0.1),true);
+  assert.equal(acceptsNewtonStep(base,base+0.5*cap,cap,0.1),false);
+});
 import { solveIsland, solveIslandV52, type FastAcIsland } from '../../src/analysis/fast-ac/js';
 import { solveIslandDC, type DcIsland } from '../../src/analysis/dc/js';
 import { mapResults } from '../../src/analysis/power-flow/results';
