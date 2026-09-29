@@ -7,6 +7,15 @@ export function dispatchedPWeights(units:readonly Pick<ReactiveUnitState,'id'|'p
   const total=units.reduce((sum,unit)=>sum+unit.pMw,0);
   return total>EPS?new Map(units.map(unit=>[unit.id,unit.pMw/total])):null;
 }
+export function stationParticipation(units:readonly Pick<ReactiveUnitState,'id'|'pMw'>[],cvqq?:readonly (number|null)[]):{weights:Map<string,number>;source:'SOURCE_CVQQ'|'DERIVED_DISPATCHED_ACTIVE_POWER'}|null {
+  if(cvqq!==undefined){
+    if(cvqq.length!==units.length||cvqq.some(value=>value==null||!Number.isFinite(value)||value<0))return null;
+    const total=cvqq.reduce<number>((sum,value)=>sum+value!,0);
+    return total>EPS?{weights:new Map(units.map((unit,index)=>[unit.id,cvqq[index]!/total])),source:'SOURCE_CVQQ'}:null;
+  }
+  const weights=dispatchedPWeights(units);
+  return weights?{weights,source:'DERIVED_DISPATCHED_ACTIVE_POWER'}:null;
+}
 export function activeParticipation(units:readonly ReactiveUnitState[],direction:1|-1):Map<string,number>|null {
   return dispatchedPWeights(units.filter(unit=>unit.pMw>0&&(direction>0?unit.qMvar<unit.qMax-EPS:unit.qMvar>unit.qMin+EPS)));
 }

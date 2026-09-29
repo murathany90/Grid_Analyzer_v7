@@ -105,10 +105,12 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const unitById=new Map(generators.map(g=>[g.id,g]));
   const stationControllers = rows('ElmStactrl').map(r => {
     const unitIds=Array.from({length:num(r['psym:SIZEROW'])}, (_,i) => str(r[`psym:${i}`]));
+    const cvqqSize=rawNumber(r['cvqq:SIZEROW']),cvqqPresent=cvqqSize!=null||r.cvqq!=null||unitIds.some((_,i)=>r[`cvqq:${i}`]!=null);
+    const qParticipationRaw=cvqqPresent?unitIds.map((_,i)=>rawNumber(r[`cvqq:${i}`]??(unitIds.length===1?r.cvqq:null))):undefined;
     const profile=rawNumber(r.i_ctrl)===0&&rawNumber(r.selBus)===0&&rawNumber(r.imode)===0&&rawNumber(r.iQorient)===0&&rawNumber(r.qsetp)===0&&[0,1].includes(rawNumber(r.i_droop)??-1);
     const measured=unitIds.length===1?unitById.get(unitIds[0]):null,measurement=str(r.pQmeas);
     const measurementSelfCubicle=!!measured&&measured.sourceClass==='ElmGenStat'&&cubicleEquipment.get(measurement)===measured.id&&endpoint(measurement)===measured.bus;
-    return { ...base('ElmStactrl', r),remoteBus:str(r.rembar),unitIds,vmSet:num(r.usetp,1),modeSemantics:profile?'CURRENT_PROFILE_VOLTAGE_DISPATCH_P' as const:'UNSUPPORTED' as const,measurementSelfCubicle,
+    return { ...base('ElmStactrl', r),remoteBus:str(r.rembar),unitIds,qParticipationRaw,vmSet:num(r.usetp,1),modeSemantics:profile?'CURRENT_PROFILE_VOLTAGE_DISPATCH_P' as const:'UNSUPPORTED' as const,measurementSelfCubicle,
       unitRefs:unitIds.map(id=>{const g=unitById.get(id);return{id,sourceClass:g?(g.sourceClass as 'ElmSym'|'ElmGenStat'):'UNRESOLVED' as const,inService:g?.inService??false};}),
       controlModeRaw:rawNumber(r.i_ctrl),selectedBusModeRaw:rawNumber(r.selBus),distributionModeRaw:rawNumber(r.imode),droopModeRaw:rawNumber(r.i_droop),droopValueRaw:rawNumber(r.ddroop),ratedPowerRaw:rawNumber(r.Srated),qSetpointRaw:rawNumber(r.qsetp),measurementRefRaw:measurement,measurementCubicleRaw:str(r.p_cub),qOrientationRaw:rawNumber(r.iQorient),
       sourceRefs:{...base('ElmStactrl',r).sourceRefs,remoteBus:[ref('ElmStactrl',r.FID,'rembar')],unitIds:[ref('ElmStactrl',r.FID,'psym:*')],vmSet:[ref('ElmStactrl',r.FID,'usetp','pu')],controlModeRaw:[ref('ElmStactrl',r.FID,'i_ctrl/selBus')],distributionModeRaw:[ref('ElmStactrl',r.FID,'imode')],droopModeRaw:[ref('ElmStactrl',r.FID,'i_droop/ddroop/Srated','%/MVAr')],qSetpointRaw:[ref('ElmStactrl',r.FID,'qsetp/pQmeas/p_cub/iQorient')]}

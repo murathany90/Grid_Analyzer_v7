@@ -34,6 +34,8 @@ export interface StationController extends Entity {
   /** ElmTerm FID, resolved through ElectricalTopology at preparation time. */
   readonly remoteBus: string; readonly unitIds: readonly string[]; readonly vmSet: number;
   readonly unitRefs?: readonly {id:string;sourceClass:'ElmSym'|'ElmGenStat'|'UNRESOLVED';inService:boolean}[];
+  /** Source cvqq percentages, aligned with unitIds when exported by DGS. */
+  readonly qParticipationRaw?: readonly (number|null)[];
   readonly controlModeRaw?:number|null;readonly selectedBusModeRaw?:number|null;readonly distributionModeRaw?:number|null;readonly droopModeRaw?:number|null;
   readonly droopValueRaw?:number|null;/** Reactive rating in MVAr for this source profile. */readonly ratedPowerRaw?:number|null;readonly qSetpointRaw?:number|null;
   readonly measurementRefRaw?:string;readonly measurementCubicleRaw?:string;readonly qOrientationRaw?:number|null;

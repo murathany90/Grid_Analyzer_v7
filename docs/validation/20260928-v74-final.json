@@ -242,9 +242,162 @@
     },
     "D": {
       "status": "NOT_RUN_C_GATE_FAILED"
+    },
+    "C_directNr": {
+      "provenance": "v7.4 direct-NR final allowed Case C run",
+      "run": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 10,
+        "qLimitRounds": 3,
+        "elapsedMs": 8238.8426,
+        "elapsedWallMs": 8245.411199999999,
+        "maxMismatchMw": 1.4505693868294145e-8
+      },
+      "resultProvenance": "BASELINE_FALLBACK_AFTER_CONTROL_SOLVE_FAILURE",
+      "metrics": {
+        "lineP": {
+          "count": 2308,
+          "bias": 1.6481289334928377,
+          "mae": 9.156998463734833,
+          "p95": 43.436889114018555
+        },
+        "line154P": {
+          "count": 1969,
+          "bias": 0.06448318102849285,
+          "mae": 5.428726756521288,
+          "p95": 17.14863562692895
+        },
+        "line400P": {
+          "count": 331,
+          "bias": 11.107379090689546,
+          "mae": 31.555340648554235,
+          "p95": 81.44789089218415
+        },
+        "transformerP": {
+          "count": 2647,
+          "bias": -0.4647581787373252,
+          "mae": 3.7098071269340505,
+          "p95": 13.287851190797971
+        },
+        "lineQMagnitude": {
+          "count": 2308,
+          "bias": 0.047392467309769704,
+          "mae": 6.232215139107663,
+          "p95": 28.307897656387365
+        },
+        "transformerQMagnitude": {
+          "count": 2647,
+          "bias": -0.07770279495019106,
+          "mae": 1.3996141613638975,
+          "p95": 7.247342009391582
+        },
+        "busVpu": {
+          "count": 1663,
+          "bias": -0.015503347319031208,
+          "mae": 0.016958826608455456,
+          "p95": 0.03702257557301811
+        },
+        "angle": {
+          "method": "MEDIAN",
+          "offsetDeg": 1.7586061652838483,
+          "count": 1663,
+          "bias": 0.045864393705092786,
+          "mae": 1.3351004507151347,
+          "p95": 3.274909799986371
+        }
+      },
+      "timings": {
+        "prepareMs": 100.23459999999977,
+        "baseNrMs": 4460.1036,
+        "controllerClassificationMs": 7.3400000000001455,
+        "jacobianBuildMs": 0,
+        "iluFactorMs": 0,
+        "sensitivitySolveMs": 0,
+        "outerTrialNrMs": 0,
+        "finalNrMs": 3652.7757999999994,
+        "resultMapMs": 4.502599999999802,
+        "totalMs": 8238.8426
+      },
+      "controllers": {
+        "zeroDroopActive": 158,
+        "semanticallySupported": 158,
+        "integrated": 0,
+        "satisfied": 0,
+        "saturatedQMin": 0,
+        "saturatedQMax": 0,
+        "noReactiveHeadroom": 0,
+        "unsupportedProfile": 0,
+        "localPvConflict": 0,
+        "controlLimitRestarts": 0,
+        "statusCounts": {
+          "CONTROL_SOLVE_FAILED": 158,
+          "UNSUPPORTED_DROOP": 214
+        },
+        "controlSolveFailure": "NR_LINE_SEARCH_FAILED iteration=7 stage=ILU1-GMRES pivot=0.1912525924161457: Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi."
+      }
     }
   },
   "hardGates": {
+    "performance": {
+      "observedMs": 8238.8426,
+      "limitMs": 30000,
+      "pass": false,
+      "reason": "BASELINE_FALLBACK"
+    },
+    "accuracy": {
+      "pass": false,
+      "reason": "INTEGRATED_RESULT_UNAVAILABLE"
+    },
+    "controllers": {
+      "expectedIntegrated": 158,
+      "actualIntegrated": 0,
+      "pass": false
+    },
+    "sensitivitySolveMs": 0,
+    "outerTrialNrMs": 0,
+    "mergeAllowed": false
+  },
+  "validation": {
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "unitTests": {
+      "passed": 75,
+      "failed": 0
+    },
+    "standardBuild": "PASS",
+    "portableBuild": "PASS",
+    "portableArtifact": "dist-portable/GridAnalyzer_v7.html",
+    "portableBytes": 596062,
+    "portableBundleSha256": "1d183a26d10b3a20cfc3cec6c0fa28979571dc54751ec2eea4bae295e6803369",
+    "standardBundleSha256": "1d183a26d10b3a20cfc3cec6c0fa28979571dc54751ec2eea4bae295e6803369",
+    "portableStandardBundleEqual": true,
+    "browserSmoke": "NOT_RUN_GATES_FAILED"
+  },
+  "referenceTargets": {
+    "line154P": {
+      "mae": 2,
+      "p95": 8
+    },
+    "line400P": {
+      "mae": 10,
+      "p95": 30
+    },
+    "busVpu": {
+      "mae": 0.005,
+      "p95": 0.015
+    },
+    "angle": {
+      "mae": 0.5,
+      "p95": 1.5
+    }
+  },
+  "architecture": "INTEGRATED_NEWTON_CANDIDATE",
+  "benchmarkBudget": {
+    "maximumCaseCRuns": 2,
+    "performedCaseCRuns": 2
+  },
+  "v74OldGates": {
     "zeroDroopSemanticallySupported": {
       "target": 158,
       "actual": 158,
@@ -266,36 +419,5 @@
       "pass": false
     },
     "mergeAllowed": false
-  },
-  "validation": {
-    "typecheck": "PASS",
-    "lint": "PASS",
-    "unitTests": {
-      "passed": 74,
-      "failed": 0
-    },
-    "standardBuild": "PASS",
-    "portableBuild": "PASS",
-    "portableArtifact": "dist-portable/GridAnalyzer_v7.html",
-    "portableBytes": 588807,
-    "browserSmoke": "NOT_RUN"
-  },
-  "referenceTargets": {
-    "line154P": {
-      "mae": 2,
-      "p95": 8
-    },
-    "line400P": {
-      "mae": 10,
-      "p95": 30
-    },
-    "busVpu": {
-      "mae": 0.005,
-      "p95": 0.015
-    },
-    "angle": {
-      "mae": 0.5,
-      "p95": 1.5
-    }
   }
 }
