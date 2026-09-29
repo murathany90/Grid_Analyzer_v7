@@ -2,6 +2,15 @@ import type {NumericalModel,PowerFlowResult,SparseMatrix} from './types';
 import {buildY} from './ybus';
 import {calcPQ,fillJacobian,makeLayout} from './jacobian';
 import {ilu0,gmres,bicgstab} from './linear-solver';
+import type {AdmittanceMatrix,JacobianLayout} from './types';
+
+export type SensitivityFailure='SENSITIVITY_INDEX_UNAVAILABLE'|'SENSITIVITY_LINEAR_SOLVE_FAILED'|'SENSITIVITY_NONFINITE'|'SENSITIVITY_TOO_SMALL'|'SENSITIVITY_RESIDUAL_TOO_HIGH'|'SENSITIVITY_CONDITIONING_FAILURE';
+export interface SensitivityProbe {
+  slope:number|null;individualSlopes:(number|null)[];reason:SensitivityFailure|null;
+  jacobianDimension:number;linearMethod:string|null;linearIterations:number|null;linearResidual:number|null;
+  iluMinPivot:number|null;elapsedMs:number;
+}
+export interface SensitivityBatch {probes:SensitivityProbe[];jacobianBuildMs:number;iluFactorMs:number;sensitivitySolveMs:number;admittance:AdmittanceMatrix;layout:JacobianLayout}
 
 /** ∂V(remote)/∂Q(actuator) from the converged NR Jacobian, in pu/MVAr. */
 export function remoteVoltageSensitivities(model:NumericalModel,result:PowerFlowResult,pairs:readonly {actuatorBus:number;remoteBus:number}[]):(number|null)[]{

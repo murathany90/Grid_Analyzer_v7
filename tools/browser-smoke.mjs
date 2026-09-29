@@ -23,13 +23,16 @@ try{
  await page.getByRole('button',{name:'Harita',exact:true}).click();
  await page.locator('select[aria-label="Harita renk modu"]').selectOption('angle');
  await page.waitForFunction(()=>/açısı/i.test(document.querySelector('.ga-map-legend b')?.textContent||''));
+ await page.locator('select[aria-label="Harita renk modu"]').selectOption('island');
+ await page.waitForFunction(()=>/Elektrik adası/i.test(document.querySelector('.ga-map-legend b')?.textContent||'')&&/elektrik adası/i.test(document.querySelector('.ga-map-legend')?.textContent||''));
+ await page.locator('#networkCanvas').waitFor();
  await page.getByRole('button',{name:'Elektriksel Sonuçlar'}).click();
  await page.locator('.ga-result-table tbody tr[data-row]').first().waitFor();
  await page.getByRole('button',{name:'Ayarlar',exact:true}).click();await page.locator('input[data-key="color220"]').fill('#112233');await page.getByRole('button',{name:'Uygula',exact:true}).click();
  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.locator('#networkCanvas').waitFor();
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();
  await page.locator('.ga-sld-svg').waitFor();
- console.log('Chromium smoke passed: load → Full AC → XLSX → map angle → settings → Lightning results → SLD.');
+ console.log('Chromium smoke passed: load → Full AC → XLSX → map angle/island → settings → Lightning results → SLD.');
 }finally{
  await browser?.close();server.kill('SIGTERM');
 }

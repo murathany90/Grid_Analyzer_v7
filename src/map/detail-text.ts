@@ -4,7 +4,8 @@ import type {Settings} from '../persistence/settings';
 import {branchMapDelta,type StationVoltage,type StationAngle} from './electrical-overlays';
 import {deltaLabels,signedValue} from './delta-style';
 import {format as f} from '../ui/components/dom';
-interface DetailData {settings:Settings;names:string[];inService:boolean;row?:BranchResult;base?:BranchResult;voltage?:StationVoltage;angle?:StationAngle;voltageDelta?:number;endpointVoltages?:{name:string;voltage?:StationVoltage;angle?:StationAngle;delta?:number}[]}
+import {islandDetail,type ElectricalIslandSummary,type SiteIslandSummary} from './island-map';
+interface DetailData {settings:Settings;names:string[];inService:boolean;row?:BranchResult;base?:BranchResult;voltage?:StationVoltage;angle?:StationAngle;voltageDelta?:number;endpointVoltages?:{name:string;voltage?:StationVoltage;angle?:StationAngle;delta?:number}[];island?:ElectricalIslandSummary;siteIslands?:SiteIslandSummary}
 function voltageText(name:string,voltage?:StationVoltage):string {
   if(!voltage)return `${name}\n— / Sonuç yok`;
   const bus=voltage.worst;
@@ -24,6 +25,14 @@ export function mapDetailText(entity:Line|Site,data:DetailData):string {
   const {settings,row,base}=data,site=entity.sourceClass==='ElmSite';
   const heading=site?entity.name:`${entity.name} · ${f((entity as Line).vnKv)} kV\n${data.names.join(' → ')}`;
   const withBranch=(value:string)=>site?value:`${value}\n${branchElectrical(row)}`;
+  if(settings.displayMode==='island'){
+    if(!site)return `${heading}\n${islandDetail(data.island)}`;
+    const islands=data.siteIslands,entries=islands?.entries||[];
+    if(!entries.length)return `${heading}\nElektrik adası: — / Sonuç yok`;
+    const summary=entries.map(entry=>`${islandDetail(entry.island)} · TM barası: ${entry.busCount}`).join('\n');
+    const warning=islands!.islandCount>1?`\nUyarı: Bu TM ${islands!.islandCount} elektrik adasında; renk en büyük adayı gösteriyor.`:'';
+    return `${heading}\nBaskın ada: ${islandDetail(islands!.dominant)}${warning}\n${summary}`;
+  }
   if(settings.displayMode==='v')return site?voltageText(entity.name,data.voltage)+(data.angle?`\n${angleText('Açı (≥66 kV)',data.angle)}`:''):withBranch(heading+'\n'+(data.endpointVoltages||[]).map(v=>voltageText(v.name,v.voltage)).join('\n'));
   if(settings.displayMode==='angle')return site?angleText(entity.name,data.angle):withBranch(heading+'\n'+(data.endpointVoltages||[]).map(v=>angleText(v.name,v.angle)).join('\n'));
   if(settings.displayMode==='delta'){

@@ -16,10 +16,10 @@ import type {CalculationResult,BusResult} from '../../src/domain/results/types';
 
 test('station controller keeps raw modes, resolves remote terminal and unit FIDs, and exposes unavailable phase',async()=>{
   const raw=JSON.parse(await readFile('tests/fixtures/small-dgs.json','utf8')) as Record<string,unknown>;
-  raw.ElmStactrl={Attributes:['FID','loc_name','outserv','rembar','psym:SIZEROW','psym:0','i_ctrl','imode','i_droop','ddroop','Srated','usetp','qsetp','pQmeas','p_cub','iQorient'],Values:[['SC1','Station control',0,'T154-PV',1,'GEN154',0,0,1,-4,100,1.03,0,'GEN154','',0]]};
+  raw.ElmStactrl={Attributes:['FID','loc_name','OP(a:1)','outserv','rembar','psym:SIZEROW','psym:0','i_ctrl','selBus','imode','i_droop','ddroop','Srated','usetp','qsetp','pQmeas','p_cub','iQorient'],Values:[['SC1','Station control','extra OP',0,'T154-PV',1,'GEN154',0,0,0,1,-4,100,1.03,0,'GEN154','',0]]};
   const model=await new DgsModel(raw as DgsRawData,'small',1000).build(),network=mapCanonical(model,'fixture'),controller=network.stationControllers[0];
   assert.equal(controller.controlModeRaw,0);assert.equal(controller.distributionModeRaw,0);assert.equal(controller.droopModeRaw,1);
-  assert.equal(controller.unitRefs?.[0].sourceClass,'ElmGenStat');assert.equal(controller.modeSemantics,'UNVERIFIED');
+  assert.equal(controller.unitRefs?.[0].sourceClass,'ElmGenStat');assert.equal(controller.modeSemantics,'CURRENT_PROFILE_VOLTAGE_DISPATCH_P');assert.equal(controller.selectedBusModeRaw,0);
   const prepared=prepareModel(network),summary=prepared.diagnostics.stationControllerSummary as {remoteResolved:number;unitsResolved:number;unsupported:number};
   assert.equal(summary.remoteResolved,1);assert.equal(summary.unitsResolved,1);assert.equal(summary.unsupported,1);
   assert.equal(network.transformers[0].phase,0);assert.equal(network.transformers[0].sourceRefs.phase[0].field,'PHASE_SHIFT_SOURCE_UNAVAILABLE');

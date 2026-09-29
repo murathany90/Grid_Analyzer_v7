@@ -19,7 +19,7 @@ export interface NumericalModel {
 export interface AdmittanceMatrix { n:number; rowPtr:Int32Array; colIdx:Int32Array; g:Float64Array; b:Float64Array; }
 export interface JacobianLayout { N:number; nang:number; ang:Int32Array; pq:Int32Array; angIndex:Int32Array; vIndex:Int32Array; rowPtr:Int32Array; colIdx:Int32Array; pos:Map<number,number>[]; diagPos:Int32Array; }
 export interface SparseMatrix { N:number; rowPtr:Int32Array; colIdx:Int32Array; values:Float64Array; pos:Map<number,number>[]; diagPos:Int32Array; }
-export interface ILU0Factor { lu:Float64Array; diag:Int32Array; minPivot:number|null; }
+export interface ILU0Factor { lu:Float64Array; diag:Int32Array; minPivot:number|null; rowPtr?:Int32Array; colIdx?:Int32Array; }
 export interface LinearSolution { x:Float64Array; iterations:number; residual:number; method?:string; }
 export interface LinearSolveDiagnostics { minPivot:number|null; stage:string; }
 export interface NumericalFailureDiagnostic {

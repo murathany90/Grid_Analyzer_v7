@@ -22,13 +22,27 @@ export function ilu0(A: SparseMatrix): ILU0Factor {
   if(finite(lu[dp]))minPivot=Math.min(minPivot,abs(lu[dp]));
   if(!finite(lu[dp])||abs(lu[dp])<1e-10)lu[dp]=(lu[dp]<0?-1:1)*1e-10;
  }
- return {lu,diag,minPivot:Number.isFinite(minPivot)?minPivot:null};
+ return {lu,diag,minPivot:Number.isFinite(minPivot)?minPivot:null,rowPtr:A.rowPtr,colIdx:A.colIdx};
+}
+
+/** One symbolic fill level, used for station-control sensitivities only. */
+export function iluFill(A:SparseMatrix,fillLevel:1|2):ILU0Factor {
+ const n=A.N,levels:Array<Map<number,number>>=Array.from({length:n},()=>new Map()),rowPtr=new Int32Array(n+1),cols:number[]=[],values:number[]=[],pos:Array<Map<number,number>>=[],diagPos=new Int32Array(n).fill(-1);
+ for(let i=0;i<n;i++){
+  const row=levels[i];for(let k=A.rowPtr[i];k<A.rowPtr[i+1];k++)row.set(A.colIdx[k],0);
+  for(let j=0;j<i;j++){const lij=row.get(j);if(lij==null)continue;
+   for(const [k,ljk]of levels[j]){if(k<=j||lij+ljk+1>fillLevel)continue;const existing=row.get(k);if(existing==null||existing>lij+ljk+1)row.set(k,lij+ljk+1);}
+  }
+  const map=new Map<number,number>();for(const col of [...row.keys()].sort((a,b)=>a-b)){const at=cols.length;cols.push(col);values.push(A.pos[i].has(col)?A.values[A.pos[i].get(col)!]:0);map.set(col,at);if(col===i)diagPos[i]=at;}
+  pos.push(map);rowPtr[i+1]=cols.length;
+ }
+ return ilu0({N:n,rowPtr,colIdx:Int32Array.from(cols),values:Float64Array.from(values),pos,diagPos});
 }
 
 export function iluSolve(A: SparseMatrix, M: ILU0Factor, b: Float64Array, out: Float64Array): Float64Array {
- const n=A.N,lu=M.lu,diag=M.diag;
- for(let i=0;i<n;i++){let z=b[i];for(let k=A.rowPtr[i];k<diag[i];k++)z-=lu[k]*out[A.colIdx[k]];out[i]=z;}
- for(let i=n-1;i>=0;i--){let z=out[i];for(let k=diag[i]+1;k<A.rowPtr[i+1];k++)z-=lu[k]*out[A.colIdx[k]];out[i]=z/lu[diag[i]];}
+ const n=A.N,lu=M.lu,diag=M.diag,rowPtr=M.rowPtr??A.rowPtr,colIdx=M.colIdx??A.colIdx;
+ for(let i=0;i<n;i++){let z=b[i];for(let k=rowPtr[i];k<diag[i];k++)z-=lu[k]*out[colIdx[k]];out[i]=z;}
+ for(let i=n-1;i>=0;i--){let z=out[i];for(let k=diag[i]+1;k<rowPtr[i+1];k++)z-=lu[k]*out[colIdx[k]];out[i]=z/lu[diag[i]];}
  return out;
 }
 
@@ -36,7 +50,9 @@ export function gmres(A: SparseMatrix, b: Float64Array, M: ILU0Factor, relTol=1e
  const n=A.N,x=new Float64Array(n),Ax=new Float64Array(n),r=new Float64Array(n),z=new Float64Array(n),tmp=new Float64Array(n);
  const bnorm=Math.max(1e-14,norm(b));let total=0;
  for(let outer=0;outer<maxOuter;outer++){
-  csrMatVec(A,x,Ax);for(let i=0;i<n;i++)r[i]=b[i]-Ax[i];iluSolve(A,M,r,z);const beta=norm(z);if(beta<=relTol*bnorm)return {x,iterations:total,residual:beta/bnorm};
+  csrMatVec(A,x,Ax);for(let i=0;i<n;i++)r[i]=b[i]-Ax[i];iluSolve(A,M,r,z);const beta=norm(z),trueResidual=norm(r)/bnorm;
+  if(trueResidual<=relTol)return {x,iterations:total,residual:trueResidual};
+  if(beta<=1e-20)return null;
   const V=[Float64Array.from(z,v=>v/beta)],H=Array.from({length:restart+1},()=>new Float64Array(restart)),cs=new Float64Array(restart),sn=new Float64Array(restart),g=new Float64Array(restart+1);g[0]=beta;let used=0;
   for(let j=0;j<restart;j++){
    csrMatVec(A,V[j],tmp);const w=new Float64Array(n);iluSolve(A,M,tmp,w);
@@ -70,4 +86,10 @@ export function solveLinear(A: SparseMatrix, b: Float64Array, diagnostics?: Line
  const M=ilu0(A);if(diagnostics){diagnostics.minPivot=M.minPivot;diagnostics.stage='ILU0_READY';}
  if(diagnostics)diagnostics.stage='ILU0_GMRES';let r=gmres(A,b,M,1e-8,38,5);if(r)return {...r,method:'ILU0-GMRES'};
  if(diagnostics)diagnostics.stage='ILU0_BICGSTAB';r=bicgstab(A,b,M,1e-8,Math.min(1200,Math.max(200,A.N)));if(r)return {...r,method:'ILU0-BiCGSTAB'};return null;
+}
+export function solveLinearFill1(A:SparseMatrix,b:Float64Array,diagnostics?:LinearSolveDiagnostics):LinearSolution|null {
+ const M=iluFill(A,1);if(diagnostics){diagnostics.minPivot=M.minPivot;diagnostics.stage='ILU1_READY';}
+ let r=gmres(A,b,M,1e-8,38,5);if(r)return{...r,method:'ILU1-GMRES'};
+ r=bicgstab(A,b,M,1e-8,Math.min(1200,Math.max(200,A.N)));if(r)return{...r,method:'ILU1-BiCGSTAB'};
+ if(diagnostics)diagnostics.stage='ILU1_LINEAR_FAILED';return null;
 }

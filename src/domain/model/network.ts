@@ -34,10 +34,11 @@ export interface StationController extends Entity {
   /** ElmTerm FID, resolved through ElectricalTopology at preparation time. */
   readonly remoteBus: string; readonly unitIds: readonly string[]; readonly vmSet: number;
   readonly unitRefs?: readonly {id:string;sourceClass:'ElmSym'|'ElmGenStat'|'UNRESOLVED';inService:boolean}[];
-  readonly controlModeRaw?:number|null;readonly distributionModeRaw?:number|null;readonly droopModeRaw?:number|null;
-  readonly droopValueRaw?:number|null;readonly ratedPowerRaw?:number|null;readonly qSetpointRaw?:number|null;
+  readonly controlModeRaw?:number|null;readonly selectedBusModeRaw?:number|null;readonly distributionModeRaw?:number|null;readonly droopModeRaw?:number|null;
+  readonly droopValueRaw?:number|null;/** Reactive rating in MVAr for this source profile. */readonly ratedPowerRaw?:number|null;readonly qSetpointRaw?:number|null;
   readonly measurementRefRaw?:string;readonly measurementCubicleRaw?:string;readonly qOrientationRaw?:number|null;
-  readonly modeSemantics?:'UNVERIFIED';
+  readonly measurementSelfCubicle?:boolean;
+  readonly modeSemantics?:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'|'UNSUPPORTED';
 }
 export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
 export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
