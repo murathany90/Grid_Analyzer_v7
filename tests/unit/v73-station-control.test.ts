@@ -2,10 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,dispatchedPWeights} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
-import {gmres} from '../../src/analysis/power-flow/js/linear-solver';
+import {gmres,iluFill} from '../../src/analysis/power-flow/js/linear-solver';
+import {solveSensitivityRhs} from '../../src/analysis/power-flow/js/sensitivity-interleaved';
+import {APP_VERSION} from '../../src/version';
+import packageJson from '../../package.json';
+import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
+import {identity} from '../../src/domain/calculation/identity';
+import {emptyScenario} from '../../src/domain/scenario/overlay';
 
 const entity=(id:string,sourceClass='ElmTerm')=>({id,name:id,sourceClass,sourceId:id,inService:true,siteIds:['S'],sourceRefs:{}});
 function fixture(multi=true,remote='B3'):CanonicalNetwork {
@@ -39,6 +45,15 @@ test('GMRES checks true residual before accepting a small preconditioned residua
   const solved=gmres(matrix,Float64Array.from([1]),factor,1e-8,2,2);
   assert.ok(solved);assert.ok(Math.abs(solved.x[0]-1)<1e-8);assert.ok(solved.residual<1e-8);
 });
+test('sensitivity solver falls back from ILU1 and accepts only a true residual at most 1e-6',()=>{
+  const matrix={N:1,rowPtr:Int32Array.from([0,1]),colIdx:Int32Array.from([0]),values:Float64Array.from([1]),pos:[new Map([[0,0]])],diagPos:Int32Array.from([0])},weak=iluFill(matrix,1);weak.lu[0]=0;
+  let fallbackBuilds=0;const solved=solveSensitivityRhs(matrix,Float64Array.from([1]),weak,()=>{fallbackBuilds++;return iluFill(matrix,2);});
+  assert.equal(fallbackBuilds,1);assert.equal(solved.method,'ILU2-GMRES');assert.ok(solved.solution);assert.ok(solved.residual!=null&&solved.residual<=1e-6);
+});
+test('package, application engine and calculation identity share one version',()=>{
+  assert.equal(packageJson.version,'7.4.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
+  assert.equal(identity('model',emptyScenario(),'powerFlow').engineVersion,APP_VERSION);
+});
 test('A/B/C modes separate local PV, ownership and multi-bus station control',()=>{
   const network=fixture(),a=run(network,'off'),b=run(network,'ownership'),c=run(network,'zeroDroop');
   assert.equal(a.result.converged,true);assert.equal(b.result.converged,true);assert.equal(c.result.converged,true);
@@ -49,6 +64,20 @@ test('A/B/C modes separate local PV, ownership and multi-bus station control',()
   assert.ok(c.controllers[0].individualDvDqi.G1!=null&&c.controllers[0].individualDvDqi.G2!=null);
   assert.ok(Math.abs(c.controllers[0].effectiveSlope!-(.25*c.controllers[0].individualDvDqi.G1!+.75*c.controllers[0].individualDvDqi.G2!))<1e-12);
   assert.equal(c.unitOverrides.get('G1')?.qMvar!=null,true);assert.equal(c.unitOverrides.get('G2')?.qMvar!=null,true);
+});
+test('coupled station solve uses cross-controller voltage effects',()=>{
+  const matrix=[[1,.5],[.25,1]],target=[1,1],solved=solveCoupledLeastSquares(matrix,target,[100,100]);
+  assert.equal(solved.solveStatus,'SOLVED');assert.ok(solved.solution);
+  assert.ok(Math.abs(solved.solution[0]-4/7)<1e-9);assert.ok(Math.abs(solved.solution[1]-6/7)<1e-9);
+  const coupledResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*solved.solution![j],0)-target[i]);
+  const diagonalDelta=matrix.map((row,i)=>target[i]/row[i]),diagonalResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*diagonalDelta[j],0)-target[i]);
+  assert.ok(Math.hypot(...coupledResidual)<Math.hypot(...diagonalResidual));
+});
+test('Q limit active set holds a saturated controller while resolving the remaining controller',()=>{
+  const base=fixture(),controllers=[{...base.stationControllers[0],id:'C1',remoteBus:'B3',unitIds:['G1'],vmSet:1.2},{...base.stationControllers[0],id:'C2',remoteBus:'B1',unitIds:['G2'],vmSet:.99}],network={...base,stationControllers:controllers,generators:base.generators.map(g=>g.id==='G1'?{...g,qMin:-.25,qMax:.25}:g)};
+  const controlled=run(network,'zeroDroop'),first=controlled.controllers.find(c=>c.id==='C1')!,second=controlled.controllers.find(c=>c.id==='C2')!;
+  assert.equal(controlled.result.converged,true);assert.ok(['SATURATED_QMAX','SATURATED_QMIN'].includes(first.status));
+  assert.ok(second.status!=='ROLLED_BACK_TO_LOCAL_PV'&&second.status!=='CONTROL_SOLVE_FAILED');assert.ok(second.outerRounds>0);
 });
 test('duplicate droop remote bus conflicts return to local PV without competing',()=>{
   const base=fixture(),controllers=[{...base.stationControllers[0],id:'D1',unitIds:['G1'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true},{...base.stationControllers[0],id:'D2',unitIds:['G2'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true}].map(c=>({...c,sourceClass:'ElmGenStat'}));

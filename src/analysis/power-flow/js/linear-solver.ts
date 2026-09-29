@@ -47,7 +47,7 @@ export function iluSolve(A: SparseMatrix, M: ILU0Factor, b: Float64Array, out: F
 }
 
 export function gmres(A: SparseMatrix, b: Float64Array, M: ILU0Factor, relTol=1e-8, restart=36, maxOuter=5): LinearSolution | null {
- const n=A.N,x=new Float64Array(n),Ax=new Float64Array(n),r=new Float64Array(n),z=new Float64Array(n),tmp=new Float64Array(n);
+ const n=A.N,x=new Float64Array(n),Ax=new Float64Array(n),r=new Float64Array(n),z=new Float64Array(n),tmp=new Float64Array(n),w=new Float64Array(n);
  const bnorm=Math.max(1e-14,norm(b));let total=0;
  for(let outer=0;outer<maxOuter;outer++){
   csrMatVec(A,x,Ax);for(let i=0;i<n;i++)r[i]=b[i]-Ax[i];iluSolve(A,M,r,z);const beta=norm(z),trueResidual=norm(r)/bnorm;
@@ -55,7 +55,7 @@ export function gmres(A: SparseMatrix, b: Float64Array, M: ILU0Factor, relTol=1e
   if(beta<=1e-20)return null;
   const V=[Float64Array.from(z,v=>v/beta)],H=Array.from({length:restart+1},()=>new Float64Array(restart)),cs=new Float64Array(restart),sn=new Float64Array(restart),g=new Float64Array(restart+1);g[0]=beta;let used=0;
   for(let j=0;j<restart;j++){
-   csrMatVec(A,V[j],tmp);const w=new Float64Array(n);iluSolve(A,M,tmp,w);
+   csrMatVec(A,V[j],tmp);iluSolve(A,M,tmp,w);
    for(let k=0;k<=j;k++){const h=dot(w,V[k]);H[k][j]=h;for(let i=0;i<n;i++)w[i]-=h*V[k][i];}
    H[j+1][j]=norm(w);V.push(H[j+1][j]>1e-14?Float64Array.from(w,v=>v/H[j+1][j]):new Float64Array(n));
    for(let k=0;k<j;k++){const q=cs[k]*H[k][j]+sn[k]*H[k+1][j];H[k+1][j]=-sn[k]*H[k][j]+cs[k]*H[k+1][j];H[k][j]=q;}

@@ -155,6 +155,10 @@ function safeDiagnostics(result: CalculationResult) {
     timings,
     preparationMs: number(diagnostics.preparationMs),
     stationControllerSummary: Object.keys(summary).length ? summary : null,
+    controllerSensitivityDiagnostics: controllers.map(row => Object.fromEntries([
+      'controllerId','status','remoteBus','actuatorBuses','participationKi','jacobianDimension','linearMethod',
+      'linearIterations','linearResidual','iluMinimumPivot','effectiveSlope','individualDvDqi','elapsedSensitivityMs','failureReason',
+    ].filter(key => row[key] !== undefined).map(key => [key,row[key]]))),
     stationTrialAttempts: Array.isArray(diagnostics.stationTrialAttempts) ? diagnostics.stationTrialAttempts : [],
     controllerStatusCounts: statusCounts,
     failureReasonCounts,
