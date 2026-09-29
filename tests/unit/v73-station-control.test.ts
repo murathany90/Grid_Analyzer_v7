@@ -65,7 +65,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   for(const bus of [g1,g2]){model.busType[bus]=0;model.qSpec[bus]=baseline.Q![bus];model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}
   const solved=solveNR(model,undefined,{initialVm:baseline.Vm,initialVa:baseline.Va});assert.equal(solved.converged,true);
   const groups=[{remoteBus:remote,actuators:[{bus:g1,weight:.25},{bus:g2,weight:.75}]},{remoteBus:remote,actuators:[{bus:g1,weight:1}]}];
-  const natural=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'NATURAL'}),rcm=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'RCM'});
+  const natural=probeAdjointSensitivities(model,solved,groups),rcm=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'RCM'});
   for(let i=0;i<groups.length;i++){
     assert.equal(natural.probes[i].reason,rcm.probes[i].reason);
     assert.ok(Math.abs(natural.probes[i].slope!-rcm.probes[i].slope!)<1e-8);
@@ -73,6 +73,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   for(const batch of [natural,rcm]){
     assert.equal(batch.solverDiagnostics.rhsCount,2);assert.equal(batch.solverDiagnostics.uniqueRemoteRhsCount,1);assert.equal(batch.solverDiagnostics.cachedRhsHits,1);
     assert.ok(batch.solverDiagnostics.rhs[0].trueResidual!<=1e-6);
+    assert.equal(Object.values(batch.solverDiagnostics.methodCounts).reduce((sum,count)=>sum+count,0)+Object.values(batch.solverDiagnostics.failureCounts).reduce((sum,count)=>sum+count,0),1);
   }
   assert.equal(natural.solverDiagnostics.ordering,'NATURAL');assert.equal(rcm.solverDiagnostics.ordering,'RCM');
 });
@@ -161,7 +162,7 @@ test('zero-droop production selects sensitivity while direct integrated remains 
   const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
   assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
   assert.equal((production.diagnostics.stationControllerSummary as {implementation:string}).implementation,'SENSITIVITY');
-  assert.equal((production.diagnostics.sensitivitySolver as {ordering:string}).ordering,'RCM');
+  assert.equal((production.diagnostics.sensitivitySolver as {ordering:string}).ordering,'NATURAL');
   assert.equal(experimental.converged,true);assert.equal(experimental.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');
   assert.equal((experimental.diagnostics.stationControllerSummary as {implementation:string}).implementation,'INTEGRATED_EXPERIMENTAL');
 });

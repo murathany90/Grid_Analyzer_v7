@@ -47,7 +47,7 @@ export function probeAdjointSensitivities(model:NumericalModel,result:PowerFlowR
   const pos=Array.from({length:layout.N},()=>new Map<number,number>()),diagPos=new Int32Array(layout.N).fill(-1);
   for(let i=0;i<layout.N;i++){const entries:Array<{col:number;value:number}>=[];for(let k=rowPtr[i];k<rowPtr[i+1];k++)entries.push({col:colIdx[k],value:transposed[k]});entries.sort((a,b)=>a.col-b.col);for(let j=0;j<entries.length;j++){const at=rowPtr[i]+j;colIdx[at]=entries[j].col;transposed[at]=entries[j].value;pos[i].set(entries[j].col,at);if(entries[j].col===i)diagPos[i]=at;}}
   const matrix:SparseMatrix={N:layout.N,rowPtr,colIdx,values:transposed,pos,diagPos},jacobianBuildMs=clock()-start;
-  const ordering=options.ordering??'RCM',orderStart=clock(),permutation=ordering==='RCM'?reverseCuthillMcKee(matrix):null,solverMatrix=permutation?permuteSparseMatrix(matrix,permutation):matrix,orderingMs=clock()-orderStart;
+  const ordering=options.ordering??'NATURAL',orderStart=clock(),permutation=ordering==='RCM'?reverseCuthillMcKee(matrix):null,solverMatrix=permutation?permuteSparseMatrix(matrix,permutation):matrix,orderingMs=clock()-orderStart;
   const factorStart=clock(),factor1=iluFill(solverMatrix,1),ilu1FactorMs=clock()-factorStart;let ilu2FactorMs=0,factor2:ReturnType<typeof iluFill>|null=null;
   const getFactor2=()=>{if(!factor2){const t=clock();factor2=iluFill(solverMatrix,2);ilu2FactorMs+=clock()-t;}return factor2;};
   const base=model.baseMVA||100,actuatorBuses=[...new Set(groups.flatMap(group=>group.actuators.map(actuator=>actuator.bus)))];
@@ -68,7 +68,10 @@ export function probeAdjointSensitivities(model:NumericalModel,result:PowerFlowR
   const sensitivityMatrix=busSensitivityByRemote.map(row=>groups.map(group=>row==null?null:group.actuators.reduce((sum,actuator)=>sum+(row.get(actuator.bus)??0)*actuator.weight,0)));
   const quantile=(values:number[],p:number)=>{if(!values.length)return null;const sorted=values.sort((a,b)=>a-b),at=(sorted.length-1)*p,lo=Math.floor(at),hi=Math.ceil(at);return sorted[lo]+(sorted[hi]-sorted[lo])*(at-lo);};
   const methods:Record<string,number>={ILU1_GMRES_SUCCESS:0,ILU2_GMRES_SUCCESS:0,ILU2_BICGSTAB_SUCCESS:0},failures:Record<string,number>={SENSITIVITY_RESIDUAL_TOO_HIGH:0,SENSITIVITY_LINEAR_SOLVE_FAILED:0};
-  for(const row of rhsDiagnostics){if(!row.reason&&row.method)methods[row.method.replaceAll('-','_')+'_SUCCESS']++;else if(row.reason)failures[row.reason]=(failures[row.reason]??0)+1;}
+  for(const row of rhsDiagnostics){
+    if(!row.reason&&row.method){const key=row.method==='ILU2-BiCGSTAB'?'ILU2_BICGSTAB_SUCCESS':row.method.replaceAll('-','_')+'_SUCCESS';methods[key]=(methods[key]??0)+1;}
+    else if(row.reason)failures[row.reason]=(failures[row.reason]??0)+1;
+  }
   const residuals=rhsDiagnostics.map(row=>row.trueResidual).filter((value):value is number=>value!=null&&Number.isFinite(value)),iluFactorMs=ilu1FactorMs+ilu2FactorMs,iterativeSolveMs=rhsDiagnostics.reduce((sum,row)=>sum+row.solveMs,0);
   const solverDiagnostics:SensitivitySolverDiagnostic={ordering,dimension:solverMatrix.N,nnz:solverMatrix.colIdx.length,rhsCount:groups.length,uniqueRemoteRhsCount:rhsDiagnostics.length,cachedRhsHits,methodCounts:methods,failureCounts:failures,medianIterations:quantile(rhsDiagnostics.map(row=>row.iterations),.5),p95Iterations:quantile(rhsDiagnostics.map(row=>row.iterations),.95),medianTrueResidual:quantile(residuals,.5),p95TrueResidual:quantile(residuals,.95),orderingMs,ilu1FactorMs,ilu2FactorMs,iterativeSolveMs,rhs:rhsDiagnostics};
   return{probes,busSensitivityByRemote,sensitivityMatrix,jacobianBuildMs,orderingMs,ilu1FactorMs,ilu2FactorMs,iluFactorMs,iterativeSolveMs,sensitivitySolveMs:clock()-start-jacobianBuildMs-orderingMs-iluFactorMs,admittance:Y,layout,solverDiagnostics};

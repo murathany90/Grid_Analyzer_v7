@@ -4,7 +4,7 @@ import {calcPQ,fillJacobian,makeLayout} from './jacobian';
 import {ilu0,gmres,bicgstab} from './linear-solver';
 import type {AdmittanceMatrix,JacobianLayout} from './types';
 
-export type SensitivityFailure='SENSITIVITY_INDEX_UNAVAILABLE'|'SENSITIVITY_LINEAR_SOLVE_FAILED'|'SENSITIVITY_NONFINITE'|'SENSITIVITY_TOO_SMALL'|'SENSITIVITY_RESIDUAL_TOO_HIGH'|'SENSITIVITY_CONDITIONING_FAILURE';
+export type SensitivityFailure='SENSITIVITY_INDEX_UNAVAILABLE'|'SENSITIVITY_LINEAR_SOLVE_FAILED'|'SENSITIVITY_NONFINITE'|'SENSITIVITY_TOO_SMALL'|'SENSITIVITY_RESIDUAL_TOO_HIGH'|'SENSITIVITY_CONDITIONING_FAILURE'|'SENSITIVITY_RECLASSIFICATION_LIMIT';
 export interface SensitivityProbe {
   slope:number|null;individualSlopes:(number|null)[];reason:SensitivityFailure|null;
   jacobianDimension:number;linearMethod:string|null;linearIterations:number|null;linearResidual:number|null;
