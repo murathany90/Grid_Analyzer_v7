@@ -215,5 +215,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   const overrides=new Map<string,{qMvar:number|null;qState:string}>();
   for(const c of controls){if(c.row.status==='ROLLED_BACK_TO_LOCAL_PV')continue;const error=residual(c,solved);if(c.row.status==='PENDING')c.row.status=Math.abs(error)<=TOL?'SATISFIED':c.units.every(u=>u.qMvar>=u.qMax-EPS)?'SATURATED_QMAX':c.units.every(u=>u.qMvar<=u.qMin+EPS)?'SATURATED_QMIN':'MAX_OUTER_ROUNDS';
     c.row.finalVpu=solved.Vm![c.remote];c.row.voltageResidualPu=error;c.row.finalQ=c.units.reduce((s,u)=>s+u.qMvar,0);for(const u of c.units)overrides.set(u.id,{qMvar:u.qMvar,qState:c.row.status});}
-  return{prepared:{...part,model,stationControlUnitResults:overrides},result:solved,controllers:rows,outerRounds:rounds,unitOverrides:overrides,timings:times,resultProvenance:controls.some(c=>c.row.status!=='ROLLED_BACK_TO_LOCAL_PV')?'SENSITIVITY_STATION_CONTROL':'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};
+  const activeControls=controls.filter(c=>c.row.status!=='ROLLED_BACK_TO_LOCAL_PV');
+  const stationApplied=rounds>0||(activeControls.length>0&&activeControls.every(c=>['SATISFIED','SATURATED_QMIN','SATURATED_QMAX'].includes(c.row.status)));
+  return{prepared:{...part,model,stationControlUnitResults:overrides},result:solved,controllers:rows,outerRounds:rounds,unitOverrides:overrides,timings:times,resultProvenance:stationApplied?'SENSITIVITY_STATION_CONTROL':'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};
 }
