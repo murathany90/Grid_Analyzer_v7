@@ -1,6 +1,7 @@
 /** Local, opt-in A/B/C/D benchmark. Reads ignored source files once and writes aggregate metrics only. */
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { unzipSync, strFromU8 } from 'fflate';
 import { DgsModel } from '../src/importers/dgs/index';
 import { mapCanonical } from '../src/importers/dgs/canonical';
@@ -23,7 +24,8 @@ const referenceName = 'GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1
 const outputDefault = 'docs/validation/20260928-abcd-benchmark-v73.json';
 const timingNames = [
   'prepareMs', 'baseNrMs', 'controllerClassificationMs', 'jacobianBuildMs',
-  'iluFactorMs', 'sensitivitySolveMs', 'outerTrialNrMs', 'finalNrMs',
+  'rcmReorderMs', 'ilu1FactorMs', 'ilu2FactorMs', 'iluFactorMs',
+  'sensitivityIterativeSolveMs', 'sensitivitySolveMs', 'outerTrialNrMs', 'finalNrMs',
   'resultMapMs', 'totalMs',
 ] as const;
 
@@ -150,11 +152,18 @@ function safeDiagnostics(result: CalculationResult) {
   const safeNumericalFailure = Object.fromEntries([
     'failureStage', 'iteration', 'controlRound', 'maxMismatchMw', 'minPivot',
     'islandCount', 'unsuppliedBusCount', 'linearStage', 'pivotSource', 'lineSearchAccepted',
+    'lineSearchStepCap', 'lineSearchBestNormRatio', 'maxDxVm', 'maxDxVmBusId',
+    'maxDxTheta', 'maxDxThetaBusId', 'maxDxControlDq', 'maxDxControlId',
+    'oldMinVm', 'oldMaxVm', 'firstInvalidCandidate',
   ].filter(key => numericalFailure[key] !== undefined).map(key => [key, numericalFailure[key]]));
   return {
     timings,
     preparationMs: number(diagnostics.preparationMs),
     stationControllerSummary: Object.keys(summary).length ? summary : null,
+    resultProvenance: diagnostics.resultProvenance ?? null,
+    sourceProfileAccounting: diagnostics.sourceProfileAccounting ?? null,
+    sensitivitySolver: diagnostics.sensitivitySolver ?? null,
+    integratedFailure: diagnostics.integratedFailure ?? null,
     controllerSensitivityDiagnostics: controllers.map(row => Object.fromEntries([
       'controllerId','status','remoteBus','actuatorBuses','participationKi','jacobianDimension','linearMethod',
       'linearIterations','linearResidual','iluMinimumPivot','effectiveSlope','individualDvDqi','elapsedSensitivityMs','failureReason',
@@ -207,6 +216,7 @@ if(onlyCase&&!['A','B','C','D'].includes(onlyCase))throw new Error('Only A, B, C
 
 const inputStarted = performance.now();
 const referenceBytes = await readFile(root + referenceName);
+const referenceSha256 = createHash('sha256').update(referenceBytes).digest('hex');
 const workbook = unzipSync(referenceBytes);
 const summaryRows = cells(strFromU8(workbook['xl/worksheets/sheet1.xml']));
 const lineRows = cells(strFromU8(workbook['xl/worksheets/sheet2.xml']));
@@ -219,8 +229,14 @@ const inputMs = performance.now() - inputStarted;
 const baseReport = {
   schemaVersion: 1,
   source: {
-    model: modelName, reference: referenceName, referenceWorkbookCommit,
+    model: modelName, reference: referenceName, referenceSha256, referenceWorkbookCommit,
     note: 'Workbook baseline may have been produced at another commit; row-level reference metrics are recomputed from this workbook.',
+  },
+  execution: {
+    commit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+    branch: execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim(),
+    command: process.argv.map((arg, index) => index === 0 ? 'node' : arg),
+    startedAtUtc: new Date().toISOString(),
   },
   rows: { lines: lineRows.length, transformers: transformerRows.length, buses: busRows.length },
   inputMs,
@@ -244,7 +260,7 @@ if (baselineOnly) {
 }
 
 const setupStarted = performance.now();
-const archive = unzipSync(await readFile(root + modelName));
+const zipBytes=await readFile(root + modelName),modelZipSha256=createHash('sha256').update(zipBytes).digest('hex'),archive = unzipSync(zipBytes);
 const jsonEntries = Object.keys(archive).filter(name => name.toLowerCase().endsWith('.json'));
 if (jsonEntries.length !== 1) throw new Error(`Expected one DGS JSON in ZIP; got ${jsonEntries.length}`);
 const bytes = archive[jsonEntries[0]], hash = createHash('sha256').update(bytes).digest('hex');
@@ -258,7 +274,8 @@ const remoteCounts=new Map<string,number>();for(const c of droopRows){const key=
 const remoteConflict=droopRows.filter(c=>{const key=remoteKey(c.id);return key!=null&&(remoteCounts.get(key)||0)>1;});
 const qLimitMissing=droopRows.filter(c=>c.unitIds.some(id=>{const g=generatorById.get(id);return g?.inService&&(g.qMin==null||g.qMax==null);}));
 const droopSafeCandidates=droopRows.filter(c=>{const key=remoteKey(c.id),units=c.unitIds.map(id=>generatorById.get(id)).filter(g=>g?.inService);return key!=null&&(remoteCounts.get(key)||0)===1&&units.length===1&&units[0]?.sourceClass==='ElmGenStat'&&units[0].qMin!=null&&units[0].qMax!=null&&c.measurementSelfCubicle===true&&typeof c.ratedPowerRaw==='number'&&c.ratedPowerRaw>0&&typeof c.droopValueRaw==='number'&&Number.isFinite(c.droopValueRaw)&&Math.abs(c.droopValueRaw)>1e-8;});
-const sourceProfile={zeroDroopActive:network.stationControllers.filter(c=>c.inService&&c.droopModeRaw===0).length,droopActive:droopRows.length,remoteConflict:remoteConflict.length,qLimitMissing:qLimitMissing.length,remoteAndQLimitOverlap:remoteConflict.filter(c=>qLimitMissing.includes(c)).length,droopSafeCandidates:droopSafeCandidates.length};
+const zeroRows=network.stationControllers.filter(c=>c.inService&&c.droopModeRaw===0),totalInService=network.stationControllers.filter(c=>c.inService).length;
+const sourceProfile={totalInService,zeroDroop:{count:zeroRows.length,reasonCounts:{ZERO_DROOP:zeroRows.length}},droop:{count:droopRows.length,reasonCounts:{REMOTE_CONFLICT:remoteConflict.length,Q_LIMIT_MISSING:qLimitMissing.length,SAFE_CANDIDATE:droopSafeCandidates.length},overlapCounts:{REMOTE_CONFLICT_AND_Q_LIMIT_MISSING:remoteConflict.filter(c=>qLimitMissing.includes(c)).length}},note:'The zeroDroop/droop counts are disjoint. Droop inventory reasons can overlap for the same controller.'};
 const calculationIdentity = identity(hash, scenario, 'powerFlow');
 const setupMs = performance.now() - setupStarted;
 
@@ -275,7 +292,7 @@ for (const item of modes) {
     lineRows, transformerRows, busRows);
 }
 const c=cases.C,summary=c?.diagnostics?.stationControllerSummary as Record<string,unknown>|undefined;
-const droopGate={cConverged:c?.run.converged===true,cWithinThreeTimesV71:typeof c?.run.elapsedMs==='number'&&c.run.elapsedMs<=3*17700,cAllZeroDroopSupported:summary?.zeroDroopSemanticallySupported===158,cNoRolledBack:summary?.rolledBack===0,cNoMaxRounds:!(summary?.statusCounts as Record<string,number>|undefined)?.MAX_OUTER_ROUNDS};
+const droopGate={cConverged:c?.run.converged===true,cStationResult:c?.diagnostics?.resultProvenance==='SENSITIVITY_STATION_CONTROL',cWithinThreeTimesV71:typeof c?.run.elapsedMs==='number'&&c.run.elapsedMs<=3*17700,cAllZeroDroopSupported:summary?.zeroDroopSemanticallySupported===158,cNoRolledBack:summary?.rolledBack===0,cNoMaxRounds:!(summary?.statusCounts as Record<string,number>|undefined)?.MAX_OUTER_ROUNDS};
 const gatePass=Object.values(droopGate).every(Boolean),runDroop=includeDroop&&gatePass;
 if(runDroop){cases.D=await runCase(engine,'droop','D',network,scenario,calculationIdentity,lineRows,transformerRows,busRows);}
 else cases.D={label:'D',stationControlMode:'droop',run:{status:onlyCase==='D'?'C_GATE_REQUIRED':'NOT_RUN_C_GATE',converged:false,elapsedMs:null},metrics:{after:null,targetMet:null},diagnostics:null};
@@ -284,6 +301,7 @@ const sourceHash = hash;
 const report = {
   ...baseReport,
   modelSha256: sourceHash,
+  modelZipSha256,
   setup: { modelBuildAndCanonicalMapMs: setupMs },
   sourceProfile,
   droopGate,
