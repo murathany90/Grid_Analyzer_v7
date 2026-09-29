@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "purpose": "v7.5 run #2, zero-droop integrated station-control gate",
+  "model": {
+    "archive": "20260928_0900_SN1_TR0.zip",
+    "jsonSha256": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b"
+  },
+  "referenceWorkbook": {
+    "file": "GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx",
+    "sha256": "77f8055dd8410f06068cbacf9a6466f9b9bec0306b2a9227856bd6934e772b90"
+  },
+  "sourceProfile": {
+    "zeroDroopActive": 158,
+    "droopActive": 214,
+    "remoteConflict": 82,
+    "qLimitMissing": 8,
+    "remoteAndQLimitOverlap": 1,
+    "droopSafeCandidates": 125
+  },
+  "run": {
+    "status": "CONVERGED_FULL_NR",
+    "converged": true,
+    "iterations": 10,
+    "qLimitRounds": 3,
+    "elapsedMs": 9829.5491,
+    "elapsedWallMs": 9833.7203,
+    "maxMismatchMw": 1.4505693868294145e-08
+  },
+  "resultProvenance": "BASELINE_FALLBACK_AFTER_CONTROL_SOLVE_FAILURE",
+  "topology": {
+    "islandCount": 2,
+    "islandStatusCounts": {
+      "CONVERGED": 1,
+      "NO_REFERENCE": 1
+    }
+  },
+  "timings": {
+    "prepareMs": 125.73749999999927,
+    "baseNrMs": 5307.644599999999,
+    "controllerClassificationMs": 7.803899999999885,
+    "jacobianBuildMs": 0,
+    "iluFactorMs": 0,
+    "sensitivitySolveMs": 0,
+    "outerTrialNrMs": 0,
+    "finalNrMs": 4365.312400000001,
+    "resultMapMs": 5.602999999999156,
+    "totalMs": 9829.5491
+  },
+  "controllers": {
+    "zeroDroopActive": 158,
+    "zeroDroopSemanticallySupported": 158,
+    "integratedControllers": 0,
+    "controlLimitRestarts": 0,
+    "satisfied": 0,
+    "saturatedQMin": 0,
+    "saturatedQMax": 0,
+    "noReactiveHeadroom": 0,
+    "statusCounts": {
+      "CONTROL_SOLVE_FAILED": 158,
+      "UNSUPPORTED_DROOP": 214
+    },
+    "controlSolveFailure": "NR_LINE_SEARCH_FAILED iteration=8 mismatchMw=93054.68099299978 stage=ILU1-GMRES pivot=0.19125223195543545 stepCap=0.16394229587445106 bestNormRatio=Infinity: Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.",
+    "ownershipUnallocatedMvar": 1.1428635815491361e-12
+  },
+  "linear": {
+    "method": "ILU0-BiCGSTAB",
+    "iterations": 267,
+    "residual": 9.393751359013528e-09
+  },
+  "accuracy": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334928377,
+      "mae": 9.156998463734833,
+      "p95": 43.436889114018555
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.06448318102849285,
+      "mae": 5.428726756521288,
+      "p95": 17.14863562692895
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090689546,
+      "mae": 31.555340648554235,
+      "p95": 81.44789089218415
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.4647581787373252,
+      "mae": 3.7098071269340505,
+      "p95": 13.287851190797971
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.047392467309769704,
+      "mae": 6.232215139107663,
+      "p95": 28.307897656387365
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279495019106,
+      "mae": 1.3996141613638975,
+      "p95": 7.247342009391582
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319031208,
+      "mae": 0.016958826608455456,
+      "p95": 0.03702257557301811
+    },
+    "angle": {
+      "method": "MEDIAN",
+      "offsetDeg": 1.7586061652838483,
+      "count": 1663,
+      "bias": 0.045864393705092786,
+      "mae": 1.3351004507151347,
+      "p95": 3.274909799986371
+    }
+  },
+  "qComparison": "magnitude-only: |Grid Q_from| - sqrt(max(0,YTBS S²-YTBS P²))",
+  "fullLogRetainedLocally": true
+}
