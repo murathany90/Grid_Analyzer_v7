@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,classifyMonotoneActiveSet} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,dispatchedPWeights,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -16,6 +16,18 @@ import {identity} from '../../src/domain/calculation/identity';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
 
 const entity=(id:string,sourceClass='ElmTerm')=>({id,name:id,sourceClass,sourceId:id,inService:true,siteIds:['S'],sourceRefs:{}});
+test('classification fixed point keeps two controllers in a monotone 5→3→2→2 sequence',()=>{
+  const seen:number[]=[],restored:number[]=[];
+  const result=classifyMonotoneActiveSet([0,1,2,3,4],active=>{seen.push(active.length);return active.length===5?[3,4]:active.length===3?[2]:[];},failed=>{restored.push(...failed);return true;});
+  assert.deepEqual(seen,[5,3,2]);assert.deepEqual(restored,[3,4,2]);
+  assert.deepEqual(result.active,[0,1]);assert.equal(result.passes,3);assert.equal(result.stable,true);
+});
+test('successful second-pass survivors are not rolled back at the classification limit',()=>{
+  const removed:number[]=[];
+  const result=classifyMonotoneActiveSet([0,1,2,3,4],(active,pass)=>[4,3,2,1].slice(pass-1,pass).filter(id=>active.includes(id)),failed=>{removed.push(...failed);return true;});
+  assert.deepEqual(removed,[4,3,2,1]);assert.deepEqual(result.active,[0]);
+  assert.equal(result.passes,4);assert.equal(result.stable,false);
+});
 function fixture(multi=true,remote='B3'):CanonicalNetwork {
   const buses=['B0','B1','B2','B3'].map(id=>({...entity(id),vnKv:154,parentId:'S'}));
   const line=(id:string,from:string,to:string)=>({...entity(id,'ElmLne'),from,to,vnKv:154,lengthKm:10,rOhm:1,xOhm:12,bSiemens:0,ratingMva:200,coordinates:[],sections:1});
@@ -65,10 +77,11 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   for(const bus of [g1,g2]){model.busType[bus]=0;model.qSpec[bus]=baseline.Q![bus];model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}
   const solved=solveNR(model,undefined,{initialVm:baseline.Vm,initialVa:baseline.Va});assert.equal(solved.converged,true);
   const groups=[{remoteBus:remote,actuators:[{bus:g1,weight:.25},{bus:g2,weight:.75}]},{remoteBus:remote,actuators:[{bus:g1,weight:1}]}];
-  const natural=probeAdjointSensitivities(model,solved,groups),rcm=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'RCM'});
+  const natural=probeAdjointSensitivities(model,solved,groups),rcm=probeAdjointSensitivities(model,solved,groups,undefined,{ordering:'RCM'}),legacy=probeAdjointSensitivities(model,solved,groups,undefined,{solver:'LEGACY_KRYLOV'});
   for(let i=0;i<groups.length;i++){
     assert.equal(natural.probes[i].reason,rcm.probes[i].reason);
     assert.ok(Math.abs(natural.probes[i].slope!-rcm.probes[i].slope!)<1e-8);
+    assert.ok(Math.abs(natural.probes[i].slope!-legacy.probes[i].slope!)<1e-8);
   }
   for(const batch of [natural,rcm]){
     assert.equal(batch.solverDiagnostics.rhsCount,2);assert.equal(batch.solverDiagnostics.uniqueRemoteRhsCount,1);assert.equal(batch.solverDiagnostics.cachedRhsHits,1);
@@ -76,6 +89,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
     assert.equal(Object.values(batch.solverDiagnostics.methodCounts).reduce((sum,count)=>sum+count,0)+Object.values(batch.solverDiagnostics.failureCounts).reduce((sum,count)=>sum+count,0),1);
   }
   assert.equal(natural.solverDiagnostics.ordering,'NATURAL');assert.equal(rcm.solverDiagnostics.ordering,'RCM');
+  assert.equal(natural.solverDiagnostics.backend,'KLU_WASM');assert.equal(legacy.solverDiagnostics.backend,'LEGACY_KRYLOV');
 });
 test('package, application engine and calculation identity share one version',()=>{
   assert.equal(packageJson.version,'7.4.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);

@@ -25,7 +25,9 @@ const outputDefault = 'docs/validation/20260928-abcd-benchmark-v73.json';
 const timingNames = [
   'prepareMs', 'baseNrMs', 'controllerClassificationMs', 'jacobianBuildMs',
   'rcmReorderMs', 'ilu1FactorMs', 'ilu2FactorMs', 'iluFactorMs',
-  'sensitivityIterativeSolveMs', 'sensitivitySolveMs', 'outerTrialNrMs', 'finalNrMs',
+  'sensitivityIterativeSolveMs', 'cscConversionMs', 'symbolicFactorMs',
+  'numericFactorMs', 'directRhsSolveMs', 'sensitivitySolveMs', 'classificationNrMs',
+  'outerTrialNrMs', 'finalNrMs',
   'resultMapMs', 'totalMs',
 ] as const;
 

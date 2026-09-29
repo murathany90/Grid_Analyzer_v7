@@ -10,7 +10,7 @@ export interface SensitivityProbe {
   jacobianDimension:number;linearMethod:string|null;linearIterations:number|null;linearResidual:number|null;
   iluMinPivot:number|null;elapsedMs:number;
 }
-export interface SensitivityBatch {probes:SensitivityProbe[];jacobianBuildMs:number;orderingMs?:number;ilu1FactorMs?:number;ilu2FactorMs?:number;iluFactorMs:number;iterativeSolveMs?:number;sensitivitySolveMs:number;admittance:AdmittanceMatrix;layout:JacobianLayout}
+export interface SensitivityBatch {probes:SensitivityProbe[];jacobianBuildMs:number;orderingMs?:number;ilu1FactorMs?:number;ilu2FactorMs?:number;iluFactorMs:number;iterativeSolveMs?:number;cscConversionMs?:number;symbolicFactorMs?:number;numericFactorMs?:number;directSolveMs?:number;sensitivitySolveMs:number;admittance:AdmittanceMatrix;layout:JacobianLayout}
 
 /** ∂V(remote)/∂Q(actuator) from the converged NR Jacobian, in pu/MVAr. */
 export function remoteVoltageSensitivities(model:NumericalModel,result:PowerFlowResult,pairs:readonly {actuatorBus:number;remoteBus:number}[]):(number|null)[]{
