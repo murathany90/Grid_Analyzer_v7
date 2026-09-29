@@ -66,8 +66,20 @@ test('A/B/C modes separate local PV, ownership and integrated multi-bus station 
   assert.equal(c.controllers[0].failureReason,null);
   assert.equal(c.integratedControllers,1);assert.equal(c.timings.sensitivitySolveMs,0);assert.equal(c.timings.outerTrialNrMs,0);
   const q1=c.unitOverrides.get('G1')?.qMvar,q2=c.unitOverrides.get('G2')?.qMvar;
-  assert.ok(q1!=null&&q2!=null);assert.ok(Math.abs(q1/.25-q2/.75)<1e-6);
+  assert.ok(q1!=null&&q2!=null);
+  const bus1=partBus(network,'G1'),bus2=partBus(network,'G2');
+  assert.ok(Math.abs((q1-a.result.Q![bus1])/.25-(q2-a.result.Q![bus2])/.75)<1e-6);
   assert.ok(Math.abs(c.result.Vm![c.controllers[0].remoteBusIndex!]-1.02)<1e-4);
+});
+function partBus(network:CanonicalNetwork,id:string):number {const part=prepareModel(network);return part.generators.find(g=>g.id===id)!.index;}
+test('integrated ownership starts at solved net Q without double-counting fixed injections',()=>{
+  const source=fixture(false),network={...source,loads:[...source.loads,{...entity('D1','ElmLod'),bus:'B1',pMw:3,qMvar:7}],generators:source.generators.map(g=>({...g,qMvar:2,qMin:-10000,qMax:10000}))};
+  const part=prepareModel(network),bus=part.generators[0].index,baseline=run(network,'off'),controlled=run(network),dq=(controlled.result.controlDqPu?.[0]??NaN)*part.model.baseMVA;
+  assert.equal(baseline.result.converged,true);assert.equal(controlled.result.converged,true);
+  assert.ok(Math.abs(controlled.prepared.model.qSpec[bus]-baseline.result.Q![bus])<1e-8);
+  assert.ok(Math.abs(controlled.controllers[0].initialQ!-(2+baseline.result.Q![bus]-part.model.qSpec[bus]))<1e-8);
+  assert.ok(Math.abs(controlled.unitOverrides.get('G1')!.qMvar!-controlled.controllers[0].initialQ!-dq)<1e-6);
+  assert.ok(Math.abs(controlled.result.Q![bus]-controlled.prepared.model.qSpec[bus]-dq)<1e-6);
 });
 test('single remote controller has P/PQV behavior and finite-difference Q-column sign',()=>{
   const base=fixture(false),network={...base,generators:base.generators.map(g=>({...g,qMin:-10000,qMax:10000}))},part=prepareModel(network),controlled=run(network),row=controlled.controllers[0],bus=part.generators[0].index,remote=row.remoteBusIndex!;
@@ -105,4 +117,19 @@ test('remote voltage target releases after every actuator reaches a Q limit',()=
   assert.equal(controlled.result.converged,true);assert.ok(['SATURATED_QMAX','SATURATED_QMIN'].includes(row.status));
   assert.equal(Math.abs(controlled.unitOverrides.get('G1')?.qMvar??NaN),.25);assert.ok(Math.abs(controlled.result.Vm![row.remoteBusIndex!]-1.2)>1e-3);
   assert.ok(controlled.controlLimitRestarts!>0);assert.equal(controlled.timings.sensitivitySolveMs,0);
+});
+test('one controller reaching a Q limit leaves its peer controller active',()=>{
+  const source=fixture(),network={...source,
+    generators:source.generators.map(g=>g.id==='G1'?{...g,qMin:-.25,qMax:.25}:{...g,qMin:-10000,qMax:10000}),
+    stationControllers:[
+      {...source.stationControllers[0],id:'C1',unitIds:['G1'],vmSet:1.2},
+      {...source.stationControllers[0],id:'C2',unitIds:['G2'],remoteBus:'B2',vmSet:1.03},
+    ],
+  },controlled=run(network),byId=new Map(controlled.controllers.map(row=>[row.id,row]));
+  assert.equal(controlled.result.converged,true);
+  assert.ok(controlled.controlLimitRestarts!>0);
+  assert.ok(['SATURATED_QMIN','SATURATED_QMAX'].includes(byId.get('C1')!.status));
+  assert.equal(byId.get('C2')!.status,'SATISFIED');
+  assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
+  assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
 });

@@ -48,9 +48,20 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
   if(!baseline.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`BASELINE_${baseline.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,integratedControllers:0,controlLimitRestarts:0};}
   const states=controls.map(control=>({control,fixed:new Map<string,number>(),weights:new Map(Object.entries(control.row.participationKi)),initialDqPu:0}));
   for(const state of states)state.control.row.initialVpu=baseline.Vm![state.control.remote];
-  let previous=baseline,model=cloneModel(base),restarts=0,integrated=0;
+  // baseline.Q is the solved net bus injection in MVAr, as is model.qSpec.
+  // Preserve fixed load and other injections by allocating only the difference
+  // from the original net specification among the station-owned generators.
+  const operatingModel=cloneModel(base);
+  for(const state of states){const c=state.control;let unallocated=0;
+    for(const bus of c.row.actuatorBuses){const local=c.units.filter(unit=>unit.bus===bus),delta=baseline.Q![bus]-base.qSpec[bus],allocation=allocateReactiveDelta(local,delta);
+      for(const unit of local)unit.qMvar=allocation.qByUnit.get(unit.id)!;
+      unallocated+=Math.abs(allocation.remainingDelta);operatingModel.qSpec[bus]=baseline.Q![bus];
+    }
+    c.row.initialQ=c.units.reduce((sum,unit)=>sum+unit.qMvar,0);c.row.ownershipUnallocatedMvar=unallocated;
+  }
+  let previous=baseline,model=cloneModel(operatingModel),restarts=0,integrated=0;
   while(true){
-    model=cloneModel(base);const active:typeof states=[],specs:IntegratedStationControl[]=[];
+    model=cloneModel(operatingModel);const active:typeof states=[],specs:IntegratedStationControl[]=[];
     for(const state of states){const c=state.control;for(const bus of c.row.actuatorBuses){model.busType[bus]=0;model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}
       model.busType[c.remote]=0;model.qMinNet[c.remote]=null;model.qMaxNet[c.remote]=null;
       for(const unit of c.units){const fixed=state.fixed.get(unit.id);if(fixed!=null)model.qSpec[unit.bus]+=fixed-unit.qMvar;}
@@ -61,16 +72,17 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
     const start=now(),solved=solveNR(model,progress,{initialVm:previous.Vm,initialVa:previous.Va,initialControlDqPu:active.map(state=>state.initialDqPu),stationControls:specs,admittance:Y,linearFill:specs.length?1:0});
     if(restarts===0)times.finalNrMs+=now()-start;else times.controlLimitRestartNrMs+=now()-start;
     if(!solved.converged){for(const state of states){state.control.row.status='CONTROL_SOLVE_FAILED';state.control.row.controlSolveFailure=`${solved.status} iteration=${solved.failure?.iteration??'—'} stage=${solved.failure?.linearStage??'—'} pivot=${solved.failure?.minPivot??'—'}: ${solved.failure?.message||''}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:restarts,unitOverrides:new Map(),timings:times,integratedControllers:0,controlLimitRestarts:restarts};}
-    previous=solved;let changed=false;
+    previous=solved;let anyControllerChanged=false;
     for(let index=0;index<active.length;index++){const state=active[index],c=state.control,dqPu=solved.controlDqPu?.[index]??0,dqMvar=dqPu*base.baseMVA;state.initialDqPu=dqPu;
+      let controllerChanged=false;
       for(const unit of c.units){if(state.fixed.has(unit.id))continue;const q=unit.qMvar+(state.weights.get(unit.id)||0)*dqMvar;
-        if(q<unit.qMin-1e-4||q>unit.qMax+1e-4){const limit=q<unit.qMin?unit.qMin:unit.qMax;state.fixed.set(unit.id,limit);state.initialDqPu-=(limit-unit.qMvar)/base.baseMVA;changed=true;}}
-      if(changed){const eligible=c.units.filter(unit=>!state.fixed.has(unit.id)),total=eligible.reduce((sum,unit)=>sum+(c.row.participationKi[unit.id]||0),0);
+        if(q<unit.qMin-1e-4||q>unit.qMax+1e-4){const limit=q<unit.qMin?unit.qMin:unit.qMax;state.fixed.set(unit.id,limit);state.initialDqPu-=(limit-unit.qMvar)/base.baseMVA;controllerChanged=true;}}
+      if(controllerChanged){anyControllerChanged=true;const eligible=c.units.filter(unit=>!state.fixed.has(unit.id)),total=eligible.reduce((sum,unit)=>sum+(c.row.participationKi[unit.id]||0),0);
         state.weights=total>EPS?new Map(eligible.map(unit=>[unit.id,(c.row.participationKi[unit.id]||0)/total])):new Map();
         if(!state.weights.size){const limits=[...state.fixed].map(([id,q])=>({unit:c.units.find(unit=>unit.id===id)!,q}));c.row.status=limits.length&&limits.every(({unit,q})=>q===unit.qMax)?'SATURATED_QMAX':limits.length&&limits.every(({unit,q})=>q===unit.qMin)?'SATURATED_QMIN':'NO_REACTIVE_HEADROOM';}
       }
     }
-    if(!changed){const overrides=new Map<string,{qMvar:number|null;qState:string}>();let activeIndex=0;
+    if(!anyControllerChanged){const overrides=new Map<string,{qMvar:number|null;qState:string}>();let activeIndex=0;
       for(const state of states){const c=state.control,hasActive=state.weights.size>0,dqMvar=hasActive?(solved.controlDqPu?.[activeIndex++]??0)*base.baseMVA:0;
         if(hasActive)c.row.status=Math.abs(c.source.vmSet-solved.Vm![c.remote])<=TOL?'SATISFIED':'CONTROL_SOLVE_FAILED';
         c.row.finalVpu=solved.Vm![c.remote];c.row.voltageResidualPu=c.source.vmSet-solved.Vm![c.remote];c.row.finalQ=0;c.row.jacobianDimension=solved.linear?model.n-1+Array.from(model.busType).filter(type=>type===0).length:null;c.row.linearMethod=solved.linear?.method??null;c.row.linearIterations=solved.linear?.iterations??null;c.row.linearResidual=solved.linear?.residual??null;c.row.participationKi=Object.fromEntries(state.weights);
