@@ -21,11 +21,24 @@ try{
  await page.locator('[data-view="quality-n1"] .ga-card-grid .ga-card').first().waitFor();
  const qualityDownload=page.waitForEvent('download');await page.getByRole('button',{name:'JSON indir'}).click();
  if((await qualityDownload).suggestedFilename()!=='GridAnalyzer-model-quality.json')throw new Error('Model Quality JSON export missing.');
- await page.getByRole('button',{name:'N-1 TARAMA',exact:true}).click();
- await page.getByRole('button',{name:'N-1 Taramayı Başlat'}).click();
- await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('N-1 screening ·'));
- const n1Download=page.waitForEvent('download');await page.getByRole('button',{name:'CSV indir'}).last().click();
- if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-summary.csv')throw new Error('N-1 CSV export missing.');
+ await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();
+ const view=page.locator('[data-view="quality-n1"]');
+ await view.locator('table.ga-table tbody tr').first().waitFor();
+ await view.locator('select[aria-label="Taranabilirlik filtresi"]').selectOption('ALL');
+ await view.locator('select[aria-label="Aday gerilim filtresi"]').selectOption('400');
+ const candidatesBeforeSearch=await view.locator('table.ga-table tbody tr').count();
+ await view.locator('input[aria-label="N-1 adaylarında ara"]').fill('L400-01');
+ await view.getByRole('button',{name:'Filtredekileri seç'}).click();
+ const candidatesAfterSearch=await view.locator('table.ga-table tbody tr').count();
+ if(candidatesAfterSearch===0||candidatesAfterSearch>=candidatesBeforeSearch)throw new Error('N-1 candidate filtering did not narrow the catalog.');
+ await view.locator('input[aria-label="N-1 adaylarında ara"]').fill('');
+ await view.getByRole('button',{name:'Seçili senaryoları tara'}).click();
+ await view.locator('.ga-notice progress').waitFor({state:'visible'});
+ await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('N-1 taraması ·'));
+ await page.getByRole('button',{name:'N-1 SONUÇLARI',exact:true}).click();
+ await view.locator('.ga-panel .ga-card-grid .ga-card').first().waitFor();
+ const n1Download=page.waitForEvent('download');await page.getByRole('button',{name:'Türkçe CSV indir'}).click();
+ if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-senaryo-ozeti.csv')throw new Error('N-1 CSV export missing.');
  await page.getByRole('button',{name:'Analizler',exact:true}).click();
  await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
  await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('Yakınsadı'));
@@ -43,7 +56,7 @@ try{
  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.locator('#networkCanvas').waitFor();
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();
  await page.locator('.ga-sld-svg').waitFor();
- console.log('Chromium smoke passed: load → quality audit/JSON → N-1/CSV → Full AC/XLSX → map angle/island → settings → Lightning results → SLD.');
+ console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → map angle/island → settings → Lightning results → SLD.');
 }finally{
  await browser?.close();server.kill('SIGTERM');
 }

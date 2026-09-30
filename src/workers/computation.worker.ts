@@ -12,6 +12,7 @@ import { runN1Screen } from '../domain/n1';
 import { effectiveNetwork } from '../domain/scenario/overlay';
 import { prepareModel } from '../analysis/power-flow/preparation';
 import { prepareReduced } from '../analysis/fast-ac/reduced-model';
+import { buildN1CandidateCatalog } from '../domain/n1/catalog';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -39,9 +40,16 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       try{reducedModelDiagnostics=prepareReduced(effective).diagnostics;}catch(error){progress('QUALITY',{message:`İndirgenmiş ağ tanıları alınamadı: ${error instanceof Error?error.message:String(error)}`});}
       send({type:'RESULT',value:auditModelQuality(effective,{preparationDiagnostics,reducedModelDiagnostics})});
     }
+    else if(data.type==='BUILD_N1_CATALOG'){
+      if(!network)throw Error('Model yüklenmedi.');
+      progress('N1_CATALOG',{message:'N-1 aday kataloğu hazırlanıyor'});
+      const effective=effectiveNetwork(network,data.scenario),reduced=prepareReduced(effective);
+      const catalog=buildN1CandidateCatalog(network,data.scenario,{capacitySeason:data.capacitySeason,reduced});
+      send({type:'RESULT',value:catalog});
+    }
     else if(data.type==='RUN_N1_SCREEN'){
       if(!network)throw Error('Model yüklenmedi.');
-      const result=await runN1Screen(network,data.scenario,data.options,{onProgress:p=>progress(p.stage,{completed:p.completed,total:p.total,percent:p.percent})});
+      const result=await runN1Screen(network,data.scenario,data.options,{onProgress:p=>progress(p.stage,{completed:p.completed,total:p.total,percent:p.percent,elapsedMs:p.elapsedMs,screenedSoFar:p.screenedSoFar,violationCountSoFar:p.violationCountSoFar,islandingCount:p.islandingCount,unsupportedCount:p.unsupportedCount})});
       progress('N1_RESULT',{message:'N-1 sonuçları hazırlanıyor'});
       send({type:'RESULT',value:result});
     }

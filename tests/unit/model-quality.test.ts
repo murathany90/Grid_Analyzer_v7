@@ -5,7 +5,8 @@ import type { CanonicalNetwork } from '../../src/domain/model/network';
 
 test('model quality audit is deterministic, read-only, and retains source references', () => {
   const bus = { id: 'B1', name: 'Bus 1', sourceClass: 'ElmTerm', sourceId: 'B1', inService: true, siteIds: [], sourceRefs: { vnKv: [{ sourceClass: 'ElmTerm', sourceId: 'B1', field: 'uknom', unit: 'kV' }] }, vnKv: 0, parentId: 'grid' };
-  const network = { modelHash: 'audit-fixture', buses: [bus], lines: [], transformers: [], generators: [], externalGrids: [], stationControllers: [] } as unknown as CanonicalNetwork;
+  const generator = { id: 'G1', name: 'Generator 1', sourceClass: 'ElmSym', sourceId: 'G1', inService: true, siteIds: [], sourceRefs: {}, qMin: null, qMax: null, vmSet: 0 };
+  const network = { modelHash: 'audit-fixture', buses: [bus], lines: [], transformers: [], generators: [generator], externalGrids: [], stationControllers: [] } as unknown as CanonicalNetwork;
   const before = JSON.stringify(network);
   const first = auditModelQuality(network);
   const second = auditModelQuality(network);
@@ -16,6 +17,7 @@ test('model quality audit is deterministic, read-only, and retains source refere
   assert.equal(finding.severity, 'BLOCKER');
   assert.equal(finding.sourceRefs[0]?.field, 'uknom');
   assert.equal(first.summary.counts.BLOCKER, 1);
+  assert.deepEqual(first.findings.map(item => item.severity), ['BLOCKER', 'ERROR', 'WARNING']);
 });
 
 test('model quality reuses preparation and reduced-model diagnostics', () => {

@@ -39,7 +39,7 @@ test('triangle DC outage uses LODF redistribution consistent with the reduced DC
 test('unrated reduced branches report CAPACITY_UNAVAILABLE instead of a no-violation result', () => {
   const result = runN1Screen(network(false), emptyScenario(), { candidateTypes: ['ElmLne'] });
   assert.ok(result.candidates.every(c => c.status === 'CAPACITY_UNAVAILABLE'));
-  assert.ok(result.candidates.every(c => c.ratingCoverage.percent === 0));
+  assert.ok(result.candidates.every(c => c.ratingCoverage.evaluated && c.ratingCoverage.percent === 0));
   assert.equal(result.candidates[0].estimatedOverloadCount, 0);
 });
 
@@ -48,4 +48,38 @@ test('N-1 identity changes with effective scenario and screening options', () =>
   const original = n1OptionsIdentity(n, empty, { candidateTypes: ['ElmLne'] });
   assert.notEqual(original.scenarioHash, n1OptionsIdentity(n, switched, { candidateTypes: ['ElmLne'] }).scenarioHash);
   assert.notEqual(original.optionsHash, n1OptionsIdentity(n, empty, { candidateTypes: ['ElmTr2'] }).optionsHash);
+  assert.notEqual(original.optionsHash, n1OptionsIdentity(n, empty, { candidateTypes: ['ElmLne'], selectedCandidateIds: ['ElmLne:l1'] }).optionsHash);
+  assert.notEqual(n1OptionsIdentity(n, empty, { candidateTypes: ['ElmLne'], analysisScope: 'base' }).optionsHash, n1OptionsIdentity(n, empty, { candidateTypes: ['ElmLne'], analysisScope: 'scenario' }).optionsHash);
+});
+
+test('outage rating does not invalidate complete surviving-branch monitoring', () => {
+  const base = network();
+  const lines = base.lines.map(line => line.id === 'l1' ? { ...line, capacity: undefined, ratingMva: null } : { ...line, capacity: { ...line.capacity!, nominalMVA: 200 } });
+  const result = runN1Screen({ ...base, lines } as CanonicalNetwork, emptyScenario(), { selectedCandidateIds: ['ElmLne:l1'] });
+  const outage = result.candidates[0];
+  assert.equal(outage.outageRatingAvailable, false);
+  assert.equal(outage.ratingCoverage.evaluated, true);
+  assert.equal(outage.ratingCoverage.ratedBranches, outage.ratingCoverage.totalBranches);
+  assert.equal(outage.status, 'SCREENED_NO_VIOLATION');
+  assert.equal(result.unratedCount, 1);
+});
+
+test('selected candidate IDs scope N-1 results and progress reaches 100 monotonically', () => {
+  const progress: number[] = [];
+  const result = runN1Screen(network(), emptyScenario(), { candidateTypes: ['ElmLne'], selectedCandidateIds: ['ElmLne:l2'] }, { onProgress: p => progress.push(p.percent) });
+  assert.deepEqual(result.candidates.map(c => c.equipmentId), ['l2']);
+  assert.ok(progress.every((percent, index) => index === 0 || percent >= progress[index - 1]));
+  assert.equal(progress.at(-1), 100);
+});
+
+test('N-1 impact output keeps only the deterministic top ten', () => {
+  const base = network(), parallels = Array.from({ length: 12 }, (_, i) => ({ ...base.lines[0], id: `parallel-${i + 1}`, name: `parallel-${i + 1}`, sourceId: `parallel-${i + 1}` }));
+  const result = runN1Screen({ ...base, lines: [...base.lines, ...parallels] } as CanonicalNetwork, emptyScenario(), { candidateTypes: ['ElmLne'] });
+  const impacts = result.candidates.find(c => c.equipmentId === 'l1')!.topImpacts;
+  assert.equal(impacts.length, 10);
+  assert.equal(new Set(impacts.map(impact => impact.equipmentId)).size, 10);
+  for (let i = 1; i < impacts.length; i++) {
+    const prior = impacts[i - 1], current = impacts[i];
+    assert.ok((prior.estimatedLoadingPct ?? -1) > (current.estimatedLoadingPct ?? -1) || ((prior.estimatedLoadingPct ?? -1) === (current.estimatedLoadingPct ?? -1) && (Math.abs(prior.deltaPMw) > Math.abs(current.deltaPMw) || (Math.abs(prior.deltaPMw) === Math.abs(current.deltaPMw) && prior.equipmentId.localeCompare(current.equipmentId) <= 0))));
+  }
 });

@@ -101,7 +101,7 @@ export function auditModelQuality(network: CanonicalNetwork, context: ModelQuali
   ];
   for (const item of provenanceEntities) if (!item.entity.sourceRefs[item.key]?.length) add({ code: 'MATERIAL_PROVENANCE_MISSING', severity: 'INFO', category: 'PROVENANCE', entity: item.entity, field: item.field, originalValue: null, normalizedValue: null, unit: null, message: item.entity.name + ': source reference for material electrical data is unavailable.', calculationImpact: 'The value cannot be traced back to its source field for review.' });
 
-  findings.sort((a, b) => a.severity.localeCompare(b.severity) || a.category.localeCompare(b.category) || a.code.localeCompare(b.code) || (a.entityClass || '').localeCompare(b.entityClass || '') || (a.entityId || '').localeCompare(b.entityId || '') || (a.field || '').localeCompare(b.field || ''));
+  findings.sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || a.category.localeCompare(b.category) || a.code.localeCompare(b.code) || (a.entityClass || '').localeCompare(b.entityClass || '') || (a.entityId || '').localeCompare(b.entityId || '') || (a.field || '').localeCompare(b.field || ''));
   const counts = Object.fromEntries(SEVERITIES.map(severity => [severity, findings.filter(item => item.severity === severity).length])) as Record<ModelQualitySeverity, number>;
   const categoryCounts = Object.fromEntries(CATEGORIES.flatMap(category => { const count = findings.filter(item => item.category === category).length; return count ? [[category, count]] : []; })) as Partial<Record<ModelQualityCategory, number>>;
   return { modelHash: network.modelHash, findings, summary: { total: findings.length, counts, categoryCounts } };
