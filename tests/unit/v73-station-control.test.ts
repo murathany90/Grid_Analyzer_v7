@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -141,6 +141,24 @@ test('coupled station solve uses cross-controller voltage effects',()=>{
   const coupledResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*solved.solution![j],0)-target[i]);
   const diagonalDelta=matrix.map((row,i)=>target[i]/row[i]),diagonalResidual=matrix.map((row,i)=>row.reduce((sum,value,j)=>sum+value*diagonalDelta[j],0)-target[i]);
   assert.ok(Math.hypot(...coupledResidual)<Math.hypot(...diagonalResidual));
+});
+test('active five-row objective keeps fixed effects while solving three free columns',()=>{
+  const matrix=[[1,0,0,0,0],[1,1,0,0,0],[0,0,1,0,0],[0,0,0,1,1],[0,0,0,0,1]],fixed=new Map([[1,.2],[3,-.1]]),fixedEffects=matrix.map(row=>[...fixed].reduce((sum,[column,delta])=>sum+row[column]*delta,0)),residual=[0,.3,0,0,0].map((value,row)=>value+fixedEffects[row]);
+  const solution=solveActiveControllerObjective(matrix,residual,[0,2,4],fixedEffects,[1,1,1]).solution!;
+  assert.equal(solution.length,3);assert.ok(Math.abs(solution[0]-.15)<1e-12);assert.ok(Math.abs(solution[1])<1e-12);assert.ok(Math.abs(solution[2])<1e-12);
+  const oldNorm=Math.hypot(...residual),predicted=Math.hypot(...matrix.map((row,index)=>residual[index]-fixedEffects[index]-[0,2,4].reduce((sum,column,j)=>sum+row[column]*solution[j],0)));
+  assert.ok(predicted<oldNorm);
+});
+test('fixed Q allocations remain single-owned and cannot re-enter free moves',()=>{
+  const units=[{id:'F',bus:1,pMw:1,qMvar:0,qMin:0,qMax:1}],fixed=allocateReactiveDelta(units,2),free=allocateReactiveDelta([{id:'M',bus:2,pMw:1,qMvar:0,qMin:-2,qMax:2}],.5);
+  const combined=mergeControllerAllocations(new Map([['fixed',fixed]]),new Map([['free',free]]));
+  assert.equal(combined.get('fixed')?.appliedDelta,1);assert.equal(combined.get('free')?.appliedDelta,.5);assert.equal(combined.size,2);
+  assert.throws(()=>mergeControllerAllocations(new Map([['fixed',fixed]]),new Map([['fixed',free]])),/CONTROLLER_FIXED_AND_FREE/);
+});
+test('one global gradient step descends with correlated controller columns',()=>{
+  const matrix=[[1,1],[1,1.01],[0,.01]],residual=[.02,.02,0],step=globalGradientStep(matrix,residual);
+  const oldNorm=Math.hypot(...residual),predicted=Math.hypot(...matrix.map((row,index)=>residual[index]-row.reduce((sum,value,column)=>sum+value*step[column],0)));
+  assert.ok(predicted<oldNorm);assert.ok(step.every(Number.isFinite));
 });
 test('uniform trust scaling keeps a coupled descent direction and changes the applied Q vector',()=>{
   const n=128,matrix:number[][]=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:i<2&&j<2?.99:0)),target:number[]=Array.from({length:n},(_,i)=>i===0?1:0),scales=Array.from({length:n},(_,i)=>i===1?10:1),raw=solveCoupledLeastSquares(matrix,target,scales).solution!;
