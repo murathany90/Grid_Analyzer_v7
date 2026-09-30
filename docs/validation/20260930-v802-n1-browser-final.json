@@ -1,0 +1,48 @@
+{
+  "baseSha": "e27d45a7c8307c8c4bc29588212f962cd27765ce",
+  "benchmarkPhase": "feature working tree before release version bump",
+  "measurementNotes": "The screen engine was unchanged after this run. Subsequent changes expanded selected detail to unaffected islands and added result-table columns; detail timing is an initial measurement, not a final all-islands latency measurement.",
+  "model": "20260928_0900_SN1_TR0.zip",
+  "scope": "all in-service line and transformer candidates at >=66 kV",
+  "browser": "Chromium 153.0.8010.12",
+  "status": "PASS",
+  "wallClockMs": 944.4796999999999,
+  "engineElapsedMs": 793.5999999940395,
+  "candidateCount": 5239,
+  "selectedCandidateCount": 5239,
+  "screenedCount": 2313,
+  "islandingCount": 354,
+  "unsupportedCount": 2572,
+  "violationCount": 45,
+  "constraintCandidates": 45,
+  "violationInstances": 56,
+  "selectedDetailWallClockMs": 280.4933000000001,
+  "selectedIslandDetailWallClockMs": 314.14589999999953,
+  "selectedIslandComponents": 2,
+  "selectedReferenceLessIslands": 0,
+  "selectedSeparatedLoadMw": 0,
+  "selectedSeparatedGenerationMw": 0,
+  "kluFactorizationCount": 1,
+  "kluRhsCount": 2313,
+  "kluMaxTrueResidual": 1.1343018993579885e-13,
+  "catalogCandidateCount": 5239,
+  "screenableCandidateCount": 2313,
+  "defaultSelectedCandidateCount": 2313,
+  "defaultScreenabilityFilter": "SCREENABLE",
+  "progressVisibleAtFirstCheck": false,
+  "tabSwitchMs": 105.82650000000103,
+  "completionSignalMs": 936.4115000000002,
+  "renderAfterCompletionSignalMs": 8.068199999999706,
+  "resultRendered": true,
+  "kluMatrices": [
+    {
+      "dimension": 1724,
+      "nnz": 6364
+    }
+  ],
+  "resultIdentity": {
+    "modelHash": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+    "scenarioHash": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+    "engineVersion": "8.0.1"
+  }
+}

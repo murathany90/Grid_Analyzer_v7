@@ -5,7 +5,7 @@ export interface Settings {
   loadingColor0:string;loadingColor1:string;loadingColor2:string;loadingColor3:string;loadingColor4:string;loadingColor5:string;loadingColor6:string;
   thresholds: number[]; palette: 'voltage' | 'green'; width400: number; widthMid: number; widthOther: number;
   deltaUp: string; deltaDown: string; deltaNeutral: string; deltaLoad: number; deltaP: number; deltaQ: number; deltaV: number; layoutMode: 'standard' | 'separated'; flowDefault: boolean;
-  clearOnBlank: boolean; legend: boolean; displayMode: 'nominal' | 'loading' | 'p' | 'q' | 'v' | 'angle' | 'delta' | 'island';
+  clearOnBlank: boolean; legend: boolean; displayMode: 'nominal' | 'loading' | 'p' | 'q' | 'v' | 'angle' | 'delta' | 'island' | 'n1-island' | 'n1-risk';
   deltaMetric:'p'|'q'|'v'|'loading';voltageMin:number;voltageNeutral:number;voltageMax:number;
   voltageLowColor:string;voltageNeutralColor:string;voltageHighColor:string;
   angleMin:number;angleNeutral:number;angleMax:number;angleNegativeColor:string;angleNeutralColor:string;anglePositiveColor:string;
@@ -44,7 +44,7 @@ export class SettingsStore {
       if (!/^#[0-9a-f]{6}$/i.test(next[key])) next[key] = this.value[key];
     next.thresholds = Array.isArray(next.thresholds) && next.thresholds.length === 6 && next.thresholds.every(Number.isFinite) ? next.thresholds.map(x => Math.max(0, Math.min(300, x))).sort((a,b) => a-b) : [...this.value.thresholds];
     for (const key of ['width400', 'widthMid', 'widthOther', 'deltaLoad', 'deltaP', 'deltaQ', 'deltaV', 'flowDensity'] as const) if (!Number.isFinite(next[key]) || next[key] <= 0) next[key] = this.value[key];
-    const enums = {palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta','island'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
+    const enums = {palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta','island','n1-island','n1-risk'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
     for (const key of Object.keys(enums) as (keyof typeof enums)[]) if (!(enums[key] as readonly string[]).includes(next[key])) Object.assign(next,{[key]:this.value[key]});
     next.precision=Math.round(Math.max(0,Math.min(8,next.precision||0)));next.pageSize=Math.round(Math.max(10,Math.min(100,next.pageSize||20)));next.siteSize=Math.max(1,Math.min(10,next.siteSize||2.5));
     if(!Number.isFinite(next.voltageMin)||next.voltageMin<=0||next.voltageMin>=2)next.voltageMin=this.value.voltageMin;

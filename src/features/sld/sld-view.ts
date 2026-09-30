@@ -7,6 +7,7 @@ import type { StatusKey } from '../../domain/scenario/overlay';
 import { downloadText, element } from '../../ui/components/dom';
 import { fetchCatalogAll } from '../catalog';
 import { SvgSldRenderer, type SldDiagram, type SldEquipment, type SldRegionalBranch, type SldSwitch, type SldTerminal, type SldScope } from './sld-renderer';
+import {calculationEngineLabel,calculationSessionStatus} from '../../ui/components/calculation-controls';
 
 interface NetworkIndex {
   network: CanonicalNetwork;
@@ -146,6 +147,7 @@ function createBayTerminals(index: NetworkIndex, station: StationData, bay: Cata
 
 export function createSldView(ctx: AppContext): Feature {
   const root = element('section', 'ga-feature ga-sld-view');
+  const session=calculationSessionStatus(ctx);
   const heading = element('div', 'ga-feature-heading');
   heading.append(element('h2', '', 'Tek hat şeması'), element('p', 'ga-muted', 'DGS terminal ve ekipman referanslarından türetilen istasyon ve bölgesel şemalar.'));
   const toolbar = element('div', 'ga-toolbar');
@@ -170,7 +172,7 @@ export function createSldView(ctx: AppContext): Feature {
   const regionalPager=element('div','ga-pager');regionalPager.hidden=true;
   const diagramHost = element('div', 'ga-sld-diagram');
   const detail = element('section', 'ga-detail', 'Bir bara, fider veya ekipman seçin.');
-  root.append(heading, toolbar, voltageFilter.element, lineBar, notice, bayToolbar, info,regionalPager, diagramHost, detail);
+  root.append(heading, session.element, toolbar, voltageFilter.element, lineBar, notice, bayToolbar, info,regionalPager, diagramHost, detail);
 
   let scope: SldScope = 'station', selectedBayId = '', regionalPage = 0;
   let networkIndex: NetworkIndex | null = null, networkHash = '', siteOptionsHash = '', stationData: StationData | null = null;
@@ -238,7 +240,8 @@ export function createSldView(ctx: AppContext): Feature {
     const actions=element('div','ga-actions');actions.append(resetButton);
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
-        actions.append(actionButton(key==='switchState'?'Kapat / servise al':'Servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Aç / servis dışı':'Servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton('Değiştir + hesapla',()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
+      const engine=calculationEngineLabel(ctx);
+      actions.append(actionButton(key==='switchState'?'Kapat / servise al':'Servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Aç / servis dışı':'Servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + ${engine} Senaryo Hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
       }
       actions.append(actionButton('Haritada göster',()=>ctx.select(entity.id,entity.sourceClass,'map')));
     }
@@ -281,15 +284,17 @@ export function createSldView(ctx: AppContext): Feature {
     const bay=scope;
     const effectiveGroups = groups.map(group => ({ ...group, buses: group.buses.map(bus => ({ ...bus,
       inService: ctx.scenario.current.busOrTerminalStatus[bus.id] ?? (ctx.scenario.current.restoredTerminals.includes(bus.id) || bus.inService) })) }));
+    const n1Detail=ctx.n1Detail?.candidate.candidateId===ctx.selectedN1CandidateId?ctx.n1Detail:null;
     return { scope: bay, orientation: layoutSelect.value === 'vertical' ? 'vertical' : 'horizontal', station: site, selectedId: selected?.id || null, groups: effectiveGroups, equipment,
-      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?.graph||null,voltageBands:ctx.filters.voltages,page:bay==='regional'?regionalPage:0,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value };
+      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?.graph||null,voltageBands:ctx.filters.voltages,page:bay==='regional'?regionalPage:0,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value,n1Detail,selectedN1IslandId:ctx.selectedN1IslandId };
   }
   function makeRenderKey(network: CanonicalNetwork | null, site: Site | null): string {
     return JSON.stringify([network?.modelHash || '', ctx.view, site?.id || '', scope, regionalPage, selectedBayId,
-      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature()]);
+      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature(),ctx.selectedN1CandidateId,ctx.selectedN1IslandId,ctx.n1DetailLoading]);
   }
   async function render(): Promise<void> {
     if (ctx.view !== 'sld') { request++; return; }
+    session.render();
     const network = ensureNetwork();voltageFilter.render(); syncSites(network);
     if (!network || !networkIndex) {
       const key = makeRenderKey(null, null); if (key === lastRenderKey) return; lastRenderKey = key;
@@ -340,6 +345,8 @@ export function createSldView(ctx: AppContext): Feature {
     if (scope === 'regional') info.textContent = `${diagram.regionalBranches.length} gerçek TM bağlantısı · ${diagram.regionalSites.length} merkez · sayfada en fazla 12 komşu. Paralel hatlar üstteki hat seçicisinden ayrı seçilebilir.`;
     else if (scope==='bay') info.textContent = `${diagram.terminals.length} gerçek terminal · ${diagram.switches.length} ElmCoup anahtarı · ${diagram.unresolvedSwitches} çözülemeyen uç. Senaryo durumları yerel çalışma kopyasındadır.`;
     else info.textContent = `${site.name} · ${data?.graph.busSections.length||0} bara bölümü · ${data?.bays.length||0} kaynak fider · ${data?.graph.terminals.length||0} terminal · yatay bara / dikey fider. Sürükle: kaydır · tekerlek: yakınlaştır.`;
+    if(ctx.n1DetailLoading)info.textContent+=' · Seçili N-1 ayrıntısı hesaplanıyor…';
+    else if(diagram.n1Detail)info.textContent+=` · N-1 kesinti: ${diagram.n1Detail.candidate.name} · ${diagram.n1Detail.outageIslands.length} ada · Kırmızı risk bandı >90%, sert limit aşımı >100%.`;
     renderDetail();
     lastRenderKey=makeRenderKey(network,site);
   }

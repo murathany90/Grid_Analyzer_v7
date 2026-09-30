@@ -28,6 +28,7 @@ export function sortN1<T extends N1ScreenCandidate | N1CatalogCandidate>(rows: r
     if (key === 'kv') return x.vnKv;
     if (key === 'status') return 'status' in x ? String(x.status) : x.screenable ? 'Taranabilir' : x.topology;
     const result = x as N1ScreenCandidate;
+    if (key === 'baseFlow') return result.baseFlowMw ?? -1;
     if (key === 'maxEstimatedLoadingPct') return result.maxEstimatedLoadingPct ?? -1;
     if (key === 'estimatedOverloadCount') return result.estimatedOverloadCount;
     if (key === 'maxDeltaPMw') return result.maxDeltaPMw ?? -1;

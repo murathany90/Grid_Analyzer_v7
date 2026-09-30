@@ -7,6 +7,7 @@ import { APP_VERSION } from '../../version';
 import { prepareReduced, type ReducedEdge, type ReducedIsland, type ReducedNetwork } from '../../analysis/fast-ac/reduced-model';
 import { KluSparseDirectFactorization } from '../../analysis/power-flow/js/sparse-direct';
 import type { SparseMatrix } from '../../analysis/power-flow/js/types';
+import { buildTopology, UnionFind } from '../../topology/electrical-topology';
 
 export type N1SourceClass = 'ElmLne' | 'ElmTr2';
 export type N1Topology = 'NON_ISLANDING' | 'ISLANDING' | 'UNSUPPORTED';
@@ -25,18 +26,39 @@ export interface N1Candidate {
   from: string; to: string; siteIds: readonly string[]; screenable: boolean; ratingAvailable: boolean;
   representedInReducedModel: boolean; exclusionReason: string | null; topology: N1Topology;
 }
-export interface N1Impact { equipmentId: string; sourceClass: string; from: string; to: string; baseFlowMw: number; postFlowMw: number; deltaPMw: number; estimatedLoadingPct: number | null }
+export interface N1Impact {
+  equipmentId: string; sourceClass: string; from: string; to: string;
+  baseFlowMw: number; postFlowMw: number; deltaPMw: number;
+  capacityMva: number | null; baseEstimatedLoadingPct: number | null; postEstimatedLoadingPct: number | null;
+  /** Kept as a display-compatible alias for postEstimatedLoadingPct. */
+  estimatedLoadingPct: number | null;
+}
+export interface N1Reference { id: string; name: string; sourceClass: string }
+export interface N1IslandComponent {
+  componentId: string; islandId: string; status: 'REFERENCED' | 'UNREFERENCED'; busIds: readonly string[]; branchIds: readonly string[]; siteIds: readonly string[];
+  references: readonly N1Reference[]; referenceCount: number; loadMw: number; generationMw: number; netInjectionMw: number;
+  hasReference: boolean; separatedLoadMw: number | null; separatedGenerationMw: number | null;
+}
+export interface N1DetailBranchImpact extends Omit<N1Impact, 'postFlowMw' | 'deltaPMw' | 'postEstimatedLoadingPct' | 'estimatedLoadingPct'> {
+  postFlowMw: number | null; deltaPMw: number | null; postEstimatedLoadingPct: number | null; estimatedLoadingPct: number | null;
+  name: string; siteIds: readonly string[]; islandId: string;
+}
+export interface N1SelectedDetail {
+  candidateId: string; candidate: N1ScreenCandidate;
+  outage: { equipmentId: string; sourceClass: N1SourceClass }; outageEquipment: { equipmentId: string; sourceClass: N1SourceClass };
+  branchImpacts: readonly N1DetailBranchImpact[]; outageIslands: readonly N1IslandComponent[]; elapsedMs: number;
+}
 export interface N1ScreenCandidate extends N1Candidate {
   status: N1CandidateStatus; islanding: boolean; baseFlowMw: number | null;
   outageRatingAvailable: boolean;
   maxEstimatedLoadingPct: number | null; estimatedOverloadCount: number; maxDeltaPMw: number | null;
   ratingCoverage: { evaluated: boolean; ratedBranches: number; totalBranches: number; percent: number | null };
-  topImpacts: readonly N1Impact[];
+  topImpacts: readonly N1Impact[]; violationImpacts: readonly N1Impact[];
 }
 export interface N1ScreenResult {
   identity: { modelHash: string; scenarioHash: string; optionsHash: string; engineVersion: string };
   scope: 'REDUCED_GE66_DC_P_ONLY'; candidateTypes: readonly N1SourceClass[]; voltageBands: { minKv: number; maxKv: number | null };
-  capacitySeason: CapacitySeason; baseDcStatus: string; elapsedMs: number;
+  capacitySeason: CapacitySeason; analysisScope: 'base' | 'scenario'; baseDcStatus: string; elapsedMs: number;
   candidateCount: number; screenedCount: number; islandingCount: number; unratedCount: number; unsupportedCount: number;
   candidates: readonly N1ScreenCandidate[]; remarks: readonly string[];
   dcDiagnostics: { factorizationCount: number; rhsCount: number; maxTrueResidual: number | null; matrices: readonly { dimension: number; nnz: number }[] };
@@ -119,11 +141,85 @@ function matrixFor(island: ReducedIsland, slack: number): { matrix: SparseMatrix
   return { matrix: { N: rows.length, rowPtr, colIdx: Int32Array.from(colIdx), values: Float64Array.from(values), pos, diagPos }, nodeMap };
 }
 function emptyMetrics(candidate: N1Candidate, status: N1CandidateStatus, _branches = 0): N1ScreenCandidate {
-  return { ...candidate, outageRatingAvailable: candidate.ratingAvailable, status, islanding: candidate.topology === 'ISLANDING', baseFlowMw: null, maxEstimatedLoadingPct: null, estimatedOverloadCount: 0, maxDeltaPMw: null, ratingCoverage: { evaluated: false, ratedBranches: 0, totalBranches: 0, percent: null }, topImpacts: [] };
+  return { ...candidate, outageRatingAvailable: candidate.ratingAvailable, status, islanding: candidate.topology === 'ISLANDING', baseFlowMw: null, maxEstimatedLoadingPct: null, estimatedOverloadCount: 0, maxDeltaPMw: null, ratingCoverage: { evaluated: false, ratedBranches: 0, totalBranches: 0, percent: null }, topImpacts: [], violationImpacts: [] };
 }
 
 function compareImpactValues(pct: number | null, delta: number, equipmentId: string, b: N1Impact): number {
   return (b.estimatedLoadingPct ?? -1) - (pct ?? -1) || Math.abs(b.deltaPMw) - Math.abs(delta) || equipmentId.localeCompare(b.equipmentId);
+}
+
+function terminalToReducedBus(network: CanonicalNetwork): (terminalId: string) => string | null {
+  const topology = buildTopology(network), high = new Set<number>(), low = new Set<number>();
+  topology.buses.forEach((bus, index) => (bus.vnKv >= 66 ? high : low).add(index));
+  const transformerRows = network.transformers.filter(t => t.inService && !topology.blockedEquipment.has(t.id)).map(t => ({ t, a: topology.terminalToBus.get(t.from), b: topology.terminalToBus.get(t.to) })).filter((x): x is typeof x & { a: number; b: number } => x.a != null && x.b != null);
+  const lowUf = new UnionFind([...low].map(String));
+  for (const { a, b } of transformerRows) if (low.has(a) && low.has(b)) lowUf.union(String(a), String(b));
+  const boundaries = new Map<string, Set<number>>();
+  const addBoundary = (l: number, h: number) => { const key = lowUf.find(String(l)); if (key == null) return; if (!boundaries.has(key)) boundaries.set(key, new Set()); boundaries.get(key)!.add(h); };
+  for (const { a, b } of transformerRows) { if (low.has(a) && high.has(b)) addBoundary(a, b); if (low.has(b) && high.has(a)) addBoundary(b, a); }
+  return terminalId => {
+    const index = topology.terminalToBus.get(terminalId);
+    if (index == null) return null;
+    if (high.has(index)) return topology.buses[index].id;
+    const targets = boundaries.get(lowUf.find(String(index)) ?? '')
+    return targets?.size === 1 ? topology.buses[[...targets][0]].id : null;
+  };
+}
+
+interface OutageComponentData { component: N1IslandComponent; busIndexes: number[]; edges: ReducedEdge[]; slack: number | null }
+function componentIdentity(candidateId: string, busIds: readonly string[]): string {
+  const source = `${candidateId}\u0000${busIds.join('\u0000')}`;
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i++) { hash ^= source.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+  return `n1:${candidateId}:${(hash >>> 0).toString(36)}`;
+}
+function outageComponents(active: CanonicalNetwork, reduced: ReducedNetwork, island: ReducedIsland, outageId: string | null, candidateId: string, route = terminalToReducedBus(active)): OutageComponentData[] {
+  const adjacency = island.busIds.map(() => [] as number[]);
+  for (const e of island.edges) if (e.id !== outageId) { adjacency[e.a].push(e.b); adjacency[e.b].push(e.a); }
+  const groups: number[][] = [], seen = new Uint8Array(island.busIds.length);
+  for (let start = 0; start < seen.length; start++) {
+    if (seen[start]) continue;
+    const stack = [start], group: number[] = []; seen[start] = 1;
+    while (stack.length) { const bus = stack.pop()!; group.push(bus); for (const next of adjacency[bus]) if (!seen[next]) { seen[next] = 1; stack.push(next); } }
+    groups.push(group.sort((a, b) => island.busIds[a].localeCompare(island.busIds[b])));
+  }
+  const groupByBus = new Map<string, number>();
+  groups.forEach((group, index) => group.forEach(bus => groupByBus.set(island.busIds[bus], index)));
+  const loadByGroup = groups.map(() => 0), generationByGroup = groups.map(() => 0), refsByGroup = groups.map(() => [] as N1Reference[]), slackRankByGroup = groups.map(() => new Map<string, number>());
+  for (const item of active.loads) if (item.inService) { const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus); if (group != null) loadByGroup[group] += item.pMw; }
+  for (const item of active.generators) if (item.inService) {
+    const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus);
+    if (group != null) { generationByGroup[group] += item.pMw; if (item.pMw > 0) { refsByGroup[group].push({ id: item.id, name: item.name, sourceClass: item.sourceClass }); slackRankByGroup[group].set(bus!, (slackRankByGroup[group].get(bus!) ?? 0) + item.pMw); } }
+  }
+  for (const item of active.externalGrids) if (item.inService) {
+    const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus);
+    if (group != null) { refsByGroup[group].push({ id: item.id, name: item.name, sourceClass: item.sourceClass }); slackRankByGroup[group].set(bus!, (slackRankByGroup[group].get(bus!) ?? 0) + 1e8); }
+  }
+  return groups.map((busIndexes, groupIndex) => {
+    const busIds = busIndexes.map(i => island.busIds[i]).sort((a, b) => a.localeCompare(b)), busSet = new Set(busIndexes);
+    const edges = island.edges.filter(e => e.id !== outageId && busSet.has(e.a) && busSet.has(e.b));
+    const branchIds = edges.map(e => e.id).sort((a, b) => a.localeCompare(b));
+    const siteIds = [...new Set(busIds.flatMap(id => reduced.buses.get(id)?.siteIds ?? []))].sort((a, b) => a.localeCompare(b));
+    const references = refsByGroup[groupIndex].sort((a, b) => a.sourceClass.localeCompare(b.sourceClass) || a.id.localeCompare(b.id));
+    const hasReference = references.length > 0, componentId = componentIdentity(candidateId, busIds), componentStatus: N1IslandComponent['status'] = hasReference ? 'REFERENCED' : 'UNREFERENCED';
+    const netInjectionMw = busIndexes.reduce((sum, index) => sum + (island.injections[index]?.[0] ?? 0), 0);
+    const rank = slackRankByGroup[groupIndex], slackBusId = [...rank].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+    const localSlack = slackBusId == null ? null : busIndexes.find(index => island.busIds[index] === slackBusId) ?? null;
+    return {
+      component: { componentId, islandId: componentId, status: componentStatus, busIds, branchIds, siteIds, references, referenceCount: references.length, loadMw: loadByGroup[groupIndex], generationMw: generationByGroup[groupIndex], netInjectionMw, hasReference, separatedLoadMw: hasReference ? null : loadByGroup[groupIndex], separatedGenerationMw: hasReference ? null : generationByGroup[groupIndex] },
+      busIndexes, edges, slack: localSlack,
+    };
+  }).sort((a, b) => a.component.busIds[0]?.localeCompare(b.component.busIds[0] ?? '') ?? 0);
+}
+
+function detailCapacityLimit(edge: ReducedEdge, season: CapacitySeason, lineById: ReadonlyMap<string, CanonicalNetwork['lines'][number]>, transformerById: ReadonlyMap<string, CanonicalNetwork['transformers'][number]>): number | null {
+  if (edge.cls === 'ElmLne') { const line = lineById.get(edge.id); return line?.capacity ? capacityLimit(line.capacity, line.fastParameters?.vnKv ?? line.vnKv, season)?.mva ?? null : null; }
+  const transformer = transformerById.get(edge.id); return transformer && transformer.ratingMva > 0 ? transformer.ratingMva : null;
+}
+
+function detailBranchMetadata(edge: ReducedEdge, lineById: ReadonlyMap<string, CanonicalNetwork['lines'][number]>, transformerById: ReadonlyMap<string, CanonicalNetwork['transformers'][number]>): { name: string; siteIds: readonly string[] } {
+  const item = edge.cls === 'ElmLne' ? lineById.get(edge.id) : transformerById.get(edge.id);
+  return { name: item?.name ?? edge.id, siteIds: item?.siteIds ?? [] };
 }
 
 export function runN1Screen(network: CanonicalNetwork, scenario: ScenarioOverlay, options: N1ScreenOptions = {}, callbacks?: N1Callbacks): N1ScreenResult {
@@ -188,23 +284,29 @@ export function runN1Screen(network: CanonicalNetwork, scenario: ScenarioOverlay
           for (let k = 0; k < flows.length; k++) { const row = flows[k]; ptdf[k] = (theta[row.e.a] - theta[row.e.b]) / row.e.x * island.baseMVA; }
           const cIndex = flowIndexById.get(e.id)!, denominator = 1 - ptdf[cIndex];
           if (!(Math.abs(denominator) > 1e-8)) { resultMap.set(id, emptyMetrics(candidate, 'UNSCREENABLE', flows.length)); counts.unsupported++; continue; }
-          const outageFlow = flows[cIndex].flow, impacts: N1Impact[] = []; let maxLoading: number | null = null, overloads = 0, rated = 0, maxDelta = 0;
+          const outageFlow = flows[cIndex].flow, impacts: N1Impact[] = [], violationImpacts: N1Impact[] = []; let maxLoading: number | null = null, overloads = 0, rated = 0, maxDelta = 0;
           for (let k = 0; k < flows.length; k++) {
             if (k === cIndex) continue;
             const flow = flows[k], delta = ptdf[k] / denominator * outageFlow, post = flow.flow + delta;
             const limit = capacityLimitByEdge.get(flow.e.id) ?? null;
             const pct = limit != null && limit > 0 ? Math.abs(post) / limit * 100 : null;
+            const basePct = limit != null && limit > 0 ? Math.abs(flow.flow) / limit * 100 : null;
             if (pct != null) { rated++; maxLoading = Math.max(maxLoading ?? 0, pct); if (pct > 100) overloads++; }
             maxDelta = Math.max(maxDelta, Math.abs(delta));
           if (impacts.length < IMPACT_LIMIT || compareImpactValues(pct, delta, flow.e.id, impacts[impacts.length - 1]) < 0) {
-              const impact: N1Impact = { equipmentId: flow.e.id, sourceClass: flow.e.cls, from: island.busIds[flow.e.a], to: island.busIds[flow.e.b], baseFlowMw: flow.flow, postFlowMw: post, deltaPMw: delta, estimatedLoadingPct: pct };
+              const impact: N1Impact = { equipmentId: flow.e.id, sourceClass: flow.e.cls, from: island.busIds[flow.e.a], to: island.busIds[flow.e.b], baseFlowMw: flow.flow, postFlowMw: post, deltaPMw: delta, capacityMva: limit, baseEstimatedLoadingPct: basePct, postEstimatedLoadingPct: pct, estimatedLoadingPct: pct };
               let at = 0; while (at < impacts.length && compareImpactValues(impact.estimatedLoadingPct, impact.deltaPMw, impact.equipmentId, impacts[at]) >= 0) at++;
               impacts.splice(at, 0, impact); if (impacts.length > IMPACT_LIMIT) impacts.pop();
+            }
+            if (pct != null && pct > 100) {
+              const impact: N1Impact = { equipmentId: flow.e.id, sourceClass: flow.e.cls, from: island.busIds[flow.e.a], to: island.busIds[flow.e.b], baseFlowMw: flow.flow, postFlowMw: post, deltaPMw: delta, capacityMva: limit, baseEstimatedLoadingPct: basePct, postEstimatedLoadingPct: pct, estimatedLoadingPct: pct };
+              let at = 0; while (at < violationImpacts.length && compareImpactValues(impact.estimatedLoadingPct, impact.deltaPMw, impact.equipmentId, violationImpacts[at]) >= 0) at++;
+              violationImpacts.splice(at, 0, impact);
             }
           }
           const totalMonitored = Math.max(0, flows.length - 1), coverage = { evaluated: true, ratedBranches: rated, totalBranches: totalMonitored, percent: totalMonitored ? rated / totalMonitored * 100 : 100 };
           const status: N1CandidateStatus = overloads ? 'SCREENED_VIOLATION' : rated < totalMonitored ? 'CAPACITY_UNAVAILABLE' : 'SCREENED_NO_VIOLATION';
-          resultMap.set(id, { ...candidate, outageRatingAvailable: candidate.ratingAvailable, status, islanding: false, baseFlowMw: outageFlow, maxEstimatedLoadingPct: maxLoading, estimatedOverloadCount: overloads, maxDeltaPMw: maxDelta, ratingCoverage: coverage, topImpacts: impacts });
+          resultMap.set(id, { ...candidate, outageRatingAvailable: candidate.ratingAvailable, status, islanding: false, baseFlowMw: outageFlow, maxEstimatedLoadingPct: maxLoading, estimatedOverloadCount: overloads, maxDeltaPMw: maxDelta, ratingCoverage: coverage, topImpacts: impacts, violationImpacts });
           counts.screened++; if (status === 'SCREENED_VIOLATION') counts.violations++;
         }
         screenCompleted += batch.length;
@@ -226,5 +328,109 @@ export function runN1Screen(network: CanonicalNetwork, scenario: ScenarioOverlay
   const unratedCount = candidates.filter(c => c.ratingCoverage.evaluated && (!c.outageRatingAvailable || c.ratingCoverage.ratedBranches < c.ratingCoverage.totalBranches)).length;
   const screenedCount = candidates.filter(c => c.status === 'SCREENED_VIOLATION' || c.status === 'SCREENED_NO_VIOLATION' || c.status === 'CAPACITY_UNAVAILABLE').length;
   emitProgress('N1_RESULT', candidates.length, candidates.length);
-  return { identity, scope: 'REDUCED_GE66_DC_P_ONLY', candidateTypes: opts.candidateTypes, voltageBands: { minKv: opts.minVoltageKv, maxKv: opts.maxVoltageKv }, capacitySeason: opts.capacitySeason, baseDcStatus: baseDcOk ? 'CONVERGED_DC' : 'UNSCREENABLE', elapsedMs: performance.now() - started, candidateCount: candidates.length, screenedCount, islandingCount, unratedCount, unsupportedCount, candidates, remarks: ['P-only DC screening estimate; AC verification was not performed.', 'Losses, Q, voltage magnitude, and phase-shift effects are omitted.'], dcDiagnostics: { factorizationCount: factorCount, rhsCount, maxTrueResidual, matrices } };
+  return { identity, scope: 'REDUCED_GE66_DC_P_ONLY', candidateTypes: opts.candidateTypes, voltageBands: { minKv: opts.minVoltageKv, maxKv: opts.maxVoltageKv }, capacitySeason: opts.capacitySeason, analysisScope: opts.analysisScope ?? 'scenario', baseDcStatus: baseDcOk ? 'CONVERGED_DC' : 'UNSCREENABLE', elapsedMs: performance.now() - started, candidateCount: candidates.length, screenedCount, islandingCount, unratedCount, unsupportedCount, candidates, remarks: ['P-only DC screening estimate; AC verification was not performed.', 'Losses, Q, voltage magnitude, and phase-shift effects are omitted.'], dcDiagnostics: { factorizationCount: factorCount, rhsCount, maxTrueResidual, matrices } };
+}
+
+/** Computes expanded DC results for one selected contingency without storing candidate-by-branch results. */
+export function getN1SelectedDetail(network: CanonicalNetwork, scenario: ScenarioOverlay, candidateId: string, options: N1ScreenOptions = {}): N1SelectedDetail | null {
+  const started = performance.now(), active = effectiveNetwork(network, scenario), opts = optionsOf(options), reduced = prepareReduced(active);
+  const lineById = new Map(active.lines.map(item => [item.id, item])), transformerById = new Map(active.transformers.map(item => [item.id, item]));
+  const generated = generateN1CandidatesFromEffective(active, options, reduced), generatedCandidate = generated.find(c => c.candidateId === candidateId);
+  if (!generatedCandidate) return null;
+  const candidate = classifyN1Topology(reduced, [generatedCandidate])[0];
+  const outage = { equipmentId: candidate.equipmentId, sourceClass: candidate.sourceClass };
+  const edge = reduced.islands.flatMap(i => i.edges).find(e => e.id === candidate.equipmentId);
+  const island = edge ? reduced.islands.find(i => i.edges.some(e => e.id === edge.id)) : undefined;
+  if (!edge || !island || candidate.topology === 'UNSUPPORTED') {
+    return { candidateId, candidate: emptyMetrics(candidate, 'UNSCREENABLE'), outage, outageEquipment: outage, branchImpacts: [], outageIslands: [], elapsedMs: performance.now() - started };
+  }
+  const route = terminalToReducedBus(active), componentSets = reduced.islands.map(sourceIsland => ({
+    sourceIsland,
+    components: outageComponents(active, reduced, sourceIsland, sourceIsland === island ? edge.id : null, candidateId, route),
+  }));
+  const components = componentSets.flatMap(item => item.components), targetComponents = componentSets.find(item => item.sourceIsland === island)!.components;
+  const outageIslands = components.map(item => item.component), islandByBus = new Map<string, string>();
+  for (const component of outageIslands) for (const busId of component.busIds) islandByBus.set(busId, component.componentId);
+  const flowById = new Map<string, number>(), postFlowById = new Map<string, number>();
+  let outageBaseSolved = false, outageBaseFlow: number | null = null;
+  for (const set of componentSets) {
+    const sourceIsland = set.sourceIsland, isOutageIsland = sourceIsland === island;
+    const built = matrixFor(sourceIsland, sourceIsland.slack), n = sourceIsland.busIds.length, base = new Float64Array(n);
+    for (let i = 0; i < n; i++) base[i] = sourceIsland.injections[i][0] / sourceIsland.baseMVA;
+    const factor = new KluSparseDirectFactorization();
+    try {
+      factor.factorize(built.matrix);
+      const baseRhs = Float64Array.from(built.nodeMap, i => base[i]), baseSolution = factor.solve(baseRhs);
+      if (!baseSolution.success || !baseSolution.x) continue;
+      const baseAngles = new Float64Array(n); built.nodeMap.forEach((bus, i) => baseAngles[bus] = baseSolution.x![i]);
+      for (const branch of sourceIsland.edges) flowById.set(branch.id, (baseAngles[branch.a] - baseAngles[branch.b]) / branch.x * sourceIsland.baseMVA);
+      if (!isOutageIsland) {
+        for (const branch of sourceIsland.edges) postFlowById.set(branch.id, flowById.get(branch.id)!);
+        continue;
+      }
+      outageBaseSolved = true;
+      outageBaseFlow = flowById.get(edge.id) ?? null;
+      if (candidate.topology === 'NON_ISLANDING' && outageBaseFlow != null) {
+        const localIndex = new Int32Array(n).fill(-1); built.nodeMap.forEach((bus, i) => { localIndex[bus] = i; });
+        const rhs = new Float64Array(built.matrix.N), a = localIndex[edge.a], b = localIndex[edge.b], perUnit = 1 / sourceIsland.baseMVA;
+        if (a >= 0) rhs[a] += perUnit; if (b >= 0) rhs[b] -= perUnit;
+        const solution = factor.solve(rhs);
+        if (solution.success && solution.x) {
+          const theta = new Float64Array(n); built.nodeMap.forEach((bus, i) => theta[bus] = solution.x![i]);
+          const ptdf = new Map<string, number>();
+          for (const branch of sourceIsland.edges) ptdf.set(branch.id, (theta[branch.a] - theta[branch.b]) / branch.x * sourceIsland.baseMVA);
+          const denominator = 1 - (ptdf.get(edge.id) ?? 0);
+          if (Math.abs(denominator) > 1e-8) for (const branch of sourceIsland.edges) if (branch.id !== edge.id) {
+            const delta = (ptdf.get(branch.id) ?? 0) / denominator * outageBaseFlow;
+            postFlowById.set(branch.id, (flowById.get(branch.id) ?? 0) + delta);
+          }
+        }
+      } else if (candidate.topology === 'ISLANDING') {
+        for (const item of targetComponents) {
+          if (item.slack == null || !item.edges.length) continue;
+          const localIndex = new Map(item.busIndexes.map((global, local) => [global, local] as const));
+          const localIsland: ReducedIsland = { ...sourceIsland, busIds: item.busIndexes.map(global => sourceIsland.busIds[global]), injections: item.busIndexes.map(global => sourceIsland.injections[global]), shunts: item.busIndexes.map(global => sourceIsland.shunts[global]), edges: item.edges.map(branch => ({ ...branch, a: localIndex.get(branch.a)!, b: localIndex.get(branch.b)! })), slack: localIndex.get(item.slack)! };
+          const componentMatrix = matrixFor(localIsland, localIsland.slack), componentFactor = new KluSparseDirectFactorization();
+          try {
+            componentFactor.factorize(componentMatrix.matrix);
+            const componentBase = Float64Array.from(componentMatrix.nodeMap, i => localIsland.injections[i][0] / localIsland.baseMVA), solved = componentFactor.solve(componentBase);
+            if (!solved.success || !solved.x) continue;
+            const angles = new Float64Array(localIsland.busIds.length); componentMatrix.nodeMap.forEach((bus, i) => angles[bus] = solved.x![i]);
+            for (const branch of localIsland.edges) postFlowById.set(branch.id, (angles[branch.a] - angles[branch.b]) / branch.x * localIsland.baseMVA);
+          } finally { componentFactor.dispose(); }
+        }
+      }
+    } catch {
+      if (isOutageIsland) outageBaseSolved = false;
+    } finally { factor.dispose(); }
+  }
+
+  const branchImpacts: N1DetailBranchImpact[] = [];
+  for (const sourceIsland of reduced.islands) for (const branch of sourceIsland.edges) {
+    if (branch.id === edge.id) continue;
+    const baseFlowMw = flowById.get(branch.id);
+    if (baseFlowMw == null) continue;
+    const postFlowMw = postFlowById.get(branch.id) ?? null;
+    const deltaPMw = postFlowMw == null ? null : postFlowMw - baseFlowMw;
+    const capacityMva = detailCapacityLimit(branch, opts.capacitySeason, lineById, transformerById);
+    const baseEstimatedLoadingPct = capacityMva != null && capacityMva > 0 ? Math.abs(baseFlowMw) / capacityMva * 100 : null;
+    const postEstimatedLoadingPct = capacityMva != null && capacityMva > 0 && postFlowMw != null ? Math.abs(postFlowMw) / capacityMva * 100 : null;
+    branchImpacts.push({ equipmentId: branch.id, sourceClass: branch.cls, from: sourceIsland.busIds[branch.a], to: sourceIsland.busIds[branch.b], baseFlowMw, postFlowMw, deltaPMw, capacityMva, baseEstimatedLoadingPct, postEstimatedLoadingPct, estimatedLoadingPct: postEstimatedLoadingPct, ...detailBranchMetadata(branch, lineById, transformerById), islandId: islandByBus.get(sourceIsland.busIds[branch.a]) ?? '' });
+  }
+  branchImpacts.sort((a, b) => a.equipmentId.localeCompare(b.equipmentId));
+  const targetBranchIds = new Set(island.edges.filter(branch => branch.id !== edge.id).map(branch => branch.id));
+  const candidateBranchImpacts = branchImpacts.filter(impact => targetBranchIds.has(impact.equipmentId));
+  const ranked = [...candidateBranchImpacts].sort((a, b) => (b.postEstimatedLoadingPct ?? -1) - (a.postEstimatedLoadingPct ?? -1) || Math.abs(b.deltaPMw ?? 0) - Math.abs(a.deltaPMw ?? 0) || a.equipmentId.localeCompare(b.equipmentId));
+  const asImpact = (impact: N1DetailBranchImpact): N1Impact => ({ equipmentId: impact.equipmentId, sourceClass: impact.sourceClass, from: impact.from, to: impact.to, baseFlowMw: impact.baseFlowMw, postFlowMw: impact.postFlowMw!, deltaPMw: impact.deltaPMw!, capacityMva: impact.capacityMva, baseEstimatedLoadingPct: impact.baseEstimatedLoadingPct, postEstimatedLoadingPct: impact.postEstimatedLoadingPct!, estimatedLoadingPct: impact.estimatedLoadingPct! });
+  const violationImpacts = ranked.filter(impact => impact.postFlowMw != null && impact.deltaPMw != null && (impact.postEstimatedLoadingPct ?? 0) > 100).map(asImpact);
+  const ratedBranches = candidateBranchImpacts.filter(impact => impact.postEstimatedLoadingPct != null).length, totalBranches = candidateBranchImpacts.length;
+  const maxEstimatedLoadingPct = candidateBranchImpacts.reduce<number | null>((max, impact) => impact.postEstimatedLoadingPct == null ? max : Math.max(max ?? 0, impact.postEstimatedLoadingPct), null);
+  const maxDeltaPMw = candidateBranchImpacts.reduce<number | null>((max, impact) => impact.deltaPMw == null ? max : Math.max(max ?? 0, Math.abs(impact.deltaPMw)), null);
+  let screenCandidate: N1ScreenCandidate;
+  if (!outageBaseSolved) screenCandidate = emptyMetrics(candidate, candidate.topology === 'ISLANDING' ? 'ISLANDING' : 'UNSCREENABLE');
+  else {
+    const status: N1CandidateStatus = candidate.topology === 'ISLANDING' ? 'ISLANDING' : violationImpacts.length ? 'SCREENED_VIOLATION' : ratedBranches < totalBranches ? 'CAPACITY_UNAVAILABLE' : 'SCREENED_NO_VIOLATION';
+    screenCandidate = { ...candidate, status, islanding: candidate.topology === 'ISLANDING', outageRatingAvailable: candidate.ratingAvailable, baseFlowMw: outageBaseFlow, maxEstimatedLoadingPct, estimatedOverloadCount: violationImpacts.length, maxDeltaPMw, ratingCoverage: { evaluated: true, ratedBranches, totalBranches, percent: totalBranches ? ratedBranches / totalBranches * 100 : 100 }, topImpacts: ranked.filter(impact => impact.postFlowMw != null && impact.deltaPMw != null).slice(0, IMPACT_LIMIT).map(asImpact), violationImpacts };
+  }
+  return { candidateId, candidate: screenCandidate, outage, outageEquipment: outage, branchImpacts, outageIslands, elapsedMs: performance.now() - started };
 }

@@ -8,7 +8,7 @@ import { selfTests } from '../analysis/power-flow/js/index';
 import type { WorkerRequest,WorkerResponse } from './protocol';
 import { packResult } from './result-codec';
 import { auditModelQuality } from '../domain/model-quality';
-import { runN1Screen } from '../domain/n1';
+import { getN1SelectedDetail, runN1Screen } from '../domain/n1';
 import { effectiveNetwork } from '../domain/scenario/overlay';
 import { prepareModel } from '../analysis/power-flow/preparation';
 import { prepareReduced } from '../analysis/fast-ac/reduced-model';
@@ -52,6 +52,10 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       const result=await runN1Screen(network,data.scenario,data.options,{onProgress:p=>progress(p.stage,{completed:p.completed,total:p.total,percent:p.percent,elapsedMs:p.elapsedMs,screenedSoFar:p.screenedSoFar,violationCountSoFar:p.violationCountSoFar,islandingCount:p.islandingCount,unsupportedCount:p.unsupportedCount})});
       progress('N1_RESULT',{message:'N-1 sonuçları hazırlanıyor'});
       send({type:'RESULT',value:result});
+    }
+    else if(data.type==='RUN_N1_DETAIL'){
+      if(!network)throw Error('Model yüklenmedi.');
+      send({type:'RESULT',value:getN1SelectedDetail(network,data.scenario,data.candidateId,data.options)});
     }
     else{
       if(!network)throw Error('Model yüklenmedi.');const request={network,scenario:data.scenario,identity:data.identity};
