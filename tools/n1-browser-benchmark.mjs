@@ -61,7 +61,7 @@ try {
 
   started = performance.now();
   await run.click();
-  artifact.progressVisible = await view.locator('progress').first().isVisible();
+  artifact.progressVisibleAtFirstCheck = await view.locator('progress').first().isVisible();
   await page.getByRole('button', { name: 'N-1 SONUÇLARI', exact: true }).click();
   artifact.tabSwitchMs = performance.now() - started;
   await page.waitForFunction(() => {
@@ -93,7 +93,11 @@ try {
   artifact.kluRhsCount = result.dcDiagnostics.rhsCount;
   artifact.kluMaxTrueResidual = result.dcDiagnostics.maxTrueResidual;
   artifact.kluMatrices = result.dcDiagnostics.matrices;
-  artifact.resultIdentity = result.identity;
+  artifact.resultIdentity = {
+    modelHash: result.identity.modelHash,
+    scenarioHash: result.identity.scenarioHash,
+    engineVersion: result.identity.engineVersion,
+  };
   if (result.candidateCount !== artifact.selectedCandidateCount) throw new Error('Result candidate count does not match the selected catalog.');
   if (!(artifact.kluFactorizationCount > 0 && artifact.kluRhsCount > 0 && Number.isFinite(artifact.kluMaxTrueResidual))) throw new Error('KLU diagnostics are incomplete.');
   artifact.status = artifact.wallClockMs < 30000 ? 'PASS' : 'PERFORMANCE_FAIL';

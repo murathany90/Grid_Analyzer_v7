@@ -1,0 +1,37 @@
+{
+  "featureSha": "d09aa9eaeb97ca94c9449fb8c60aa1240b21e84c",
+  "model": "20260928_0900_SN1_TR0.zip",
+  "scope": "all in-service line and transformer candidates at >=66 kV",
+  "browser": "Chromium 153.0.8010.12",
+  "status": "PASS",
+  "wallClockMs": 2002.4134999999987,
+  "engineElapsedMs": 1623.2000000029802,
+  "candidateCount": 5239,
+  "selectedCandidateCount": 5239,
+  "screenedCount": 2313,
+  "islandingCount": 354,
+  "unsupportedCount": 2572,
+  "violationCount": 45,
+  "kluFactorizationCount": 1,
+  "kluRhsCount": 2313,
+  "kluMaxTrueResidual": 1.1343018993579885e-13,
+  "catalogCandidateCount": 5239,
+  "screenableCandidateCount": 2313,
+  "defaultSelectedCandidateCount": 2313,
+  "defaultScreenabilityFilter": "SCREENABLE",
+  "tabSwitchMs": 259.6893999999993,
+  "completionSignalMs": 1970.3464999999997,
+  "resultRendered": true,
+  "kluMatrices": [
+    {
+      "dimension": 1724,
+      "nnz": 6364
+    }
+  ],
+  "resultIdentity": {
+    "modelHash": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+    "scenarioHash": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+    "engineVersion": "8.0.0"
+  },
+  "progressVisibleAtFirstCheck": false
+}
