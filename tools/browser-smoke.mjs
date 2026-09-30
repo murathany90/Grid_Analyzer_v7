@@ -15,6 +15,17 @@ try{
  browser=await chromium.launch({headless:true});const page=await browser.newPage();page.setDefaultTimeout(20000);
  await page.goto(url);await page.locator('#modelFileInput').setInputFiles(fixture);
  await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));
+ await page.getByRole('button',{name:'Kalite & N-1',exact:true}).click();
+ await page.getByRole('button',{name:'MODEL KALİTESİ',exact:true}).click();
+ await page.getByRole('button',{name:'Kalite denetimini çalıştır'}).click();
+ await page.locator('[data-view="quality-n1"] .ga-card-grid .ga-card').first().waitFor();
+ const qualityDownload=page.waitForEvent('download');await page.getByRole('button',{name:'JSON indir'}).click();
+ if((await qualityDownload).suggestedFilename()!=='GridAnalyzer-model-quality.json')throw new Error('Model Quality JSON export missing.');
+ await page.getByRole('button',{name:'N-1 TARAMA',exact:true}).click();
+ await page.getByRole('button',{name:'N-1 Taramayı Başlat'}).click();
+ await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('N-1 screening ·'));
+ const n1Download=page.waitForEvent('download');await page.getByRole('button',{name:'CSV indir'}).last().click();
+ if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-summary.csv')throw new Error('N-1 CSV export missing.');
  await page.getByRole('button',{name:'Analizler',exact:true}).click();
  await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
  await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('Yakınsadı'));
@@ -32,7 +43,7 @@ try{
  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.locator('#networkCanvas').waitFor();
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();
  await page.locator('.ga-sld-svg').waitFor();
- console.log('Chromium smoke passed: load → Full AC → XLSX → map angle/island → settings → Lightning results → SLD.');
+ console.log('Chromium smoke passed: load → quality audit/JSON → N-1/CSV → Full AC/XLSX → map angle/island → settings → Lightning results → SLD.');
 }finally{
  await browser?.close();server.kill('SIGTERM');
 }

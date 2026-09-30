@@ -5,11 +5,16 @@ import type { ScenarioStore, StatusKey } from '../domain/scenario/overlay';
 import type { SettingsStore } from '../persistence/settings';
 import type { VoltageBand } from '../domain/model/voltage-band';
 import type { EngineeringContext } from '../domain/dgs-semantics/context';
+import type { ModelQualityAuditResult } from '../domain/model-quality';
+import type { N1ScreenOptions, N1ScreenResult } from '../domain/n1';
 export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean }
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
   network: CanonicalNetwork | null;
+  modelQualityResult: ModelQualityAuditResult | null;
+  modelQualityScenarioHash: string | null;
+  n1Result: N1ScreenResult | null;
   resultStore: ResultStore; scenario: ScenarioStore; settings: SettingsStore;
   selection: { id: string; sourceClass: string } | null;
   filters: { areaId: string; siteId: string; voltages: Set<VoltageBand>; search: string };
@@ -18,6 +23,7 @@ export interface AppContext {
   notify(): void; setView(view: string): void;
   loadFiles(files: FileList | File[]): Promise<void>;
   run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
+  runModelQuality(): Promise<void>; runN1Screen(options:N1ScreenOptions):Promise<void>;
   catalog(query: CatalogQuery): Promise<CatalogPage>;
   select(id: string, sourceClass: string, view?: string): void;
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean, calculate?: boolean): Promise<void>;

@@ -97,7 +97,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   assert.equal(natural.solverDiagnostics.backend,'KLU_WASM');assert.equal(legacy.solverDiagnostics.backend,'LEGACY_KRYLOV');
 });
 test('package, application engine and calculation identity share one version',()=>{
-  assert.equal(packageJson.version,'7.4.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
+  assert.equal(packageJson.version,'8.0.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
   assert.equal(identity('model',emptyScenario(),'powerFlow').engineVersion,APP_VERSION);
 });
 test('A/B/C modes separate local PV, ownership and integrated multi-bus station control',()=>{
@@ -223,12 +223,13 @@ test('one controller reaching a Q limit leaves its peer controller active',()=>{
   assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
   assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
 });
-test('zero-droop production selects sensitivity while direct integrated remains an explicit experiment',async()=>{
+test('production Full AC defaults to local PV while station controls require an explicit experiment',async()=>{
   const network=fixture(false),scenario=emptyScenario(),calculationIdentity=identity(network.modelHash,scenario,'powerFlow'),engine=new BrowserJsPowerFlowEngine();
-  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
-  assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
-  assert.equal((production.diagnostics.stationControllerSummary as {implementation:string}).implementation,'SENSITIVITY');
-  assert.equal((production.diagnostics.sensitivitySolver as {ordering:string}).ordering,'NATURAL');
+  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
+  assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'LOCAL_PV');
+  assert.equal((production.diagnostics.stationControllerSummary as {mode:string}).mode,'off');
+  assert.equal(sensitivity.converged,true);assert.equal(sensitivity.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
+  assert.equal((sensitivity.diagnostics.sensitivitySolver as {ordering:string}).ordering,'NATURAL');
   assert.equal(experimental.converged,true);assert.equal(experimental.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');
   assert.equal((experimental.diagnostics.stationControllerSummary as {implementation:string}).implementation,'INTEGRATED_EXPERIMENTAL');
 });
