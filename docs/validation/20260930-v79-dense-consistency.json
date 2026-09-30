@@ -1,0 +1,647 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "model": "20260928_0900_SN1_TR0.zip",
+    "reference": "GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx",
+    "referenceSha256": "77f8055dd8410f06068cbacf9a6466f9b9bec0306b2a9227856bd6934e772b90",
+    "referenceWorkbookCommit": "2c7d52afb5bbbc2288576db6ddf439386fd43eff",
+    "note": "Workbook baseline may have been produced at another commit; row-level reference metrics are recomputed from this workbook."
+  },
+  "execution": {
+    "commit": "7be03a235ba8e8a3f4846d7d9193cdbeb005b669",
+    "branch": "fix/v7.9-dense-controller-consistency",
+    "command": [
+      "node",
+      "C:\\projelerim\\YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8\\tools\\ytbs-benchmark-v73.ts",
+      "--only=C",
+      "--output=docs/validation/20260930-v79-dense-consistency.json"
+    ],
+    "startedAtUtc": "2026-09-30T00:07:07.708Z"
+  },
+  "modelSha256": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+  "modelZipSha256": "801aff2b8df594216a94f8ce5f54769d94c14650ee9c5003c18f373306dce315",
+  "validationQuality": "BENCHMARKED_PARTIAL",
+  "rows": {
+    "lines": 2381,
+    "transformers": 3061,
+    "buses": 1664
+  },
+  "before": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334927558,
+      "mae": 9.15699846373495,
+      "p95": 43.43688911405359
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.06448318102846656,
+      "mae": 5.4287267565210255,
+      "p95": 17.148635626921276
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090689161,
+      "mae": 31.555340648556644,
+      "p95": 81.44789089217988
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46475817873734954,
+      "mae": 3.709807126933948,
+      "p95": 13.28785119079648
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.04739246731097644,
+      "mae": 6.232215139113267,
+      "p95": 28.307897657808414
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279494965776,
+      "mae": 1.3996141613641795,
+      "p95": 7.2473420094081735
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319021725,
+      "mae": 0.016958826608457694,
+      "p95": 0.037022575573012306
+    },
+    "angle": {
+      "offsetDeg": 1.7586061652828255,
+      "count": 1663,
+      "bias": 0.04586439370438383,
+      "mae": 1.3351004507154176,
+      "p95": 3.2749097999864207
+    }
+  },
+  "run": {
+    "caseOrder": [
+      "C"
+    ],
+    "totalCaseWallMs": 12600.9646,
+    "totalMs": 17477.4444
+  },
+  "cases": {
+    "C": {
+      "run": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 0,
+        "qLimitRounds": 1,
+        "elapsedMs": 12564.651599999997,
+        "elapsedWallMs": 12570.012999999999,
+        "maxMismatchMw": 1.4505693868294145e-8
+      },
+      "metrics": {
+        "after": {
+          "lineP": {
+            "count": 2308,
+            "bias": 1.6481289334928377,
+            "mae": 9.156998463734833,
+            "p95": 43.436889114018555
+          },
+          "line154P": {
+            "count": 1969,
+            "bias": 0.06448318102849285,
+            "mae": 5.428726756521288,
+            "p95": 17.14863562692895
+          },
+          "line400P": {
+            "count": 331,
+            "bias": 11.107379090689546,
+            "mae": 31.555340648554235,
+            "p95": 81.44789089218415
+          },
+          "transformerP": {
+            "count": 2647,
+            "bias": -0.4647581787373252,
+            "mae": 3.7098071269340505,
+            "p95": 13.287851190797971
+          },
+          "lineQMagnitude": {
+            "count": 2308,
+            "bias": 0.047392467309769704,
+            "mae": 6.232215139107663,
+            "p95": 28.307897656387365
+          },
+          "transformerQMagnitude": {
+            "count": 2647,
+            "bias": -0.07770279495019106,
+            "mae": 1.3996141613638975,
+            "p95": 7.247342009391582
+          },
+          "busVpu": {
+            "count": 1663,
+            "bias": -0.015503347319031208,
+            "mae": 0.016958826608455456,
+            "p95": 0.03702257557301811
+          },
+          "angle": {
+            "method": "MEDIAN",
+            "offsetDeg": 1.7586061652838483,
+            "count": 1663,
+            "bias": 0.045864393705092786,
+            "mae": 1.3351004507151347,
+            "p95": 3.274909799986371
+          }
+        },
+        "targetMet": {
+          "line154P": false,
+          "line400P": false,
+          "busVpu": false,
+          "angle": false
+        }
+      },
+      "diagnostics": {
+        "resultProvenance": "BASELINE_FALLBACK",
+        "timings": {
+          "prepareMs": 148.7488999999996,
+          "baseNrMs": 6765.3922999999995,
+          "controllerClassificationMs": 11.534200000000055,
+          "jacobianBuildMs": 35.072000000000116,
+          "rcmReorderMs": 0.00120000000060827,
+          "ilu1FactorMs": 0,
+          "ilu2FactorMs": 0,
+          "iluFactorMs": 0,
+          "sensitivityIterativeSolveMs": 0,
+          "cscConversionMs": 2.241700000000492,
+          "symbolicFactorMs": 6.573800000000119,
+          "numericFactorMs": 7.64929999999913,
+          "directRhsSolveMs": 15.790199999999459,
+          "sensitivitySolveMs": 67.30049999999937,
+          "classificationNrMs": 0,
+          "outerTrialNrMs": 4982.3447000000015,
+          "finalNrMs": 22.45389999999861,
+          "resultMapMs": 4.594200000003184,
+          "totalMs": 12564.651599999997
+        },
+        "stationControllerSummary": {
+          "semanticallyEligible": 158,
+          "sensitivitySolved": 158,
+          "satisfied": 3,
+          "saturatedQMin": 22,
+          "saturatedQMax": 6,
+          "maxOuterRounds": 127,
+          "rolledBack": 0,
+          "outerControlRounds": 0,
+          "classificationPasses": 1,
+          "classificationStable": true,
+          "statusCounts": {
+            "MAX_OUTER_ROUNDS": 127,
+            "SATISFIED": 3,
+            "SATURATED_QMAX": 6,
+            "SATURATED_QMIN": 22,
+            "UNSUPPORTED_DROOP": 214
+          },
+          "coupledSolveDiagnostics": [
+            {
+              "conditionEstimate": 59780558.91097734,
+              "regularization": 0.000004390059191437049,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 147,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67032733.05005707,
+              "regularization": 0.000003856447283724794,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67032733.05005707,
+              "regularization": 0.000003856447283724794,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67032552.39071198,
+              "regularization": 0.000003856266947952552,
+              "objectiveRows": 155,
+              "freeColumns": 119,
+              "fixedControllers": 36,
+              "rank": 119,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67032552.39071198,
+              "regularization": 0.000003856266947952552,
+              "objectiveRows": 155,
+              "freeColumns": 119,
+              "fixedControllers": 36,
+              "rank": 119,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 66664302.460585095,
+              "regularization": 0.0000029547335257727543,
+              "objectiveRows": 155,
+              "freeColumns": 111,
+              "fixedControllers": 44,
+              "rank": 111,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 66664302.460585095,
+              "regularization": 0.0000029547335257727543,
+              "objectiveRows": 155,
+              "freeColumns": 111,
+              "fixedControllers": 44,
+              "rank": 111,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 66664302.460585095,
+              "regularization": 0.0000029547335257727543,
+              "objectiveRows": 155,
+              "freeColumns": 110,
+              "fixedControllers": 45,
+              "rank": 110,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 59780558.91097734,
+              "regularization": 0.000004390059191437049,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 147,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 133,
+              "fixedControllers": 22,
+              "rank": 133,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 133,
+              "fixedControllers": 22,
+              "rank": 133,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 131,
+              "fixedControllers": 24,
+              "rank": 131,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 59780558.91097734,
+              "regularization": 0.000004390059191437049,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 147,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 72845.02963191905,
+              "regularization": 0.0040450972693808025,
+              "objectiveRows": 155,
+              "freeColumns": 147,
+              "fixedControllers": 8,
+              "rank": 8,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 133,
+              "fixedControllers": 22,
+              "rank": 133,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 133,
+              "fixedControllers": 22,
+              "rank": 133,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 132,
+              "fixedControllers": 23,
+              "rank": 132,
+              "solveStatus": "REGULARIZED"
+            },
+            {
+              "conditionEstimate": 67023745.59609577,
+              "regularization": 0.000003857696373256898,
+              "objectiveRows": 155,
+              "freeColumns": 131,
+              "fixedControllers": 24,
+              "rank": 131,
+              "solveStatus": "REGULARIZED"
+            }
+          ]
+        },
+        "sensitivitySolver": {
+          "backend": "KLU_WASM",
+          "ordering": "NATURAL",
+          "matrixDimension": 8151,
+          "matrixNnz": 53535,
+          "batchCount": 1,
+          "factorizations": 1,
+          "totalRhsCount": 158,
+          "uniqueRemoteRhsCount": 158,
+          "cachedRhsHits": 0,
+          "methodCounts": {
+            "KLU_DIRECT_SUCCESS": 158,
+            "ILU1_GMRES_SUCCESS": 0,
+            "ILU2_GMRES_SUCCESS": 0,
+            "ILU2_BICGSTAB_SUCCESS": 0
+          },
+          "failureCounts": {
+            "SENSITIVITY_RESIDUAL_TOO_HIGH": 0,
+            "SENSITIVITY_LINEAR_SOLVE_FAILED": 0
+          },
+          "maxTrueResidual": 2.804921819522371e-10,
+          "cscConversionMs": 2.241700000000492,
+          "symbolicFactorMs": 6.573800000000119,
+          "numericFactorMs": 7.64929999999913,
+          "directSolveMs": 15.790199999999459
+        },
+        "stationTrialAttempts": [
+          {
+            "trustFraction": 0.25,
+            "proposalKind": "COUPLED",
+            "status": "SKIPPED_NON_DESCENT",
+            "accepted": false,
+            "rejectedReason": "PREDICTED_NON_DESCENT",
+            "activeControllerCount": 155,
+            "freeControllerCount": 110,
+            "saturatedControllerCount": 20,
+            "denseDimension": 110,
+            "objectiveRows": 155,
+            "freeColumns": 110,
+            "fixedControllers": 45,
+            "regularization": 0.0000029547335257727543,
+            "conditionEstimate": 66664302.460585095,
+            "rank": 110,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 2.2022093482237803,
+            "predictedReduction": -2.178210140688018,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 62.51189509681228,
+            "maxAppliedDeltaQ": 62.51189509681228,
+            "sumAbsDeltaQ": 610.2075094114622,
+            "nrIterations": null,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": null
+          },
+          {
+            "trustFraction": 0.25,
+            "proposalKind": "GRADIENT",
+            "status": "NR_LINE_SEARCH_FAILED",
+            "accepted": false,
+            "rejectedReason": "NR_LINE_SEARCH_FAILED",
+            "activeControllerCount": 155,
+            "freeControllerCount": 134,
+            "saturatedControllerCount": 0,
+            "denseDimension": 110,
+            "objectiveRows": 155,
+            "freeColumns": 110,
+            "fixedControllers": 45,
+            "regularization": 0.0000029547335257727543,
+            "conditionEstimate": 66664302.460585095,
+            "rank": 110,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 0.010586274150515221,
+            "predictedReduction": 0.013412933385246798,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 0.006554627080790915,
+            "maxAppliedDeltaQ": 0.006554627080795683,
+            "sumAbsDeltaQ": 0.5616219496508911,
+            "nrIterations": 3,
+            "failureIteration": 4,
+            "failureMismatchMw": 0.005309239430087431,
+            "linearResidual": 7.337593559683939e-9
+          },
+          {
+            "trustFraction": 0.125,
+            "proposalKind": "COUPLED",
+            "status": "SKIPPED_NON_DESCENT",
+            "accepted": false,
+            "rejectedReason": "PREDICTED_NON_DESCENT",
+            "activeControllerCount": 155,
+            "freeControllerCount": 131,
+            "saturatedControllerCount": 2,
+            "denseDimension": 131,
+            "objectiveRows": 155,
+            "freeColumns": 131,
+            "fixedControllers": 24,
+            "regularization": 0.000003857696373256898,
+            "conditionEstimate": 67023745.59609577,
+            "rank": 131,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 0.09215560249009473,
+            "predictedReduction": -0.0681563949543327,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 19.120698559096287,
+            "maxAppliedDeltaQ": 19.120698559096283,
+            "sumAbsDeltaQ": 236.8444052532934,
+            "nrIterations": null,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": null
+          },
+          {
+            "trustFraction": 0.125,
+            "proposalKind": "GRADIENT",
+            "status": "SKIPPED_DUPLICATE",
+            "accepted": false,
+            "rejectedReason": "DUPLICATE_Q_VECTOR",
+            "activeControllerCount": 155,
+            "freeControllerCount": 134,
+            "saturatedControllerCount": 0,
+            "denseDimension": 131,
+            "objectiveRows": 155,
+            "freeColumns": 131,
+            "fixedControllers": 24,
+            "regularization": 0.000003857696373256898,
+            "conditionEstimate": 67023745.59609577,
+            "rank": 131,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 0.010586274150515221,
+            "predictedReduction": 0.013412933385246798,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 0.006554627080790915,
+            "maxAppliedDeltaQ": 0.006554627080795683,
+            "sumAbsDeltaQ": 0.5616219496508911,
+            "nrIterations": null,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": null
+          },
+          {
+            "trustFraction": 0.0625,
+            "proposalKind": "COUPLED",
+            "status": "SKIPPED_NON_DESCENT",
+            "accepted": false,
+            "rejectedReason": "PREDICTED_NON_DESCENT",
+            "activeControllerCount": 155,
+            "freeControllerCount": 131,
+            "saturatedControllerCount": 2,
+            "denseDimension": 131,
+            "objectiveRows": 155,
+            "freeColumns": 131,
+            "fixedControllers": 24,
+            "regularization": 0.000003857696373256898,
+            "conditionEstimate": 67023745.59609577,
+            "rank": 131,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 0.0941814950752666,
+            "predictedReduction": -0.07018228753950459,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 9.560349279548143,
+            "maxAppliedDeltaQ": 9.560349279548149,
+            "sumAbsDeltaQ": 119.46968094647427,
+            "nrIterations": null,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": null
+          },
+          {
+            "trustFraction": 0.0625,
+            "proposalKind": "GRADIENT",
+            "status": "SKIPPED_DUPLICATE",
+            "accepted": false,
+            "rejectedReason": "DUPLICATE_Q_VECTOR",
+            "activeControllerCount": 155,
+            "freeControllerCount": 134,
+            "saturatedControllerCount": 0,
+            "denseDimension": 131,
+            "objectiveRows": 155,
+            "freeColumns": 131,
+            "fixedControllers": 24,
+            "regularization": 0.000003857696373256898,
+            "conditionEstimate": 67023745.59609577,
+            "rank": 131,
+            "oldNorm": 0.02399920753576202,
+            "predictedNorm": 0.010586274150515221,
+            "predictedReduction": 0.013412933385246798,
+            "newNorm": null,
+            "actualReduction": null,
+            "rho": null,
+            "maxRequestedDeltaQ": 0.006554627080790915,
+            "maxAppliedDeltaQ": 0.006554627080795683,
+            "sumAbsDeltaQ": 0.5616219496508911,
+            "nrIterations": null,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": null
+          }
+        ]
+      }
+    }
+  }
+}
