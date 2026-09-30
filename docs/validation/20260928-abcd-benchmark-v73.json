@@ -1,0 +1,612 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "model": "20260928_0900_SN1_TR0.zip",
+    "reference": "GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx",
+    "referenceWorkbookCommit": "2c7d52afb5bbbc2288576db6ddf439386fd43eff",
+    "note": "Workbook baseline may have been produced at another commit; row-level reference metrics are recomputed from this workbook."
+  },
+  "rows": {
+    "lines": 2381,
+    "transformers": 3061,
+    "buses": 1664
+  },
+  "inputMs": 157.76319999999998,
+  "before": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334927558,
+      "mae": 9.15699846373495,
+      "p95": 43.43688911405359
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.06448318102846656,
+      "mae": 5.4287267565210255,
+      "p95": 17.148635626921276
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090689161,
+      "mae": 31.555340648556644,
+      "p95": 81.44789089217988
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46475817873734954,
+      "mae": 3.709807126933948,
+      "p95": 13.28785119079648
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.04739246731097644,
+      "mae": 6.232215139113267,
+      "p95": 28.307897657808414
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279494965776,
+      "mae": 1.3996141613641795,
+      "p95": 7.2473420094081735
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319021725,
+      "mae": 0.016958826608457694,
+      "p95": 0.037022575573012306
+    },
+    "angle": {
+      "offsetDeg": 1.7586061652828255,
+      "count": 1663,
+      "bias": 0.04586439370438383,
+      "mae": 1.3351004507154176,
+      "p95": 3.2749097999864207
+    }
+  },
+  "qComparison": "magnitude-only: |Grid Q_from| - sqrt(max(0,YTBS S²-YTBS P²))",
+  "targets": {
+    "line154P": {
+      "mae": 2,
+      "p95": 8
+    },
+    "line400P": {
+      "mae": 10,
+      "p95": 30
+    },
+    "busVpu": {
+      "mae": 0.005,
+      "p95": 0.015
+    },
+    "angle": {
+      "mae": 0.5,
+      "p95": 1.5
+    }
+  },
+  "caseDefinitions": {
+    "A": "stationControlMode=off; local PV behavior retained (v7.1-style baseline)",
+    "B": "stationControlMode=ownership; controller PV ownership removed without outer Q adjustment",
+    "C": "stationControlMode=zeroDroop; corrected zero-droop station control",
+    "D": "stationControlMode=droop; experimental safe-droop gate (only with --include-droop)"
+  },
+  "modelSha256": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+  "setup": {
+    "modelBuildAndCanonicalMapMs": 3712.3737
+  },
+  "sourceProfile": {
+    "zeroDroopActive": 158,
+    "droopActive": 214,
+    "remoteConflict": 82,
+    "qLimitMissing": 8,
+    "remoteAndQLimitOverlap": 1,
+    "droopSafeCandidates": 125
+  },
+  "cases": {
+    "A": {
+      "label": "A",
+      "stationControlMode": "off",
+      "run": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 10,
+        "qLimitRounds": 3,
+        "elapsedMs": 5014.897200000001,
+        "elapsedWallMs": 5018.7255,
+        "maxMismatchMw": 1.4505693868294145e-8
+      },
+      "metrics": {
+        "after": {
+          "lineP": {
+            "count": 2308,
+            "bias": 1.6481289334928377,
+            "mae": 9.156998463734833,
+            "p95": 43.436889114018555
+          },
+          "line154P": {
+            "count": 1969,
+            "bias": 0.06448318102849285,
+            "mae": 5.428726756521288,
+            "p95": 17.14863562692895
+          },
+          "line400P": {
+            "count": 331,
+            "bias": 11.107379090689546,
+            "mae": 31.555340648554235,
+            "p95": 81.44789089218415
+          },
+          "transformerP": {
+            "count": 2647,
+            "bias": -0.4647581787373252,
+            "mae": 3.7098071269340505,
+            "p95": 13.287851190797971
+          },
+          "lineQMagnitude": {
+            "count": 2308,
+            "bias": 0.047392467309769704,
+            "mae": 6.232215139107663,
+            "p95": 28.307897656387365
+          },
+          "transformerQMagnitude": {
+            "count": 2647,
+            "bias": -0.07770279495019106,
+            "mae": 1.3996141613638975,
+            "p95": 7.247342009391582
+          },
+          "busVpu": {
+            "count": 1663,
+            "bias": -0.015503347319031208,
+            "mae": 0.016958826608455456,
+            "p95": 0.03702257557301811
+          },
+          "angle": {
+            "method": "MEDIAN",
+            "offsetDeg": 1.7586061652838483,
+            "count": 1663,
+            "bias": 0.045864393705092786,
+            "mae": 1.3351004507151347,
+            "p95": 3.274909799986371
+          }
+        },
+        "targetMet": {
+          "line154P": false,
+          "line400P": false,
+          "busVpu": false,
+          "angle": false
+        }
+      },
+      "diagnostics": {
+        "timings": {
+          "prepareMs": 101.93179999999984,
+          "baseNrMs": 4899.56,
+          "controllerClassificationMs": 2.7175999999999476,
+          "jacobianBuildMs": 0,
+          "iluFactorMs": 0,
+          "sensitivitySolveMs": 0,
+          "outerTrialNrMs": 0,
+          "finalNrMs": 0,
+          "resultMapMs": 9.341200000000754,
+          "totalMs": 5014.897200000001
+        },
+        "preparationMs": 101.93179999999984,
+        "stationControllerSummary": {
+          "active": 372,
+          "satisfied": 0,
+          "qLimitSaturated": 0,
+          "unsupported": 372,
+          "remoteResolved": 372,
+          "remoteUnresolved": 0,
+          "unitsResolved": 618,
+          "unitsUnresolved": 0,
+          "unitsOutOfService": 129,
+          "unitDuplicates": 0,
+          "localVoltageConflicts": 601,
+          "mode": "off",
+          "droop": "SAFE_EXPERIMENTAL_ONLY",
+          "qDistribution": "DISPATCHED_ACTIVE_POWER",
+          "zeroDroopActive": 158,
+          "zeroDroopSemanticallySupported": 0,
+          "numericallyControllable": 0,
+          "supported": 0,
+          "saturated": 0,
+          "rolledBack": 0,
+          "droopActive": 214,
+          "droopSafeCandidates": 0,
+          "droopControlled": 0,
+          "remoteConflict": 0,
+          "qLimitMissing": 8,
+          "outerControlRounds": 0,
+          "maxVoltageResidualPu": null,
+          "meanVoltageResidualPu": null,
+          "statusCounts": {
+            "BASELINE_LOCAL_PV": 372
+          },
+          "failureReasonCounts": {},
+          "controlSolveFailure": null,
+          "ownershipUnallocatedMvar": 0
+        },
+        "stationTrialAttempts": [],
+        "controllerStatusCounts": {
+          "BASELINE_LOCAL_PV": 372
+        },
+        "failureReasonCounts": {},
+        "pvToPqCount": 103,
+        "islandCount": 2,
+        "islandStatusCounts": {
+          "CONVERGED": 1,
+          "NO_REFERENCE": 1
+        },
+        "linear": {
+          "method": "ILU0-BiCGSTAB",
+          "iterations": 267,
+          "residual": 9.393751359013528e-9
+        },
+        "numericalFailure": null
+      }
+    },
+    "B": {
+      "label": "B",
+      "stationControlMode": "ownership",
+      "run": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 11,
+        "qLimitRounds": 3,
+        "elapsedMs": 13562.6542,
+        "elapsedWallMs": 13567.1695,
+        "maxMismatchMw": 6.210929687222588e-9
+      },
+      "metrics": {
+        "after": {
+          "lineP": {
+            "count": 2308,
+            "bias": 1.6564784999451,
+            "mae": 9.123625645233192,
+            "p95": 42.546038416604446
+          },
+          "line154P": {
+            "count": 1969,
+            "bias": 0.0686153716110265,
+            "mae": 5.410720897905254,
+            "p95": 17.017438255796918
+          },
+          "line400P": {
+            "count": 331,
+            "bias": 11.140975232992366,
+            "mae": 31.429705837377846,
+            "p95": 83.56540909883248
+          },
+          "transformerP": {
+            "count": 2647,
+            "bias": -0.4590894634844362,
+            "mae": 3.713414341231679,
+            "p95": 13.272877611369042
+          },
+          "lineQMagnitude": {
+            "count": 2308,
+            "bias": 1.16461960434651,
+            "mae": 8.049039331764217,
+            "p95": 37.495416222457244
+          },
+          "transformerQMagnitude": {
+            "count": 2647,
+            "bias": -0.11795075333480147,
+            "mae": 1.50092033967003,
+            "p95": 8.33462135862776
+          },
+          "busVpu": {
+            "count": 1663,
+            "bias": -0.03407668776681363,
+            "mae": 0.035784433165301346,
+            "p95": 0.0982257767427261
+          },
+          "angle": {
+            "method": "MEDIAN",
+            "offsetDeg": 1.7861867963957323,
+            "count": 1663,
+            "bias": 0.15334230377419109,
+            "mae": 1.3392646608731005,
+            "p95": 3.169575740883443
+          }
+        },
+        "targetMet": {
+          "line154P": false,
+          "line400P": false,
+          "busVpu": false,
+          "angle": false
+        }
+      },
+      "diagnostics": {
+        "timings": {
+          "prepareMs": 114.10680000000139,
+          "baseNrMs": 4611.504500000001,
+          "controllerClassificationMs": 9.785499999999956,
+          "jacobianBuildMs": 0,
+          "iluFactorMs": 0,
+          "sensitivitySolveMs": 0,
+          "outerTrialNrMs": 0,
+          "finalNrMs": 8811.024099999999,
+          "resultMapMs": 5.589599999999336,
+          "totalMs": 13562.6542
+        },
+        "preparationMs": 114.10680000000139,
+        "stationControllerSummary": {
+          "active": 372,
+          "satisfied": 0,
+          "qLimitSaturated": 0,
+          "unsupported": 214,
+          "remoteResolved": 372,
+          "remoteUnresolved": 0,
+          "unitsResolved": 618,
+          "unitsUnresolved": 0,
+          "unitsOutOfService": 129,
+          "unitDuplicates": 0,
+          "localVoltageConflicts": 601,
+          "mode": "ownership",
+          "droop": "SAFE_EXPERIMENTAL_ONLY",
+          "qDistribution": "DISPATCHED_ACTIVE_POWER",
+          "zeroDroopActive": 158,
+          "zeroDroopSemanticallySupported": 158,
+          "numericallyControllable": 158,
+          "supported": 158,
+          "saturated": 0,
+          "rolledBack": 0,
+          "droopActive": 214,
+          "droopSafeCandidates": 0,
+          "droopControlled": 0,
+          "remoteConflict": 0,
+          "qLimitMissing": 8,
+          "outerControlRounds": 0,
+          "maxVoltageResidualPu": null,
+          "meanVoltageResidualPu": null,
+          "statusCounts": {
+            "OWNERSHIP_ONLY": 158,
+            "UNSUPPORTED_DROOP": 214
+          },
+          "failureReasonCounts": {},
+          "controlSolveFailure": null,
+          "ownershipUnallocatedMvar": 0
+        },
+        "stationTrialAttempts": [],
+        "controllerStatusCounts": {
+          "OWNERSHIP_ONLY": 158,
+          "UNSUPPORTED_DROOP": 214
+        },
+        "failureReasonCounts": {},
+        "pvToPqCount": 28,
+        "islandCount": 2,
+        "islandStatusCounts": {
+          "CONVERGED": 1,
+          "NO_REFERENCE": 1
+        },
+        "linear": {
+          "method": "ILU1-BiCGSTAB",
+          "iterations": 103,
+          "residual": 6.48381892909348e-9
+        },
+        "numericalFailure": null
+      }
+    },
+    "C": {
+      "label": "C",
+      "stationControlMode": "zeroDroop",
+      "run": {
+        "status": "CONVERGED_FULL_NR",
+        "converged": true,
+        "iterations": 8,
+        "qLimitRounds": 3,
+        "elapsedMs": 86613.52669999999,
+        "elapsedWallMs": 86616.7587,
+        "maxMismatchMw": 0.000006428956553228282
+      },
+      "metrics": {
+        "after": {
+          "lineP": {
+            "count": 2308,
+            "bias": 1.6257568651752852,
+            "mae": 9.184444177876873,
+            "p95": 43.565138507541356
+          },
+          "line154P": {
+            "count": 1969,
+            "bias": 0.058046245612904654,
+            "mae": 5.430414439597624,
+            "p95": 17.24479362724575
+          },
+          "line400P": {
+            "count": 331,
+            "bias": 10.989744522235249,
+            "mae": 31.73674556078315,
+            "p95": 82.59461789111475
+          },
+          "transformerP": {
+            "count": 2647,
+            "bias": -0.4667232922124926,
+            "mae": 3.7097095042371397,
+            "p95": 13.255337093073873
+          },
+          "lineQMagnitude": {
+            "count": 2308,
+            "bias": 0.17650948585986362,
+            "mae": 5.965578048480471,
+            "p95": 25.6673226910134
+          },
+          "transformerQMagnitude": {
+            "count": 2647,
+            "bias": -0.0907839988210553,
+            "mae": 1.31905363405819,
+            "p95": 6.803857915828207
+          },
+          "busVpu": {
+            "count": 1663,
+            "bias": -0.004582546183211481,
+            "mae": 0.007007689995568495,
+            "p95": 0.017562664957674976
+          },
+          "angle": {
+            "method": "MEDIAN",
+            "offsetDeg": 1.662826071386758,
+            "count": 1663,
+            "bias": 0.0656371298273567,
+            "mae": 1.5122053375855213,
+            "p95": 3.6620260575851216
+          }
+        },
+        "targetMet": {
+          "line154P": false,
+          "line400P": false,
+          "busVpu": false,
+          "angle": false
+        }
+      },
+      "diagnostics": {
+        "timings": {
+          "prepareMs": 137.0054999999993,
+          "baseNrMs": 4462.228200000001,
+          "controllerClassificationMs": 4.063500000000204,
+          "jacobianBuildMs": 43.39559999999619,
+          "iluFactorMs": 705.1018000000004,
+          "sensitivitySolveMs": 54531.2381,
+          "outerTrialNrMs": 21512.093800000002,
+          "finalNrMs": 5196.254000000001,
+          "resultMapMs": 3.9323999999905936,
+          "totalMs": 86613.52669999999
+        },
+        "preparationMs": 137.0054999999993,
+        "stationControllerSummary": {
+          "active": 372,
+          "satisfied": 1,
+          "qLimitSaturated": 4,
+          "unsupported": 214,
+          "remoteResolved": 372,
+          "remoteUnresolved": 0,
+          "unitsResolved": 618,
+          "unitsUnresolved": 0,
+          "unitsOutOfService": 129,
+          "unitDuplicates": 0,
+          "localVoltageConflicts": 601,
+          "mode": "zeroDroop",
+          "droop": "SAFE_EXPERIMENTAL_ONLY",
+          "qDistribution": "DISPATCHED_ACTIVE_POWER",
+          "zeroDroopActive": 158,
+          "zeroDroopSemanticallySupported": 158,
+          "numericallyControllable": 92,
+          "supported": 158,
+          "saturated": 4,
+          "rolledBack": 66,
+          "droopActive": 214,
+          "droopSafeCandidates": 0,
+          "droopControlled": 0,
+          "remoteConflict": 0,
+          "qLimitMissing": 8,
+          "outerControlRounds": 4,
+          "maxVoltageResidualPu": 0.02114348806963906,
+          "meanVoltageResidualPu": 0.0043663363764398725,
+          "statusCounts": {
+            "MAX_OUTER_ROUNDS": 87,
+            "ROLLED_BACK_TO_LOCAL_PV": 66,
+            "SATISFIED": 1,
+            "SATURATED_QMAX": 3,
+            "SATURATED_QMIN": 1,
+            "UNSUPPORTED_DROOP": 214
+          },
+          "failureReasonCounts": {
+            "SENSITIVITY_LINEAR_SOLVE_FAILED": 66
+          },
+          "controlSolveFailure": null,
+          "ownershipUnallocatedMvar": 1.1428635815491361e-12
+        },
+        "stationTrialAttempts": [
+          {
+            "damping": 0.5,
+            "status": "CONVERGED_FULL_NR",
+            "normRatio": 0.4217660650629063,
+            "individualWorsened": 0,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": 3.793567442460126e-7
+          },
+          {
+            "damping": 0.5,
+            "status": "CONVERGED_FULL_NR",
+            "normRatio": 0.6887238153831031,
+            "individualWorsened": 0,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": 2.0203187335230692e-7
+          },
+          {
+            "damping": 0.5,
+            "status": "CONVERGED_FULL_NR",
+            "normRatio": 0.9103857680876377,
+            "individualWorsened": 0,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": 3.984300394591502e-7
+          },
+          {
+            "damping": 0.5,
+            "status": "CONVERGED_FULL_NR",
+            "normRatio": 0.8908948391100201,
+            "individualWorsened": 0,
+            "failureIteration": null,
+            "failureMismatchMw": null,
+            "linearResidual": 2.885527603446765e-7
+          }
+        ],
+        "controllerStatusCounts": {
+          "MAX_OUTER_ROUNDS": 87,
+          "ROLLED_BACK_TO_LOCAL_PV": 66,
+          "SATISFIED": 1,
+          "SATURATED_QMAX": 3,
+          "SATURATED_QMIN": 1,
+          "UNSUPPORTED_DROOP": 214
+        },
+        "failureReasonCounts": {
+          "SENSITIVITY_LINEAR_SOLVE_FAILED": 66
+        },
+        "pvToPqCount": 26,
+        "islandCount": 2,
+        "islandStatusCounts": {
+          "CONVERGED": 1,
+          "NO_REFERENCE": 1
+        },
+        "linear": {
+          "method": "ILU1-GMRES",
+          "iterations": 149,
+          "residual": 2.885527603446765e-7
+        },
+        "numericalFailure": null
+      }
+    },
+    "D": {
+      "label": "D",
+      "stationControlMode": "droop",
+      "run": {
+        "status": "NOT_RUN_C_GATE",
+        "converged": false,
+        "elapsedMs": null
+      },
+      "metrics": {
+        "after": null,
+        "targetMet": null
+      },
+      "diagnostics": null
+    }
+  },
+  "run": {
+    "caseOrder": [
+      "A",
+      "B",
+      "C"
+    ],
+    "totalCaseWallMs": 105271.99010000001,
+    "totalMs": 109142.12700000001
+  },
+  "validationQuality": "BENCHMARKED_PARTIAL",
+  "droopGate": {
+    "cConverged": true,
+    "cWithinThreeTimesV71": false,
+    "cAllZeroDroopSupported": true,
+    "cNoRolledBack": false,
+    "cNoMaxRounds": false
+  }
+}

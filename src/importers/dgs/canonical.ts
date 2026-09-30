@@ -16,7 +16,9 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     return { id, name: str(r.loc_name) || `${cls} (adsız)`, sourceClass: cls, sourceId: id, inService: num(r.outserv) !== 1,
       siteIds: site ? [site] : [], sourceRefs: { name: [ref(cls, id, 'loc_name')], inService: [ref(cls, id, 'outserv')] } };
   };
-  const cubs = new Map(rows('StaCubic').map(r => [str(r.FID), str(r.fold_id)]));
+  const cubicleRows=rows('StaCubic');
+  const cubs = new Map(cubicleRows.map(r => [str(r.FID), str(r.fold_id)]));
+  const cubicleEquipment=new Map(cubicleRows.map(r=>[str(r.FID),str(r.obj_id)]));
   const endpoint = (id: unknown): string => cubs.get(str(id)) || '';
   const terminals = rows('ElmTerm');
   const buses = terminals.map(r => ({ ...base('ElmTerm', r), vnKv: num(r.uknom), parentId: str(r.fold_id), sourceRefs: { ...base('ElmTerm', r).sourceRefs, vnKv: [ref('ElmTerm', r.FID, 'uknom', 'kV')] } }));
@@ -69,7 +71,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     const g = sn > 0 ? num(t.pfe) / (1000 * sn) : 0, b = -Math.sqrt(Math.max(0, (num(t.curmg) / 100) ** 2 - g * g)), scale = sn / BASE;
     return { ...branchBase('ElmTr2', r, from, to), vnKv, lvKv, rPu: rp * BASE / sn, xPu: Math.sqrt(Math.max(0, zp*zp-rp*rp)) * BASE / sn,
       tap, phase: 0, ratingMva: sn, tapPosition: pos, gPu: g * scale, bPu: b * scale,
-      sourceRefs: { ...base('ElmTr2', r).sourceRefs, impedance: [ref('TypTr2', r.typ_id, 'strn/uktr/pcutr')], tap: [ref('ElmTr2', r.FID, 'nntap/mTaps'), ref('TypTr2', r.typ_id, 'dutap/nntap0/tap_side/utrn_h/utrn_l')], phase: [ref('TypTr2', r.typ_id, 'ASSUMED_ZERO_V6_8')] } };
+      sourceRefs: { ...base('ElmTr2', r).sourceRefs, impedance: [ref('TypTr2', r.typ_id, 'strn/uktr/pcutr')], tap: [ref('ElmTr2', r.FID, 'nntap/mTaps'), ref('TypTr2', r.typ_id, 'dutap/nntap0/tap_side/utrn_h/utrn_l')], phase: [ref('TypTr2', r.typ_id, 'PHASE_SHIFT_SOURCE_UNAVAILABLE')] } };
   });
   const generators: Generator[] = ['ElmSym', 'ElmGenStat'].flatMap(cls => rows(cls).map(r => {
     let qMin: number | null = null, qMax: number | null = null; const pMw = num(r.pgini);
@@ -86,7 +88,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   }));
   const loads = rows('ElmLod').map(r => ({ ...base('ElmLod', r), bus: endpoint(r.bus1), pMw: num(r.plini), qMvar: num(r.qlini) }));
   const internationalConnections = rows('ElmVac').map(r => ({ ...base('ElmVac', r), bus: endpoint(r.bus1), pMw: num(r.Pload), qMvar: num(r.Qload) }));
-  const externalGrids = rows('ElmXnet').map(r => ({ ...base('ElmXnet', r), bus: endpoint(r.bus1), pMw: num(r.pgini), qMvar: num(r.qgini), vmSet: num(r.usetp, 1) }));
+  const externalGrids = rows('ElmXnet').map(r => ({ ...base('ElmXnet', r), bus: endpoint(r.bus1), pMw: num(r.pgini), qMvar: num(r.qgini), vmSet: num(r.usetp, 1),bustpRaw:str(r.bustp),modeInputRaw:str(r.mode_inp),sourceRefs:{...base('ElmXnet',r).sourceRefs,reference:[ref('ElmXnet',r.FID,'bustp/mode_inp/usetp')]} }));
   const shunts = rows('ElmShnt').map(r => {
     let q = num(r.shtype) === 1 ? -Math.abs(num(r.qrean)) : num(r.shtype) === 2 ? Math.abs(num(r.qcapn)) : 0;
     if (![1,2].includes(num(r.shtype))) warnings.push(`Şönt türü desteklenmiyor: ${str(r.FID)}`);
@@ -99,12 +101,27 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     const cub = str(r.fold_id), owner = m.get('StaCubic', cub) as Row | null;
     return { ...branchBase('StaSwitch', r, endpoint(cub), endpoint(cub)), closed: num(r.on_off) === 1, cubicleId: cub, equipmentId: str(owner?.obj_id) };
   });
-  const stationControllers = rows('ElmStactrl').map(r => ({ ...base('ElmStactrl', r), remoteBus: str(r.rembar), unitIds: Array.from({length:num(r['psym:SIZEROW'])}, (_,i) => str(r[`psym:${i}`])), droop: num(r.i_droop) === 1, vmSet: num(r.usetp,1) }));
+  const rawNumber=(v:unknown):number|null=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v);
+  const unitById=new Map(generators.map(g=>[g.id,g]));
+  const stationControllers = rows('ElmStactrl').map(r => {
+    const unitIds=Array.from({length:num(r['psym:SIZEROW'])}, (_,i) => str(r[`psym:${i}`]));
+    const cvqqSize=rawNumber(r['cvqq:SIZEROW']),cvqqPresent=cvqqSize!=null||r.cvqq!=null||unitIds.some((_,i)=>r[`cvqq:${i}`]!=null);
+    const qParticipationRaw=cvqqPresent?unitIds.map((_,i)=>rawNumber(r[`cvqq:${i}`]??(unitIds.length===1?r.cvqq:null))):undefined;
+    const profile=rawNumber(r.i_ctrl)===0&&rawNumber(r.selBus)===0&&rawNumber(r.imode)===0&&rawNumber(r.iQorient)===0&&rawNumber(r.qsetp)===0&&[0,1].includes(rawNumber(r.i_droop)??-1);
+    const measured=unitIds.length===1?unitById.get(unitIds[0]):null,measurement=str(r.pQmeas);
+    const measurementSelfCubicle=!!measured&&measured.sourceClass==='ElmGenStat'&&cubicleEquipment.get(measurement)===measured.id&&endpoint(measurement)===measured.bus;
+    return { ...base('ElmStactrl', r),remoteBus:str(r.rembar),unitIds,qParticipationRaw,vmSet:num(r.usetp,1),modeSemantics:profile?'CURRENT_PROFILE_VOLTAGE_DISPATCH_P' as const:'UNSUPPORTED' as const,measurementSelfCubicle,
+      unitRefs:unitIds.map(id=>{const g=unitById.get(id);return{id,sourceClass:g?(g.sourceClass as 'ElmSym'|'ElmGenStat'):'UNRESOLVED' as const,inService:g?.inService??false};}),
+      controlModeRaw:rawNumber(r.i_ctrl),selectedBusModeRaw:rawNumber(r.selBus),distributionModeRaw:rawNumber(r.imode),droopModeRaw:rawNumber(r.i_droop),droopValueRaw:rawNumber(r.ddroop),ratedPowerRaw:rawNumber(r.Srated),qSetpointRaw:rawNumber(r.qsetp),measurementRefRaw:measurement,measurementCubicleRaw:str(r.p_cub),qOrientationRaw:rawNumber(r.iQorient),
+      sourceRefs:{...base('ElmStactrl',r).sourceRefs,remoteBus:[ref('ElmStactrl',r.FID,'rembar')],unitIds:[ref('ElmStactrl',r.FID,'psym:*')],vmSet:[ref('ElmStactrl',r.FID,'usetp','pu')],controlModeRaw:[ref('ElmStactrl',r.FID,'i_ctrl/selBus')],distributionModeRaw:[ref('ElmStactrl',r.FID,'imode')],droopModeRaw:[ref('ElmStactrl',r.FID,'i_droop/ddroop/Srated','%/MVAr')],qSetpointRaw:[ref('ElmStactrl',r.FID,'qsetp/pQmeas/p_cub/iQorient')]}
+    };
+  });
   const sites = m.sites.map(s => ({ ...base('ElmSite', s as unknown as Row), lat: s.lat, lon: s.lon, areaId: str(s.ytmId), areaName: str(s.ytm), voltages: [...s.volts].filter(Number.isFinite) as number[] }));
   const classCounts = Object.fromEntries([...m.tables].map(([cls, t]) => [cls, t.Values.length]));
-  const powerReasons = ['Station/secondary controller eşlemeleri raporlanır; dış kontrol döngüleri uygulanmaz.', 'Trafo faz kaydırması v6.8 gibi sıfır varsayılır.', 'PowerFactory referansı mevcut değil.'];
+  const powerReasons = ['ElmStactrl current-profile gerilim kontrolü kısmi uygulanır; droop ve kaynak dışı enum profilleri ayrıca doğrulanır.', 'TypTr2 kaynak profilinde faz kaydırma alanı yok; faz 0 ile hesaplanır ve sonuç kısmi sadakattedir.', 'PowerFactory eşdeğerliği doğrulanmadı.'];
   if (!externalGrids.some(x => x.inService)) powerReasons.push('Servis içi dış şebeke (ElmXnet) yok.');
-  return { schemaVersion: 1, modelHash, name: m.name, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,
+  const comLdf=rows('ComLdf')[0];const loadFlowOptionsRaw=comLdf?Object.fromEntries(['iopt_lim','itrlx','ictrlx','errlf','erreq','iPbalancing'].map(key=>[key,rawNumber(comLdf[key])])):{};
+  return { schemaVersion: 1, modelHash, name: m.name, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,
     capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'BLOCKED',reasons:['Bu sürümde uygulanmadı; sekans/reaktans kapsamı doğrulanmalı.']}, shortCircuitGround:{state:'BLOCKED',reasons:['Sıfır sekans ve vektör grubu kapsamı doğrulanmadı.']}, n1:{state:'BLOCKED',reasons:['Bu sürümde uygulanmadı.']} } };

@@ -7,6 +7,11 @@ import { BrowserJsPowerFlowEngine } from '../analysis/api/browser-js-engine';
 import { selfTests } from '../analysis/power-flow/js/index';
 import type { WorkerRequest,WorkerResponse } from './protocol';
 import { packResult } from './result-codec';
+import { auditModelQuality } from '../domain/model-quality';
+import { runN1Screen } from '../domain/n1';
+import { effectiveNetwork } from '../domain/scenario/overlay';
+import { prepareModel } from '../analysis/power-flow/preparation';
+import { prepareReduced } from '../analysis/fast-ac/reduced-model';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -26,6 +31,20 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
     else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');send({type:'RESULT',value:catalogPage(source,data.query)});}
     else if(data.type==='SELF_TEST'){send({type:'RESULT',value:selfTests()});}
     else if(data.type==='CANCEL'){scope.close();}
+    else if(data.type==='RUN_MODEL_QUALITY'){
+      if(!network)throw Error('Model yüklenmedi.');
+      progress('QUALITY',{message:'Model kalitesi denetleniyor'});
+      const effective=effectiveNetwork(network,data.scenario);let preparationDiagnostics:Record<string,unknown>|undefined,reducedModelDiagnostics:Record<string,unknown>|undefined;
+      try{preparationDiagnostics=prepareModel(effective).diagnostics;}catch(error){progress('QUALITY',{message:`Tam ağ tanıları alınamadı: ${error instanceof Error?error.message:String(error)}`});}
+      try{reducedModelDiagnostics=prepareReduced(effective).diagnostics;}catch(error){progress('QUALITY',{message:`İndirgenmiş ağ tanıları alınamadı: ${error instanceof Error?error.message:String(error)}`});}
+      send({type:'RESULT',value:auditModelQuality(effective,{preparationDiagnostics,reducedModelDiagnostics})});
+    }
+    else if(data.type==='RUN_N1_SCREEN'){
+      if(!network)throw Error('Model yüklenmedi.');
+      const result=await runN1Screen(network,data.scenario,data.options,{onProgress:p=>progress(p.stage,{completed:p.completed,total:p.total,percent:p.percent})});
+      progress('N1_RESULT',{message:'N-1 sonuçları hazırlanıyor'});
+      send({type:'RESULT',value:result});
+    }
     else{
       if(!network)throw Error('Model yüklenmedi.');const request={network,scenario:data.scenario,identity:data.identity};
       const result=await (data.type==='RUN_DC'?engine.runDcPowerFlow(request,progress):data.type==='RUN_FAST'?engine.runFastAc(request,progress):engine.runPowerFlow(request,progress));

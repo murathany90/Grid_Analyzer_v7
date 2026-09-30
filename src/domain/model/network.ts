@@ -28,9 +28,20 @@ export interface Generator extends Entity {
 export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number }
 export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number; readonly nominalQMvar?: number }
 export interface SeriesCompensator extends Entity { readonly from: string; readonly to: string; readonly rOhm: number; readonly xOhm: number }
-export interface ExternalGrid extends Load { readonly vmSet: number }
+export interface ExternalGrid extends Load { readonly vmSet: number; readonly bustpRaw?: string; readonly modeInputRaw?: string }
 export interface Switch extends Entity { readonly from: string; readonly to: string; readonly closed: boolean; readonly cubicleId?: string; readonly equipmentId?: string }
-export interface StationController extends Entity { readonly remoteBus: string; readonly unitIds: readonly string[]; readonly droop: boolean; readonly vmSet: number }
+export interface StationController extends Entity {
+  /** ElmTerm FID, resolved through ElectricalTopology at preparation time. */
+  readonly remoteBus: string; readonly unitIds: readonly string[]; readonly vmSet: number;
+  readonly unitRefs?: readonly {id:string;sourceClass:'ElmSym'|'ElmGenStat'|'UNRESOLVED';inService:boolean}[];
+  /** Source cvqq percentages, aligned with unitIds when exported by DGS. */
+  readonly qParticipationRaw?: readonly (number|null)[];
+  readonly controlModeRaw?:number|null;readonly selectedBusModeRaw?:number|null;readonly distributionModeRaw?:number|null;readonly droopModeRaw?:number|null;
+  readonly droopValueRaw?:number|null;/** Reactive rating in MVAr for this source profile. */readonly ratedPowerRaw?:number|null;readonly qSetpointRaw?:number|null;
+  readonly measurementRefRaw?:string;readonly measurementCubicleRaw?:string;readonly qOrientationRaw?:number|null;
+  readonly measurementSelfCubicle?:boolean;
+  readonly modeSemantics?:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'|'UNSUPPORTED';
+}
 export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
 export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
 export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[] }
@@ -42,6 +53,7 @@ export interface CanonicalNetwork {
   readonly seriesCompensators: readonly SeriesCompensator[]; readonly externalGrids: readonly ExternalGrid[];
   readonly internationalConnections: readonly Load[]; readonly switches: readonly Switch[];
   readonly stationControllers: readonly StationController[]; readonly secondaryControllers: readonly Entity[];
+  readonly loadFlowOptionsRaw?: Readonly<Record<string,number|string|null>>;
   readonly boundaries: readonly Entity[]; readonly sites: readonly Site[];
   readonly classCounts: Readonly<Record<string, number>>; readonly records: number;
   readonly warnings: readonly string[]; readonly capabilities: ModelCapabilities;

@@ -1,0 +1,186 @@
+{
+  "source": {
+    "model": "20260928_0900_SN1_TR0.zip",
+    "sha256": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+    "reference": "GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx",
+    "referenceWorkbookCommit": "2c7d52afb5bbbc2288576db6ddf439386fd43eff",
+    "note": "Workbook baseline may have been produced at a different commit; row-level metrics recomputed from this file."
+  },
+  "run": {
+    "status": "CONVERGED_FULL_NR",
+    "converged": true,
+    "iterations": 10,
+    "qLimitRounds": 3,
+    "outerControlRounds": 0,
+    "elapsedMs": 17654.5549,
+    "pvToPq": 103,
+    "stationControllerSummary": {
+      "active": 372,
+      "satisfied": 0,
+      "qLimitSaturated": 0,
+      "unsupported": 372,
+      "remoteResolved": 372,
+      "remoteUnresolved": 0,
+      "unitsResolved": 618,
+      "unitsUnresolved": 0,
+      "unitsOutOfService": 129,
+      "unitDuplicates": 0,
+      "localVoltageConflicts": 601,
+      "mode": "UNVERIFIED_ENUM_NO_OUTER_CONTROL",
+      "droop": "UNSUPPORTED",
+      "qDistribution": "UNSUPPORTED"
+    },
+    "islands": [
+      {
+        "islandId": "island-1",
+        "busCount": 4154,
+        "branchCount": 5249,
+        "referenceSource": "SL1",
+        "referenceBusId": "B116147",
+        "referenceCount": 1,
+        "status": "CONVERGED",
+        "iterations": 10
+      },
+      {
+        "islandId": "island-2",
+        "busCount": 1,
+        "branchCount": 0,
+        "referenceSource": null,
+        "referenceBusId": null,
+        "referenceCount": 0,
+        "status": "NO_REFERENCE",
+        "iterations": null
+      }
+    ],
+    "referenceBusId": "B116147"
+  },
+  "before": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334927558,
+      "mae": 9.15699846373495,
+      "p95": 43.43688911405359
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.06448318102846656,
+      "mae": 5.4287267565210255,
+      "p95": 17.148635626921276
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090689161,
+      "mae": 31.555340648556644,
+      "p95": 81.44789089217988
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46475817873734954,
+      "mae": 3.709807126933948,
+      "p95": 13.28785119079648
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.04739246731097644,
+      "mae": 6.232215139113267,
+      "p95": 28.307897657808414
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279494965776,
+      "mae": 1.3996141613641795,
+      "p95": 7.2473420094081735
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319021725,
+      "mae": 0.016958826608457694,
+      "p95": 0.037022575573012306
+    },
+    "angle": {
+      "offsetDeg": 1.7586061652828255,
+      "count": 1663,
+      "bias": 0.04586439370438383,
+      "mae": 1.3351004507154176,
+      "p95": 3.2749097999864207
+    }
+  },
+  "after": {
+    "lineP": {
+      "count": 2308,
+      "bias": 1.6481289334927904,
+      "mae": 9.156998463734991,
+      "p95": 43.436889114021376
+    },
+    "line154P": {
+      "count": 1969,
+      "bias": 0.0644831810286773,
+      "mae": 5.428726756521281,
+      "p95": 17.148635626922022
+    },
+    "line400P": {
+      "count": 331,
+      "bias": 11.107379090688113,
+      "mae": 31.55534064855536,
+      "p95": 81.44789089216928
+    },
+    "transformerP": {
+      "count": 2647,
+      "bias": -0.46475817873726505,
+      "mae": 3.7098071269340154,
+      "p95": 13.287851190797367
+    },
+    "lineQMagnitude": {
+      "count": 2308,
+      "bias": 0.04739246730870357,
+      "mae": 6.232215139107096,
+      "p95": 28.307897656507482
+    },
+    "transformerQMagnitude": {
+      "count": 2647,
+      "bias": -0.07770279495006042,
+      "mae": 1.3996141613639919,
+      "p95": 7.247342009375133
+    },
+    "busVpu": {
+      "count": 1663,
+      "bias": -0.015503347319038178,
+      "mae": 0.016958826608459043,
+      "p95": 0.037022575573020966
+    },
+    "angle": {
+      "method": "MEDIAN",
+      "offsetDeg": 1.7586061652843927,
+      "count": 1663,
+      "bias": 0.04586439370482523,
+      "mae": 1.3351004507151534,
+      "p95": 3.2749097999855508
+    }
+  },
+  "targets": {
+    "line154P": {
+      "mae": 2,
+      "p95": 8
+    },
+    "line400P": {
+      "mae": 10,
+      "p95": 30
+    },
+    "busVpu": {
+      "mae": 0.005,
+      "p95": 0.015
+    },
+    "angle": {
+      "mae": 0.5,
+      "p95": 1.5
+    }
+  },
+  "qComparison": "magnitude-only: |Grid Q_from| - sqrt(max(0,YTBS S²-YTBS P²))",
+  "validationQuality": "BENCHMARKED_PARTIAL",
+  "targetMet": {
+    "line154P": false,
+    "line400P": false,
+    "busVpu": false,
+    "angle": false
+  }
+}

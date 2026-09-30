@@ -1,0 +1,48 @@
+{
+  "createdAtUtc": "2026-09-30T00:47:13.810Z",
+  "commit": "acad7e49584f5f1ba47d2d61b33dca6956cec618",
+  "model": "20260928_0900_SN1_TR0.zip",
+  "modelHash": "d1bacdcf7ed08736ac9d103ea05197f5704069efe1c818025f3ed3e7ce6d9a6b",
+  "modelQuality": {
+    "total": 1339,
+    "counts": {
+      "BLOCKER": 1,
+      "ERROR": 0,
+      "WARNING": 1338,
+      "INFO": 0
+    },
+    "categoryCounts": {
+      "TOPOLOGY": 1,
+      "ELECTRICAL_DATA": 1328,
+      "CONTROLLER": 9,
+      "REDUCED_MODEL": 1
+    }
+  },
+  "n1": {
+    "candidateCount": 5239,
+    "screenedCount": 2313,
+    "islandingCount": 354,
+    "unratedCount": 0,
+    "unsupportedCount": 2572,
+    "violationCount": 45,
+    "baseDcStatus": "CONVERGED_DC",
+    "elapsedMs": 19363.133,
+    "dcDiagnostics": {
+      "factorizationCount": 1,
+      "rhsCount": 2313,
+      "maxTrueResidual": 1.1343018993579885e-13,
+      "matrices": [
+        {
+          "dimension": 1724,
+          "nnz": 6364
+        }
+      ]
+    }
+  },
+  "memory": {
+    "heapBeforeN1": 492455096,
+    "heapAfterN1": 514833032,
+    "nodeHeapUsed": true
+  },
+  "note": "One large-model screening smoke; no PowerFactory N-1 equivalence claim."
+}

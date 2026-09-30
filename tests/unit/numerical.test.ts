@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { selfTests, solveNR, type NumericalModel } from '../../src/analysis/power-flow/js';
+import {acceptsNewtonStep} from '../../src/analysis/power-flow/js/newton';
+
+test('Newton sufficient decrease uses the capped step actually applied',()=>{
+  const cap=1e-7,base=1;
+  assert.equal(acceptsNewtonStep(base,base-0.5*cap,cap,0.1),true);
+  assert.equal(acceptsNewtonStep(base,base+0.5*cap,cap,0.1),false);
+});
 import { solveIsland, solveIslandV52, type FastAcIsland } from '../../src/analysis/fast-ac/js';
 import { solveIslandDC, type DcIsland } from '../../src/analysis/dc/js';
+import { mapResults } from '../../src/analysis/power-flow/results';
 
 test('Full NR numerical self-tests preserve all seven legacy cases', () => {
   const results = selfTests();
@@ -44,6 +52,22 @@ test('Full NR rejects a Q-limit change on its final allowed control round', () =
   assert.equal(result.status, 'Q_LIMIT_MAX_ROUNDS');
   assert.equal(result.converged, false);
   assert.equal(result.rounds, 1);
+});
+
+test('Full NR persists a structured missing-reference diagnostic without changing status',()=>{
+ const result=solveNR({n:2,baseMVA:100,slack:-1,pSpec:new Float64Array(2),qSpec:new Float64Array(2),busType:new Int8Array(2),branches:[]});
+ assert.equal(result.status,'NO_SLACK');assert.equal(result.failure?.failureStage,'NO_SLACK');
+ assert.equal(result.failure?.iteration,null);assert.equal(result.failure?.maxMismatchMw,null);assert.equal(result.failure?.islandCount,2);assert.equal(result.failure?.unsuppliedBusCount,2);
+ assert.equal(result.failure?.referenceBus,null);assert.ok(result.failure?.message);
+ const prepared={model:{slack:-1},diagnostics:{islandCount:2,unsuppliedBuses:2},buses:[],warnings:[]} as never;
+ const mapped=mapResults(prepared,result,{} as never);assert.equal((mapped.diagnostics.numericalFailure as {failureStage:string}).failureStage,'NO_SLACK');
+});
+test('line-search failure identifies an invalid fixed-voltage bus before residual evaluation',()=>{
+ const model:NumericalModel={n:2,baseMVA:100,slack:0,slackVm:1.9,pSpec:Float64Array.from([0,-40]),qSpec:Float64Array.from([0,-20]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]};
+ const result=solveNR(model,undefined,{busIds:['SLACK','LOAD']});
+ assert.equal(result.status,'NR_LINE_SEARCH_FAILED');assert.equal(result.failure?.firstInvalidCandidate?.busId,'SLACK');
+ assert.equal(result.failure?.firstInvalidCandidate?.stateUpdated,false);assert.equal(result.failure?.lineSearchBestNormRatio,Infinity);
+ assert.ok(result.failure?.maxDxVm!=null&&result.failure.maxDxTheta!=null);
 });
 
 test('Fast AC two-bus legacy baseline keeps its approximate operating point', () => {
