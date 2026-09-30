@@ -1,5 +1,5 @@
 import type { ModelQualityCategory, ModelQualityFinding, ModelQualitySeverity } from '../../domain/model-quality';
-import type { N1CandidateStatus } from '../../domain/n1';
+import type { N1CandidateStatus, N1IslandComponent } from '../../domain/n1';
 
 export const severityOrder: readonly ModelQualitySeverity[] = ['BLOCKER', 'ERROR', 'WARNING', 'INFO'];
 export const severityLabels: Record<ModelQualitySeverity, string> = {
@@ -15,6 +15,9 @@ export const n1StatusLabels: Record<N1CandidateStatus, string> = {
   SCREENED_NO_VIOLATION: 'DC taramasında ihlal görülmedi',
   CAPACITY_UNAVAILABLE: 'Kapasite bilgisi yetersiz',
   UNSCREENABLE: 'Taranamıyor',
+};
+export const n1IslandStatusLabels: Record<N1IslandComponent['status'], string> = {
+  REFERENCED: 'Referanslı ada', UNREFERENCED: 'Referanssız ada',
 };
 
 const qualityDescriptions: Record<string, readonly [string, string, string]> = {

@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyN1Topology, getN1SelectedDetail, n1OptionsIdentity, runN1Screen, type N1Candidate } from '../../src/domain/n1';
 import { emptyScenario } from '../../src/domain/scenario/overlay';
+import { defaultN1CandidateIds } from '../../src/features/quality-n1/quality-n1-view';
 import type { CanonicalNetwork } from '../../src/domain/model/network';
 import type { ReducedNetwork } from '../../src/analysis/fast-ac/reduced-model';
+import type { N1CatalogCandidate } from '../../src/domain/n1/catalog';
 
 function candidate(id: string): N1Candidate {
   return { candidateId: `ElmLne:${id}`, equipmentId: id, sourceClass: 'ElmLne', name: id, vnKv: 110, from: 'a', to: 'b', siteIds: [], screenable: true, ratingAvailable: true, representedInReducedModel: true, exclusionReason: null, topology: 'NON_ISLANDING' };
@@ -104,19 +106,41 @@ test('selected bridge detail reports deterministic referenced and unreferenced c
   const referenced = detail.outageIslands.find(component => component.busIds.includes('a'))!;
   const unreferenced = detail.outageIslands.find(component => component.busIds.includes('c'))!;
   assert.equal(referenced.hasReference, true);
-  assert.equal(referenced.referenceCount, 2);
-  assert.deepEqual(referenced.references.map(reference => reference.name), ['g1', 'load1']);
+  assert.equal(referenced.referenceCount, 1);
+  assert.deepEqual(referenced.references.map(reference => reference.id), ['grid']);
+  assert.equal(referenced.hasLocalGeneration, true);
+  assert.equal(referenced.generationMw, 100);
   assert.equal(unreferenced.hasReference, false);
   assert.equal(unreferenced.loadMw, 100);
   assert.equal(unreferenced.generationMw, 0);
   assert.equal(unreferenced.netInjectionMw, -100);
   assert.equal(unreferenced.separatedLoadMw, 100);
   assert.equal(unreferenced.separatedGenerationMw, 0);
+  assert.equal(unreferenced.topologicallySeparatedLoadMw, 100);
   assert.deepEqual(unreferenced.branchIds, []);
   assert.ok(detail.outageIslands.every(component => component.componentId.startsWith('n1:ElmLne:l2:')));
   const referencedBranch = detail.branchImpacts.find(impact => impact.equipmentId === 'l1')!;
   assert.ok(referencedBranch.postFlowMw != null && Math.abs(Math.abs(referencedBranch.postFlowMw) - 100) < 0.01);
   assert.equal(referencedBranch.islandId, referenced.componentId);
+});
+
+test('generator-only components stay unreferenced while preserving separated generation', () => {
+  const base = network(), generatorOnly = { ...base, lines: base.lines.filter(line => line.id !== 'l3'), externalGrids: [] } as unknown as CanonicalNetwork;
+  const detail = getN1SelectedDetail(generatorOnly, emptyScenario(), 'ElmLne:l2', { candidateTypes: ['ElmLne'] })!;
+  const generationIsland = detail.outageIslands.find(component => component.busIds.includes('b'))!;
+  const loadIsland = detail.outageIslands.find(component => component.busIds.includes('c'))!;
+  assert.equal(generationIsland.status, 'UNREFERENCED');
+  assert.equal(generationIsland.hasReference, false);
+  assert.equal(generationIsland.hasGridReference, false);
+  assert.deepEqual(generationIsland.references, []);
+  assert.equal(generationIsland.referenceCount, 0);
+  assert.equal(generationIsland.hasLocalGeneration, true);
+  assert.equal(generationIsland.generatorCount, 1);
+  assert.equal(generationIsland.generationMw, 100);
+  assert.equal(generationIsland.separatedGenerationMw, 100);
+  assert.equal(generationIsland.topologicallySeparatedGenerationMw, 100);
+  assert.equal(loadIsland.status, 'UNREFERENCED');
+  assert.equal(loadIsland.separatedLoadMw, 100);
 });
 
 test('selected detail includes all surviving branch flows and capacity metrics', () => {
@@ -138,16 +162,27 @@ test('selected detail includes unaffected referenced reduced islands with unchan
   const extraLines = [['d', 'e'], ['e', 'f'], ['d', 'f']].map(([from, to], index) => ({ ...base.lines[0], id: `remote-${index + 1}`, name: `remote-${index + 1}`, sourceId: `remote-${index + 1}`, from, to }));
   const generator = { ...base.generators[0], id: 'g2', name: 'g2', sourceId: 'g2', bus: 'd', pMw: 20 };
   const load = { ...base.loads[0], id: 'load2', name: 'load2', sourceId: 'load2', bus: 'f', pMw: 20 };
-  const networkWithRemoteIsland = { ...base, buses: [...base.buses, ...extraBuses], lines: [...base.lines, ...extraLines], generators: [...base.generators, generator], loads: [...base.loads, load] } as CanonicalNetwork;
+  const grid = { ...base.externalGrids[0], id: 'grid2', name: 'grid2', sourceId: 'grid2', bus: 'e' };
+  const networkWithRemoteIsland = { ...base, buses: [...base.buses, ...extraBuses], lines: [...base.lines, ...extraLines], generators: [...base.generators, generator], loads: [...base.loads, load], externalGrids: [...base.externalGrids, grid] } as CanonicalNetwork;
   const detail = getN1SelectedDetail(networkWithRemoteIsland, emptyScenario(), 'ElmLne:l1', { candidateTypes: ['ElmLne'] })!;
   assert.equal(detail.outageIslands.length, 2);
   const remoteIsland = detail.outageIslands.find(component => component.busIds.includes('d'))!;
   assert.equal(remoteIsland.hasReference, true);
   assert.equal(remoteIsland.referenceCount, 1);
-  assert.deepEqual(remoteIsland.references.map(reference => reference.id), ['g2']);
+  assert.deepEqual(remoteIsland.references.map(reference => reference.id), ['grid2']);
   assert.deepEqual(remoteIsland.branchIds, ['remote-1', 'remote-2', 'remote-3']);
   const remoteFlows = detail.branchImpacts.filter(impact => impact.equipmentId.startsWith('remote-'));
   assert.equal(remoteFlows.length, 3);
   assert.ok(remoteFlows.every(impact => impact.postFlowMw === impact.baseFlowMw && impact.deltaPMw === 0));
   assert.ok(remoteFlows.every(impact => impact.islandId === remoteIsland.componentId));
+});
+
+test('default N-1 selection includes screenable and islanding candidates but excludes unsupported ones', () => {
+  const base = { candidateId: 'ElmLne:x', equipmentId: 'x', sourceClass: 'ElmLne', name: 'x', vnKv: 110, from: 'a', to: 'b', siteIds: [], fromSiteIds: [], toSiteIds: [], fromYtmIds: [], toYtmIds: [], representedInReducedModel: true, screenable: true, topology: 'NON_ISLANDING', ratingAvailable: true, exclusionReason: null };
+  const candidates = [
+    { ...base, candidateId: 'ElmLne:z', topology: 'UNSUPPORTED', screenable: false },
+    { ...base, candidateId: 'ElmLne:b', topology: 'ISLANDING', screenable: false },
+    { ...base, candidateId: 'ElmLne:a' },
+  ] as unknown as N1CatalogCandidate[];
+  assert.deepEqual(defaultN1CandidateIds(candidates), ['ElmLne:a', 'ElmLne:b']);
 });

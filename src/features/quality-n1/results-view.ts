@@ -1,7 +1,7 @@
 import type { AppContext } from '../../app/contracts';
 import type { N1CandidateStatus, N1ScreenCandidate, N1SelectedDetail } from '../../domain/n1';
 import { element, button, escapeHtml as h, format as f, csvDocument, downloadText } from '../../ui/components/dom';
-import { n1StatusLabels } from './presentation';
+import { n1IslandStatusLabels, n1StatusLabels } from './presentation';
 import { aggregateCriticalConstraints, collectN1Violations, type N1ViolationRow } from './aggregation';
 import { sortN1, type SortDirection } from './sorting';
 
@@ -12,10 +12,12 @@ type VoltageBandFilter = typeof bands[number];
 const bandRange = (value: VoltageBandFilter): { minVoltageKv?: number; maxVoltageKv?: number } => value === '400' ? { minVoltageKv: 300 } : value === '220' ? { minVoltageKv: 180, maxVoltageKv: 299.999 } : value === '154' ? { minVoltageKv: 100, maxVoltageKv: 179.999 } : value === '66' ? { minVoltageKv: 66, maxVoltageKv: 99.999 } : {};
 
 export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
-  const controls = element('div', 'ga-analysis-controls');
+  const controls = element('div', 'ga-analysis-controls ga-n1-results-controls');
   const ytm = element('select'), tm = element('select'), voltage = element('select'), type = element('select'), status = element('select'), search = element('input');
   const exportScenarios = button('Senaryolar CSV', exportScenariosCsv), exportViolations = button('Kısıt yüklenmeleri CSV', exportViolationsCsv), exportJson = button('JSON indir', exportJsonFile);
-  const notice = element('p', 'ga-notice', 'DC PTDF/LODF taraması · yalnız aktif güç (P) tahmini · AC doğrulaması değildir.');
+  const exportMenu = element('details', 'ga-n1-export-menu'), exportSummary = element('summary', 'ga-button', 'Dışa aktar'), exportActions = element('div', 'ga-n1-export-actions');
+  exportSummary.setAttribute('aria-label', 'N-1 sonuçlarını dışa aktar'); exportActions.append(exportScenarios, exportViolations, exportJson); exportMenu.append(exportSummary, exportActions);
+  const notice = element('p', 'ga-n1-dc-notice', 'P-only DC Screening · AC doğrulaması değildir.');
   const tabs = element('div', 'ga-tabs-small');
   const body = element('div');
   const tabButtons: Record<ResultSection, HTMLButtonElement> = {
@@ -44,7 +46,7 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
   violationSearch.placeholder = 'Kesinti veya yüklenen ekipman ara'; violationSearch.setAttribute('aria-label', 'Kısıt yüklenmelerinde ara');
   islandSearch.placeholder = 'Ada ayıran ekipman ara'; islandSearch.setAttribute('aria-label', 'Ada ayıran senaryolarda ara');
   criticalSearch.placeholder = 'Kritik kısıt ara'; criticalSearch.setAttribute('aria-label', 'Kritik kısıtlarda ara');
-  controls.append(ytm, tm, voltage, type, status, search, exportScenarios, exportViolations, exportJson);
+  controls.append(ytm, tm, voltage, type, status, search, exportMenu);
 
   for (const input of [ytm, tm, voltage, type, status]) input.addEventListener('change', () => resetPagesAndRender());
   ytm.onchange = () => { tm.value = ''; resetPagesAndRender(); };
@@ -101,6 +103,13 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
       return site ? `${site.areaName || site.areaId} / ${site.name}` : siteId;
     }).join(', ') || '—';
   }
+  function compactLoadedLocation(id: string): string {
+    const network = ctx.network, branch = network?.lines.find(x => x.id === id) || network?.transformers.find(x => x.id === id);
+    return branch?.siteIds.map(siteId => {
+      const site = network?.sites.find(item => item.id === siteId);
+      return site ? `${site.areaName || site.areaId} / ${site.name}` : siteId;
+    }).join(' ↔ ') || '—';
+  }
   function loadedVoltage(id: string): number | null {
     const line = ctx.network?.lines.find(x => x.id === id);
     if (line) return line.fastParameters?.vnKv ?? line.vnKv;
@@ -110,13 +119,18 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
   function percent(value: number | null | undefined): string { return value == null ? '—' : `${f(value)}%`; }
   function cardGrid(resultValue: NonNullable<ReturnType<typeof result>>, candidates: readonly N1ScreenCandidate[], violations: readonly N1ViolationRow[]) {
     const catalogIdentity = ctx.n1CatalogIdentity, catalog = ctx.n1CatalogResult;
-    const catalogTotal = catalog && catalogIdentity?.modelHash === resultValue.identity.modelHash && catalogIdentity.scenarioHash === resultValue.identity.scenarioHash && catalogIdentity.capacitySeason === resultValue.capacitySeason ? catalog.counts.total : '—';
+    const catalogMatches = !!catalog && catalogIdentity?.modelHash === resultValue.identity.modelHash && catalogIdentity.scenarioHash === resultValue.identity.scenarioHash && catalogIdentity.capacitySeason === resultValue.capacitySeason;
+    const catalogTotal = catalogMatches ? catalog!.counts.total : '—';
+    const catalogUnsupported = catalogMatches ? catalog!.counts.unscreenable : '—';
     const islandCount = candidates.filter(x => x.status === 'ISLANDING').length;
     const violationScenarios = candidates.filter(x => x.violationImpacts?.length).length;
-    const cards = element('div', 'ga-card-grid');
-    for (const [label, value] of [['Katalog adayı', catalogTotal], ['Taranan senaryo kümesi', resultValue.candidateCount], ['DC taraması yapılan', resultValue.screenedCount], ['Tahmini ihlal içeren kesinti', violationScenarios], ['İhlal ilişkisi', violations.length], ['Ada ayıran kesinti', islandCount]]) {
-      const card = element('div', 'ga-card'); card.innerHTML = `<small>${h(label)}</small><strong>${h(value)}</strong>`; cards.append(card);
+    const cards = element('div', 'ga-n1-summary'); cards.dataset.n1ResultReady = 'true';
+    const main = element('div', 'ga-n1-summary-main');
+    for (const [label, value] of [['Seçili / DC taraması', `${resultValue.candidateCount} / ${resultValue.screenedCount}`], ['İhlalli N-1', violationScenarios], ['İhlal ilişkisi', violations.length], ['Ada ayıran', islandCount]]) {
+      const card = element('div', 'ga-n1-summary-card'); card.innerHTML = `<small>${h(label)}</small><strong>${h(value)}</strong>`; main.append(card);
     }
+    const metadata = element('p', 'ga-n1-summary-meta', `Katalog ${h(catalogTotal)} · Bu taramada taranamayan ${h(resultValue.unsupportedCount)} · Katalogda taranamayan ${h(catalogUnsupported)} · Kapasite bilgisi eksik ${h(resultValue.unratedCount)}`);
+    cards.append(main, metadata);
     return cards;
   }
   function renderCurrent() { const value = result(); if (value) renderSection(value); }
@@ -172,7 +186,7 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     if (!candidate) return element('p', 'ga-muted', 'Senaryo ayrıntısı için bir kesinti ekipmanı seçin.');
     const detail = currentDetail(candidate.candidateId), box = element('div', 'ga-panel');
     if (detail) box.dataset.n1DetailId = candidate.candidateId;
-    box.innerHTML = `<h3>Kesinti senaryosu · ${h(candidate.name)}</h3><p><strong>FID:</strong> ${h(candidate.equipmentId)} · <strong>Tip:</strong> ${candidate.sourceClass === 'ElmLne' ? 'Hat' : 'Trafo'} · <strong>Gerilim:</strong> ${f(candidate.vnKv)} kV</p><p><strong>Durum:</strong> ${n1StatusLabels[candidate.status]} · <strong>Baz P:</strong> ${f(candidate.baseFlowMw)} MW · <strong>İhlalli kısıt:</strong> ${candidate.estimatedOverloadCount} · <strong>En yüksek DC tahmini yüklenme:</strong> ${candidate.maxEstimatedLoadingPct == null ? '—' : `${f(candidate.maxEstimatedLoadingPct)}%`}</p><p><strong>Kapasite kapsamı:</strong> ${candidate.ratingCoverage.evaluated ? `${candidate.ratingCoverage.ratedBranches}/${candidate.ratingCoverage.totalBranches} dal (${f(candidate.ratingCoverage.percent)}%)` : 'Tarama yapılmadı'}</p>`;
+    box.innerHTML = `<h3>Kesinti senaryosu · ${h(candidate.name)}</h3><p><strong>FID:</strong> ${h(candidate.equipmentId)} · <strong>Tip:</strong> ${candidate.sourceClass === 'ElmLne' ? 'Hat' : 'Trafo'} · <strong>Gerilim:</strong> ${f(candidate.vnKv)} kV</p><p><strong>Durum:</strong> ${n1StatusLabels[candidate.status]} · <strong>Baz P:</strong> ${f(candidate.baseFlowMw)} MW · <strong>İhlalli kısıt:</strong> ${candidate.estimatedOverloadCount} · <strong>En yüksek tahmini yüklenme:</strong> ${candidate.maxEstimatedLoadingPct == null ? '—' : `${f(candidate.maxEstimatedLoadingPct)}%`}</p><p><strong>Kapasite kapsamı:</strong> ${candidate.ratingCoverage.evaluated ? `${candidate.ratingCoverage.ratedBranches}/${candidate.ratingCoverage.totalBranches} dal (${f(candidate.ratingCoverage.percent)}%)` : 'Tarama yapılmadı'}</p>`;
     if (detail) box.append(element('p', 'ga-muted', `${detail.branchImpacts.length.toLocaleString('tr-TR')} dal ayrıntısı hazır. Kısıt yüklenmeleri sekmesinde ihlal ilişkilerini açın.`));
     else if (ctx.n1DetailLoading && ctx.selectedN1CandidateId === candidate.candidateId) box.append(element('p', 'ga-notice', 'Kesinti ayrıntısı hesaplanıyor…'));
     const actions = element('div', 'ga-row-actions'); actions.append(button('Haritada göster', () => ctx.select(candidate.equipmentId, candidate.sourceClass, 'map')), button('Tek Hat Şeması', () => ctx.select(candidate.equipmentId, candidate.sourceClass, 'sld'))); box.append(actions);
@@ -184,18 +198,22 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     const rows = input.filter(x => (!loadedType.value || x.impact.sourceClass === loadedType.value) && `${x.outage.name} ${x.outage.equipmentId} ${x.impact.equipmentId} ${labelForEquipment(x.impact.equipmentId)} ${loadedLocation(x.impact.equipmentId)} ${x.impact.from} ${x.impact.to}`.toLocaleLowerCase('tr-TR').includes(q));
     rows.sort((a, b) => compareViolation(a, b, violationSort, violationDirection));
     const { pageRows, pager: pageBar } = pageSlice(rows, violationPage, p => { violationPage = p; renderCurrent(); });
-    const wrap = element('div', 'ga-table-wrap'), table = element('table', 'ga-table');
-    table.innerHTML = `<thead><tr>${sortableHeaders([['outage', 'Kesinti senaryosu / FID'], ['outageType', 'Kesinti tipi'], ['equipment', 'Yüklenen teçhizat / FID'], ['type', 'Yüklenen tip'], ['kv', 'kV'], ['location', 'YTM / TM'], ['baseFlow', 'Baz P MW'], ['baseLoading', 'Baz tahmini %'], ['postFlow', 'Son P MW'], ['capacity', 'Limit MVA'], ['postLoading', 'Son tahmini %'], ['delta', 'ΔP MW']], violationSort, violationDirection)}</tr></thead><tbody>${pageRows.map(x => `<tr data-id="${h(x.outage.candidateId)}" class="${x.outage.candidateId === ctx.selectedN1CandidateId ? 'ga-selected' : ''}"><td>${h(x.outage.name)}<small>${h(x.outage.equipmentId)}</small></td><td>${x.outage.sourceClass === 'ElmTr2' ? 'Trafo' : 'Hat'}</td><td>${h(labelForEquipment(x.impact.equipmentId))}<small>${h(x.impact.equipmentId)} · ${h(x.impact.from)} → ${h(x.impact.to)}</small></td><td>${x.impact.sourceClass === 'ElmTr2' ? 'Trafo' : 'Hat'}</td><td>${f(loadedVoltage(x.impact.equipmentId))}</td><td>${h(loadedLocation(x.impact.equipmentId))}</td><td>${f(x.impact.baseFlowMw)}</td><td>${percent(x.impact.baseEstimatedLoadingPct)}</td><td>${f(x.impact.postFlowMw)}</td><td>${f(x.impact.capacityMva)}</td><td>${percent(x.impact.postEstimatedLoadingPct ?? x.impact.estimatedLoadingPct)}</td><td>${f(x.impact.deltaPMw)}</td></tr>`).join('') || '<tr><td colspan="12" class="ga-empty">Bu filtrelerde tahmini limit aşımı yok.</td></tr>'}</tbody>`;
+    const wrap = element('div', 'ga-table-wrap ga-n1-violation-wrap'), table = element('table', 'ga-table ga-n1-violation-table');
+    table.innerHTML = `<thead><tr>${sortableHeaders([['outage', 'Kesinti senaryosu'], ['equipment', 'Yüklenen teçhizat'], ['type', 'Tip'], ['location', 'YTM / TM'], ['baseFlow', 'Baz durum · MW / tahmini %'], ['postFlow', 'Kesinti sonrası · MW / tahmini % / MVA'], ['delta', 'ΔP MW']], violationSort, violationDirection)}</tr></thead><tbody>${pageRows.map(x => {
+      const baseLoading = percent(x.impact.baseEstimatedLoadingPct), postLoading = percent(x.impact.postEstimatedLoadingPct ?? x.impact.estimatedLoadingPct);
+      const location = compactLoadedLocation(x.impact.equipmentId), fullLocation = loadedLocation(x.impact.equipmentId);
+      return `<tr data-id="${h(x.outage.candidateId)}" class="${x.outage.candidateId === ctx.selectedN1CandidateId ? 'ga-selected' : ''}"><td class="ga-n1-sticky-context"><span>${h(x.outage.name)}</span><small>${h(x.outage.equipmentId)} · ${x.outage.sourceClass === 'ElmTr2' ? 'Trafo' : 'Hat'}</small></td><td class="ga-n1-sticky-equipment"><span>${h(labelForEquipment(x.impact.equipmentId))}</span><small>${h(x.impact.equipmentId)} · ${h(x.impact.from)} → ${h(x.impact.to)}</small></td><td>${x.impact.sourceClass === 'ElmTr2' ? 'Trafo' : 'Hat'}<small>${f(loadedVoltage(x.impact.equipmentId))} kV</small></td><td title="${h(fullLocation)}">${h(location)}</td><td><span>${f(x.impact.baseFlowMw)} MW</span><small>${baseLoading}</small></td><td><span>${f(x.impact.postFlowMw)} MW</span><small>${postLoading} · ${f(x.impact.capacityMva)} MVA</small></td><td>${f(x.impact.deltaPMw)}</td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="ga-empty">Bu filtrelerde tahmini limit aşımı yok.</td></tr>'}</tbody>`;
     bindSort(table, key => { if (violationSort === key) violationDirection = violationDirection === 'asc' ? 'desc' : 'asc'; else { violationSort = key; violationDirection = 'asc'; } renderCurrent(); });
     table.querySelectorAll<HTMLTableRowElement>('tbody tr[data-id]').forEach(row => row.onclick = () => selectCandidate(row.dataset.id || null));
     wrap.append(table);
     const selected = input.find(x => x.outage.candidateId === ctx.selectedN1CandidateId)?.outage;
     const detail = selected ? currentDetail(selected.candidateId) : null;
     const detailBox = detail ? detailImpacts(detail) : element('p', ctx.n1DetailLoading ? 'ga-notice' : 'ga-muted', selected ? (ctx.n1DetailLoading ? 'Kesinti ayrıntısı hesaplanıyor…' : 'Seçili kesinti için dal ayrıntısı hazır değil.') : 'İlişki ayrıntısı için bir kesinti satırı seçin.');
-    body.replaceChildren(violationSearch, loadedType, element('p', 'ga-notice', 'Her satır, bir kesinti senaryosu ile kapasite limiti aşımı tahmin edilen bir izlenen dalı eşleştirir. Yüklenme yüzdesi yalnız aktif güç kullanan DC tahminidir.'), wrap, pageBar, detailBox);
+    body.replaceChildren(violationSearch, loadedType, wrap, pageBar, detailBox);
   }
   function compareViolation(a: N1ViolationRow, b: N1ViolationRow, key: string, direction: SortDirection): number {
-    const value = (x: N1ViolationRow): string | number => key === 'outage' ? x.outage.name : key === 'outageType' ? x.outage.sourceClass : key === 'equipment' ? labelForEquipment(x.impact.equipmentId) : key === 'type' ? x.impact.sourceClass : key === 'kv' ? loadedVoltage(x.impact.equipmentId) ?? -1 : key === 'location' ? loadedLocation(x.impact.equipmentId) : key === 'baseFlow' ? x.impact.baseFlowMw : key === 'postFlow' ? x.impact.postFlowMw : key === 'baseLoading' ? x.impact.baseEstimatedLoadingPct ?? -1 : key === 'delta' ? Math.abs(x.impact.deltaPMw) : key === 'capacity' ? x.impact.capacityMva ?? -1 : x.impact.postEstimatedLoadingPct ?? x.impact.estimatedLoadingPct ?? -1;
+    const value = (x: N1ViolationRow): string | number => key === 'outage' ? x.outage.name : key === 'outageType' ? x.outage.sourceClass : key === 'equipment' ? labelForEquipment(x.impact.equipmentId) : key === 'type' ? x.impact.sourceClass : key === 'kv' ? loadedVoltage(x.impact.equipmentId) ?? -1 : key === 'location' ? loadedLocation(x.impact.equipmentId) : key === 'baseFlow' ? x.impact.baseFlowMw ?? -1 : key === 'postFlow' ? x.impact.postFlowMw ?? -1 : key === 'baseLoading' ? x.impact.baseEstimatedLoadingPct ?? -1 : key === 'delta' ? Math.abs(x.impact.deltaPMw ?? 0) : key === 'capacity' ? x.impact.capacityMva ?? -1 : x.impact.postEstimatedLoadingPct ?? x.impact.estimatedLoadingPct ?? -1;
     const av = value(a), bv = value(b), cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv), 'tr');
     return (direction === 'asc' ? cmp : -cmp) || a.outage.candidateId.localeCompare(b.outage.candidateId) || a.impact.equipmentId.localeCompare(b.impact.equipmentId);
   }
@@ -205,7 +223,7 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     const { pageRows, pager: pageBar } = pageSlice(rows, detailPage, p => { detailPage = p; renderCurrent(); });
     const wrap = element('div', 'ga-table-wrap'), table = element('table', 'ga-table');
     table.innerHTML = `<thead><tr><th>Dal</th><th>Uçlar</th><th>Baz MW</th><th>Son MW</th><th>ΔP MW</th><th>Limit MVA</th><th>Tahmini yüklenme</th></tr></thead><tbody>${pageRows.map(x => `<tr><td>${h(x.name)}<small>${h(x.equipmentId)}</small></td><td>${h(x.from)} → ${h(x.to)}</td><td>${f(x.baseFlowMw)}</td><td>${f(x.postFlowMw)}</td><td>${f(x.deltaPMw)}</td><td>${f(x.capacityMva)}</td><td>${percent(x.postEstimatedLoadingPct ?? x.estimatedLoadingPct)}</td></tr>`).join('')}</tbody>`;
-    wrap.append(table); box.append(element('h3', '', `Kesinti: ${h(detail.candidate.name)} · izlenen dal ayrıntısı`), wrap, pageBar, element('p', 'ga-muted', 'Dal akışları MW, kapasite sınırları MVA olarak verilir. Tahmini yüklenme P-only DC değeridir.'));
+    wrap.append(table); box.append(element('h3', '', `Kesinti: ${h(detail.candidate.name)} · izlenen dal ayrıntısı`), wrap, pageBar, element('p', 'ga-muted', 'Akış MW, kapasite sınırı MVA olarak gösterilir.'));
     const actions = element('div', 'ga-row-actions'); actions.append(button('Kesinti ekipmanını haritada göster', () => ctx.select(detail.outage.equipmentId, detail.outage.sourceClass, 'map'))); box.append(actions); return box;
   }
 
@@ -220,7 +238,7 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     table.querySelectorAll<HTMLTableRowElement>('tbody tr[data-id]').forEach(row => row.onclick = () => selectCandidate(row.dataset.id || null));
     wrap.append(table);
     const selectedId = ctx.selectedN1CandidateId, detail = selectedId ? currentDetail(selectedId) : null;
-    body.replaceChildren(islandSearch, element('p', 'ga-notice', 'Ada ayıran adaylar için kesinti sonrası elektrik bileşenleri, bağlı referanslar, yük ve üretim ayrıntıları gösterilir.'), wrap, pageBar, detail ? islandDetail(detail) : element('p', ctx.n1DetailLoading ? 'ga-notice' : 'ga-muted', selectedId ? (ctx.n1DetailLoading ? 'Kesinti ayrıntısı hesaplanıyor…' : 'Ada bileşenleri hazır değil.') : 'Ada ayrıntısı için bir kesinti ekipmanı seçin.'));
+    body.replaceChildren(islandSearch, element('p', 'ga-muted', 'Ada ayıran adaylar için kesinti sonrası elektrik bileşenleri, bağlı referanslar, yük ve üretim ayrıntıları gösterilir.'), wrap, pageBar, detail ? islandDetail(detail) : element('p', ctx.n1DetailLoading ? 'ga-notice' : 'ga-muted', selectedId ? (ctx.n1DetailLoading ? 'Kesinti ayrıntısı hesaplanıyor…' : 'Ada bileşenleri hazır değil.') : 'Ada ayrıntısı için bir kesinti ekipmanı seçin.'));
   }
   function compareCandidate(a: N1ScreenCandidate, b: N1ScreenCandidate, key: string, direction: SortDirection) {
     const av: string | number = key === 'type' ? a.sourceClass : key === 'kv' ? a.vnKv : key === 'islands' ? currentDetail(a.candidateId)?.outageIslands.length ?? -1 : key === 'status' ? a.status : a.name;
@@ -232,20 +250,23 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     const box = element('div', 'ga-panel'), components = detail.outageIslands;
     box.dataset.n1DetailId = detail.candidateId;
     box.innerHTML = `<h3>Ada ayrıntısı · ${h(detail.candidate.name)}</h3><p><strong>Kesinti ekipmanı:</strong> ${h(detail.outageEquipment.equipmentId)} · <strong>Kesinti sonrası bileşen:</strong> ${components.length}</p>`;
-    const unreferenced = components.filter(c => !c.hasReference), summary = element('p', 'ga-notice');
+    const unreferenced = components.filter(c => !c.hasGridReference), summary = element('p', 'ga-notice ga-n1-island-summary');
     summary.dataset.n1IslandSummary = 'true';
-    const separatedLoad = unreferenced.reduce((sum, c) => sum + (c.separatedLoadMw ?? 0), 0), separatedGeneration = unreferenced.reduce((sum, c) => sum + (c.separatedGenerationMw ?? 0), 0);
+    const separatedLoad = unreferenced.reduce((sum, c) => sum + (c.topologicallySeparatedLoadMw ?? 0), 0), separatedGeneration = unreferenced.reduce((sum, c) => sum + (c.topologicallySeparatedGenerationMw ?? 0), 0);
     summary.dataset.componentCount = String(components.length);
     summary.dataset.referenceLessCount = String(unreferenced.length);
     summary.dataset.separatedLoadMw = String(separatedLoad);
     summary.dataset.separatedGenerationMw = String(separatedGeneration);
-    summary.textContent = `Bileşen sayısı: ${components.length} · Referanssız: ${unreferenced.length} · Referanssız bileşenlerde ayrılan yük: ${unreferenced.length ? `${f(separatedLoad)} MW` : '—'} · Ayrılan üretim: ${unreferenced.length ? `${f(separatedGeneration)} MW` : '—'}.`;
+    summary.textContent = `Bileşen ${components.length} · Şebeke referansı olmayan ${unreferenced.length} · Topolojik olarak ayrılan tüketim ${unreferenced.length ? `${f(separatedLoad)} MW` : '—'} · üretim ${unreferenced.length ? `${f(separatedGeneration)} MW` : '—'}. Bunlar yük atma kararı değildir.`;
     const wrap = element('div', 'ga-table-wrap'), table = element('table', 'ga-table');
-    table.innerHTML = `<thead><tr><th>Bileşen</th><th>Durum</th><th>Referans</th><th>Bara</th><th>Dal</th><th>Yük MW</th><th>Üretim MW</th><th>Net P MW</th><th>Ayrılan yük MW</th><th>Ayrılan üretim MW</th></tr></thead><tbody>${components.map(c => `<tr data-island="${h(c.componentId)}" class="${c.componentId === ctx.selectedN1IslandId ? 'ga-selected' : ''}"><td>${h(c.componentId)}</td><td>${h(c.status || (c.hasReference ? 'Referanslı' : 'Referanssız'))}</td><td>${c.referenceCount} · ${h(c.references.map(r => r.name).join(', ') || 'yok')}</td><td>${c.busIds.length}</td><td>${c.branchIds.length}</td><td>${f(c.loadMw)}</td><td>${f(c.generationMw)}</td><td>${f(c.netInjectionMw)}</td><td>${f(c.separatedLoadMw)}</td><td>${f(c.separatedGenerationMw)}</td></tr>`).join('') || '<tr><td colspan="10">Bileşen ayrıntısı bulunamadı.</td></tr>'}</tbody>`;
+    table.innerHTML = `<thead><tr><th>Ada</th><th>Şebeke durumu</th><th>Referans</th><th>Bara</th><th>Dal</th><th>Tüketim MW</th><th>Yerel üretim MW</th><th>Net P MW</th><th>Topolojik ayrılan tüketim MW</th><th>Topolojik ayrılan üretim MW</th></tr></thead><tbody>${components.map((c, index) => `<tr data-island="${h(c.componentId)}" class="${c.componentId === ctx.selectedN1IslandId ? 'ga-selected' : ''}"><td title="${h(c.componentId)}">Ada ${index + 1}<small>${h(c.componentId)}</small></td><td>${n1IslandStatusLabels[c.status]}<small>${c.hasLocalGeneration ? `Yerel üretim var · ${c.generatorCount} ünite` : 'Yerel üretim yok'}</small></td><td>${c.referenceCount} · ${h(c.references.map(r => r.name).join(', ') || 'yok')}</td><td>${c.busIds.length}</td><td>${c.branchIds.length}</td><td>${f(c.loadMw)}</td><td>${f(c.generationMw)}</td><td>${f(c.netInjectionMw)}</td><td>${f(c.topologicallySeparatedLoadMw)}</td><td>${f(c.topologicallySeparatedGenerationMw)}</td></tr>`).join('') || '<tr><td colspan="10">Bileşen ayrıntısı bulunamadı.</td></tr>'}</tbody>`;
     table.querySelectorAll<HTMLTableRowElement>('tbody tr[data-island]').forEach(row => row.onclick = () => { ctx.selectN1Island(row.dataset.island || null); renderCurrent(); });
     wrap.append(table); box.append(summary, wrap);
     const selected = components.find(c => c.componentId === ctx.selectedN1IslandId);
-    if (selected) box.append(element('p', 'ga-notice', `Seçili bileşen ${selected.componentId}: ${selected.busIds.length} bara, ${selected.branchIds.length} dal. Baralar: ${selected.busIds.slice(0, 12).join(', ')}${selected.busIds.length > 12 ? ` … (+${selected.busIds.length - 12})` : ''}. Referanslar: ${selected.references.map(r => `${r.name} (${r.sourceClass}:${r.id})`).join(', ') || 'yok'}.`));
+    if (selected) {
+      const index = components.indexOf(selected) + 1;
+      box.append(element('p', 'ga-muted', `Seçili Ada ${index}: ${selected.busIds.length} bara, ${selected.branchIds.length} dal · ${selected.hasGridReference ? 'Şebeke referansı var' : 'Şebeke referansı yok'} · ${selected.hasLocalGeneration ? `yerel üretim var (${selected.generatorCount} ünite, ${f(selected.generationMw)} MW)` : 'yerel üretim yok'}. Baralar: ${selected.busIds.slice(0, 12).join(', ')}${selected.busIds.length > 12 ? ` … (+${selected.busIds.length - 12})` : ''}. Referanslar: ${selected.references.map(r => `${r.name} (${r.sourceClass}:${r.id})`).join(', ') || 'yok'}.`));
+    }
     return box;
   }
 
@@ -265,10 +286,13 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     const rows = input.filter(x => `${labelForEquipment(x.equipmentId)} ${x.name} ${x.equipmentId} ${x.from} ${x.to}`.toLocaleLowerCase('tr-TR').includes(q));
     rows.sort((a, b) => compareCritical(a, b, criticalSort, criticalDirection));
     const { pageRows, pager: pageBar } = pageSlice(rows, criticalPage, p => { criticalPage = p; renderCurrent(); });
+    const topEquipment = [...rows].sort((a, b) => b.outageCount - a.outageCount || b.violationCount - a.violationCount || a.equipmentId.localeCompare(b.equipmentId)).slice(0, 5);
+    const topEquipmentList = element('div', 'ga-n1-top-equipment');
+    topEquipmentList.innerHTML = topEquipment.map((x, i) => `<div><span>${i + 1}. ${h(labelForEquipment(x.equipmentId))}<small>${h(x.equipmentId)}</small></span><strong>${x.outageCount.toLocaleString('tr-TR')} kesinti · ${x.violationCount.toLocaleString('tr-TR')} ilişki</strong></div>`).join('') || '<p class="ga-muted">Kritik ekipman bulunamadı.</p>';
     const wrap = element('div', 'ga-table-wrap'), table = element('table', 'ga-table');
     table.innerHTML = `<thead><tr>${sortableHeaders([['name', 'Kritik ekipman'], ['type', 'Tip'], ['outages', 'Etkilenen kesinti'], ['violations', 'İhlal ilişkisi'], ['loading', 'En yüksek tahmini yüklenme'], ['delta', 'En büyük |ΔP| MW']], criticalSort, criticalDirection)}</tr></thead><tbody>${pageRows.map(x => `<tr data-id="${h(x.equipmentId)}"><td>${h(labelForEquipment(x.equipmentId))}<small>${h(x.equipmentId)} · ${h(x.from)} → ${h(x.to)}</small></td><td>${x.sourceClass === 'ElmTr2' ? 'Trafo' : 'Hat'}</td><td>${x.outageCount}</td><td>${x.violationCount}</td><td>${f(x.maxEstimatedLoadingPct)}%</td><td>${f(x.maxAbsDeltaPMw)} MW</td></tr>`).join('') || '<tr><td colspan="6" class="ga-empty">Filtrelerde tekrarlanan kritik kısıt yok.</td></tr>'}</tbody>`;
     bindSort(table, key => { if (criticalSort === key) criticalDirection = criticalDirection === 'asc' ? 'desc' : 'asc'; else { criticalSort = key; criticalDirection = 'asc'; } renderCurrent(); });
-    body.replaceChildren(criticalOutageSearch, element('p', 'ga-muted', 'Grafikte her N-1 kesintisi için tahmini ihlalli kısıt sayısı gösterilir. Aşağıdaki özet aynı ihlallerde en çok etkilenen izlenen dal ekipmanlarını sıralar.'), chart, outageWrap, outagePage.pager, element('h3', '', 'En çok etkilenen kısıt ekipmanları'), criticalSearch, wrap, pageBar);
+    body.replaceChildren(criticalOutageSearch, element('p', 'ga-muted', 'Grafik her kesinti için tahmini ihlalli kısıt sayısını gösterir.'), chart, outageWrap, outagePage.pager, element('h3', '', 'En çok etkilenen kısıt ekipmanları'), topEquipmentList, criticalSearch, wrap, pageBar);
   }
   function compareCritical(a: ReturnType<typeof aggregateCriticalConstraints>[number], b: ReturnType<typeof aggregateCriticalConstraints>[number], key: string, direction: SortDirection) {
     const value = (x: typeof a): string | number => key === 'type' ? x.sourceClass : key === 'outages' ? x.outageCount : key === 'violations' ? x.violationCount : key === 'loading' ? x.maxEstimatedLoadingPct : key === 'delta' ? x.maxAbsDeltaPMw : labelForEquipment(x.equipmentId);

@@ -7,15 +7,17 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const model = path.resolve(root, process.argv[2] || 'kontrol1/20260928_0900_SN1_TR0.zip');
-const output = path.resolve(root, process.argv[3] || 'docs/validation/20260930-v802-n1-browser-final.json');
+const output = path.resolve(root, process.argv[3] || 'docs/validation/20260930-v803-n1-browser-final.json');
 const port = 5300 + Math.floor(Math.random() * 1000);
 const url = `http://127.0.0.1:${port}/`;
-const baseSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+const benchmarkCodeSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 const artifact = {
-  baseSha, benchmarkPhase: 'feature working tree before release version bump', model: path.basename(model), scope: 'all in-service line and transformer candidates at >=66 kV',
+  benchmarkCodeSha, benchmarkEngineVersion: null, benchmarkPhase: 'committed fix-branch code before release version bump',
+  model: path.basename(model), scope: 'default selected screenable and islanding line/transformer candidates at >=66 kV',
   browser: 'Chromium', status: 'ERROR', wallClockMs: null, engineElapsedMs: null,
   candidateCount: null, selectedCandidateCount: null, screenedCount: null,
-  islandingCount: null, unsupportedCount: null, violationCount: null,
+  islandingCount: null, unsupportedCount: null, selectedUnsupportedCount: null, violationCount: null,
+  defaultSelectedIslandingCount: null,
   constraintCandidates: null, violationInstances: null,
   selectedDetailWallClockMs: null, selectedIslandDetailWallClockMs: null,
   selectedIslandComponents: null, selectedReferenceLessIslands: null,
@@ -33,14 +35,14 @@ try {
   if (!ready) throw new Error('Vite benchmark server did not start.');
   browser = await chromium.launch({ headless: true });
   artifact.browser = `Chromium ${browser.version()}`;
-  const page = await browser.newPage({ acceptDownloads: true });
+  const page = await browser.newPage({ acceptDownloads: true, viewport: { width: 1366, height: 768 } });
   page.setDefaultTimeout(180000);
   await page.goto(url);
   await page.locator('#modelFileInput').setInputFiles(model);
   await page.waitForFunction(() => Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));
   await page.getByRole('button', { name: 'Kalite & N-1', exact: true }).click();
   await page.getByRole('button', { name: 'N-1 SENARYOLARI', exact: true }).click();
-  const view = page.locator('[data-view="quality-n1"]');
+  const view = page.locator('section[data-view="quality-n1"]');
   await view.locator('.ga-card-grid .ga-card').first().waitFor({ state: 'visible' });
   const readCatalog = () => page.evaluate(() => {
     const cards = [...document.querySelectorAll('[data-view="quality-n1"] .ga-card')];
@@ -48,20 +50,20 @@ try {
       const card = cards.find(item => item.querySelector('small')?.textContent?.trim() === label);
       return card ? Number(card.querySelector('strong')?.textContent?.replace(/\D/g, '')) : null;
     };
-    return { total: count('Toplam aday'), screenable: count('Taranabilir'), defaultSelected: count('Seçili') };
+    return { total: count('Toplam aday'), screenable: count('DC taranabilir'), islanding: count('Ada ayıran'), unsupported: count('Taranamayan'), defaultSelected: count('Seçili') };
   });
   const before = await readCatalog();
   artifact.catalogCandidateCount = before.total;
   artifact.screenableCandidateCount = before.screenable;
+  artifact.screenableCount = before.screenable;
+  artifact.catalogIslandingCount = before.islanding;
+  artifact.unsupportedCount = before.unsupported;
   artifact.defaultSelectedCandidateCount = before.defaultSelected;
   artifact.defaultScreenabilityFilter = await view.locator('select[aria-label="Taranabilirlik filtresi"]').inputValue();
-  await view.locator('select[aria-label="Taranabilirlik filtresi"]').selectOption('ALL');
-  await view.getByRole('button', { name: 'Tüm adayları seç' }).click();
-  const after = await readCatalog();
-  artifact.selectedCandidateCount = after.defaultSelected;
-  if (!after.total || after.defaultSelected !== after.total) throw new Error(`Full-country selection is incomplete: ${after.defaultSelected}/${after.total}`);
+  artifact.selectedCandidateCount = before.defaultSelected;
+  if (!before.total || before.defaultSelected !== before.screenable + before.islanding || before.total !== before.screenable + before.islanding + before.unsupported) throw new Error(`Default N-1 selection is inconsistent: ${JSON.stringify(before)}`);
   const run = view.getByRole('button', { name: 'Seçili senaryoları tara' });
-  if (await run.isDisabled()) throw new Error('N-1 run button is disabled after selecting the full catalog.');
+  if (await run.isDisabled()) throw new Error('N-1 run button is disabled for the default selection.');
 
   started = performance.now();
   await run.click();
@@ -77,13 +79,14 @@ try {
   if (!footer.startsWith('N-1 taraması ·')) throw new Error(footer);
   // The candidate table remains in the DOM but is hidden on the results tab.
   // Wait for the visible result summary instead of a generic table row.
-  await view.locator('.ga-panel .ga-card-grid .ga-card').first().waitFor({ state: 'visible' });
+  await view.locator('[data-n1-result-ready="true"]').waitFor({ state: 'visible' });
   artifact.wallClockMs = performance.now() - started;
   artifact.renderAfterCompletionSignalMs = artifact.wallClockMs - artifact.completionSignalMs;
   artifact.resultRendered = true;
   console.log(`N-1 browser completion: ${(artifact.wallClockMs / 1000).toFixed(2)} s`);
 
   const downloadEvent = page.waitForEvent('download');
+  await view.locator('summary[aria-label="N-1 sonuçlarını dışa aktar"]').click();
   await view.getByRole('button', { name: 'JSON indir' }).click();
   const download = await downloadEvent;
   if (download.suggestedFilename() !== 'GridAnalyzer-n1-screening.json') throw new Error('N-1 technical JSON export is missing.');
@@ -92,7 +95,9 @@ try {
   artifact.candidateCount = result.candidateCount;
   artifact.screenedCount = result.screenedCount;
   artifact.islandingCount = result.islandingCount;
-  artifact.unsupportedCount = result.unsupportedCount;
+  artifact.defaultSelectedIslandingCount = result.islandingCount;
+  artifact.selectedUnsupportedCount = result.unsupportedCount;
+  artifact.benchmarkEngineVersion = result.identity.engineVersion;
   artifact.violationCount = result.candidates.filter(candidate => candidate.status === 'SCREENED_VIOLATION').length;
   artifact.constraintCandidates = result.candidates.filter(candidate => candidate.violationImpacts?.length).length;
   artifact.violationInstances = result.candidates.reduce((count, candidate) => count + (candidate.violationImpacts?.length || 0), 0);
@@ -106,6 +111,7 @@ try {
     engineVersion: result.identity.engineVersion,
   };
   if (result.candidateCount !== artifact.selectedCandidateCount) throw new Error('Result candidate count does not match the selected catalog.');
+  if (result.islandingCount !== artifact.catalogIslandingCount || result.unsupportedCount !== 0) throw new Error('Default run must include every islanding candidate and no unsupported candidate.');
   if (!(artifact.kluFactorizationCount > 0 && artifact.kluRhsCount > 0 && Number.isFinite(artifact.kluMaxTrueResidual))) throw new Error('KLU diagnostics are incomplete.');
   const firstViolation = result.candidates.find(candidate => candidate.status === 'SCREENED_VIOLATION');
   const firstIsland = result.candidates.find(candidate => candidate.status === 'ISLANDING');
@@ -137,7 +143,34 @@ try {
     artifact.selectedSeparatedLoadMw = Number(summary.separatedLoadMw);
     artifact.selectedSeparatedGenerationMw = Number(summary.separatedGenerationMw);
   }
-  artifact.status = artifact.wallClockMs < 10000 ? 'PASS' : 'PERFORMANCE_FAIL';
+  if (path.basename(model) === '20260928_0900_SN1_TR0.zip') {
+    await view.locator('select[aria-label="N-1 sonuç durumu"]').selectOption('');
+    await view.locator('input[aria-label="N-1 sonuçlarında ara"]').fill('');
+    await view.getByRole('button', { name: 'KISIT YÜKLENMELERİ', exact: true }).click();
+    await view.locator('.ga-n1-violation-table tbody tr[data-id]').first().waitFor({ state: 'visible' });
+    artifact.uiReview = [];
+    for (const width of [1366, 1920]) {
+      await page.setViewportSize({ width, height: 768 });
+      const metrics = await page.evaluate(() => {
+        const wrap = document.querySelector('.ga-n1-violation-wrap');
+        const context = wrap?.querySelector('tbody td.ga-n1-sticky-context');
+        const toolbar = document.querySelector('.ga-n1-results-controls');
+        return {
+          viewportWidth: innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          tableViewportWidth: wrap?.clientWidth ?? null,
+          tableContentWidth: wrap?.scrollWidth ?? null,
+          stickyContextPosition: context ? getComputedStyle(context).position : null,
+          toolbarHeight: toolbar?.getBoundingClientRect().height ?? null,
+        };
+      });
+      const screenshot = output.replace(/\.json$/i, `-${width}.png`);
+      await page.screenshot({ path: screenshot, fullPage: true });
+      artifact.uiReview.push({ ...metrics, screenshot: path.basename(screenshot) });
+      if (metrics.documentWidth > width + 2 || metrics.stickyContextPosition !== 'sticky') throw new Error(`N-1 results layout review failed at ${width}px: ${JSON.stringify(metrics)}`);
+    }
+  }
+  artifact.status = artifact.wallClockMs < 5000 ? 'PASS' : 'PERFORMANCE_FAIL';
   if (artifact.status !== 'PASS') process.exitCode = 1;
 } catch (error) {
   if (started != null && artifact.wallClockMs == null) artifact.wallClockMs = performance.now() - started;

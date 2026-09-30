@@ -36,8 +36,10 @@ export interface N1Impact {
 export interface N1Reference { id: string; name: string; sourceClass: string }
 export interface N1IslandComponent {
   componentId: string; islandId: string; status: 'REFERENCED' | 'UNREFERENCED'; busIds: readonly string[]; branchIds: readonly string[]; siteIds: readonly string[];
-  references: readonly N1Reference[]; referenceCount: number; loadMw: number; generationMw: number; netInjectionMw: number;
-  hasReference: boolean; separatedLoadMw: number | null; separatedGenerationMw: number | null;
+  references: readonly N1Reference[]; referenceCount: number; loadMw: number; generationMw: number; generatorCount: number; netInjectionMw: number;
+  hasReference: boolean; hasGridReference: boolean; hasLocalGeneration: boolean;
+  separatedLoadMw: number | null; separatedGenerationMw: number | null;
+  topologicallySeparatedLoadMw: number | null; topologicallySeparatedGenerationMw: number | null;
 }
 export interface N1DetailBranchImpact extends Omit<N1Impact, 'postFlowMw' | 'deltaPMw' | 'postEstimatedLoadingPct' | 'estimatedLoadingPct'> {
   postFlowMw: number | null; deltaPMw: number | null; postEstimatedLoadingPct: number | null; estimatedLoadingPct: number | null;
@@ -148,8 +150,8 @@ function compareImpactValues(pct: number | null, delta: number, equipmentId: str
   return (b.estimatedLoadingPct ?? -1) - (pct ?? -1) || Math.abs(b.deltaPMw) - Math.abs(delta) || equipmentId.localeCompare(b.equipmentId);
 }
 
-function terminalToReducedBus(network: CanonicalNetwork): (terminalId: string) => string | null {
-  const topology = buildTopology(network), high = new Set<number>(), low = new Set<number>();
+function terminalToReducedBus(network: CanonicalNetwork, topology = buildTopology(network)): (terminalId: string) => string | null {
+  const high = new Set<number>(), low = new Set<number>();
   topology.buses.forEach((bus, index) => (bus.vnKv >= 66 ? high : low).add(index));
   const transformerRows = network.transformers.filter(t => t.inService && !topology.blockedEquipment.has(t.id)).map(t => ({ t, a: topology.terminalToBus.get(t.from), b: topology.terminalToBus.get(t.to) })).filter((x): x is typeof x & { a: number; b: number } => x.a != null && x.b != null);
   const lowUf = new UnionFind([...low].map(String));
@@ -173,7 +175,7 @@ function componentIdentity(candidateId: string, busIds: readonly string[]): stri
   for (let i = 0; i < source.length; i++) { hash ^= source.charCodeAt(i); hash = Math.imul(hash, 16777619); }
   return `n1:${candidateId}:${(hash >>> 0).toString(36)}`;
 }
-function outageComponents(active: CanonicalNetwork, reduced: ReducedNetwork, island: ReducedIsland, outageId: string | null, candidateId: string, route = terminalToReducedBus(active)): OutageComponentData[] {
+function outageComponents(active: CanonicalNetwork, reduced: ReducedNetwork, island: ReducedIsland, outageId: string | null, candidateId: string, route = terminalToReducedBus(active), blockedEquipment = buildTopology(active).blockedEquipment): OutageComponentData[] {
   const adjacency = island.busIds.map(() => [] as number[]);
   for (const e of island.edges) if (e.id !== outageId) { adjacency[e.a].push(e.b); adjacency[e.b].push(e.a); }
   const groups: number[][] = [], seen = new Uint8Array(island.busIds.length);
@@ -185,15 +187,16 @@ function outageComponents(active: CanonicalNetwork, reduced: ReducedNetwork, isl
   }
   const groupByBus = new Map<string, number>();
   groups.forEach((group, index) => group.forEach(bus => groupByBus.set(island.busIds[bus], index)));
-  const loadByGroup = groups.map(() => 0), generationByGroup = groups.map(() => 0), refsByGroup = groups.map(() => [] as N1Reference[]), slackRankByGroup = groups.map(() => new Map<string, number>());
-  for (const item of active.loads) if (item.inService) { const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus); if (group != null) loadByGroup[group] += item.pMw; }
-  for (const item of active.generators) if (item.inService) {
+  const loadByGroup = groups.map(() => 0), generationByGroup = groups.map(() => 0), generatorCountByGroup = groups.map(() => 0), refsByGroup = groups.map(() => [] as N1Reference[]), slackReferenceIdByGroup = groups.map(() => new Map<string, string>());
+  const enabled = (item: { id: string; inService: boolean }) => item.inService && !blockedEquipment.has(item.id);
+  for (const item of active.loads) if (enabled(item)) { const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus); if (group != null) loadByGroup[group] += item.pMw; }
+  for (const item of active.generators) if (enabled(item)) {
     const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus);
-    if (group != null) { generationByGroup[group] += item.pMw; if (item.pMw > 0) { refsByGroup[group].push({ id: item.id, name: item.name, sourceClass: item.sourceClass }); slackRankByGroup[group].set(bus!, (slackRankByGroup[group].get(bus!) ?? 0) + item.pMw); } }
+    if (group != null) { generationByGroup[group] += item.pMw; generatorCountByGroup[group]++; }
   }
-  for (const item of active.externalGrids) if (item.inService) {
+  for (const item of active.externalGrids) if (enabled(item)) {
     const bus = route(item.bus), group = bus == null ? undefined : groupByBus.get(bus);
-    if (group != null) { refsByGroup[group].push({ id: item.id, name: item.name, sourceClass: item.sourceClass }); slackRankByGroup[group].set(bus!, (slackRankByGroup[group].get(bus!) ?? 0) + 1e8); }
+    if (group != null) { refsByGroup[group].push({ id: item.id, name: item.name, sourceClass: item.sourceClass }); const prior = slackReferenceIdByGroup[group].get(bus!); if (!prior || item.id.localeCompare(prior) < 0) slackReferenceIdByGroup[group].set(bus!, item.id); }
   }
   return groups.map((busIndexes, groupIndex) => {
     const busIds = busIndexes.map(i => island.busIds[i]).sort((a, b) => a.localeCompare(b)), busSet = new Set(busIndexes);
@@ -201,12 +204,12 @@ function outageComponents(active: CanonicalNetwork, reduced: ReducedNetwork, isl
     const branchIds = edges.map(e => e.id).sort((a, b) => a.localeCompare(b));
     const siteIds = [...new Set(busIds.flatMap(id => reduced.buses.get(id)?.siteIds ?? []))].sort((a, b) => a.localeCompare(b));
     const references = refsByGroup[groupIndex].sort((a, b) => a.sourceClass.localeCompare(b.sourceClass) || a.id.localeCompare(b.id));
-    const hasReference = references.length > 0, componentId = componentIdentity(candidateId, busIds), componentStatus: N1IslandComponent['status'] = hasReference ? 'REFERENCED' : 'UNREFERENCED';
+    const hasReference = references.length > 0, hasLocalGeneration = generatorCountByGroup[groupIndex] > 0, componentId = componentIdentity(candidateId, busIds), componentStatus: N1IslandComponent['status'] = hasReference ? 'REFERENCED' : 'UNREFERENCED';
     const netInjectionMw = busIndexes.reduce((sum, index) => sum + (island.injections[index]?.[0] ?? 0), 0);
-    const rank = slackRankByGroup[groupIndex], slackBusId = [...rank].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+    const rank = slackReferenceIdByGroup[groupIndex], slackBusId = [...rank].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
     const localSlack = slackBusId == null ? null : busIndexes.find(index => island.busIds[index] === slackBusId) ?? null;
     return {
-      component: { componentId, islandId: componentId, status: componentStatus, busIds, branchIds, siteIds, references, referenceCount: references.length, loadMw: loadByGroup[groupIndex], generationMw: generationByGroup[groupIndex], netInjectionMw, hasReference, separatedLoadMw: hasReference ? null : loadByGroup[groupIndex], separatedGenerationMw: hasReference ? null : generationByGroup[groupIndex] },
+      component: { componentId, islandId: componentId, status: componentStatus, busIds, branchIds, siteIds, references, referenceCount: references.length, loadMw: loadByGroup[groupIndex], generationMw: generationByGroup[groupIndex], generatorCount: generatorCountByGroup[groupIndex], netInjectionMw, hasReference, hasGridReference: hasReference, hasLocalGeneration, separatedLoadMw: hasReference ? null : loadByGroup[groupIndex], separatedGenerationMw: hasReference ? null : generationByGroup[groupIndex], topologicallySeparatedLoadMw: hasReference ? null : loadByGroup[groupIndex], topologicallySeparatedGenerationMw: hasReference ? null : generationByGroup[groupIndex] },
       busIndexes, edges, slack: localSlack,
     };
   }).sort((a, b) => a.component.busIds[0]?.localeCompare(b.component.busIds[0] ?? '') ?? 0);
@@ -344,9 +347,9 @@ export function getN1SelectedDetail(network: CanonicalNetwork, scenario: Scenari
   if (!edge || !island || candidate.topology === 'UNSUPPORTED') {
     return { candidateId, candidate: emptyMetrics(candidate, 'UNSCREENABLE'), outage, outageEquipment: outage, branchImpacts: [], outageIslands: [], elapsedMs: performance.now() - started };
   }
-  const route = terminalToReducedBus(active), componentSets = reduced.islands.map(sourceIsland => ({
+  const topology = buildTopology(active), route = terminalToReducedBus(active, topology), componentSets = reduced.islands.map(sourceIsland => ({
     sourceIsland,
-    components: outageComponents(active, reduced, sourceIsland, sourceIsland === island ? edge.id : null, candidateId, route),
+    components: outageComponents(active, reduced, sourceIsland, sourceIsland === island ? edge.id : null, candidateId, route, topology.blockedEquipment),
   }));
   const components = componentSets.flatMap(item => item.components), targetComponents = componentSets.find(item => item.sourceIsland === island)!.components;
   const outageIslands = components.map(item => item.component), islandByBus = new Map<string, string>();

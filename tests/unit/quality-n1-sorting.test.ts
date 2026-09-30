@@ -4,6 +4,7 @@ import type { ModelQualityFinding } from '../../src/domain/model-quality';
 import type { N1ScreenCandidate } from '../../src/domain/n1';
 import { compareQuality, sortN1 } from '../../src/features/quality-n1/sorting';
 import { aggregateCriticalConstraints, collectN1Violations } from '../../src/features/quality-n1/aggregation';
+import { n1IslandStatusLabels } from '../../src/features/quality-n1/presentation';
 
 test('N-1 priority sort reverses the existing ranked result without inventing a new score', () => {
   const ranked = ['first', 'second', 'third'].map(candidateId => ({ candidateId }) as N1ScreenCandidate);
@@ -29,4 +30,9 @@ test('critical constraints count distinct outages for each overloaded monitored 
   assert.equal(rows.length, 3);
   const critical = aggregateCriticalConstraints(rows);
   assert.deepEqual(critical.map(item => [item.equipmentId, item.outageCount, item.maxEstimatedLoadingPct]), [['line-1', 2, 133], ['line-2', 1, 102]]);
+});
+
+test('island reference status is presented in Turkish without exposing domain enums', () => {
+  assert.equal(n1IslandStatusLabels.REFERENCED, 'Referanslı ada');
+  assert.equal(n1IslandStatusLabels.UNREFERENCED, 'Referanssız ada');
 });

@@ -35,17 +35,19 @@ function applyN1Overlay(root:SVGSVGElement,d:SldDiagram):void{
     const outage=detail.outage.equipmentId===id&&detail.outage.sourceClass===sourceClass;
     const impact=detail.branchImpacts.find(row=>row.equipmentId===id&&row.sourceClass===sourceClass);
     const component=detail.outageIslands.find(row=>row.branchIds.includes(id)||row.busIds.includes(id)||row.siteIds.includes(id)),selectedComponent=component?.componentId===d.selectedN1IslandId;
+    const componentName=component?`Ada ${detail.outageIslands.indexOf(component)+1}`:'';
     let label='',color='';
     if(outage){label='N-1 KESİNTİ';color='#111318';}
-    else if(impact){const loading=impact.postEstimatedLoadingPct??impact.estimatedLoadingPct;color=n1RiskColor(loading)||'#708596';label=loading==null?'N-1 · —':loading>100?`LİMİT >100% · ${loading.toFixed(0)}%`:`N-1 · ${loading.toFixed(0)}%`;if(component)label+=` · ADA ${shorten(component.islandId||component.componentId,10)}`;}
-    else if(component){label=`ADA · ${shorten(component.islandId||component.componentId,14)}`;color=islandColor(component.componentId);}
+    else if(impact){const loading=impact.postEstimatedLoadingPct??impact.estimatedLoadingPct;color=n1RiskColor(loading)||'#708596';label=loading==null?'N-1 · —':loading>100?`LİMİT >100% · ${loading.toFixed(0)}%`:`N-1 · ${loading.toFixed(0)}%`;if(component)label+=` · ${componentName} · ${component.hasReference?'Ref var':'Ref yok'}`;}
+    else if(component){label=`${componentName} · ${component.hasReference?'Referanslı':'Referanssız'}`;color=islandColor(component.componentId);}
     if(selectedComponent&&!outage)label+=` · SEÇİLİ`;
     if(!label)continue;
     const dashes=outage||component&&!component.hasReference?'6 4':'';
     const stroke=component&&(selectedComponent||!impact)&&!outage?islandColor(component.componentId):color;
     for(const line of groupElement.querySelectorAll<SVGPathElement>('path[data-connection]')){line.setAttribute('stroke',stroke);line.setAttribute('stroke-dasharray',dashes);line.setAttribute('stroke-width',outage||selectedComponent?'4':'3');}
-    const title=groupElement.querySelector('title');if(title)title.textContent+=`\n${label}${impact?` · Baz ${impact.baseFlowMw.toFixed(1)} MW · N-1 ${impact.postFlowMw==null?'—':impact.postFlowMw.toFixed(1)+' MW'} · ΔP ${impact.deltaPMw==null?'—':impact.deltaPMw.toFixed(1)+' MW'} · Kapasite ${impact.capacityMva==null?'—':impact.capacityMva.toFixed(1)+' MVA'}`:''}`;
-    const bounds=groupElement.getBBox(),badgeWidth=Math.min(210,Math.max(68,label.length*6+14)),badge=svg('g',{'pointer-events':'none','aria-hidden':'true'},groupElement),x=bounds.x+bounds.width-badgeWidth/2,y=bounds.y-11;
+    if(component)groupElement.setAttribute('data-n1-island',component.componentId);
+    const title=groupElement.querySelector('title');if(title)title.textContent+=`\n${label}${component?` · ${component.componentId} · ${component.references.map(row=>row.name).join(', ')||'YOK'} · ${component.hasLocalGeneration?`Yerel üretim var (${component.generatorCount} jeneratör, ${component.generationMw.toFixed(1)} MW)`:''}`:''}${impact?` · Baz ${impact.baseFlowMw.toFixed(1)} MW · N-1 ${impact.postFlowMw==null?'—':impact.postFlowMw.toFixed(1)+' MW'} · ΔP ${impact.deltaPMw==null?'—':impact.deltaPMw.toFixed(1)+' MW'} · Kapasite ${impact.capacityMva==null?'—':impact.capacityMva.toFixed(1)+' MVA'}`:''}`;
+    const bounds=groupElement.getBBox(),badgeWidth=Math.min(210,Math.max(68,label.length*6+14)),badge=svg('g',{'pointer-events':'none','aria-hidden':'true',...(component?{'data-n1-island':component.componentId}:{})},groupElement),x=bounds.x+bounds.width-badgeWidth/2,y=bounds.y-11;
     svg('rect',{x,y,width:badgeWidth,height:18,rx:4,fill:color||'#496879',stroke:outage?'#f2f5f7':'#b5d0dc','stroke-width':outage?1:0.7},badge);
     text(badge,x+badgeWidth/2,y+12,shorten(label,34),9,'#fff','middle');
   }
