@@ -69,6 +69,14 @@ try{
  await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('Yakınsadı'));
  const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'XLSX sonuç indir'}).click();const workbook=await downloadEvent;
  if(workbook.suggestedFilename()!=='GridAnalyzer_FullNR_Results.xlsx')throw new Error('XLSX result download missing.');
+ const analysis=page.locator('section[data-view="analysis"]');
+ await analysis.locator('input[aria-label="PowerFactory referans JSON veya CSV"]').setInputFiles({name:'pf-mismatch.csv',mimeType:'text/csv',buffer:Buffer.from('sep=;\r\nkind;fid;name;metaKey;metaValue;calculationBusKey;physicalTerminalFid;voltagePu\r\nmeta;;;modelId;different-model;;;\r\nmeta;;;studyCase;different-case;;;\r\nmeta;;;studyTimeLocal;2026-10-02 13:00:00;;;\r\nbus;T1;Bus;;;T1;T1;1\r\n')});
+ await analysis.getByRole('button',{name:'Karşılaştır',exact:true}).waitFor();
+ await analysis.getByText('Bloklandı', {exact:true}).first().waitFor();
+ if(await analysis.locator('pre').count())throw new Error('Raw diagnostics JSON remains visible.');
+ const comparisonXlsx=page.waitForEvent('download');await analysis.getByRole('button',{name:'Karşılaştırma XLSX'}).click();if((await comparisonXlsx).suggestedFilename()!=='GridAnalyzer_PowerFactory_Comparison.xlsx')throw new Error('Comparison XLSX export missing.');
+ const comparisonCsv=page.waitForEvent('download');await analysis.getByRole('button',{name:'Karşılaştırma CSV'}).click();if((await comparisonCsv).suggestedFilename()!=='GridAnalyzer_PowerFactory_Comparison.csv')throw new Error('Comparison CSV export missing.');
+ await analysis.getByRole('button',{name:'Topoloji',exact:true}).click();await analysis.getByRole('button',{name:'154 kV Ayrık Bara / Yarı Ada'}).waitFor();
  await page.getByRole('button',{name:'Harita',exact:true}).click();
  await page.locator('select[aria-label="Harita renk modu"]').selectOption('angle');
  await page.waitForFunction(()=>/açısı/i.test(document.querySelector('.ga-map-legend b')?.textContent||''));
@@ -81,7 +89,7 @@ try{
  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.locator('#networkCanvas').waitFor();
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();
  await page.locator('.ga-sld-svg').waitFor();
- console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → map angle/island → settings → Lightning results → SLD.');
+ console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → PF mismatch comparison/XLSX/CSV → structured topology → map angle/island → settings → Lightning results → SLD.');
 }finally{
  await browser?.close();server.kill('SIGTERM');
 }
