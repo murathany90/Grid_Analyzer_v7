@@ -9,6 +9,7 @@ import type { ModelQualityAuditResult } from '../domain/model-quality';
 import type { N1Progress, N1ScreenOptions, N1ScreenResult, N1SelectedDetail } from '../domain/n1';
 import type { N1CandidateCatalog } from '../domain/n1/catalog';
 import type { CapacitySeason } from '../domain/model/capacity';
+import type { AnalysisSettingsStore } from '../domain/calculation/analysis-settings';
 export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean }
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
@@ -25,13 +26,16 @@ export interface AppContext {
   n1DetailLoading: boolean;
   n1CatalogResult: N1CandidateCatalog | null;
   n1CatalogIdentity: { modelHash:string; scenarioHash:string; analysisScope:'base'|'scenario'; capacitySeason:CapacitySeason } | null;
-  resultStore: ResultStore; scenario: ScenarioStore; settings: SettingsStore;
+  resultStore: ResultStore; scenario: ScenarioStore; settings: SettingsStore; analysisSettings: AnalysisSettingsStore;
+  powerFactoryControlContextHash: string | null;
+  powerFactoryControlContextNumericFile: string | null;
   selection: { id: string; sourceClass: string } | null;
   filters: { areaId: string; siteId: string; voltages: Set<VoltageBand>; search: string };
   busy: boolean; status: string; view: string;
   subscribe(fn: () => void): () => void;
   notify(): void; setView(view: string): void;
   loadFiles(files: FileList | File[]): Promise<void>;
+  loadPowerFactoryControlContext(file: File): Promise<void>;
   run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
   runModelQuality(scope:'base'|'scenario'): Promise<void>;
   loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason):Promise<void>;

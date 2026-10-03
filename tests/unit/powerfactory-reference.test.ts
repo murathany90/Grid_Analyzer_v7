@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { DgsModel, type DgsRawData } from '../../src/importers/dgs/index';
+import { mapCanonical } from '../../src/importers/dgs/canonical';
 import type { CalculationResult } from '../../src/domain/results/types';
-import { comparePowerFactoryReference, importPowerFactoryReference, importPowerFactoryReferenceDocument, type PowerFactoryReferenceRecord } from '../../src/analysis/validation/powerfactory-reference';
+import { comparePowerFactoryReference, importPowerFactoryReference, importPowerFactoryReferenceDocument, powerFactoryLoadFlowSettings, type PowerFactoryReferenceRecord } from '../../src/analysis/validation/powerfactory-reference';
 
 const context={modelId:'20261002_1300_DA5_TR0',studyCase:'20261002_1300_DA5_TR0',studyTime:'2026-10-02 13:00:00',topologyHash:'topology-1'};
 function result(buses:CalculationResult['buses'],branches:CalculationResult['branches']):CalculationResult{return{identity:{modelHash:'hash1',scenarioHash:'base',optionsHash:'',analysisType:'powerFlow',engine:'test',engineVersion:'1'},status:'CONVERGED_FULL_NR',converged:true,iterations:2,rounds:1,maxMismatchMw:0,elapsedMs:1,buses,branches,generators:[],diagnostics:{},warnings:[],quality:{numericalStatus:'CONVERGED',controlFidelity:'PARTIAL',referenceValidation:'NOT_AVAILABLE'}};}
@@ -44,6 +47,70 @@ test('model ID and model hash are compared only to the same identity type',()=>{
 test('deduplicates terminal rows by calculationBusKey and reports conflicting values',()=>{
  const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;fid;name;calculationBusKey;physicalTerminalFid;voltagePu;resultAvailable\r\nbus;T1;Bara 1;CB1;T1;1,000;1\r\nbus;T2;Bara 1;CB1;T2;0,990;1\r\nbus;T3;Bara 2;CB2;T3;0,980;1');
  assert.equal(parsed.records.length,2);assert.deepEqual(parsed.records[0].fids,['T1','T2']);assert.deepEqual(parsed.records[0].physicalTerminalFids,['T1','T2']);assert.deepEqual(parsed.records[0].conflictedMetrics,['voltagePu']);assert.equal(parsed.valueConflicts?.length,1);assert.equal(parsed.valueConflicts?.[0].calculationBusKey,'CB1');
+});
+
+test('electricalBusKey controls bus statistics deduplication across distinct calculation keys',()=>{
+ const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;fid;name;calculationBusKey;electricalBusKey;physicalTerminalFid;voltagePu;resultAvailable\r\nbus;T1;Bus 1;CB1;EB1;T1;1.000;1\r\nbus;T2;Bus 2;CB2;EB1;T2;1.000;1\r\nbus;T3;Bus 3;CB3;EB2;T3;0.990;1');
+ assert.equal(parsed.records.length,2);assert.deepEqual(parsed.records[0].fids,['T1','T2']);assert.deepEqual(parsed.records[0].physicalTerminalFids,['T1','T2']);
+});
+
+test('one electricalBusKey receives one voltage and angle observation despite multiple terminals',()=>{
+ const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;fid;name;calculationBusKey;electricalBusKey;physicalTerminalFid;voltagePu;angleDeg;resultAvailable\r\nbus;T1;Renamed 1;CB1;EB1;T1;1.01;2;1\r\nbus;T2;Renamed 2;CB2;EB1;T2;1.01;2;1\r\nbus;T3;Other;CB3;EB2;T3;0.99;1;1');
+ const calc=result([{id:'CB1',name:'Actual 1',terms:['T1','T2'],siteIds:[],vnKv:154,vmPu:1.0,angleRad:0,pMw:0,qMvar:0},{id:'CB3',name:'Actual 2',terms:['T3'],siteIds:[],vnKv:154,vmPu:1.0,angleRad:0,pMw:0,qMvar:0}],[]);
+ const report=comparePowerFactoryReference({...parsed,metadata:{...parsed.metadata,modelId:context.modelId,studyCase:context.studyCase,studyTime:context.studyTime,topologyHash:context.topologyHash}},calc,context);
+ assert.equal(report.metrics.find(row=>row.metric==='voltagePu')?.count,2);assert.equal(report.metrics.find(row=>row.metric==='alignedAngleDeg')?.count,2);
+});
+
+test('loc_name mutation does not change FID-based branch, generator, or bus-control linkage',()=>{
+ const calc=result([{id:'CB1',name:'GA bus',terms:['T1'],siteIds:[],vnKv:154,vmPu:1,angleRad:0,pMw:0,qMvar:0},{id:'CB2',name:'GA bus 2',terms:['T2'],siteIds:[],vnKv:154,vmPu:1,angleRad:0,pMw:0,qMvar:0}],[{id:'L1',name:'GA line',sourceClass:'ElmLne',from:'CB1',to:'CB2',siteIds:[],vnKv:154,pf:1,qf:0,pt:-1,qt:0,ifA:1,itA:1,loading:0,pLoss:0,qLoss:0}]);
+ calc.generators.push({id:'G1',name:'GA generator',bus:'CB1',pMw:1,qMvar:0,qState:'PV'});
+ const reference={metadata:{modelId:context.modelId,studyCase:context.studyCase,studyTime:context.studyTime,topologyHash:context.topologyHash},records:[{kind:'line' as const,fid:'L1',name:'PF line (renamed)'},{kind:'generator' as const,fid:'G1',name:'PF gen (renamed)',connectedBusFid:'T1'},{kind:'bus' as const,fid:'T1',name:'PF terminal (renamed)',voltagePu:1,angleDeg:0}]};
+ const report=comparePowerFactoryReference(reference,calc,context),line=report.rows.find(row=>row.kind==='line'),gen=report.rows.find(row=>row.kind==='generator');
+ assert.equal(line?.status,'MATCHED');assert.equal(line?.gridAnalyzerId,'L1');assert.equal(gen?.status,'MATCHED');assert.equal(gen?.generatorControl?.busMatch,'MATCHED');
+});
+
+test('calculation-settings hash mismatch blocks parity; raw-only settings stay exploratory',()=>{
+ const reference={metadata:{modelId:context.modelId,studyCase:context.studyCase,studyTime:context.studyTime,topologyHash:context.topologyHash,calculationSettingsHash:'pf-hash',calculationSettingsHashAlgorithm:'canonical-json-v1'},records:[]};
+ const mismatch=comparePowerFactoryReference(reference,result([],[]),{...context,calculationSettingsHash:'ga-hash',calculationSettingsHashAlgorithm:'canonical-json-v1'});
+ assert.equal(mismatch.compatibility.status,'BLOCKED_CALCULATION_SETTINGS_MISMATCH');
+ const unlikeHashes=comparePowerFactoryReference(reference,result([],[]),{...context,calculationSettingsHash:'ga-fnv',calculationSettingsHashAlgorithm:'fnv1a-v1'});assert.equal(unlikeHashes.compatibility.status,'EXPLORATORY_ONLY');
+ const rawOnly=comparePowerFactoryReference({metadata:{...reference.metadata,calculationSettingsHash:undefined,loadFlowSettingsRaw:'{"iPbalancing":3}'},records:[]},result([],[]),{...context,calculationSettingsSemanticsAvailable:false});
+ assert.equal(rawOnly.compatibility.status,'EXPLORATORY_ONLY');
+ const missingEligibility=comparePowerFactoryReference({metadata:{modelId:context.modelId,studyCase:context.studyCase,studyTime:context.studyTime,topologyHash:context.topologyHash},records:[]},result([],[]),{...context,activeBalanceEligibilityAvailable:false});assert.equal(missingEligibility.compatibility.status,'COMPARABLE_PARTIAL');assert.equal(missingEligibility.quality,'COMPARABLE_PARTIAL');
+});
+
+test('known PF distributed balance mismatches effective single-reference balance unless eligibility is missing',()=>{
+ const reference={metadata:{modelId:context.modelId,studyCase:context.studyCase,studyTime:context.studyTime,topologyHash:context.topologyHash,loadFlowSettingsSemantic:JSON.stringify({activeBalancingMode:'Distributed Slack by Loads'})},records:[]};
+ const effective={...context,calculationSettingsSemanticsAvailable:true,effectiveActiveBalancingMode:'SINGLE_REFERENCE'};
+ const blocked=comparePowerFactoryReference(reference,result([],[]),{...effective,activeBalanceEligibilityAvailable:true});
+ assert.equal(blocked.compatibility.status,'BLOCKED_CALCULATION_SETTINGS_MISMATCH');
+ const partial=comparePowerFactoryReference(reference,result([],[]),{...effective,activeBalanceEligibilityAvailable:false});
+ assert.equal(partial.compatibility.status,'COMPARABLE_PARTIAL');
+});
+
+test('future per-load PowerFactory metadata is retained without inferring eligibility from i_scale',()=>{
+ const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;FID;loc_name;sourceClass;i_scale;adjustedByLoadScaling;initialP_MW;initialQ_MVAr;finalP_MW;finalQ_MVAr;balancingParticipation\r\nload;LD1;Load renamed;ElmLod;2;true;10;3;10.4;3.1;0.6');
+ assert.equal(parsed.loadRecords?.length,1);const load=parsed.loadRecords![0];assert.equal(load.fid,'LD1');assert.equal(load.sourceClass,'ElmLod');assert.equal(load.iScaleRaw,'2');assert.equal(load.adjustedByLoadScaling,true);assert.equal(load.activeBalanceEligibility,undefined);assert.equal(load.initialPMw,10);assert.equal(load.initialQMvar,3);assert.equal(load.finalPMw,10.4);assert.equal(load.finalQMvar,3.1);assert.equal(load.balancingParticipation,.6);
+});
+
+test('ComLdf raw enum values are retained without guessed semantic mappings',()=>{
+ const parsed=importPowerFactoryReferenceDocument(JSON.stringify({metadata:{loadFlowSettingsRaw:'{"iopt_lim":1,"iPbalancing":3}'},records:[]}));
+ const settings=powerFactoryLoadFlowSettings(parsed);assert.deepEqual(settings.raw,{iopt_lim:1,iPbalancing:3});assert.equal(settings.profile,'UNKNOWN');assert.deepEqual(settings.semantic,{});
+});
+
+test('ComLdf raw fields in the PF-GA CSV metadata are retained',()=>{
+ const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;metaKey;metaValue\r\nmeta;raw.ComLdf.i_power;1\r\nmeta;raw.ComLdf.iPbalancing;3\r\nmeta;raw.ComLdf.nsteps;1\r\nmeta;raw.ComLdf.errlf;5,0000000000\r\nmeta;raw.ComLdf.iopt_at;0');
+ const settings=powerFactoryLoadFlowSettings(parsed);
+ assert.equal(settings.raw.i_power,'1');assert.equal(settings.raw.iPbalancing,'3');assert.equal(settings.raw.nsteps,'1');assert.equal(settings.raw.errlf,'5,0000000000');assert.equal(settings.raw.iopt_at,'0');
+ assert.deepEqual(settings.semantic,{});
+});
+
+test('DGS adjustable-load eligibility stays unknown without source attributes and maps native scale 0/1 only',async()=>{
+ const raw=JSON.parse(await readFile(new URL('../fixtures/small-dgs.json',import.meta.url),'utf8')) as DgsRawData;
+ const model=await new DgsModel(raw,'small.dgs').build(),network=mapCanonical(model,'fixture-hash');
+ assert.equal(network.loads[0].activeBalanceEligibility,undefined);assert.ok(network.diagnostics?.some(d=>d.code==='ACTIVE_BALANCE_ELIGIBILITY_MISSING'));
+ const withScale=JSON.parse(JSON.stringify(raw)) as DgsRawData,table=withScale.ElmLod as {Attributes:string[];Values:unknown[][]};table.Attributes.push('scale');table.Values[0].push(1);
+ const scaled=mapCanonical(await new DgsModel(withScale,'small.dgs').build(),'fixture-hash');assert.equal(scaled.loads[0].activeBalanceEligibility,true);assert.equal(scaled.loads[0].activeBalanceEligibilitySource,'native-scale');
 });
 
 test('matched detail rows expose metric pair semantics and indexed endpoint matching',()=>{

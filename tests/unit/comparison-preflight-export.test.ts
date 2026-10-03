@@ -6,7 +6,7 @@ import type {CalculationResult} from '../../src/domain/results/types';
 import {identity} from '../../src/domain/calculation/identity';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
 import {preflightPowerFactoryReference} from '../../src/analysis/validation/powerfactory-preflight';
-import {comparePowerFactoryReference,type PowerFactoryReference} from '../../src/analysis/validation/powerfactory-reference';
+import {comparePowerFactoryReference,importPowerFactoryReferenceDocument,type PowerFactoryReference} from '../../src/analysis/validation/powerfactory-reference';
 import {comparisonSheets} from '../../src/features/analysis/comparison-export';
 import {buildWorkbook} from '../../src/features/analysis/xlsx-export';
 import {qLoadingPercent,pLoadingPercent} from '../../src/map/result-style';
@@ -22,9 +22,16 @@ function fixture(){
 test('full context and terminal partition enable numeric comparison; changed study time and endpoint block it',()=>{
   const {network,result,reference}=fixture(),valid=preflightPowerFactoryReference(reference,network,result);
   assert.equal(valid.status,'COMPATIBLE');assert.equal(valid.topology.electricalBusesChecked,2);assert.equal(valid.topology.branchEndpointsChecked,1);
-  const report=comparePowerFactoryReference(valid.reference,result,valid.context);assert.equal(report.compatibility.status,'COMPATIBLE');assert.equal(report.matched.bus,2);assert.equal(report.metrics.find(x=>x.metric==='pFromMw')?.mae,1);
+  const report=comparePowerFactoryReference(valid.reference,result,valid.context);assert.equal(report.compatibility.status,'EXPLORATORY_ONLY');assert.equal(report.matched.bus,2);assert.equal(report.metrics.find(x=>x.metric==='pFromMw')?.mae,1);
   const time=preflightPowerFactoryReference({...reference,metadata:{...reference.metadata,studyTime:'2026-10-02 14:00:00'}},network,result);assert.equal(time.status,'BLOCKED');assert.equal(comparePowerFactoryReference(time.reference,result,time.context).metrics.length,0);
   const endpoint=preflightPowerFactoryReference({...reference,records:reference.records.map(row=>row.kind==='line'?{...row,toBusFid:'T1'}:row)},network,result);assert.equal(endpoint.status,'BLOCKED');assert.equal(endpoint.topology.branchEndpointConflicts,1);
+  const paired=preflightPowerFactoryReference(reference,network,result,'pf.csv');assert.equal(paired.status,'COMPATIBLE');
+  const wrongSidecar=preflightPowerFactoryReference(reference,network,result,'other.csv');assert.equal(wrongSidecar.status,'BLOCKED');assert.match(wrongSidecar.reasons.join(' '),/ControlContext/);assert.equal(comparePowerFactoryReference(wrongSidecar.reference,result,wrongSidecar.context).metrics.length,0);
+});
+test('preflight counts physical and result-bearing terminals before electrical-bus deduplication',()=>{
+ const {network,result}=fixture(),parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;fid;name;calculationBusKey;electricalBusKey;physicalTerminalFid;resultAvailable;fromBusFid;toBusFid\r\nbus;T1;A;T1;EB1;T1;1;;;\r\nbus;T1B;A alias;T1;EB1;T1B;0;;;\r\nbus;T2;B;T2;EB2;T2;1;;;\r\nline;L1;L1;;;;1;T1;T2');
+ parsed.metadata.modelId=network.name;parsed.metadata.studyCase=network.studyCase;parsed.metadata.studyTime='2026-10-02 13:00:00';
+ const preflight=preflightPowerFactoryReference(parsed,network,result);assert.equal(preflight.topology.physicalTerminalsTotal,3);assert.equal(preflight.topology.resultBearingPhysicalTerminals,2);assert.equal(preflight.topology.uniqueCalculationBuses,2);
 });
 test('comparison workbook has eight scalar sheets and excludes unequal PF loading semantics',()=>{
   const {network,result,reference}=fixture(),preflight=preflightPowerFactoryReference(reference,network,result),report=comparePowerFactoryReference(preflight.reference,result,preflight.context),sheets=comparisonSheets(report,preflight,network,result,reference);
