@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { defaultAnalysisSettings } from '../../src/domain/calculation/analysis-settings';
-import { solveNRWithActiveBalance } from '../../src/analysis/power-flow/station-controls-v73';
+import { finalizeActiveBalanceAfterControls, solveNRWithActiveBalance, type ActiveBalanceCapture } from '../../src/analysis/power-flow/station-controls-v73';
+import { solveNR } from '../../src/analysis/power-flow/js/newton';
 import type { NumericModel } from '../../src/analysis/power-flow/preparation';
 
 const model=():NumericModel=>({n:3,baseMVA:100,slack:0,slackVm:1,referencePMw:0,pSpec:Float64Array.from([0,20,-20]),qSpec:Float64Array.from([0,0,-5]),busType:Int8Array.from([2,0,0]),vmSet:Float64Array.from([1,1,1]),shuntG:new Float64Array(3),shuntB:new Float64Array(3),qMinNet:[null,null,null],qMaxNet:[null,null,null],activeBalanceParticipation:Float64Array.from([0,1,0]),activeBalanceEligibleLoadMw:Float64Array.from([0,30,0]),activeBalanceEligibilityComplete:true,branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0},{i:1,j:2,r:.01,x:.1,bch:0,tap:1,phase:0}]});
@@ -36,4 +37,19 @@ test('distributed active balancing never reduces sourced adjustable load below z
  assert.equal(result.activeBalanceLoadAdjustmentsMw?.[1],-20,'cumulative shed is bounded by the eligible load present at the start');
  assert.equal(result.activeBalanceLoadAdjustmentsMw?.[2],0,'fixed-load bus is unchanged');
  assert.ok((result.activeBalanceMismatchMw??0)>settings.nodalToleranceKva/1000,'remaining mismatch is reported after the adjustable load saturates');
+});
+
+test('Q-only control trials reuse balanced P and final loss correction preserves cumulative load adjustment',()=>{
+ const settings=defaultAnalysisSettings().powerFlow;settings.activeBalancingMode='DISTRIBUTED_ADJUSTABLE_LOADS';
+ const source=model(),capture:ActiveBalanceCapture={},baseline=solveNRWithActiveBalance(source,undefined,settings,{},capture);
+ assert.equal(baseline.converged,true);assert.ok(capture.model&&capture.adjustmentsMw);
+ const balanced=capture.model!;balanced.qSpec[2]-=8;
+ const counters={fullNrSolves:0,kluNewtonFactorizations:0};
+ const qTrial=solveNR(balanced,undefined,{initialVm:baseline.Vm,initialVa:baseline.Va,workCounters:counters});
+ assert.equal(qTrial.converged,true);assert.equal(counters.fullNrSolves,1,'one Q trial must not rerun distributed balance');
+ const final=finalizeActiveBalanceAfterControls(balanced,qTrial,capture,undefined,settings,{workCounters:counters});
+ assert.equal(final.converged,true);assert.ok(Math.abs(final.activeBalanceMismatchMw??Infinity)<=settings.nodalToleranceKva/1000);
+ assert.ok((final.activeBalanceIterations??0)>(capture.iterations??0),'changed Q losses require a final P correction');
+ assert.ok(counters.fullNrSolves<=17,'final active balance uses at most four bounded corrections with four backtracking trials each');
+ assert.ok(Math.abs((final.activeBalanceLoadAdjustmentsMw?.[1]??0)-(capture.adjustmentsMw?.[1]??0))<1,'final correction extends the initial adjustment');
 });

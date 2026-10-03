@@ -26,8 +26,9 @@ function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusC
  return{islandCount,unsuppliedBusCount:model.n-supplied.reduce((a,b)=>a+b,0)};
 }
 
-export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialControlDqPu?:ArrayLike<number>;stationControls?:readonly IntegratedStationControl[];admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[] } = {}): PowerFlowResult {
+export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialControlDqPu?:ArrayLike<number>;stationControls?:readonly IntegratedStationControl[];admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number} } = {}): PowerFlowResult {
  const t0=performance.now?.()||Date.now(),n=model.n,base=model.baseMVA||100,slack=model.slack,counts=topologyCounts(model),elapsed=()=>((performance.now?.()||Date.now())-t0);
+ if(options.workCounters)options.workCounters.fullNrSolves++;
  const settings={...DEFAULT_SOLVER_SETTINGS,...options.settings},tolerancePu=nodalToleranceKvaToPu(settings.nodalToleranceKva,base);
  const failure=(failureStage:NumericalFailureDiagnostic['failureStage'],message:string,iteration:number|null,controlRound:number,maxMismatchMw:number|null,extra:Partial<NumericalFailureDiagnostic>={})=>({failureStage,iteration,controlRound,maxMismatchMw,minPivot:null,islandCount:counts.islandCount,unsuppliedBusCount:counts.unsuppliedBusCount,referenceBus:Number.isInteger(slack)&&slack>=0&&slack<n?slack:null,message,...extra});
  if(!(Number.isInteger(slack)&&slack>=0&&slack<n)){const diagnostic=failure('NO_SLACK','Geçerli referans bara bulunamadı.',null,0,null);return{status:'NO_SLACK',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
@@ -38,7 +39,8 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
  Vm[slack]=model.slackVm||1;for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
  for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
  const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[],qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
- const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxOuterIterations));
+ // Reactive active-set rounds are independent of station-controller outer rounds.
+ const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??8));
  for(round=0;round<qLimitRoundLimit;round++){
   const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack:'';let L:JacobianLayout;
   try{L=layoutCache?.get(layoutKey)??makeLayout(Y,busType,slack,controls);if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
@@ -52,14 +54,16 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    if(mx<tolerancePu){converged=true;break;}
    if(mx<bestMismatch*(1-1e-10)){bestMismatch=mx;noImprovement=0;}else noImprovement++;
    if(noImprovement>=settings.maxNoImprovementIterations){nrReason='NR_STAGNATION';break;}
-   fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin;
-   const linearDiagnostics={minPivot:null as number|null,stage:'START',pivotSource:undefined as NumericalFailureDiagnostic['pivotSource']};try{lin=(options.linearFill===1?solveLinearFill1:solveLinear)(A,rhs,linearDiagnostics);}catch(e){nrReason='LINEAR_SOLVER_FAILED';nrFailure=failure('LINEAR_SOLVE',e instanceof Error?e.message:String(e),it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});lin=null;}lastMinPivot=linearDiagnostics.minPivot;lastLinearStage=linearDiagnostics.stage;
-   if(!lin){
-    const direct=new KluSparseDirectFactorization();
-    try{direct.factorize(A);const solved=direct.solve(rhs);if(solved.success&&solved.x){lin={x:solved.x,iterations:0,residual:solved.trueResidual??0,method:'KLU_DIRECT'};nrReason='';nrFailure=undefined;linearDiagnostics.stage='KLU_DIRECT';}}
-    catch{/* Keep the original linear failure and its diagnostics. */}
-    finally{direct.dispose();}
-   }
+   fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin:LinearSolution|null=null;
+   const linearDiagnostics={minPivot:null as number|null,stage:'START',pivotSource:undefined as NumericalFailureDiagnostic['pivotSource']};
+   const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
+    try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=1e-8){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}}
+    catch{/* Preserve the other method's failure diagnostic. */}
+    finally{direct.dispose();}};
+   // ILU is inexpensive on small matrices; direct factorization avoids long Krylov tails on large grids.
+   if(A.N>=512)tryDirect();
+   if(!lin)try{lin=(options.linearFill===1?solveLinearFill1:solveLinear)(A,rhs,linearDiagnostics);}catch(e){nrReason='LINEAR_SOLVER_FAILED';nrFailure=failure('LINEAR_SOLVE',e instanceof Error?e.message:String(e),it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});}lastMinPivot=linearDiagnostics.minPivot;lastLinearStage=linearDiagnostics.stage;
+   if(!lin&&A.N<512)tryDirect();
    if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),baseNorm=Math.sqrt(ss);let accepted=false;
    let stepCap=1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
     let bestNorm=Infinity,firstInvalidCandidate:NumericalFailureDiagnostic['firstInvalidCandidate'];
