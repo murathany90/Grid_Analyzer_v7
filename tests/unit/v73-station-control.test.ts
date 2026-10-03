@@ -47,6 +47,19 @@ test('unit Q limits clamp and redistribute the remaining request',()=>{
   const saturated=allocateReactiveDelta([{id:'A',bus:1,pMw:20,qMvar:0,qMin:-5,qMax:5},{id:'B',bus:2,pMw:60,qMvar:0,qMin:-10,qMax:10}],40);
   assert.equal(saturated.appliedDelta,15);assert.equal(saturated.saturated,true);
 });
+test('sourced cvqq shares govern Q allocation and remain active after a unit saturates',()=>{
+  const units=[{id:'A',bus:1,pMw:80,qMvar:0,qMin:-100,qMax:100},{id:'B',bus:2,pMw:20,qMvar:0,qMin:-100,qMax:100}];
+  const sourced=stationParticipation(units,[20,80])!;
+  assert.equal(sourced.source,'SOURCE_CVQQ');
+  const move=allocateReactiveDelta(units,40,sourced.weights);
+  assert.ok(Math.abs(move.qByUnit.get('A')!-8)<1e-9);
+  assert.ok(Math.abs(move.qByUnit.get('B')!-32)<1e-9);
+  const limited=[{...units[0],qMax:5},{...units[1]}];
+  const redistributed=allocateReactiveDelta(limited,40,sourced.weights);
+  assert.equal(redistributed.qByUnit.get('A'),5);
+  assert.ok(Math.abs(redistributed.qByUnit.get('B')!-35)<1e-9);
+  assert.deepEqual([...activeParticipation([{...limited[0],qMvar:5},{...limited[1],qMvar:35}],1,sourced.weights)!],[['B',1]]);
+});
 test('units at either Q limit do not regain unrestricted participation',()=>{
   const units=[{id:'MIN',bus:1,pMw:20,qMvar:-5,qMin:-5,qMax:5},{id:'MID',bus:2,pMw:60,qMvar:0,qMin:-5,qMax:5},{id:'MAX',bus:3,pMw:20,qMvar:5,qMin:-5,qMax:5}];
   assert.deepEqual([...interiorParticipation(units)!],[['MID',1]]);
@@ -97,7 +110,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   assert.equal(natural.solverDiagnostics.backend,'KLU_WASM');assert.equal(legacy.solverDiagnostics.backend,'LEGACY_KRYLOV');
 });
 test('package, application engine and calculation identity share one version',()=>{
-  assert.equal(packageJson.version,'8.1.1');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
+  assert.equal(packageJson.version,'8.2.0');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
   assert.equal(identity('model',emptyScenario(),'powerFlow').engineVersion,APP_VERSION);
 });
 test('A/B/C modes separate local PV, ownership and integrated multi-bus station control',()=>{

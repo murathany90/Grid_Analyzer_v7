@@ -14,6 +14,13 @@ export interface NumericalModel {
   shuntB?: ArrayLike<number>;
   qMinNet?: ArrayLike<number | null>;
   qMaxNet?: ArrayLike<number | null>;
+  /** External-grid reactive limits aggregated with fixed injections at each bus. */
+  referenceQMinNet?: ArrayLike<number | null>;
+  referenceQMaxNet?: ArrayLike<number | null>;
+  activeBalanceParticipation?:ArrayLike<number>;
+  activeBalanceEligibleLoadMw?:ArrayLike<number>;
+  activeBalanceEligibilityComplete?:boolean;
+  referencePMw?:number;
   branches: readonly NumericalBranch[];
 }
 export interface IntegratedStationControl {
@@ -42,6 +49,7 @@ export interface NumericalFailureDiagnostic {
   firstInvalidCandidate?:{bus:number;busId:string|null;oldVm:number;candidateVm:number;scale:number;stateUpdated:boolean};
 }
 export interface PowerFlowBranchResult { index:number; pf:number; qf:number; pt:number; qt:number; }
-export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number}>; Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[]; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[]; }
+export interface QLimitRoundDiagnostic {round:number;changedUnits:number;limitedUnits:number;releasedUnits:number;maxBusMismatchKva:number|null;maxModelEquationErrorPercent:number|null}
+export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>;qLimitRounds?:QLimitRoundDiagnostic[];Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[]; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[];activeBalanceIterations?:number;activeBalanceMismatchMw?:number|null;activeBalanceLoadAdjustmentsMw?:number[]; }
 export type ProgressCallback=(stage:string,data?:Record<string,number>)=>void;
 export interface SelfTestResult { name:string; pass:boolean; status:string; value:number|null; }

@@ -4,9 +4,11 @@ export interface NumericBranch { i:number;j:number;r:number;x:number;bch:number;
 export interface NumericModel {
   n:number;baseMVA:number;slack:number;slackVm:number;pSpec:Float64Array;qSpec:Float64Array;busType:Int8Array;vmSet:Float64Array;
   shuntG:Float64Array;shuntB:Float64Array;qMinNet:(number|null)[];qMaxNet:(number|null)[];branches:NumericBranch[];
+  referenceQMinNet?:(number|null)[];referenceQMaxNet?:(number|null)[];
+  activeBalanceParticipation?:Float64Array;activeBalanceEligibleLoadMw?:Float64Array;activeBalanceEligibilityComplete?:boolean;referencePMw?:number;
 }
 export interface BranchMeta { id:string;name:string;sourceClass:string;from:string;to:string;siteIds:string[];vnKv:number;ratingMva:number|null;i:number;j:number }
-export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
+export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];externalGrids?:Array<{id:string;name:string;bus:string;index:number;pMw:number;qMvar:number;pMin:number|null;pMax:number|null;qMin:number|null;qMax:number|null;isReference:boolean}>;topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
 export function prepareModel(n:CanonicalNetwork):PreparedModel{
   const topology=buildTopology(n),N=topology.buses.length,bi=topology.terminalToBus,warnings=[...topology.warnings];
   const pSpec=new Float64Array(N),qSpec=new Float64Array(N),busType=new Int8Array(N),vmSet=new Float64Array(N).fill(1),shuntG=new Float64Array(N),shuntB=new Float64Array(N),qMinNet:(number|null)[]=Array(N).fill(null),qMaxNet:(number|null)[]=Array(N).fill(null);
@@ -25,8 +27,18 @@ export function prepareModel(n:CanonicalNetwork):PreparedModel{
   for(const e of n.generators.filter(enabled)){const i=bi.get(e.bus);if(i==null)continue;generators.push({...e,index:i});pSpec[i]+=e.pMw;qSpec[i]+=e.qMvar;
     if(e.voltageControl){if(busType[i]===0){busType[i]=1;vmSet[i]=e.vmSet;}else if(Math.abs(vmSet[i]-e.vmSet)>1e-5)warnings.push(`PV setpoint çakışması: ${topology.buses[i].name}`);}}
   for(const e of[...n.loads,...n.internationalConnections].filter(enabled)){const i=bi.get(e.bus);if(i!=null){pSpec[i]-=e.pMw;qSpec[i]-=e.qMvar;}}
-  const sources=n.externalGrids.filter(enabled).map(e=>({...e,index:bi.get(e.bus)})).filter((e):e is typeof e&{index:number}=>e.index!==undefined);
+  const sources=n.externalGrids.filter(enabled).map(e=>({...e,index:bi.get(e.bus)})).filter((e):e is typeof e&{index:number}=>e.index!==undefined).sort((a,b)=>a.id.localeCompare(b.id));
   for(const e of sources){pSpec[e.index]+=e.pMw;qSpec[e.index]+=e.qMvar;}
+  const referenceQMinNet:(number|null)[]=Array(N).fill(null),referenceQMaxNet:(number|null)[]=Array(N).fill(null);
+  const boundedReferenceBuses=new Set<number>();
+  for(const source of sources){if(boundedReferenceBuses.has(source.index)||source.qMin==null||source.qMax==null||!Number.isFinite(source.qMin)||!Number.isFinite(source.qMax))continue;
+    // A selected external grid's dispatch is replaced by its solved Q. Other
+    // injections at the same bus remain fixed and therefore shift its limits.
+    const fixedAtBus=qSpec[source.index]-source.qMvar;
+    referenceQMinNet[source.index]=fixedAtBus+source.qMin;
+    referenceQMaxNet[source.index]=fixedAtBus+source.qMax;
+    boundedReferenceBuses.add(source.index);
+  }
   const byBus=new Map<number,(Generator&{index:number})[]>();for(const e of generators.filter(g=>g.voltageControl)){if(!byBus.has(e.index))byBus.set(e.index,[]);byBus.get(e.index)!.push(e);}
   for(const[i,gs]of byBus){const fixed=qSpec[i]-gs.reduce((s,g)=>s+g.qMvar,0);if(gs.every(g=>g.qMin!=null&&g.qMax!=null)){qMinNet[i]=fixed+gs.reduce((s,g)=>s+g.qMin!,0);qMaxNet[i]=fixed+gs.reduce((s,g)=>s+g.qMax!,0);}}
   const adjacency:number[][]=Array.from({length:N},()=>[]);for(const e of branches){adjacency[e.i].push(e.j);adjacency[e.j].push(e.i);}
@@ -49,11 +61,16 @@ export function prepareModel(n:CanonicalNetwork):PreparedModel{
     if(sourceRows.length>1)warnings.push(`${islandId}: ${sourceRows.length} ElmXnet; ${source.id} deterministik referans, P dengeleme semantiği doğrulanmadı (MULTIPLE_REFERENCE_PARTIAL).`);
     const oldToNew=new Int32Array(N).fill(-1);kept.forEach((old,i)=>oldToNew[old]=i);const pick=(a:ArrayLike<number>)=>Float64Array.from(kept,i=>a[i]);
     const localType=Int8Array.from(kept,i=>i===source.index?2:busType[i]),localVm=pick(vmSet);localVm[oldToNew[source.index]]=source.vmSet||1;
-    const model:NumericModel={n:kept.length,baseMVA:n.baseMva,slack:oldToNew[source.index],slackVm:source.vmSet||1,pSpec:pick(pSpec),qSpec:pick(qSpec),busType:localType,vmSet:localVm,shuntG:pick(shuntG),shuntB:pick(shuntB),qMinNet:kept.map(i=>qMinNet[i]),qMaxNet:kept.map(i=>qMaxNet[i]),branches:selected.map(({e})=>({...e,i:oldToNew[e.i],j:oldToNew[e.j]}))};
-    islands.push({model,buses:kept.map(i=>topology.buses[i]),branches:selected.map(({meta})=>({...meta,i:oldToNew[meta.i],j:oldToNew[meta.j]})),generators:generators.filter(e=>componentOf[e.index]===componentIndex).map(e=>({...e,index:oldToNew[e.index]})),topology,warnings:[],diagnostics:{islandId,referenceSource:source.id,referenceBusId:topology.buses[source.index].id},islandId});
+    const islandLoads=n.loads.filter(load=>enabled(load)&&bi.get(load.bus)!=null&&componentOf[bi.get(load.bus)!]===componentIndex),eligibilityComplete=islandLoads.every(load=>load.activeBalanceEligibility!==undefined);
+    const eligibleByBus=new Float64Array(kept.length);if(eligibilityComplete)for(const load of islandLoads.filter(load=>load.activeBalanceEligibility===true)){const oldBus=bi.get(load.bus);if(oldBus!=null&&load.pMw>0)eligibleByBus[oldToNew[oldBus]]+=load.pMw;}
+    const eligibleTotal=eligibleByBus.reduce((sum,value)=>sum+value,0),participation=new Float64Array(kept.length);if(eligibleTotal>0)for(let i=0;i<participation.length;i++)participation[i]=eligibleByBus[i]/eligibleTotal;
+    const model:NumericModel={n:kept.length,baseMVA:n.baseMva,slack:oldToNew[source.index],slackVm:source.vmSet||1,pSpec:pick(pSpec),qSpec:pick(qSpec),busType:localType,vmSet:localVm,shuntG:pick(shuntG),shuntB:pick(shuntB),qMinNet:kept.map(i=>qMinNet[i]),qMaxNet:kept.map(i=>qMaxNet[i]),referenceQMinNet:kept.map(i=>referenceQMinNet[i]),referenceQMaxNet:kept.map(i=>referenceQMaxNet[i]),activeBalanceParticipation:participation,activeBalanceEligibleLoadMw:eligibleByBus,activeBalanceEligibilityComplete:eligibilityComplete,referencePMw:source.pMw,branches:selected.map(({e})=>({...e,i:oldToNew[e.i],j:oldToNew[e.j]}))};
+    islands.push({model,buses:kept.map(i=>topology.buses[i]),branches:selected.map(({meta})=>({...meta,i:oldToNew[meta.i],j:oldToNew[meta.j]})),generators:generators.filter(e=>componentOf[e.index]===componentIndex).map(e=>({...e,index:oldToNew[e.index]})),externalGrids:sourceRows.map(e=>({id:e.id,name:e.name,bus:e.bus,index:oldToNew[e.index],pMw:e.pMw,qMvar:e.qMvar,pMin:e.pMin??null,pMax:e.pMax??null,qMin:e.qMin??null,qMax:e.qMax??null,isReference:e.id===source.id})),topology,warnings:[],diagnostics:{islandId,referenceSource:source.id,referenceBusId:topology.buses[source.index].id},islandId});
   }
   if(unsupplied)warnings.push(`${unsupplied} bara referanssız adalarda; hesap sonucu yok.`);
-  const globalDiagnostics={rawTerminals:n.buses.length,inServiceTerminals:n.buses.filter(b=>b.inService).length,electricalBuses:N,solveBuses:N-unsupplied,islandCount:components.length,unsuppliedBuses:unsupplied,branches:branches.length,lines:metadata.filter(e=>e.sourceClass==='ElmLne').length,transformers:metadata.filter(e=>e.sourceClass==='ElmTr2').length,generators:generators.length,loads:n.loads.filter(enabled).length,closedSwitches:topology.closedSwitches,stationControllers:controls.length,stationControllersTotal:n.stationControllers.length,stationControllerSummary:controlSummary,stationControllerMappings:controlMappings,transformerPhase:'PHASE_SHIFT_SOURCE_UNAVAILABLE',loadFlowOptionsRaw:n.loadFlowOptionsRaw||{},islands:islandDiagnostics,controlFidelity:'CURRENT_PROFILE_PARTIAL',referenceValidation:'NOT_AVAILABLE'};
+  const unsupportedReactiveLimitClasses=n.unsupportedReactiveLimitClasses||[];
+  const fixedQGenerators=generators.filter(g=>!g.voltageControl&&g.qMin!=null&&g.qMax!=null).map(g=>g.id),reactiveLimitUnsupported=unsupportedReactiveLimitClasses.length>0||fixedQGenerators.length>0;
+  const globalDiagnostics={rawTerminals:n.buses.length,inServiceTerminals:n.buses.filter(b=>b.inService).length,electricalBuses:N,solveBuses:N-unsupplied,islandCount:components.length,unsuppliedBuses:unsupplied,branches:branches.length,lines:metadata.filter(e=>e.sourceClass==='ElmLne').length,transformers:metadata.filter(e=>e.sourceClass==='ElmTr2').length,generators:generators.length,loads:n.loads.filter(enabled).length,closedSwitches:topology.closedSwitches,stationControllers:controls.length,stationControllersTotal:n.stationControllers.length,stationControllerSummary:controlSummary,stationControllerMappings:controlMappings,transformerPhase:'PHASE_SHIFT_SOURCE_UNAVAILABLE',loadFlowOptionsRaw:n.loadFlowOptionsRaw||{},islands:islandDiagnostics,controlFidelity:'CURRENT_PROFILE_PARTIAL',referenceValidation:'NOT_AVAILABLE',reactiveLimitClasses:{supported:['ElmSym/ElmGenStat voltage-controlled machines','ElmXnet reference machine'],unsupportedClasses:unsupportedReactiveLimitClasses,fixedQMachinesWithSourceBounds:fixedQGenerators,fidelity:reactiveLimitUnsupported?'PARTIAL':'MODELED_SUPPORTED_MODES_ONLY'}};
   const primary=islands[0]||{model:{n:0,baseMVA:n.baseMva,slack:-1,slackVm:1,pSpec:new Float64Array(),qSpec:new Float64Array(),busType:new Int8Array(),vmSet:new Float64Array(),shuntG:new Float64Array(),shuntB:new Float64Array(),qMinNet:[],qMaxNet:[],branches:[]},buses:[],branches:[],generators:[],topology,warnings:[],diagnostics:{},islandId:'none'};
   return{...primary,warnings,diagnostics:globalDiagnostics,additionalIslands:islands.slice(1)};
 }

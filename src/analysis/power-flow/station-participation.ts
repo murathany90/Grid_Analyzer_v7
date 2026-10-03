@@ -16,22 +16,27 @@ export function stationParticipation(units:readonly Pick<ReactiveUnitState,'id'|
   const weights=dispatchedPWeights(units);
   return weights?{weights,source:'DERIVED_DISPATCHED_ACTIVE_POWER'}:null;
 }
-export function activeParticipation(units:readonly ReactiveUnitState[],direction:1|-1):Map<string,number>|null {
-  return dispatchedPWeights(units.filter(unit=>unit.pMw>0&&(direction>0?unit.qMvar<unit.qMax-EPS:unit.qMvar>unit.qMin+EPS)));
+function eligibleWeights(units:readonly Pick<ReactiveUnitState,'id'|'pMw'>[],sourceWeights?:ReadonlyMap<string,number>):Map<string,number>|null {
+  if(!sourceWeights)return dispatchedPWeights(units);
+  const total=units.reduce((sum,unit)=>sum+(sourceWeights.get(unit.id)??0),0);
+  return total>EPS?new Map(units.map(unit=>[unit.id,(sourceWeights.get(unit.id)??0)/total])):null;
+}
+export function activeParticipation(units:readonly ReactiveUnitState[],direction:1|-1,sourceWeights?:ReadonlyMap<string,number>):Map<string,number>|null {
+  return eligibleWeights(units.filter(unit=>(sourceWeights?(sourceWeights.get(unit.id)??0)>EPS:unit.pMw>0)&&(direction>0?unit.qMvar<unit.qMax-EPS:unit.qMvar>unit.qMin+EPS)),sourceWeights);
 }
 /** Units at either Q limit are excluded from the unrestricted participation set. */
-export function interiorParticipation(units:readonly ReactiveUnitState[]):Map<string,number>|null {
-  return dispatchedPWeights(units.filter(unit=>unit.qMvar>unit.qMin+EPS&&unit.qMvar<unit.qMax-EPS));
+export function interiorParticipation(units:readonly ReactiveUnitState[],sourceWeights?:ReadonlyMap<string,number>):Map<string,number>|null {
+  return eligibleWeights(units.filter(unit=>(sourceWeights?(sourceWeights.get(unit.id)??0)>EPS:true)&&unit.qMvar>unit.qMin+EPS&&unit.qMvar<unit.qMax-EPS),sourceWeights);
 }
 /** Bounded weighted water-fill; units at a limit leave the directional active set. */
-export function allocateReactiveDelta(units:readonly ReactiveUnitState[],requestedDelta:number):ReactiveAllocation {
+export function allocateReactiveDelta(units:readonly ReactiveUnitState[],requestedDelta:number,sourceWeights?:ReadonlyMap<string,number>):ReactiveAllocation {
   const qByUnit=new Map(units.map(unit=>[unit.id,unit.qMvar]));
   if(!Number.isFinite(requestedDelta)||Math.abs(requestedDelta)<=EPS)return{qByUnit,appliedDelta:0,remainingDelta:requestedDelta,saturated:false};
   let remaining=requestedDelta;
   const direction:1|-1=requestedDelta>0?1:-1;
   for(let round=0;round<=units.length&&Math.abs(remaining)>EPS;round++){
-    const eligible=units.filter(unit=>unit.pMw>0&&(direction>0?qByUnit.get(unit.id)!<unit.qMax-EPS:qByUnit.get(unit.id)!>unit.qMin+EPS));
-    const weights=dispatchedPWeights(eligible);if(!weights)break;
+    const eligible=units.filter(unit=>(sourceWeights?(sourceWeights.get(unit.id)??0)>EPS:unit.pMw>0)&&(direction>0?qByUnit.get(unit.id)!<unit.qMax-EPS:qByUnit.get(unit.id)!>unit.qMin+EPS));
+    const weights=eligibleWeights(eligible,sourceWeights);if(!weights)break;
     const prior=remaining;let applied=0;
     for(const unit of eligible){const q=qByUnit.get(unit.id)!,share=prior*weights.get(unit.id)!;
       const next=Math.max(unit.qMin,Math.min(unit.qMax,q+share));qByUnit.set(unit.id,next);applied+=next-q;

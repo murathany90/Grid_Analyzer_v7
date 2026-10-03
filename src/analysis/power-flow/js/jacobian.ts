@@ -19,7 +19,7 @@ export function makeLayout(Y: AdmittanceMatrix, busType: ArrayLike<number>, slac
  const nang=ang.length;
  const remote=new Set(controls.map(control=>control.remoteBus));
  if(remote.size!==controls.length||controls.some(control=>control.remoteBus===slack||busType[control.remoteBus]!==0))throw Error('INTEGRATED_REMOTE_LAYOUT_INVALID');
- for(let i=0;i<n;i++)if(i!==slack&&busType[i]===0){pq.push(i);if(!remote.has(i)){vIndex[i]=nang+vm.length;vm.push(i);}}
+ for(let i=0;i<n;i++)if(busType[i]===0){pq.push(i);if(!remote.has(i)){vIndex[i]=nang+vm.length;vm.push(i);}}
  if(controls.length){
   // Match each Q equation to a structurally nonzero Vm/controller column.
   // The remote Q row often has no direct controller coefficient; preserving

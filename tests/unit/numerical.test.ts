@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { selfTests, solveNR, type NumericalModel } from '../../src/analysis/power-flow/js';
-import {acceptsNewtonStep} from '../../src/analysis/power-flow/js/newton';
+import { selfTests } from '../../src/analysis/power-flow/js/selftests';
+import { solveNR, type NumericalModel } from '../../src/analysis/power-flow/js/newton';
+import {acceptsNewtonStep,nodalToleranceKvaToPu} from '../../src/analysis/power-flow/js/newton';
 
 test('Newton sufficient decrease uses the capped step actually applied',()=>{
   const cap=1e-7,base=1;
   assert.equal(acceptsNewtonStep(base,base-0.5*cap,cap,0.1),true);
   assert.equal(acceptsNewtonStep(base,base+0.5*cap,cap,0.1),false);
+});
+test('5 kVA nodal tolerance converts to 0.00005 pu on a 100 MVA base',()=>{
+ assert.equal(nodalToleranceKvaToPu(5,100),.00005);
 });
 import { solveIsland, solveIslandV52, type FastAcIsland } from '../../src/analysis/fast-ac/js';
 import { solveIslandDC, type DcIsland } from '../../src/analysis/dc/js';
@@ -52,6 +56,20 @@ test('Full NR rejects a Q-limit change on its final allowed control round', () =
   assert.equal(result.status, 'Q_LIMIT_MAX_ROUNDS');
   assert.equal(result.converged, false);
   assert.equal(result.rounds, 1);
+});
+
+test('Full NR keeps the reference angle when the external-grid Q limit releases its voltage target',()=>{
+ const base:NumericalModel={n:2,baseMVA:100,slack:0,slackVm:1,pSpec:Float64Array.from([0,-20]),qSpec:Float64Array.from([0,-8]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]};
+ const unconstrained=solveNR(base);assert.equal(unconstrained.converged,true);
+ const q=unconstrained.Q![0],limited:NumericalModel={...base,referenceQMinNet:[q-.1,null],referenceQMaxNet:[q-.05,null]};
+ const result=solveNR(limited,undefined,{settings:{maxInnerIterations:100,maxOuterIterations:50,nodalToleranceKva:5}});
+ assert.equal(result.converged,true,result.failure?.message??result.status);assert.ok((result.pvToPq||[]).some(item=>item.bus===0));
+ assert.equal(result.Va?.[0],0);assert.ok(Math.abs((result.Q?.[0]??Infinity)-(q-.05))<.03);assert.notEqual(result.Vm?.[0],1);
+});
+test('Full NR can release reference voltage at Qmin while keeping its angle reference',()=>{
+ const base:NumericalModel={n:2,baseMVA:100,slack:0,slackVm:1,pSpec:Float64Array.from([0,-20]),qSpec:Float64Array.from([0,-8]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]};
+ const unconstrained=solveNR(base),q=unconstrained.Q![0],result=solveNR({...base,referenceQMinNet:[q+.05,null],referenceQMaxNet:[q+.1,null]},undefined,{settings:{maxInnerIterations:100,maxOuterIterations:50,nodalToleranceKva:5}});
+ assert.equal(result.converged,true,result.failure?.message??result.status);assert.ok((result.pvToPq||[]).some(item=>item.bus===0));assert.equal(result.Va?.[0],0);assert.ok(Math.abs((result.Q?.[0]??Infinity)-(q+.05))<.03);
 });
 
 test('Full NR persists a structured missing-reference diagnostic without changing status',()=>{

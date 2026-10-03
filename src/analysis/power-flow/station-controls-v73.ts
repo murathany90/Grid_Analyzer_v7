@@ -1,4 +1,5 @@
 import type {CanonicalNetwork,StationController} from '../../domain/model/network';
+import type {FullAcSettings} from '../../domain/calculation/analysis-settings';
 import type {StationControlImplementation,StationControlMode} from '../api/engine';
 import type {PreparedModel,NumericModel} from './preparation';
 import type {PowerFlowResult,NumericalFailureDiagnostic,AdmittanceMatrix,JacobianLayout,IntegratedStationControl} from './js/types';
@@ -20,9 +21,9 @@ export interface ControlDiagnostic {
 export interface ControlTimings {baseNrMs:number;controllerClassificationMs:number;jacobianBuildMs:number;rcmReorderMs:number;ilu1FactorMs:number;ilu2FactorMs:number;iluFactorMs:number;sensitivityIterativeSolveMs:number;cscConversionMs:number;symbolicFactorMs:number;numericFactorMs:number;directRhsSolveMs:number;sensitivitySolveMs:number;classificationNrMs:number;outerTrialNrMs:number;finalNrMs:number;controlLimitRestartNrMs:number}
 export interface CoupledSystemDiagnostic {conditionEstimate:number|null;regularization:number;activeControllers:string[];objectiveRows:number;freeColumns:number;fixedControllers:number;rank:number;solveStatus:'SOLVED'|'REGULARIZED'|'SINGULAR'}
 export interface ControllerTrialDiagnostic {trustFraction:number;proposalKind:'COUPLED'|'GRADIENT';status:string;accepted:boolean;rejectedReason:string|null;activeControllerCount:number;freeControllerCount:number;saturatedControllerCount:number;denseDimension:number;objectiveRows:number;freeColumns:number;fixedControllers:number;regularization:number;conditionEstimate:number|null;rank:number;oldNorm:number;predictedNorm:number;predictedReduction:number;newNorm:number|null;actualReduction:number|null;rho:number|null;maxRequestedDeltaQ:number;maxAppliedDeltaQ:number;sumAbsDeltaQ:number;nrIterations:number|null;failureIteration:number|null;failureMismatchMw:number|null;linearResidual:number|null}
-interface Control {source:StationController;row:ControlDiagnostic;units:ReactiveUnitState[];remote:number;droopQ:number|null}
+interface Control {source:StationController;row:ControlDiagnostic;units:ReactiveUnitState[];remote:number;droopQ:number|null;sourceWeights?:ReadonlyMap<string,number>}
 export interface ControlledIslandV73 {prepared:PreparedModel;result:PowerFlowResult;controllers:ControlDiagnostic[];outerRounds:number;unitOverrides:Map<string,{qMvar:number|null;qState:string}>;timings:ControlTimings;resultProvenance?:'LOCAL_PV'|'OWNERSHIP'|'SENSITIVITY_STATION_CONTROL'|'INTEGRATED_STATION_CONTROL'|'BASELINE_FALLBACK';integratedFailure?:NumericalFailureDiagnostic;sensitivitySolverDiagnostics?:SensitivitySolverDiagnostic[];classificationPasses?:number;classificationStable?:boolean;integratedControllers?:number;controlLimitRestarts?:number;coupledSystems?:CoupledSystemDiagnostic[];trialAttempts?:ControllerTrialDiagnostic[]}
-const now=()=>performance.now(),finite=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x),EPS=1e-8,TOL=1e-4;
+const now=()=>performance.now(),finite=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x),EPS=1e-8;
 export function classifyMonotoneActiveSet<T>(initial:readonly T[],probe:(active:readonly T[],pass:number)=>readonly T[],removeAndResolve:(failed:readonly T[])=>boolean,maxPasses=4):{active:T[];passes:number;stable:boolean;nrFailed:boolean} {
   let active=[...initial],passes=0,stable=active.length===0,nrFailed=false;
   for(let pass=1;pass<=maxPasses&&active.length;pass++){
@@ -83,10 +84,31 @@ export function globalGradientStep(matrix:readonly (readonly number[])[],residua
   const numerator=effect.reduce((sum,value,index)=>sum+value*residual[index],0),denominator=effect.reduce((sum,value)=>sum+value*value,0);
   const alpha=denominator>1e-18?Math.max(0,numerator/denominator):0;return gradient.map(value=>alpha*value);
 }
-const cloneModel=(base:NumericModel):NumericModel=>({...base,pSpec:Float64Array.from(base.pSpec),qSpec:Float64Array.from(base.qSpec),busType:Int8Array.from(base.busType),vmSet:Float64Array.from(base.vmSet),qMinNet:[...base.qMinNet],qMaxNet:[...base.qMaxNet]});
+const cloneModel=(base:NumericModel):NumericModel=>({...base,pSpec:Float64Array.from(base.pSpec),qSpec:Float64Array.from(base.qSpec),busType:Int8Array.from(base.busType),vmSet:Float64Array.from(base.vmSet),qMinNet:[...base.qMinNet],qMaxNet:[...base.qMaxNet],referenceQMinNet:base.referenceQMinNet?[...base.referenceQMinNet]:undefined,referenceQMaxNet:base.referenceQMaxNet?[...base.referenceQMaxNet]:undefined,activeBalanceParticipation:base.activeBalanceParticipation?Float64Array.from(base.activeBalanceParticipation):undefined,activeBalanceEligibleLoadMw:base.activeBalanceEligibleLoadMw?Float64Array.from(base.activeBalanceEligibleLoadMw):undefined});
 
-function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows:ControlDiagnostic[],times:ControlTimings,progress?:(stage:string,detail?:Record<string,number>)=>void):ControlledIslandV73 {
-  const base=part.model,Y=buildY(base),baseStart=now(),baseline=solveNR(base,progress,{admittance:Y});times.baseNrMs=now()-baseStart;
+export function solveNRWithActiveBalance(model:NumericModel,progress:((stage:string,detail?:Record<string,number>)=>void)|undefined,settings:FullAcSettings|undefined,options:Parameters<typeof solveNR>[2]={}):PowerFlowResult{
+  const weights=model.activeBalanceParticipation,totalLoad=Array.from(model.activeBalanceEligibleLoadMw||[]).reduce((sum,value)=>sum+value,0);
+  if(settings?.activeBalancingMode!=='DISTRIBUTED_ADJUSTABLE_LOADS'||model.activeBalanceEligibilityComplete!==true||!weights||!weights.some(value=>value>0))return solveNR(model,progress,{...options,settings});
+  const working=cloneModel(model),targetP=working.referencePMw??0,toleranceMva=(settings.nodalToleranceKva/1000),maxOuter=Math.max(1,Math.floor(settings.maxOuterIterations)),loadAdjustments=new Float64Array(model.n);let last:PowerFlowResult|null=null,mismatch=Infinity,eligibleLoadsExhausted=false,iterations=0;
+  for(let iteration=1;iteration<=maxOuter;iteration++){
+    iterations=iteration;
+    last=solveNR(working,progress,{...options,initialVm:last?.Vm??options.initialVm,initialVa:last?.Va??options.initialVa,settings});if(!last.converged||!last.P)return last;
+    const fixedAtReference=working.pSpec[working.slack]-targetP,externalP=last.P[working.slack]-fixedAtReference;mismatch=externalP-targetP;
+    progress?.('ACTIVE_BALANCE_ITERATION',{round:iteration,externalGridPMw:externalP,mismatchMw:mismatch});
+    if(Math.abs(mismatch)<=toleranceMva){return{...last,activeBalanceIterations:iteration,activeBalanceMismatchMw:mismatch,activeBalanceLoadAdjustmentsMw:Array.from(loadAdjustments)};}
+    const remainingEligibleLoad=Math.max(0,totalLoad+loadAdjustments.reduce((sum,value)=>sum+value,0));
+    if(iteration===maxOuter||(mismatch>0&&remainingEligibleLoad<=toleranceMva)){eligibleLoadsExhausted=mismatch>0&&remainingEligibleLoad<=toleranceMva;break;}
+    // Positive mismatch means reduce eligible load to lower external-grid P;
+    // negative mismatch means increase eligible load to raise external-grid P.
+    // Limit reductions to sourced initial load so no load is reversed.
+    const adjustment=mismatch>0?Math.min(mismatch,remainingEligibleLoad):mismatch;
+    for(let bus=0;bus<working.n;bus++){const busAdjustment=(weights[bus]||0)*adjustment;working.pSpec[bus]+=busAdjustment;loadAdjustments[bus]-=busAdjustment;}
+  }
+  return last?{...last,activeBalanceIterations:iterations,activeBalanceMismatchMw:mismatch,activeBalanceLoadAdjustmentsMw:Array.from(loadAdjustments),warnings:[...(last.warnings||[]),'DISTRIBUTED_ACTIVE_BALANCE_NOT_CONVERGED',...(eligibleLoadsExhausted?['DISTRIBUTED_ACTIVE_BALANCE_ELIGIBLE_LOADS_EXHAUSTED']:[])]}:solveNR(model,progress,{...options,settings});
+}
+
+function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows:ControlDiagnostic[],times:ControlTimings,progress?:(stage:string,detail?:Record<string,number>)=>void,settings?:FullAcSettings):ControlledIslandV73 {
+  const base=part.model,Y=buildY(base),equationTolerance=(settings?.modelEquationTolerancePercent??.01)/100,maxOuterIterations=settings?.maxOuterIterations??4,baseStart=now(),baseline=solveNRWithActiveBalance(base,progress,settings,{admittance:Y});times.baseNrMs=now()-baseStart;
   if(!baseline.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`BASELINE_${baseline.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedControllers:0,controlLimitRestarts:0};}
   const states=controls.map(control=>({control,fixed:new Map<string,number>(),weights:new Map(Object.entries(control.row.participationKi)),initialDqPu:0}));
   for(const state of states)state.control.row.initialVpu=baseline.Vm![state.control.remote];
@@ -95,7 +117,7 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
   // from the original net specification among the station-owned generators.
   const operatingModel=cloneModel(base);
   for(const state of states){const c=state.control;let unallocated=0;
-    for(const bus of c.row.actuatorBuses){const local=c.units.filter(unit=>unit.bus===bus),delta=baseline.Q![bus]-base.qSpec[bus],allocation=allocateReactiveDelta(local,delta);
+    for(const bus of c.row.actuatorBuses){const local=c.units.filter(unit=>unit.bus===bus),delta=baseline.Q![bus]-base.qSpec[bus],allocation=allocateReactiveDelta(local,delta,c.sourceWeights);
       for(const unit of local)unit.qMvar=allocation.qByUnit.get(unit.id)!;
       unallocated+=Math.abs(allocation.remainingDelta);operatingModel.qSpec[bus]=baseline.Q![bus];
     }
@@ -111,7 +133,7 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
       if(actuators.length){active.push(state);specs.push({remoteBus:c.remote,targetVmPu:c.source.vmSet,actuators});}
     }
     if(restarts===0)integrated=specs.length;
-    const start=now(),solved=solveNR(model,progress,{initialVm:previous.Vm,initialVa:previous.Va,initialControlDqPu:active.map(state=>state.initialDqPu),stationControls:specs,admittance:Y,linearFill:specs.length?1:0,busIds:part.buses.map(bus=>bus.id),controlIds:active.map(state=>state.control.row.id)});
+    const start=now(),solved=solveNRWithActiveBalance(model,progress,settings,{initialVm:previous.Vm,initialVa:previous.Va,initialControlDqPu:active.map(state=>state.initialDqPu),stationControls:specs,admittance:Y,linearFill:specs.length?1:0,busIds:part.buses.map(bus=>bus.id),controlIds:active.map(state=>state.control.row.id)});
     if(restarts===0)times.finalNrMs+=now()-start;else times.controlLimitRestartNrMs+=now()-start;
     if(!solved.converged){for(const state of states){state.control.row.status='CONTROL_SOLVE_FAILED';state.control.row.controlSolveFailure=`${solved.status} iteration=${solved.failure?.iteration??'—'} mismatchMw=${solved.failure?.maxMismatchMw??'—'} stage=${solved.failure?.linearStage??'—'} pivot=${solved.failure?.minPivot??'—'} stepCap=${solved.failure?.lineSearchStepCap??'—'} bestNormRatio=${solved.failure?.lineSearchBestNormRatio??'—'}: ${solved.failure?.message||''}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:restarts,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedFailure:solved.failure,integratedControllers:0,controlLimitRestarts:restarts};}
     previous=solved;let anyControllerChanged=false;
@@ -126,18 +148,19 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
     }
     if(!anyControllerChanged){const overrides=new Map<string,{qMvar:number|null;qState:string}>();let activeIndex=0;
       for(const state of states){const c=state.control,hasActive=state.weights.size>0,dqMvar=hasActive?(solved.controlDqPu?.[activeIndex++]??0)*base.baseMVA:0;
-        if(hasActive)c.row.status=Math.abs(c.source.vmSet-solved.Vm![c.remote])<=TOL?'SATISFIED':'CONTROL_SOLVE_FAILED';
+        if(hasActive)c.row.status=Math.abs(c.source.vmSet-solved.Vm![c.remote])<=equationTolerance?'SATISFIED':'CONTROL_SOLVE_FAILED';
         c.row.finalVpu=solved.Vm![c.remote];c.row.voltageResidualPu=c.source.vmSet-solved.Vm![c.remote];c.row.finalQ=0;c.row.jacobianDimension=solved.linear?model.n-1+Array.from(model.busType).filter(type=>type===0).length:null;c.row.linearMethod=solved.linear?.method??null;c.row.linearIterations=solved.linear?.iterations??null;c.row.linearResidual=solved.linear?.residual??null;c.row.participationKi=Object.fromEntries(state.weights);
         for(const unit of c.units){const q=state.fixed.get(unit.id)??unit.qMvar+(state.weights.get(unit.id)||0)*dqMvar;c.row.finalQ+=q;overrides.set(unit.id,{qMvar:q,qState:c.row.status});}
       }
       return{prepared:{...part,model,stationControlUnitResults:overrides},result:solved,controllers:rows,outerRounds:restarts,unitOverrides:overrides,timings:times,resultProvenance:'INTEGRATED_STATION_CONTROL',integratedControllers:integrated,controlLimitRestarts:restarts};
     }
-    if(restarts>=4){for(const state of states){state.control.row.status='CONTROL_SOLVE_FAILED';state.control.row.controlSolveFailure='CONTROL_LIMIT_MAX_ROUNDS';}return{prepared:part,result:baseline,controllers:rows,outerRounds:restarts,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedControllers:0,controlLimitRestarts:restarts};}
+    if(restarts>=maxOuterIterations){for(const state of states){state.control.row.status='CONTROL_SOLVE_FAILED';state.control.row.controlSolveFailure='CONTROL_LIMIT_MAX_ROUNDS';}return{prepared:part,result:baseline,controllers:rows,outerRounds:restarts,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedControllers:0,controlLimitRestarts:restarts};}
     restarts++;progress?.('STATION_CONTROL_LIMIT',{round:restarts});
   }
 }
 
-export function runStationControlledIslandV73(network:CanonicalNetwork,part:PreparedModel,mappings:readonly Mapping[],mode:StationControlMode='zeroDroop',progress?:(stage:string,detail?:Record<string,number>)=>void,implementation:StationControlImplementation='SENSITIVITY'):ControlledIslandV73 {
+export function runStationControlledIslandV73(network:CanonicalNetwork,part:PreparedModel,mappings:readonly Mapping[],mode:StationControlMode='zeroDroop',progress?:(stage:string,detail?:Record<string,number>)=>void,implementation:StationControlImplementation='SENSITIVITY',settings?:FullAcSettings):ControlledIslandV73 {
+  const equationTolerance=(settings?.modelEquationTolerancePercent??.01)/100,maxOuterIterations=settings?.maxOuterIterations??4;
   const times:ControlTimings={baseNrMs:0,controllerClassificationMs:0,jacobianBuildMs:0,rcmReorderMs:0,ilu1FactorMs:0,ilu2FactorMs:0,iluFactorMs:0,sensitivityIterativeSolveMs:0,cscConversionMs:0,symbolicFactorMs:0,numericFactorMs:0,directRhsSolveMs:0,sensitivitySolveMs:0,classificationNrMs:0,outerTrialNrMs:0,finalNrMs:0,controlLimitRestartNrMs:0};
   const started=now(),byId=new Map(mappings.map(row=>[row.id,row])),generators=new Map(part.generators.map(g=>[g.id,g]));
   const all=network.stationControllers.filter(c=>c.inService),island=all.filter(c=>byId.get(c.id)?.islandId===part.islandId),zeroUnitOwners=new Map<string,number>(),allUnitOwners=new Map<string,number>(),zeroBusOwners=new Map<number,number>(),allBusOwners=new Map<number,number>();
@@ -154,7 +177,11 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(c.droopModeRaw!==0&&c.droopModeRaw!==1)status='UNSUPPORTED_PROFILE';
     else if(droop&&mode!=='droop')status='UNSUPPORTED_DROOP';
     else if(!active.length)status='NO_REACTIVE_HEADROOM';
-    else if((droop?remoteOwners:zeroRemoteOwners).get(remote)!>1)status='REMOTE_CONTROL_CONFLICT';
+    // The zero-droop path solves all remote voltage residuals as one coupled
+    // least-squares system, so shared remote buses are valid aggregate targets.
+    // Droop remains unsupported for shared targets because its coupled slope
+    // semantics have not been established from the source model.
+    else if(droop&&remoteOwners.get(remote)!>1)status='REMOTE_CONTROL_CONFLICT';
     else if(new Set(c.unitIds).size!==c.unitIds.length||active.some(g=>((droop?allUnitOwners:zeroUnitOwners).get(g.id)||0)>1||((droop?allBusOwners:zeroBusOwners).get(g.index)||0)>1))status='UNSUPPORTED_DISTRIBUTION';
     else if(!finite(c.vmSet)||c.vmSet<.5||c.vmSet>1.5)status='UNSUPPORTED_PROFILE';
     else if(qMin==null||qMax==null||qMin>qMax)status='Q_LIMITS_UNAVAILABLE';
@@ -163,11 +190,11 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(remote===part.model.slack||buses.some(bus=>bus===part.model.slack||part.generators.some(g=>g.index===bus&&g.voltageControl&&!c.unitIds.includes(g.id)))||part.generators.some(g=>g.index===remote&&g.voltageControl&&!c.unitIds.includes(g.id)))status='LOCAL_PV_CONFLICT';
     else if(qMax-qMin<EPS)status='NO_REACTIVE_HEADROOM';
     const row:ControlDiagnostic={id:c.id,controllerId:c.id,remoteBus:c.remoteBus,islandId:part.islandId??null,targetVpu:c.vmSet,initialVpu:null,finalVpu:null,voltageResidualPu:null,initialQ:qInitial,finalQ:qInitial,qMin,qMax,outerRounds:0,status,supported:status==='PENDING',unitIds:active.map(g=>g.id),actuatorBus:buses.length===1?buses[0]:null,actuatorBuses:buses,remoteBusIndex:remote,participationKi:Object.fromEntries(weights?.weights||[]),qDistributionSource:weights?.source??null,jacobianDimension:null,linearMethod:null,linearIterations:null,linearResidual:null,iluMinimumPivot:null,effectiveSlope:null,individualDvDqi:{},elapsedSensitivityMs:null,failureReason:null};rows.push(row);
-    if(status==='PENDING'&&remote!=null)controls.push({source:c,row,units,remote,droopQ:droop?c.ratedPowerRaw!*100/c.droopValueRaw!:null});
+    if(status==='PENDING'&&remote!=null)controls.push({source:c,row,units,remote,droopQ:droop?c.ratedPowerRaw!*100/c.droopValueRaw!:null,sourceWeights:weights?.source==='SOURCE_CVQQ'?weights.weights:undefined});
   }
   times.controllerClassificationMs=now()-started;
-  if(mode==='zeroDroop'&&controls.length&&implementation==='INTEGRATED_EXPERIMENTAL')return runIntegratedStationControls(part,controls,rows,times,progress);
-  const solve=(model:NumericModel,warm?:PowerFlowResult,Y?:AdmittanceMatrix,layouts?:Map<string,JacobianLayout>)=>solveNR(model,progress,{initialVm:warm?.Vm,initialVa:warm?.Va,admittance:Y,layoutCache:layouts,linearFill:model===part.model?0:1});
+  if(mode==='zeroDroop'&&controls.length&&implementation==='INTEGRATED_EXPERIMENTAL')return runIntegratedStationControls(part,controls,rows,times,progress,settings);
+  const solve=(model:NumericModel,warm?:PowerFlowResult,Y?:AdmittanceMatrix,layouts?:Map<string,JacobianLayout>)=>solveNRWithActiveBalance(model,progress,settings,{initialVm:warm?.Vm,initialVa:warm?.Va,admittance:Y,layoutCache:layouts,linearFill:model===part.model?0:1});
   if(mode==='off'||!controls.length){const t=now(),result=solve(part.model);times.baseNrMs=now()-t;return{prepared:part,result,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'LOCAL_PV'};}
   const model=cloneModel(part.model),Y=buildY(model),layouts=new Map<string,JacobianLayout>();
   const applyOwnership=(c:Control)=>{for(const bus of c.row.actuatorBuses){model.busType[bus]=0;model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}};
@@ -177,7 +204,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   if(baseline.converged)for(const limited of baseline.pvToPq||[])if(model.busType[limited.bus]===1){model.busType[limited.bus]=0;model.qSpec[limited.bus]=limited.qLimit;model.qMinNet[limited.bus]=null;model.qMaxNet[limited.bus]=null;}
   // Transfer ownership at the solved local-PV operating point. This leaves the first
   // PQ solve at the same physical Q state instead of resetting 158 buses to raw Q.
-  if(mode!=='ownership'&&baseline.converged&&baseline.Q)for(const c of controls){let unmet=0;for(const bus of c.row.actuatorBuses){const local=c.units.filter(u=>u.bus===bus),delta=baseline.Q[bus]-model.qSpec[bus],allocation=allocateReactiveDelta(local,delta);for(const unit of local)unit.qMvar=allocation.qByUnit.get(unit.id)!;unmet+=Math.abs(allocation.remainingDelta);model.qSpec[bus]=baseline.Q[bus];}c.row.initialQ=c.units.reduce((sum,u)=>sum+u.qMvar,0);c.row.ownershipUnallocatedMvar=unmet;}
+  if(mode!=='ownership'&&baseline.converged&&baseline.Q)for(const c of controls){let unmet=0;for(const bus of c.row.actuatorBuses){const local=c.units.filter(u=>u.bus===bus),delta=baseline.Q[bus]-model.qSpec[bus],allocation=allocateReactiveDelta(local,delta,c.sourceWeights);for(const unit of local)unit.qMvar=allocation.qByUnit.get(unit.id)!;unmet+=Math.abs(allocation.remainingDelta);model.qSpec[bus]=baseline.Q[bus];}c.row.initialQ=c.units.reduce((sum,u)=>sum+u.qMvar,0);c.row.ownershipUnallocatedMvar=unmet;}
   const firstStart=now();let solved=solve(model,baseline.converged?baseline:undefined,Y,layouts);times.finalNrMs=now()-firstStart;
   if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`${solved.status}: ${solved.failure?.message||''}`;}const result=baseline.converged?baseline:solve(part.model);return{prepared:part,result,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK'};}
   for(const c of controls)c.row.initialVpu=solved.Vm![c.remote];
@@ -196,16 +223,16 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   if(!solved.converged){const t=now(),result=solve(part.model);times.finalNrMs+=now()-t;for(const c of pending()){c.row.status='ROLLED_BACK_TO_LOCAL_PV';c.row.failureReason='SENSITIVITY_LINEAR_SOLVE_FAILED';}return{prepared:part,result,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:false};}
   let rounds=0,trustFraction=.25,controlCycles=0;const coupledSystems:CoupledSystemDiagnostic[]=[],trialAttempts:ControllerTrialDiagnostic[]=[],seenTrialSignatures=new Set<string>();
   const controlScale=(c:Control)=>Math.max(1,c.row.qMax!-c.row.qMin!);
-  const buildMatrix=(rows:Control[],cols:Control[],directions:Map<Control,1|-1|null>)=>rows.map(output=>cols.map(input=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return null;const direction=directions.get(input),weights=direction==null?dispatchedPWeights(input.units):activeParticipation(input.units,direction);if(!weights)return 0;let value=0;for(const unit of input.units)value+=(weights.get(unit.id)||0)*(busSensitivity.get(unit.bus)||0);return finite(value)?value:null;}));
+  const buildMatrix=(rows:Control[],cols:Control[],directions:Map<Control,1|-1|null>)=>rows.map(output=>cols.map(input=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return null;const direction=directions.get(input),weights=direction==null?(input.sourceWeights??dispatchedPWeights(input.units)):activeParticipation(input.units,direction,input.sourceWeights);if(!weights)return 0;let value=0;for(const unit of input.units)value+=(weights.get(unit.id)||0)*(busSensitivity.get(unit.bus)||0);return finite(value)?value:null;}));
   const norm=(rows:Control[],result:PowerFlowResult)=>rows.length?Math.sqrt(rows.reduce((sum,c)=>sum+residual(c,result)**2,0)/rows.length):0;
   const refresh=(active:Control[])=>{let probes:SensitivityProbe[];try{probes=probe(active);}catch{probes=active.map(()=>({reason:'SENSITIVITY_LINEAR_SOLVE_FAILED' as const,slope:null,individualSlopes:[],jacobianDimension:0,linearMethod:null,linearIterations:null,linearResidual:null,iluMinPivot:null,elapsedMs:0}));}
     let changed=false;active.forEach((c,i)=>{const p=probes[i];if(p.reason){c.row.status='ROLLED_BACK_TO_LOCAL_PV';c.row.failureReason=p.reason;restoreOwnership(c);changed=true;}});if(changed){const t=now();solved=solve(model,solved,Y,layouts);times.finalNrMs+=now()-t;if(solved.converged){const survivors=pending();if(survivors.length)probe(survivors);}}return changed;};
-  while(rounds<4&&controlCycles<8){controlCycles++;for(const c of pending())if(Math.abs(residual(c,solved))<=TOL)c.row.status='SATISFIED';const active=pending();if(!active.length)break;
+  while(rounds<maxOuterIterations&&controlCycles<maxOuterIterations*2){controlCycles++;for(const c of pending())if(Math.abs(residual(c,solved))<=equationTolerance)c.row.status='SATISFIED';const active=pending();if(!active.length)break;
     const unitMoveEffect=(output:Control,input:Control,allocation:ReturnType<typeof allocateReactiveDelta>)=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return 0;let effect=0;for(const unit of input.units)effect+=(busSensitivity.get(unit.bus)||0)*(allocation.qByUnit.get(unit.id)!-unit.qMvar);return effect;};
     const solveDenseDirection=()=>{
       const directions=new Map<Control,1|-1|null>(active.map(c=>[c,residual(c,solved)>=0?1:-1])),fixedMoves=new Map<Control,ReturnType<typeof allocateReactiveDelta>>(),rawDeltas=new Map<Control,number>(),free=active.slice();let denseFailed=false,iterations=0,lastDense:CoupledSystemDiagnostic|null=null;
       while(free.length&&iterations++<=active.length){
-        for(let j=0;j<free.length;j++){const control=free[j],direction=directions.get(control)!;if(!activeParticipation(control.units,direction)){rawDeltas.delete(control);fixedMoves.set(control,allocateReactiveDelta(control.units,0));free.splice(j--,1);}}
+        for(let j=0;j<free.length;j++){const control=free[j],direction=directions.get(control)!;if(!activeParticipation(control.units,direction,control.sourceWeights)){rawDeltas.delete(control);fixedMoves.set(control,allocateReactiveDelta(control.units,0,control.sourceWeights));free.splice(j--,1);}}
         if(!free.length)break;
         let matrix=buildMatrix(active,active,directions),solveResult:ReturnType<typeof solveCoupledLeastSquares>|null=null;
         for(let directionalPass=0;directionalPass<4;directionalPass++){
@@ -221,9 +248,9 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
         }
         if(denseFailed||!solveResult?.solution)break;
         let activeSetChanged=false;
-        for(let j=0;j<free.length;j++){const control=free[j],rawDelta=solveResult.solution[j],direction=directions.get(control)??(rawDelta>=0?1:-1),directionalWeights=activeParticipation(control.units,direction);
-          if(!directionalWeights){rawDeltas.delete(control);fixedMoves.set(control,allocateReactiveDelta(control.units,0));free.splice(j--,1);activeSetChanged=true;continue;}
-          const radius=controlScale(control)*trustFraction,requested=Math.max(-radius,Math.min(radius,rawDelta)),allocation=allocateReactiveDelta(control.units,requested);
+        for(let j=0;j<free.length;j++){const control=free[j],rawDelta=solveResult.solution[j],direction=directions.get(control)??(rawDelta>=0?1:-1),directionalWeights=activeParticipation(control.units,direction,control.sourceWeights);
+          if(!directionalWeights){rawDeltas.delete(control);fixedMoves.set(control,allocateReactiveDelta(control.units,0,control.sourceWeights));free.splice(j--,1);activeSetChanged=true;continue;}
+          const radius=controlScale(control)*trustFraction,requested=Math.max(-radius,Math.min(radius,rawDelta)),allocation=allocateReactiveDelta(control.units,requested,control.sourceWeights);
           if(allocation.saturated){rawDeltas.delete(control);fixedMoves.set(control,allocation);free.splice(j--,1);activeSetChanged=true;}
           else rawDeltas.set(control,rawDelta);
         }
@@ -231,17 +258,17 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
       }
       return{rawDeltas,fixedMoves,denseFailed,lastDense};
     };
-    const oldNorm=norm(active,solved),headroom=(c:Control,delta:number)=>c.units.reduce((sum,u)=>sum+(u.pMw>0?(delta>0?Math.max(0,u.qMax-u.qMvar):Math.max(0,u.qMvar-u.qMin)):0),0);
+    const oldNorm=norm(active,solved),headroom=(c:Control,delta:number)=>c.units.reduce((sum,u)=>sum+((c.sourceWeights?(c.sourceWeights.get(u.id)??0)>EPS:u.pMw>0)?(delta>0?Math.max(0,u.qMax-u.qMvar):Math.max(0,u.qMvar-u.qMin)):0),0);
     const makeProposal=(raw:Map<Control,number>,fixed:Map<Control,ReturnType<typeof allocateReactiveDelta>>,kind:ControllerTrialDiagnostic['proposalKind'])=>{
       const entries=[...raw].filter(([,delta])=>Math.abs(delta)>EPS),bounds=entries.map(([c,delta])=>Math.min(controlScale(c)*trustFraction,headroom(c,delta))),requested=scaleCoupledProposal(entries.map(([,delta])=>delta),bounds),freeAllocations=new Map<Control,ReactiveAllocation>();
-      entries.forEach(([c],i)=>{if(Math.abs(requested[i])>EPS)freeAllocations.set(c,allocateReactiveDelta(c.units,requested[i]));});
+      entries.forEach(([c],i)=>{if(Math.abs(requested[i])>EPS)freeAllocations.set(c,allocateReactiveDelta(c.units,requested[i],c.sourceWeights));});
       const allocations=mergeControllerAllocations(new Map([...fixed].filter(([,move])=>Math.abs(move.appliedDelta)>EPS)),freeAllocations);
       const predicted=active.map(rowControl=>{let value=residual(rowControl,solved);for(const [columnControl,move]of allocations)value-=unitMoveEffect(rowControl,columnControl,move);return value;}),predictedNorm=Math.sqrt(predicted.reduce((sum,value)=>sum+value*value,0)/active.length),predictedReduction=oldNorm-predictedNorm;
-      const saturatedControllerCount=active.filter(c=>{const move=allocations.get(c);return move?.saturated||(!activeParticipation(c.units,1)&&!activeParticipation(c.units,-1));}).length;
+      const saturatedControllerCount=active.filter(c=>{const move=allocations.get(c);return move?.saturated||(!activeParticipation(c.units,1,c.sourceWeights)&&!activeParticipation(c.units,-1,c.sourceWeights));}).length;
       return{kind,allocations,predictedNorm,predictedReduction,maxRequestedDeltaQ:Math.max(0,...requested.map(Math.abs),...[...fixed.values()].map(a=>Math.abs(a.appliedDelta))),maxAppliedDeltaQ:Math.max(0,...[...allocations.values()].map(a=>Math.abs(a.appliedDelta))),sumAbsDeltaQ:[...allocations.values()].reduce((sum,a)=>sum+Math.abs(a.appliedDelta),0),freeControllerCount:raw.size,saturatedControllerCount};
     };
     const gradientDeltas=()=>{const output=new Map<Control,number>(),r=active.map(c=>residual(c,solved)),directions=new Map<Control,number[]>();
-      for(const c of active){let best=0,selected:number[]|null=null;for(const direction of [1,-1] as const){if(!activeParticipation(c.units,direction))continue;const column=buildMatrix(active,[c],new Map([[c,direction]])).map(row=>row[0]);if(column.some(value=>value==null))continue;let gradient=0,squared=0;for(let i=0;i<active.length;i++){const value=column[i]!;gradient+=value*r[i];squared+=value*value;}if(squared<=1e-18||gradient*direction<=0)continue;const gain=gradient*gradient/squared;if(gain>best){best=gain;selected=column as number[];}}if(selected)directions.set(c,selected);}
+      for(const c of active){let best=0,selected:number[]|null=null;for(const direction of [1,-1] as const){if(!activeParticipation(c.units,direction,c.sourceWeights))continue;const column=buildMatrix(active,[c],new Map([[c,direction]])).map(row=>row[0]);if(column.some(value=>value==null))continue;let gradient=0,squared=0;for(let i=0;i<active.length;i++){const value=column[i]!;gradient+=value*r[i];squared+=value*value;}if(squared<=1e-18||gradient*direction<=0)continue;const gain=gradient*gradient/squared;if(gain>best){best=gain;selected=column as number[];}}if(selected)directions.set(c,selected);}
       const columns=[...directions],steps=globalGradientStep(r.map((_,row)=>columns.map(([,column])=>column[row])),r);
       columns.forEach(([c],index)=>{if(Math.abs(steps[index])>EPS)output.set(c,steps[index]);});
       return output;};
@@ -264,16 +291,16 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
       const newNorm=result.converged&&result.Vm?norm(active,result):null,actualReduction=newNorm==null?null:oldNorm-newNorm,rho=actualReduction!=null?actualReduction/guarded.predictedReduction:null,accept=result.converged&&actualReduction!=null&&actualReduction>1e-8&&rho!=null&&rho>=.1;
       const rejectedReason=accept?null:!result.converged?result.status:actualReduction==null||actualReduction<=1e-8?'NO_ACTUAL_REDUCTION':'INSUFFICIENT_RHO';
       trialAttempts.push(record(result.status,rejectedReason,result,newNorm,actualReduction,rho,accept));
-      if(accept){model.qSpec=trial.qSpec;solved=result;for(const [c,move]of proposal.allocations){for(const u of c.units)u.qMvar=move.qByUnit.get(u.id)!;if(Math.abs(move.appliedDelta)>EPS)c.row.outerRounds++;const direction:1|-1=move.appliedDelta>=0?1:-1,weights=interiorParticipation(c.units)??activeParticipation(c.units,direction);if(weights)c.row.participationKi=Object.fromEntries(weights);else c.row.status=direction>0?'SATURATED_QMAX':'SATURATED_QMIN';}
-        for(const c of pending())if(Math.abs(residual(c,solved))<=TOL)c.row.status='SATISFIED';rounds++;accepted=true;seenTrialSignatures.clear();if(rho!=null&&rho>.75)trustFraction=Math.min(1,trustFraction*1.5);else if(rho!=null&&rho<.25)trustFraction=Math.max(1/32,trustFraction*.5);progress?.('STATION_CONTROL',{round:rounds,maxResidualPu:Math.max(0,...pending().map(c=>Math.abs(residual(c,solved))))});break;}
+      if(accept){model.qSpec=trial.qSpec;solved=result;for(const [c,move]of proposal.allocations){for(const u of c.units)u.qMvar=move.qByUnit.get(u.id)!;if(Math.abs(move.appliedDelta)>EPS)c.row.outerRounds++;const direction:1|-1=move.appliedDelta>=0?1:-1,weights=interiorParticipation(c.units,c.sourceWeights)??activeParticipation(c.units,direction,c.sourceWeights);if(weights)c.row.participationKi=Object.fromEntries(weights);else c.row.status=direction>0?'SATURATED_QMAX':'SATURATED_QMIN';}
+        for(const c of pending())if(Math.abs(residual(c,solved))<=equationTolerance)c.row.status='SATISFIED';rounds++;accepted=true;seenTrialSignatures.clear();if(rho!=null&&rho>.75)trustFraction=Math.min(1,trustFraction*1.5);else if(rho!=null&&rho<.25)trustFraction=Math.max(1/32,trustFraction*.5);progress?.('STATION_CONTROL',{round:rounds,maxResidualPu:Math.max(0,...pending().map(c=>Math.abs(residual(c,solved))))});break;}
       trustFraction=Math.max(1/32,trustFraction*.5);
     }
     if(denseFailed){for(const c of active){c.row.status='ROLLED_BACK_TO_LOCAL_PV';c.row.failureReason='SENSITIVITY_LINEAR_SOLVE_FAILED';restoreOwnership(c);}const t=now();solved=solve(model,solved,Y,layouts);times.finalNrMs+=now()-t;break;}
     if(!accepted)break;
-    const remaining=pending();if(remaining.length&&rounds<4){refresh(remaining);if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`REFRESH_${solved.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};}}
+    const remaining=pending();if(remaining.length&&rounds<maxOuterIterations){refresh(remaining);if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`REFRESH_${solved.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};}}
   }
   const overrides=new Map<string,{qMvar:number|null;qState:string}>();
-  for(const c of controls){if(c.row.status==='ROLLED_BACK_TO_LOCAL_PV')continue;const error=residual(c,solved);if(c.row.status==='PENDING')c.row.status=Math.abs(error)<=TOL?'SATISFIED':c.units.every(u=>u.qMvar>=u.qMax-EPS)?'SATURATED_QMAX':c.units.every(u=>u.qMvar<=u.qMin+EPS)?'SATURATED_QMIN':'MAX_OUTER_ROUNDS';
+  for(const c of controls){if(c.row.status==='ROLLED_BACK_TO_LOCAL_PV')continue;const error=residual(c,solved);if(c.row.status==='PENDING')c.row.status=Math.abs(error)<=equationTolerance?'SATISFIED':c.units.every(u=>u.qMvar>=u.qMax-EPS)?'SATURATED_QMAX':c.units.every(u=>u.qMvar<=u.qMin+EPS)?'SATURATED_QMIN':'MAX_OUTER_ROUNDS';
     c.row.finalVpu=solved.Vm![c.remote];c.row.voltageResidualPu=error;c.row.finalQ=c.units.reduce((s,u)=>s+u.qMvar,0);for(const u of c.units)overrides.set(u.id,{qMvar:u.qMvar,qState:c.row.status});}
   const activeControls=controls.filter(c=>c.row.status!=='ROLLED_BACK_TO_LOCAL_PV');
   const stationApplied=rounds>0||(activeControls.length>0&&activeControls.every(c=>['SATISFIED','SATURATED_QMIN','SATURATED_QMAX'].includes(c.row.status)));

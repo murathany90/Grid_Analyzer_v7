@@ -139,3 +139,10 @@ test('parseDgs parses and builds a model, rejecting a non-object root', async ()
   await assert.rejects(() => parseDgs('[]'), /kök değeri bir nesne/);
   await assert.rejects(() => parseDgs('{'), SyntaxError);
 });
+
+test('duplicate FIDs are diagnosed directly while duplicate loc_name values remain presentation-only',async()=>{
+ const raw={...JSON.parse(JSON.stringify(fixture())) as DgsRawData,ElmTerm:table(['FID','loc_name','fold_id','uknom'],[['T1','Same bus name','G1',154],['T2','Same bus name','G1',154],['T1','Another name','G1',154]])};
+ const model=await new DgsModel(raw,'duplicate-fixture').build();
+ assert.ok(model.issues.some(issue=>issue.kind==='Tekrarlı FID'&&issue.cls==='ElmTerm'&&issue.fid==='T1'));
+ assert.ok(!model.issues.some(issue=>issue.kind==='Tekrarlı FID'&&issue.fid==='T2'));
+});

@@ -4,6 +4,7 @@ import { buildLineCapacityMetadata } from '../../domain/model/capacity';
 
 type Row = Record<string, unknown>;
 const num = (v: unknown, fallback = 0): number => v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : fallback;
+const rawNumber=(v:unknown):number|null=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v);
 const str = (v: unknown): string => String(v ?? '');
 const BASE = 100;
 export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
@@ -86,9 +87,18 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
       sourceRefs: { ...base(cls, r).sourceRefs, dispatch: [ref(cls, r.FID, 'pgini/qgini', 'MW/MVAr')], qLimits: [ref(cls, r.FID, 'cQ_min/cQ_max/pQlimType'), ref('IntQlim', r.pQlimType, 'cap_P/cap_Qmn/cap_Qmx')] } };
   }));
-  const loads = rows('ElmLod').map(r => ({ ...base('ElmLod', r), bus: endpoint(r.bus1), pMw: num(r.plini), qMvar: num(r.qlini) }));
+  const loads = rows('ElmLod').map(r => {
+    const hasNativeScale=r.scale!=null&&r.scale!=='',nativeScale=hasNativeScale?rawNumber(r.scale):null;
+    const eligibility=nativeScale===1?true:nativeScale===0?false:undefined;
+    const firstRaw=hasNativeScale?r.scale:r.i_scale!=null?r.i_scale:r.scale0??null,rawEligibility=typeof firstRaw==='number'&&Number.isFinite(firstRaw)?firstRaw:typeof firstRaw==='string'&&firstRaw.trim()?firstRaw.trim():null;
+    const source:'native-scale'|'ElmLod.i_scale'|'ElmLod.scale0'|undefined=hasNativeScale?'native-scale':r.i_scale!=null?'ElmLod.i_scale':r.scale0!=null?'ElmLod.scale0':undefined;
+    return { ...base('ElmLod', r), bus: endpoint(r.bus1), pMw: num(r.plini), qMvar: num(r.qlini),
+      activeBalanceEligibility:eligibility,activeBalanceEligibilitySource:source,activeBalanceEligibilityRaw:rawEligibility,
+      sourceRefs:{...base('ElmLod',r).sourceRefs,activeBalanceEligibility:source?[ref('ElmLod',r.FID,source)]:[ref('ElmLod',r.FID,'ACTIVE_BALANCE_ELIGIBILITY_MISSING')]}
+    };
+  });
   const internationalConnections = rows('ElmVac').map(r => ({ ...base('ElmVac', r), bus: endpoint(r.bus1), pMw: num(r.Pload), qMvar: num(r.Qload) }));
-  const externalGrids = rows('ElmXnet').map(r => ({ ...base('ElmXnet', r), bus: endpoint(r.bus1), pMw: num(r.pgini), qMvar: num(r.qgini), vmSet: num(r.usetp, 1),bustpRaw:str(r.bustp),modeInputRaw:str(r.mode_inp),sourceRefs:{...base('ElmXnet',r).sourceRefs,reference:[ref('ElmXnet',r.FID,'bustp/mode_inp/usetp')]} }));
+  const externalGrids = rows('ElmXnet').map(r => ({ ...base('ElmXnet', r), bus: endpoint(r.bus1), pMw: num(r.pgini), qMvar: num(r.qgini), vmSet: num(r.usetp, 1), pMin:rawNumber(r.Pmin??r.pmin), pMax:rawNumber(r.Pmax??r.pmax), qMin:rawNumber(r.cQ_min), qMax:rawNumber(r.cQ_max),bustpRaw:str(r.bustp),modeInputRaw:str(r.mode_inp),sourceRefs:{...base('ElmXnet',r).sourceRefs,dispatch:[ref('ElmXnet',r.FID,'pgini/qgini','MW/MVAr')],limits:[ref('ElmXnet',r.FID,'Pmin/Pmax/cQ_min/cQ_max','MW/MVAr')],reference:[ref('ElmXnet',r.FID,'bustp/mode_inp/usetp')]} }));
   const shunts = rows('ElmShnt').map(r => {
     let q = num(r.shtype) === 1 ? -Math.abs(num(r.qrean)) : num(r.shtype) === 2 ? Math.abs(num(r.qcapn)) : 0;
     if (![1,2].includes(num(r.shtype))) warnings.push(`Şönt türü desteklenmiyor: ${str(r.FID)}`);
@@ -101,7 +111,6 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     const cub = str(r.fold_id), owner = m.get('StaCubic', cub) as Row | null;
     return { ...branchBase('StaSwitch', r, endpoint(cub), endpoint(cub)), closed: num(r.on_off) === 1, cubicleId: cub, equipmentId: str(owner?.obj_id) };
   });
-  const rawNumber=(v:unknown):number|null=>v==null||v===''||!Number.isFinite(Number(v))?null:Number(v);
   const unitById=new Map(generators.map(g=>[g.id,g]));
   const stationControllers = rows('ElmStactrl').map(r => {
     const unitIds=Array.from({length:num(r['psym:SIZEROW'])}, (_,i) => str(r[`psym:${i}`]));
@@ -120,8 +129,12 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const classCounts = Object.fromEntries([...m.tables].map(([cls, t]) => [cls, t.Values.length]));
   const powerReasons = ['ElmStactrl current-profile gerilim kontrolü kısmi uygulanır; droop ve kaynak dışı enum profilleri ayrıca doğrulanır.', 'TypTr2 kaynak profilinde faz kaydırma alanı yok; faz 0 ile hesaplanır ve sonuç kısmi sadakattedir.', 'PowerFactory eşdeğerliği doğrulanmadı.'];
   if (!externalGrids.some(x => x.inService)) powerReasons.push('Servis içi dış şebeke (ElmXnet) yok.');
-  const comLdf=rows('ComLdf')[0];const loadFlowOptionsRaw=comLdf?Object.fromEntries(['iopt_lim','itrlx','ictrlx','errlf','erreq','iPbalancing'].map(key=>[key,rawNumber(comLdf[key])])):{};
-  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,
+  const comLdf=rows('ComLdf')[0];const comLdfFields=['iopt_lim','itrlx','ictrlx','errlf','erreq','iopt_chctr','iShowOutLoopMsg','iPbalancing','iopt_initOPF','iItAlgStag','iInterChg','iInterType'];
+  const loadFlowSettings=comLdf?Object.fromEntries(comLdfFields.map(key=>[key,rawNumber(comLdf[key])])):{};
+  const loadFlowOptionsRaw=loadFlowSettings;
+  const diagnostics=loads.some(load=>load.activeBalanceEligibility===undefined)?[{code:'ACTIVE_BALANCE_ELIGIBILITY_MISSING',message:'Active balancing eligibility is absent from ElmLod source attributes; adjustable-load balancing parity cannot be established.',severity:'WARNING' as const,sourceClass:'ElmLod'}]:[];
+  const unsupportedReactiveLimitClasses=['ElmAsm','ElmVsc','ElmSvs'].map(sourceClass=>({sourceClass,sourceIds:rows(sourceClass).filter(row=>num(row.outserv)!==1).map(row=>str(row.FID))})).filter(row=>row.sourceIds.length).map(row=>({...row,count:row.sourceIds.length}));
+  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,
     capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'BLOCKED',reasons:['Bu sürümde uygulanmadı; sekans/reaktans kapsamı doğrulanmalı.']}, shortCircuitGround:{state:'BLOCKED',reasons:['Sıfır sekans ve vektör grubu kapsamı doğrulanmadı.']}, n1:{state:'BLOCKED',reasons:['Bu sürümde uygulanmadı.']} } };

@@ -25,10 +25,10 @@ export interface Generator extends Entity {
   readonly vmSet: number; readonly voltageControl: boolean;
   readonly qMin: number | null; readonly qMax: number | null;
 }
-export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number }
+export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number; readonly activeBalanceEligibility?: boolean; readonly activeBalanceEligibilitySource?: 'native-scale'|'ElmLod.i_scale'|'ElmLod.scale0'; readonly activeBalanceEligibilityRaw?: number|string|null }
 export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number; readonly nominalQMvar?: number }
 export interface SeriesCompensator extends Entity { readonly from: string; readonly to: string; readonly rOhm: number; readonly xOhm: number }
-export interface ExternalGrid extends Load { readonly vmSet: number; readonly bustpRaw?: string; readonly modeInputRaw?: string }
+export interface ExternalGrid extends Load { readonly vmSet: number; readonly pMin?: number|null; readonly pMax?: number|null; readonly qMin?: number|null; readonly qMax?: number|null; readonly bustpRaw?: string; readonly modeInputRaw?: string }
 export interface Switch extends Entity { readonly from: string; readonly to: string; readonly closed: boolean; readonly cubicleId?: string; readonly equipmentId?: string }
 export interface StationController extends Entity {
   /** ElmTerm FID, resolved through ElectricalTopology at preparation time. */
@@ -54,7 +54,10 @@ export interface CanonicalNetwork {
   readonly seriesCompensators: readonly SeriesCompensator[]; readonly externalGrids: readonly ExternalGrid[];
   readonly internationalConnections: readonly Load[]; readonly switches: readonly Switch[];
   readonly stationControllers: readonly StationController[]; readonly secondaryControllers: readonly Entity[];
+  readonly unsupportedReactiveLimitClasses?: readonly {sourceClass:string;count:number;sourceIds:readonly string[]}[];
   readonly loadFlowOptionsRaw?: Readonly<Record<string,number|string|null>>;
+  readonly loadFlowSettings?: Readonly<Record<string,number|string|null>>;
+  readonly diagnostics?: readonly { readonly code:string; readonly message:string; readonly severity:'INFO'|'WARNING'|'ERROR'; readonly sourceClass?:string; readonly sourceId?:string }[];
   readonly boundaries: readonly Entity[]; readonly sites: readonly Site[];
   readonly classCounts: Readonly<Record<string, number>>; readonly records: number;
   readonly warnings: readonly string[]; readonly capabilities: ModelCapabilities;
