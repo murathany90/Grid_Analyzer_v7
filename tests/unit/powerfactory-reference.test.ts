@@ -66,3 +66,15 @@ test('calculation-bus voltage/angle rounding within fixture precision is retaine
  const parsed=importPowerFactoryReferenceDocument('sep=;\r\nkind;fid;name;calculationBusKey;physicalTerminalFid;voltageKv;voltagePu;angleDeg;resultAvailable\r\nbus;T1;Bus;CB;T1;154;1.0107570451;18.2494736900;1\r\nbus;T2;Bus;CB;T2;154,000001;1.0107570450;18.2494736898;1');
  assert.equal(parsed.records.length,1);assert.equal(parsed.records[0].voltagePu,1.0107570451);assert.equal(parsed.records[0].angleDeg,18.24947369);assert.equal(parsed.valueConflicts?.length,0);
 });
+
+test('PF loading compares only when endpoint current ratings and PF current-derived loading agree',()=>{
+ const calc=result([{id:'B1',name:'A',terms:[],siteIds:[],vnKv:154,vmPu:1,angleRad:0,pMw:0,qMvar:0},{id:'B2',name:'B',terms:[],siteIds:[],vnKv:154,vmPu:1,angleRad:0,pMw:0,qMvar:0}],[{id:'L1',name:'Line',sourceClass:'ElmLne',from:'B1',to:'B2',siteIds:[],vnKv:154,pf:10,qf:2,pt:-10,qt:-2,ifA:50,itA:60,loading:60,currentLoadingPercent:60,ratedCurrentFromA:100,ratedCurrentToA:100,pLoss:0,qLoss:0}]);
+ const verified={kind:'line' as const,fid:'L1',name:'Line',loadingPercent:58,ratedCurrentFromA:100,ratedCurrentToA:100,raw:{loadingCalculatedFromCurrentPercent:'58'}};
+ const matched=comparePowerFactoryReference(doc([verified]),calc,context),pair=matched.rows.find(row=>row.kind==='line')?.metrics.loadingPercent;
+ assert.equal(pair?.comparable,true);assert.equal(pair?.delta,2);assert.equal(matched.metrics.find(row=>row.metric==='loadingPercent')?.mae,2);
+ const wrongRating=comparePowerFactoryReference(doc([{...verified,ratedCurrentFromA:90}]),calc,context);
+ assert.equal(wrongRating.rows.find(row=>row.kind==='line')?.metrics.loadingPercent?.comparable,false);
+ assert.equal(wrongRating.metrics.some(row=>row.metric==='loadingPercent'),false);
+ const wrongPfSemantics=comparePowerFactoryReference(doc([{...verified,raw:{loadingCalculatedFromCurrentPercent:'47'}}]),calc,context);
+ assert.equal(wrongPfSemantics.rows.find(row=>row.kind==='line')?.metrics.loadingPercent?.comparable,false);
+});

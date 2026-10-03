@@ -29,7 +29,7 @@ test('full context and terminal partition enable numeric comparison; changed stu
 test('comparison workbook has eight scalar sheets and excludes unequal PF loading semantics',()=>{
   const {network,result,reference}=fixture(),preflight=preflightPowerFactoryReference(reference,network,result),report=comparePowerFactoryReference(preflight.reference,result,preflight.context),sheets=comparisonSheets(report,preflight,network,result,reference);
   assert.deepEqual(sheets.map(x=>x.name),['Ozet','Gerilim_Aci','Hatlar','Trafolar','Ureticiler','Eslesmeyenler','Topoloji','Meta']);
-  const workbook=unzipSync(buildWorkbook(sheets)),names=strFromU8(workbook['xl/workbook.xml']),line=strFromU8(workbook['xl/worksheets/sheet3.xml']);assert.match(names,/name="Gerilim_Aci"/);assert.match(line,/loadingPercent/);assert.match(line,/not established as equivalent/);assert.doesNotMatch(line,/\{"/);
+  const workbook=unzipSync(buildWorkbook(sheets)),names=strFromU8(workbook['xl/workbook.xml']),line=strFromU8(workbook['xl/worksheets/sheet3.xml']);assert.match(names,/name="Gerilim_Aci"/);assert.match(line,/loadingPercent/);assert.match(line,/endpoint rated-current basis or PF c:loading semantics are not verified/);assert.doesNotMatch(line,/\{"/);
 });
 test('P and Q loading use distinct bases and settings round trip',()=>{
   const settings=defaultSettings(),row={pf:70,pt:-69,qf:50,qt:80},line={ratingMva:100} as CanonicalNetwork['lines'][number];
