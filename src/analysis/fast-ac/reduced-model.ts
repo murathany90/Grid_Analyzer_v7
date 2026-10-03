@@ -8,9 +8,9 @@ export interface ReducedIsland {
 }
 export interface ReducedNetwork {islands:ReducedIsland[];buses:Map<string,ElectricalBus>;warnings:string[];diagnostics:Record<string,unknown>}
 /** Preserves v6.8 >=66 kV projection and series-capacitor rules, consuming canonical SI fields. */
-export function prepareReduced(n:CanonicalNetwork):ReducedNetwork{
+export function prepareReduced(n:CanonicalNetwork,minVoltageKv=66):ReducedNetwork{
   const topo=buildTopology(n),buses=topo.buses,warnings=[...topo.warnings];
-  const root=(id:string)=>topo.terminalToBus.get(id),high=new Set<number>(),low=new Set<number>();buses.forEach((b,i)=>(b.vnKv>=66?high:low).add(i));
+  const root=(id:string)=>topo.terminalToBus.get(id),high=new Set<number>(),low=new Set<number>();buses.forEach((b,i)=>(b.vnKv>=minVoltageKv?high:low).add(i));
   const enabled=(e:{id:string;inService:boolean})=>e.inService&&!topo.blockedEquipment.has(e.id);
   const transformers=n.transformers.filter(enabled).map(e=>({e,a:root(e.from),b:root(e.to)})).filter((x):x is typeof x&{a:number;b:number}=>x.a!==undefined&&x.b!==undefined);
   const lowUf=new UnionFind([...low].map(String));for(const{a,b}of transformers)if(low.has(a)&&low.has(b))lowUf.union(String(a),String(b));

@@ -70,14 +70,16 @@ export function solveIsland(input: FastAcIsland): FastAcResult{
  return {status:'CONVERGED_PQ_APPROX',iterations:it,misMW:err*baseMVA,buses:n,lines:edges.length,slackBus:busIds[slack],slackMW:P[slack]*baseMVA,voltages:busIds.map((id,i)=>({id,pu:V[i],angle:ang[i]})),branches:results};
 }
 
-export function solveIslandV52(input: FastAcIsland): FastAcResult{
- const {busIds,edges,injections,shunts=[],slack,pv=[],pvLimits=[],baseMVA=100}=input;
- const n=busIds.length,old=solveIsland(input),finiteNum=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x);
+export function solveIslandV52(input: FastAcIsland, options: {maxIterations?:number;mismatchTolerance?:number;nrRefinementEnabled?:boolean;nrRefinementMaxIterations?:number;maxQLimitRounds?:number;usePvControls?:boolean;considerQLimits?:boolean;fallbackPolicy?:'APPROXIMATE'|'FAIL'} = {}): FastAcResult{
+ const {busIds,edges,injections,shunts=[],slack,pv=[],pvLimits=[],baseMVA=100}=input,maxIterations=Math.max(1,Math.floor(options.maxIterations??110)),tolerance=options.mismatchTolerance??1e-5,nrIterationLimit=Math.max(1,Math.floor(options.nrRefinementMaxIterations??20)),maxQLimitRounds=Math.max(1,Math.floor(options.maxQLimitRounds??5));
+ const activePv=options.usePvControls===false?[]:pv,activeLimits=options.considerQLimits===false?[]:pvLimits;
+ const n=busIds.length,old=solveIsland({...input,pv:activePv,iterations:maxIterations,threshold:input.threshold??.005}),finiteNum=(x:unknown):x is number=>typeof x==='number'&&Number.isFinite(x);
+ if(options.nrRefinementEnabled===false)return old;
  let V=Float64Array.from(old.voltages?.map(v=>v.pu)||Array(n).fill(1));
  let th=Float64Array.from(old.voltages?.map(v=>v.angle)||Array(n).fill(0));
  const targetP=Float64Array.from(injections.map(v=>v[0]/baseMVA)),targetQ=Float64Array.from(injections.map(v=>v[1]/baseMVA));
  const diagG=new Float64Array(n),diagB=new Float64Array(n),adj=Array.from({length:n},():Map<number,[number,number]>=>new Map());
- const pvMap=new Map<number,number>(pv.map(z=>[z.bus,z.setpoint])); const limits=new Map<number,PvLimit>(pvLimits.map(z=>[z.bus,z]));
+ const pvMap=new Map<number,number>(activePv.map(z=>[z.bus,z.setpoint])); const limits=new Map<number,PvLimit>(activeLimits.map(z=>[z.bus,z]));
  const switched=new Set<number>(),warnings:string[]=[];
  for(const e of edges){
   const {a,b}=e,t=e.tap||1,r=e.r,x=e.x,bc=e.bc||0;
@@ -176,13 +178,13 @@ export function solveIslandV52(input: FastAcIsland): FastAcResult{
   return null;
  }
  let nrIterations=0,err=Infinity,status='NR_NOT_CONVERGED',nrReason='',limitRounds=0;
- for(let round=0;round<5;round++){
+ for(let round=0;round<maxQLimitRounds;round++){
   limitRounds=round;const L=layout();
   if(!L.N){nrReason='Serbest değişken bulunamadı';break;}
   let converged=false;
-  for(let iter=0;iter<20;iter++){
+  for(let iter=0;iter<nrIterationLimit;iter++){
    calc();let R=resid(L);err=R.mx;
-   if(err<1e-5){converged=true;break;}
+   if(err<tolerance){converged=true;break;}
    const J=jac(L),dx=gmres(J,R.res,1e-7)||bicg(J,R.res,1e-7);if(!dx){nrReason='Seyrek Jacobian doğrusal çözümü başarısız';break;}
    let oldV=Float64Array.from(V),oldTh=Float64Array.from(th),accepted=false;
    for(let scale=1;scale>=1/128;scale/=2){
@@ -204,7 +206,7 @@ export function solveIslandV52(input: FastAcIsland): FastAcResult{
   if(!changed){status='CONVERGED_NR_EXPERIMENTAL';break;}
  }
  if(status!=='CONVERGED_NR_EXPERIMENTAL'){
-  if(old.status==='CONVERGED_PQ_APPROX')return {...old,nrIterations,nrReason:nrReason||'PV/PQ sınır geçişi yakınsamadı; eski yaklaşık çözüm korundu',pvToPq:[],unitQ:[],nrFallback:true};
+  if(old.status==='CONVERGED_PQ_APPROX'&&options.fallbackPolicy!=='FAIL')return {...old,nrIterations,nrReason:nrReason||'PV/PQ sınır geçişi yakınsamadı; eski yaklaşık çözüm korundu',pvToPq:[],unitQ:[],nrFallback:true};
   return {status:'NR_NOT_CONVERGED',nrIterations,misMW:err*baseMVA,buses:n,lines:edges.length,reason:nrReason||old.reason||''};
  }
  calc();const branches=[];

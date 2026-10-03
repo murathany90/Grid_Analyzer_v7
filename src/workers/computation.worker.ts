@@ -58,7 +58,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       send({type:'RESULT',value:getN1SelectedDetail(network,data.scenario,data.candidateId,data.options)});
     }
     else{
-      if(!network)throw Error('Model yüklenmedi.');const request={network,scenario:data.scenario,identity:data.identity};
+      if(!network)throw Error('Model yüklenmedi.');const request={network,scenario:data.scenario,identity:data.identity,analysisSettings:data.analysisSettings};
       const result=await (data.type==='RUN_DC'?engine.runDcPowerFlow(request,progress):data.type==='RUN_FAST'?engine.runFastAc(request,progress):engine.runPowerFlow(request,progress));
       const packed=packResult(result);send({type:'RESULT',value:packed},[packed.busValues.buffer,packed.branchValues.buffer]);
     }
