@@ -1,5 +1,7 @@
 import type { CanonicalNetwork } from '../domain/model/network';
 export interface NetworkGeometry { modelHash:string;paths:Map<string,readonly (readonly[number,number])[]>;parallel:Map<string,{index:number;count:number}> }
+export function splitBusMarksVisible(mode:string):boolean{return mode==='island'||mode==='n1-island';}
+export function qEndpointDirections(qFrom:number,qTo:number):{fromForward:boolean;toForward:boolean}{return{fromForward:qFrom>=0,toForward:qTo<0};}
 export function buildGeometry(n:CanonicalNetwork):NetworkGeometry{
   const sites=new Map(n.sites.map(s=>[s.id,s])),paths=new Map<string,readonly(readonly[number,number])[]>(),groups=new Map<string,string[]>(),parallel=new Map<string,{index:number;count:number}>();
   for(const line of n.lines){const ends=line.siteIds.map(id=>sites.get(id)).filter(s=>s?.lat!=null&&s.lon!=null);paths.set(line.id,line.coordinates.length>=2?line.coordinates:ends.map(s=>[s!.lat!,s!.lon!]as const));const key=[...line.siteIds].sort().join('|');if(!key)continue;if(!groups.has(key))groups.set(key,[]);groups.get(key)!.push(line.id);}

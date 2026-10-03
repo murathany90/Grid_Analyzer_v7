@@ -4,7 +4,7 @@ import type {AppContext} from '../app/contracts';
 import type {BranchResult} from '../domain/results/types';
 import type {Line,Site} from '../domain/model/network';
 import {selectedCapacity} from '../domain/model/capacity';
-import {buildGeometry,offsetPath,routeEndpointToStationSide,type NetworkGeometry} from './geometry';
+import {buildGeometry,offsetPath,routeEndpointToStationSide,splitBusMarksVisible,qEndpointDirections,type NetworkGeometry} from './geometry';
 import {lineStyle} from './result-style';
 import {BasemapRenderer} from './basemap';
 import {projectWgs84} from './projection';
@@ -49,12 +49,13 @@ export class CanvasMapRenderer implements MapRenderer {
     const current=this.splitTopologyCache!;this.splitTopology=current.data;this.splitTopologyKey=current.key;
   }
   private prepareSplitSidePoints(network:CanonicalNetwork):void {
-    this.splitSidePoints.clear();if(this.zoom<2||!this.splitTopology)return;
+    this.splitSidePoints.clear();if(this.zoom<2||!this.splitTopology||!splitBusMarksVisible(this.ctx.settings.value.displayMode))return;
     for(const[siteId,stations]of this.splitGroupsBySite){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
       stations.forEach((station,index)=>{const y=center[1]+(index-(stations.length-1)/2)*16;this.splitSidePoints.set(`${siteId}|${station.bus1.electricalBusId}`,[center[0]-8,y]);this.splitSidePoints.set(`${siteId}|${station.bus2.electricalBusId}`,[center[0]+8,y]);});
     }
   }
   private splitRoutePath(line:Line,path:readonly(readonly[number,number])[],network:CanonicalNetwork):[number,number][] {
+    if(!splitBusMarksVisible(this.ctx.settings.value.displayMode))return path.map(point=>[point[0],point[1]]);
     const fromSites=this.terminalSiteIds.get(line.from)||[],toSites=this.terminalSiteIds.get(line.to)||[],fromBus=this.splitTopology?.terminalToElectricalBus.get(line.from),toBus=this.splitTopology?.terminalToElectricalBus.get(line.to);
     let shifted=path.map(point=>[point[0],point[1]] as [number,number]);
     for(const siteId of line.siteIds){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
@@ -64,8 +65,11 @@ export class CanvasMapRenderer implements MapRenderer {
     return shifted;
   }
   private splitSideColor(station:SplitBusStation,busId:string):string {
-    if(this.ctx.settings.value.displayMode!=='island')return '#ffbd4a';
     const side=station.bus1.electricalBusId===busId?station.bus1:station.bus2,islandId=side.islandIds[0],island=this.splitTopology?.islands.find(row=>row.islandId===islandId);
+    if(this.ctx.settings.value.displayMode==='n1-island'){
+      const n1=this.n1Detail()?.outageIslands.find(component=>side.terminalIds.some(id=>component.busIds.includes(id)));
+      return n1?.hasReference?islandColor(n1.componentId):this.ctx.settings.value.colorNoResult;
+    }
     return island?.referencePresent?islandColor(islandId):this.ctx.settings.value.colorNoResult;
   }
   private n1Detail(){const detail=this.ctx.n1Detail;return detail&&detail.candidate.candidateId===this.ctx.selectedN1CandidateId?detail:null;}
@@ -126,16 +130,16 @@ export class CanvasMapRenderer implements MapRenderer {
     }
     g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){
       const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id,delta=this.voltageDeltas.get(s.id),siteIsland=this.islandMap?.siteIslands.get(s.id),dominant=siteIsland?.dominant;
-      const splitStations=this.splitGroupsBySite.get(s.id)||[],drawSplit=this.zoom>=2&&splitStations.length>0;
+      const splitMode=splitBusMarksVisible(settings.displayMode),splitStations=this.splitGroupsBySite.get(s.id)||[],drawSplit=splitMode&&this.zoom>=2&&splitStations.length>0;
       const n1SiteIslands=this.n1Lookups()?.islandsBySite.get(s.id)||[],n1Island=n1SiteIslands.find(island=>island.hasReference)||n1SiteIslands[0];
       g.fillStyle=settings.displayMode==='n1-island'?n1Island?.hasReference?islandColor(n1Island.componentId):settings.colorNoResult:settings.displayMode==='island'?dominant&&dominant.status!=='NO_REFERENCE'&&dominant.status!=='NO_RESULT'?islandColor(dominant.islandId):settings.colorNoResult:settings.displayMode==='v'?voltageColor(this.voltages.get(s.id)?.worst.vmPu,settings):settings.displayMode==='angle'?scaleColor(this.angles.get(s.id)?.median,settings.angleMin,settings.angleNeutral,settings.angleMax,settings.angleNegativeColor,settings.angleNeutralColor,settings.anglePositiveColor,settings.colorNoResult):settings.displayMode==='delta'&&settings.deltaMetric==='v'?deltaColor(delta,settings):'#b8e1e3';
       if(drawSplit){splitStations.forEach((station,index)=>{const cy=y+(index-(splitStations.length-1)/2)*16,left=[x-8,cy] as const,right=[x+8,cy] as const;g.beginPath();g.moveTo(left[0],left[1]);g.lineTo(x-3,cy);g.moveTo(x+3,cy);g.lineTo(right[0],right[1]);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,3]);g.stroke();g.setLineDash([]);g.beginPath();g.arc(x-3,cy,1.8,0,Math.PI*2);g.arc(x+3,cy,1.8,0,Math.PI*2);g.strokeStyle='#f0f5fa';g.lineWidth=1;g.stroke();g.beginPath();g.moveTo(x-2,cy);g.lineTo(x+2,cy-4);g.strokeStyle='#f0f5fa';g.stroke();
         for(const[side,point]of[[station.bus1,left],[station.bus2,right]] as const){g.beginPath();g.arc(point[0],point[1],5,0,Math.PI*2);g.fillStyle=this.splitSideColor(station,side.electricalBusId);g.fill();g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.stroke();if(this.showLabels||this.zoom>=2.6){g.fillStyle='#e5eef5';g.font='8px system-ui';g.fillText(side.barDesignation==='UNKNOWN'?side.busName:side.barDesignation,point[0]-9,point[1]-7);}}
       });if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+9,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}}
-      else{g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(splitStations.length){g.beginPath();g.arc(x,y,settings.siteSize+4,0,Math.PI*2);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,2]);g.stroke();g.setLineDash([]);}}
+      else{g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(splitMode&&splitStations.length){g.beginPath();g.arc(x,y,settings.siteSize+4,0,Math.PI*2);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,2]);g.stroke();g.setLineDash([]);}}
       if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.font='10px system-ui';g.fillText(s.name,x+5,y-5);}
     }
-    cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.clearRect(0,0,this.overlay.width,this.overlay.height);if(settings.flowDefault&&settings.displayMode==='q')this.drawQArrows(overlay,dpr);else if(settings.flowDefault&&!['v','angle','delta','island','n1-island','n1-risk'].includes(settings.displayMode)&&result?.branches.length)this.animate();
+    cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.clearRect(0,0,this.overlay.width,this.overlay.height);if(settings.flowDefault&&settings.displayMode==='q'){this.drawQArrows(overlay,dpr,performance.now());this.raf=requestAnimationFrame(this.animateQ);}else if(settings.flowDefault&&!['v','angle','delta','island','n1-island','n1-risk'].includes(settings.displayMode)&&result?.branches.length)this.animate();
   }
   detailText(entity:Site|Line):string {
     if(this.ctx.settings.value.displayMode==='n1-island'||this.ctx.settings.value.displayMode==='n1-risk')return this.n1DetailText(entity);
@@ -166,14 +170,14 @@ export class CanvasMapRenderer implements MapRenderer {
   }
   splitBusLegendMarkup():string {return `<span><i style="background:#b8e1e3"></i>Normal TM</span><span><i style="background:#ffbd4a;border:1px dashed #fff"></i>Yarı ada / açık 154 kV kuplaj · ${this.splitGroupsBySite.size} TM</span><span><i style="background:#708596"></i>Gerçek elektrik adası</span><span><i style="background:${this.ctx.settings.value.colorNoResult};border-bottom:2px dashed #fff"></i>Referanssız ada</span><span>Yakınlaştırın: B-1/B-2 baraları ve açık kuplaj</span>`;}
   n1IslandLegendMarkup(noResultColor='#708596'):string {
-    const detail=this.n1Detail();if(!detail)return `<span>${this.ctx.n1DetailLoading?'N-1 ayrıntısı hesaplanıyor…':'N-1 ayrıntısı yok · Sonuç görünümü için N-1 adayını seçin.'}</span>`;
+    const detail=this.n1Detail();if(!detail)return `<span>${this.ctx.n1DetailLoading?'N-1 ayrıntısı hesaplanıyor…':'N-1 ayrıntısı yok · Sonuç görünümü için N-1 adayını seçin.'}</span>${this.splitBusLegendMarkup()}`;
     const islands=detail.outageIslands,unreferenced=islands.filter(island=>!island.hasReference).length;
     const references=(island:typeof islands[number])=>island.references.length?island.references.map(row=>`${row.name} (${row.id})`).join(', '):'YOK';
     return `<span>${islands.length} N-1 adası · ${unreferenced} referanssız · Kesinti: ${escapeHtml(detail.candidate.name)}</span><span><i style="background:#111318;border-bottom:2px dashed #f2f5f7"></i>Kesinti ekipmanı · siyah ┄</span>${islands.map(island=>{
       const active=this.ctx.selectedN1IslandId===island.componentId,color=island.hasReference?islandColor(island.componentId):noResultColor,islandName=this.n1IslandLabel(island.componentId),siteNames=island.siteIds.map(id=>this.ctx.network?.sites.find(site=>site.id===id)?.name||id),sites=siteNames.length?`${siteNames.slice(0,2).join(' ↔ ')}${siteNames.length>2?` +${siteNames.length-2}`:''}`:'TM yok',status=island.hasReference?'Referanslı ada':'Referanssız ada',localGeneration=island.hasLocalGeneration?' · Yerel üretim var':'';
       const title=`${island.componentId}\n${references(island)}\nTM: ${siteNames.join(' · ')}`;
       return `<button type="button" class="ga-n1-island-choice${active?' is-selected':''}" data-n1-island="${escapeHtml(island.componentId)}" aria-pressed="${active}" aria-label="${escapeHtml(`${islandName} · ${status} · ${island.componentId}`)}" title="${escapeHtml(title)}"><i style="background:${color};${island.hasReference?'':'border-bottom:2px dashed #f2f5f7'}"></i><span><b>${islandName}</b> · ${status} · ${island.referenceCount} ref${localGeneration}<small>TM: ${escapeHtml(sites)} · ${island.busIds.length} bara · ${island.branchIds.length} dal · Yük ${island.loadMw.toLocaleString('tr-TR',{maximumFractionDigits:1})} MW · Üretim ${island.generationMw.toLocaleString('tr-TR',{maximumFractionDigits:1})} MW</small></span></button>`;
-    }).join('')}<span>REFERANSSIZ: gri · ┄</span>`;
+    }).join('')}<span>REFERANSSIZ: gri · ┄</span>${this.splitBusLegendMarkup()}`;
   }
   n1RiskLegendMarkup(noResultColor='#708596'):string {
     const detail=this.n1Detail();if(!detail)return `<span>${this.ctx.n1DetailLoading?'N-1 ayrıntısı hesaplanıyor…':'N-1 ayrıntısı yok · Sonuç görünümü için N-1 adayını seçin.'}</span>`;
@@ -181,13 +185,23 @@ export class CanvasMapRenderer implements MapRenderer {
     const colors=['#43b874','#e4c84f','#e99340','#e34848'];
     return `<span>${escapeHtml(detail.candidate.name)} · ${rows.length} izlenen dal · ${detail.candidate.estimatedOverloadCount} tahmini limit aşımı</span><span><i style="background:#111318;border-bottom:2px dashed #f2f5f7"></i>Kesinti ekipmanı</span>${['&lt;80%','80–85%','85–90%','&gt;90%'].map((label,index)=>`<span><i style="background:${colors[index]}"></i>${label} · ${counts[index]}</span>`).join('')}<span><i style="background:${noResultColor};border-bottom:2px dashed #f2f5f7"></i>Kapasite / sonuç yok · ${unrated}</span><span>90–100% kırmızı risk bandı olabilir; kapasite ihlali &gt;100%.</span>`;
   }
-  private drawQArrows(g:CanvasRenderingContext2D,dpr:number):void {
+  private drawQArrows(g:CanvasRenderingContext2D,dpr:number,timeMs:number):void {
     if(this.zoom<1.7)return;
-    g.setTransform(dpr,0,0,dpr,0,0);g.font='10px system-ui';
+    g.setTransform(dpr,0,0,dpr,0,0);g.font='9px system-ui';const settings=this.ctx.settings.value,cells=new Set<string>(),arrowsByCell=new Map<string,number>();let labels=0;
     for(const line of this.visibleLines){if(line.vnKv!==400&&line.vnKv!==154)continue;const row=this.flowRows.get(line.id),path=this.paths.get(line.id),lengths=this.lengths.get(line.id);if(!row||!path||path.length<2||!lengths||lengths.total<48)continue;
-      for(const [fraction,q,forward] of [[.16,row.qf,row.qf>=0],[.84,row.qt,row.qt<0]] as const){if(!Number.isFinite(q)||Math.abs(q)<.1)continue;let distance=lengths.total*fraction,index=0;while(index<lengths.segments.length-1&&distance>lengths.segments[index])distance-=lengths.segments[index++];const a=path[index],b=path[index+1],segment=lengths.segments[index]||1,t=distance/segment,x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t,rotation=Math.atan2(b[1]-a[1],b[0]-a[0])+(forward?0:Math.PI);g.save();g.translate(x,y);g.rotate(rotation);g.fillStyle='#a7efff';g.strokeStyle='#12364a';g.lineWidth=1;g.beginPath();g.moveTo(7,0);g.lineTo(-5,-4);g.lineTo(-3,0);g.lineTo(-5,4);g.closePath();g.fill();g.stroke();g.restore();if(this.zoom>3.5||this.ctx.selection?.id===line.id){g.fillStyle='#d4f8ff';g.fillText(`${Math.abs(q).toFixed(1)} MVAr`,x+7,y-8);}}
+      const directions=qEndpointDirections(row.qf,row.qt);
+      for(const [side,q,forward,phase,fixedFraction] of [['From',row.qf,directions.fromForward,0,.12],['To',row.qt,directions.toForward,.31,.88]] as const){if(!Number.isFinite(q)||Math.abs(q)<.1)continue;
+        const progress=(timeMs/5000*({slow:.72,normal:1,fast:1.35}[settings.flowSpeed])+phase)%0.26,fraction=side==='From'?(forward ? .08+progress : .34-progress):(forward ? .66+progress : .92-progress);
+        const locate=(at:number)=>{let distance=lengths.total*at,index=0;while(index<lengths.segments.length-1&&distance>lengths.segments[index])distance-=lengths.segments[index++];const a=path[index],b=path[index+1],segment=lengths.segments[index]||1,t=distance/segment;return{x:a[0]+(b[0]-a[0])*t,y:a[1]+(b[1]-a[1])*t,angle:Math.atan2(b[1]-a[1],b[0]-a[0])};};
+        const{x,y,angle}=locate(fraction),rotation=angle+(forward?0:Math.PI),arrowCell=`${Math.floor(x/96)}|${Math.floor(y/60)}`;if((arrowsByCell.get(arrowCell)||0)>=settings.flowDensity&&this.ctx.selection?.id!==line.id)continue;arrowsByCell.set(arrowCell,(arrowsByCell.get(arrowCell)||0)+1);g.save();g.translate(x,y);g.rotate(rotation);g.fillStyle='#a7efff';g.strokeStyle='#12364a';g.lineWidth=1;g.beginPath();g.moveTo(7,0);g.lineTo(-5,-4);g.lineTo(-3,0);g.lineTo(-5,4);g.closePath();g.fill();g.stroke();g.restore();
+        if(this.zoom>=4.5&&(labels<220||this.ctx.selection?.id===line.id)){const point=locate(fixedFraction),key=`${Math.floor(point.x/96)}|${Math.floor(point.y/52)}`;if(!cells.has(key)||this.ctx.selection?.id===line.id){cells.add(key);labels++;g.fillStyle='#d4f8ff';g.fillText(`${side==='From'?'F':'T'} ${Math.abs(q).toFixed(0)} MVAr`,point.x+4,point.y-5);}}
+      }
     }
   }
+  private animateQ=()=>{
+    const settings=this.ctx.settings.value;if(this.ctx.view!=='map'||document.hidden||!settings.flowDefault||settings.displayMode!=='q'){this.raf=0;return;}
+    const dpr=devicePixelRatio||1,g=this.overlay.getContext('2d')!;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);this.drawQArrows(g,dpr,performance.now());this.raf=requestAnimationFrame(this.animateQ);
+  };
   private animate=()=>{
     if(this.ctx.view!=='map'||document.hidden||!this.ctx.settings.value.flowDefault){this.raf=0;return;}const result=this.ctx.resultStore.active;if(!result){this.raf=0;return;}const dpr=devicePixelRatio||1,g=this.overlay.getContext('2d')!,rows=this.flowRows;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);const cells=new Map<string,number>(),settings=this.ctx.settings.value;
     for(const l of this.visibleLines){if(l.vnKv!==400&&l.vnKv!==154)continue;const r=rows.get(l.id),p=this.paths.get(l.id);if(!r||!Number.isFinite(r.pf)||Math.abs(r.pf)<.15||!p||p.length<2)continue;const metric=this.lengths.get(l.id);if(!metric)continue;const lens=metric.segments,total=metric.total;if(total<34)continue;const count=Math.min(3,Math.ceil(total/180)),speed=({slow:.72,normal:1,fast:1.35}[settings.flowSpeed])*(.52+Math.min(120,r.loading||30)/120*1.15);for(let k=0;k<count;k++){let d=(performance.now()/1000*36*speed+k*total/count)%total;if(r.pf<0)d=total-d;let i=0;while(i<lens.length-1&&d>lens[i]){d-=lens[i];i++;}const t=lens[i]?d/lens[i]:0,a=p[i],b=p[i+1],x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t,key=Math.floor(x/115)+'|'+Math.floor(y/115);if((cells.get(key)||0)>=settings.flowDensity&&this.ctx.selection?.id!==l.id)continue;cells.set(key,(cells.get(key)||0)+1);g.save();g.translate(x,y);g.rotate(Math.atan2(b[1]-a[1],b[0]-a[0])+(r.pf<0?Math.PI:0));g.fillStyle='#ffe2a2';g.beginPath();g.moveTo(6,0);g.lineTo(-5,-3.5);g.lineTo(-3,0);g.lineTo(-5,3.5);g.closePath();g.fill();g.restore();}}
