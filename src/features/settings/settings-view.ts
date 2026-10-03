@@ -16,7 +16,8 @@ export function createSettingsView(ctx: AppContext): Feature {
     ] as const).map(([label,key])=>color(label,key,s[key],`${label} nominal hat rengi. ${mapOnly}`)).join('');
     const loadingColors=([s.loadingColor0,s.loadingColor1,s.loadingColor2,s.loadingColor3,s.loadingColor4,s.loadingColor5,s.loadingColor6] as const)
       .map((value,i)=>color(`Kademe ${i} rengi`,(`loadingColor${i}` as keyof Settings),value,`Yüklenme renk kademesi ${i}. ${mapOnly}`)).join('');
-    const thresholds=s.thresholds.map((value,i)=>`<label title="Yüklenme eşiği ${i+1}: yalnız harita rengini değiştirir; ekipman limitini değiştirmez.">Yüklenme eşiği ${i+1} (%)<input type="number" data-threshold="${i}" value="${value}" min="0" max="300" step="1" aria-label="Yüklenme eşiği ${i+1} yüzde" title="Yalnız harita rengini etkiler."></label>`).join('');
+    const thresholds=s.thresholds.map((value,i)=>`<label title="P yüklenme eşiği ${i+1}: yalnız harita rengini değiştirir; ekipman limitini değiştirmez.">P eşiği ${i+1} (%)<input type="number" data-threshold="${i}" value="${value}" min="0" max="300" step="1" aria-label="P yüklenme eşiği ${i+1} yüzde"></label>`).join('');
+    const qThresholds=s.qThresholds.map((value,i)=>`<label>Q eşiği ${i+1} (%)<input type="number" data-q-threshold="${i}" value="${value}" min="0" max="300" step="1" aria-label="Q yüklenme eşiği ${i+1} yüzde"></label>`).join('');
     form.innerHTML=`
       <fieldset><legend>Genel</legend>
         ${number('Ondalık basamak','precision',s.precision,'Ekrandaki sayı biçimi.', '1',0,8)}
@@ -30,9 +31,14 @@ export function createSettingsView(ctx: AppContext): Feature {
         ${number('Altlık opaklığı','basemapOpacity',s.basemapOpacity,'Altlığın görünürlüğü; şebeke sonuçlarını değiştirmez.','.1',0,1)}
       </fieldset>
       <fieldset><legend>Gerilim seviyesi renkleri</legend>${colors}</fieldset>
-      <fieldset><legend>Yüklenme renkleri ve eşikleri</legend>
+      <fieldset><legend>P yüklenme renkleri ve eşikleri</legend>
         <label title="Özel renkler veya yeşil önayar.">Palet<select data-key="palette" aria-label="Yüklenme paleti"><option value="voltage">Özel renkler</option><option value="green">Yeşil önayar</option></select></label>
         ${thresholds}${loadingColors}
+      </fieldset>
+      <fieldset><legend>Q yüklenme bazları ve eşikleri</legend>
+        ${number('400 kV Q baz (MVAr)','qBase400Mvar',s.qBase400Mvar,'400 kV hatlar için |Q| / Q baz hesabı.','1',1)}
+        ${number('154 kV Q baz (MVAr)','qBase154Mvar',s.qBase154Mvar,'154 kV hatlar için |Q| / Q baz hesabı.','1',1)}
+        ${qThresholds}
       </fieldset>
       <fieldset><legend>Bara gerilimi V haritası</legend>
         ${number('V min (pu)','voltageMin',s.voltageMin,'Gerilim renk skalasının alt sınırı; işletme limiti değildir.','.01',.01,2)}
@@ -81,7 +87,7 @@ export function createSettingsView(ctx: AppContext): Feature {
         <label>Hat görünümü<select data-key="layoutMode" aria-label="Hat görünümü"><option value="standard">Standart</option><option value="separated">Ayrık hatlar</option></select></label>
         <label>Akış hızı<select data-key="flowSpeed" aria-label="Akış hızı"><option value="slow">Yavaş</option><option value="normal">Normal</option><option value="fast">Hızlı</option></select></label>
         ${number('Akış yoğunluğu','flowDensity',s.flowDensity,'Görsel akış işaretlerinin sayısı.','1',1,7)}
-        ${check('Akış animasyonu','flowDefault',s.flowDefault,'P yönünü gösterir.')}
+        ${check('Akış animasyonu','flowDefault',s.flowDefault,'P veya Q yönünü gösterir.')}
         ${check('Lejand','legend',s.legend,'Harita açıklamasını gösterir.')}
         ${check('Boş tıklamada seçimi temizle','clearOnBlank',s.clearOnBlank,'Boş harita tıklamasında seçimi sıfırlar.')}
       </fieldset>`;
@@ -91,6 +97,7 @@ export function createSettingsView(ctx: AppContext): Feature {
     const patch:Record<string,unknown>={};
     form.querySelectorAll<HTMLInputElement|HTMLSelectElement>('[data-key]').forEach(e=>{patch[e.dataset.key!]=e instanceof HTMLInputElement&&e.type==='checkbox'?e.checked:e instanceof HTMLInputElement&&e.type==='number'?Number(e.value):e.value;});
     patch.thresholds=[...form.querySelectorAll<HTMLInputElement>('[data-threshold]')].map(e=>Number(e.value));
+    patch.qThresholds=[...form.querySelectorAll<HTMLInputElement>('[data-q-threshold]')].map(e=>Number(e.value));
     ctx.settings.update(patch as Partial<Settings>);message.textContent='Ayarlar kaydedildi.';ctx.notify();
   }
   let snapshot='';fill();

@@ -4,7 +4,7 @@ import type {AppContext} from '../app/contracts';
 import type {BranchResult} from '../domain/results/types';
 import type {Line,Site} from '../domain/model/network';
 import {selectedCapacity} from '../domain/model/capacity';
-import {buildGeometry,offsetPath,type NetworkGeometry} from './geometry';
+import {buildGeometry,offsetPath,routeEndpointToStationSide,type NetworkGeometry} from './geometry';
 import {lineStyle} from './result-style';
 import {BasemapRenderer} from './basemap';
 import {projectWgs84} from './projection';
@@ -14,6 +14,7 @@ import {deltaColor} from './delta-style';
 import {buildIslandMapData,islandColor,type IslandMapData} from './island-map';
 import {effectiveNetwork,emptyScenario} from '../domain/scenario/overlay';
 import {escapeHtml} from '../ui/components/dom';
+import {buildSplitBusTopology,type SplitBusStation,type SplitBusTopology} from '../topology/split-bus';
 import type {CanonicalNetwork} from '../domain/model/network';
 import type {CalculationResult} from '../domain/results/types';
 export interface MapRenderer {render():void;focus(id:string,sourceClass:string):void;reset():void;dispose():void}
@@ -23,11 +24,50 @@ export class CanvasMapRenderer implements MapRenderer {
   private baseRows=new Map<string,BranchResult>();private flowRows=new Map<string,BranchResult>();private lengths=new Map<string,{segments:number[];total:number}>();
   private islandMap:IslandMapData|null=null;
   private islandMapCache:{network:CanonicalNetwork;result:CalculationResult|null;role:string;scenarioRevision:number;data:IslandMapData}|null=null;
+  private splitTopology:SplitBusTopology|null=null;
+  private splitTopologyCache:{network:CanonicalNetwork;role:string;scenarioRevision:number;data:SplitBusTopology;key:string}|null=null;
+  private splitSidePoints=new Map<string,[number,number]>();
+  private splitGroupsBySite=new Map<string,SplitBusStation[]>();
+  private terminalSiteIds=new Map<string,readonly string[]>();
+  private splitSiteById=new Map<string,Site>();
+  private splitTopologyKey='';
   private n1Cache:{detail:NonNullable<AppContext['n1Detail']>;impactByBranch:Map<string,NonNullable<AppContext['n1Detail']>['branchImpacts'][number]>;islandByBranch:Map<string,NonNullable<AppContext['n1Detail']>['outageIslands'][number]>;islandsBySite:Map<string,NonNullable<AppContext['n1Detail']>['outageIslands'][number][]>}|null=null;
   private paths=new Map<string,[number,number][]>();private screenKey='';private visibleLines:Line[]=[];private visibleSites:Site[]=[];
   private resize:ResizeObserver;private raf=0;private pointer:{x:number;y:number;px:number;py:number;dragged:boolean}|null=null;
   showSites=true;showLabels=false;simple=false;
   private visibility=()=>this.render();
+  private updateSplitTopology(network:CanonicalNetwork):void {
+    const role=this.ctx.resultStore.role,scenarioRevision=this.ctx.scenario.revision,cached=this.splitTopologyCache;
+    if(!cached||cached.network!==network||cached.role!==role||cached.scenarioRevision!==scenarioRevision){
+      const effective=effectiveNetwork(network,role==='base'?emptyScenario():this.ctx.scenario.current),data=buildSplitBusTopology(effective);
+      this.splitTopologyCache={network,role,scenarioRevision,data,key:`${network.modelHash}|${role}|${scenarioRevision}`};
+      this.terminalSiteIds=new Map(network.buses.map(bus=>[bus.id,bus.siteIds]));this.splitSiteById=new Map(network.sites.map(site=>[site.id,site]));
+      const grouped=new Map<string,Map<string,SplitBusStation>>();
+      for(const station of data.splitStations){if(!station.siteId)continue;const pair=[station.bus1.electricalBusId,station.bus2.electricalBusId].sort().join('|'),byPair=grouped.get(station.siteId)||new Map<string,SplitBusStation>();if(!byPair.has(pair))byPair.set(pair,station);grouped.set(station.siteId,byPair);}
+      this.splitGroupsBySite=new Map([...grouped].map(([siteId,byPair])=>[siteId,[...byPair.values()]]));
+    }
+    const current=this.splitTopologyCache!;this.splitTopology=current.data;this.splitTopologyKey=current.key;
+  }
+  private prepareSplitSidePoints(network:CanonicalNetwork):void {
+    this.splitSidePoints.clear();if(this.zoom<2||!this.splitTopology)return;
+    for(const[siteId,stations]of this.splitGroupsBySite){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
+      stations.forEach((station,index)=>{const y=center[1]+(index-(stations.length-1)/2)*16;this.splitSidePoints.set(`${siteId}|${station.bus1.electricalBusId}`,[center[0]-8,y]);this.splitSidePoints.set(`${siteId}|${station.bus2.electricalBusId}`,[center[0]+8,y]);});
+    }
+  }
+  private splitRoutePath(line:Line,path:readonly(readonly[number,number])[],network:CanonicalNetwork):[number,number][] {
+    const fromSites=this.terminalSiteIds.get(line.from)||[],toSites=this.terminalSiteIds.get(line.to)||[],fromBus=this.splitTopology?.terminalToElectricalBus.get(line.from),toBus=this.splitTopology?.terminalToElectricalBus.get(line.to);
+    let shifted=path.map(point=>[point[0],point[1]] as [number,number]);
+    for(const siteId of line.siteIds){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
+      const endpoints=[[fromSites,fromBus],[toSites,toBus]] as const;
+      for(const[terminalSites,busId]of endpoints){if(!busId||!terminalSites.includes(siteId))continue;const side=this.splitSidePoints.get(`${siteId}|${busId}`);if(side)shifted=routeEndpointToStationSide(shifted,center,side,24);}
+    }
+    return shifted;
+  }
+  private splitSideColor(station:SplitBusStation,busId:string):string {
+    if(this.ctx.settings.value.displayMode!=='island')return '#ffbd4a';
+    const side=station.bus1.electricalBusId===busId?station.bus1:station.bus2,islandId=side.islandIds[0],island=this.splitTopology?.islands.find(row=>row.islandId===islandId);
+    return island?.referencePresent?islandColor(islandId):this.ctx.settings.value.colorNoResult;
+  }
   private n1Detail(){const detail=this.ctx.n1Detail;return detail&&detail.candidate.candidateId===this.ctx.selectedN1CandidateId?detail:null;}
   private n1Lookups(){const detail=this.n1Detail();if(!detail)return null;if(this.n1Cache?.detail!==detail){const impactByBranch=new Map(detail.branchImpacts.map(row=>[row.equipmentId,row])),islandByBranch=new Map<string,typeof detail.outageIslands[number]>(),islandsBySite=new Map<string,typeof detail.outageIslands[number][]>();for(const island of detail.outageIslands){for(const id of island.branchIds)islandByBranch.set(id,island);for(const id of island.siteIds)islandsBySite.set(id,[...(islandsBySite.get(id)||[]),island]);}this.n1Cache={detail,impactByBranch,islandByBranch,islandsBySite};}return this.n1Cache;}
   private n1Impact(id:string){return this.n1Lookups()?.impactByBranch.get(id);}
@@ -60,9 +100,9 @@ export class CanvasMapRenderer implements MapRenderer {
     const dpr=devicePixelRatio||1;for(const c of[this.canvas,this.overlay,this.baseCanvas,this.selectionCanvas])if(c.width!==Math.round(this.width*dpr)||c.height!==Math.round(this.height*dpr)){c.width=Math.round(this.width*dpr);c.height=Math.round(this.height*dpr);}
     const g=this.canvas.getContext('2d')!;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);this.basemap.render(this.baseCanvas,this.width,this.height,this.scale,this.panX,this.panY,this.zoom,this.ctx.settings.value);
     const selection=this.selectionCanvas.getContext('2d')!;selection.setTransform(dpr,0,0,dpr,0,0);selection.clearRect(0,0,this.width,this.height);
-    const n=this.ctx.network;if(!n)return;if(this.geometry?.modelHash!==n.modelHash){this.geometry=buildGeometry(n);this.screenKey='';}
-    const settings=this.ctx.settings.value,screenKey=[this.width,this.height,this.zoom,this.panX,this.panY,settings.layoutMode,this.simple,settings.routeDetail].join('|');
-    if(screenKey!==this.screenKey){this.screenKey=screenKey;const siteById=new Map(n.sites.map(s=>[s.id,s]));this.paths.clear();this.lengths.clear();for(const l of n.lines){let pts=this.geometry.paths.get(l.id)||[];if(this.simple||!settings.routeDetail)pts=l.siteIds.map(id=>siteById.get(id)).filter(s=>s?.lat!=null&&s.lon!=null).map(s=>[s!.lat!,s!.lon!]as const);const parallel=this.geometry.parallel.get(l.id),off=settings.layoutMode==='separated'&&parallel?(parallel.index-(parallel.count-1)/2)*5:0;this.paths.set(l.id,offsetPath(pts.map(p=>this.point(p[1],p[0])),off));}}
+    const n=this.ctx.network;if(!n)return;const settings=this.ctx.settings.value;this.updateSplitTopology(n);this.prepareSplitSidePoints(n);if(this.geometry?.modelHash!==n.modelHash){this.geometry=buildGeometry(n);this.screenKey='';}
+    const screenKey=[this.width,this.height,this.zoom,this.panX,this.panY,settings.layoutMode,this.simple,settings.routeDetail,this.splitTopologyKey].join('|');
+    if(screenKey!==this.screenKey){this.screenKey=screenKey;const siteById=new Map(n.sites.map(s=>[s.id,s]));this.paths.clear();this.lengths.clear();for(const l of n.lines){let pts=this.geometry.paths.get(l.id)||[];if(this.simple||!settings.routeDetail)pts=l.siteIds.map(id=>siteById.get(id)).filter(s=>s?.lat!=null&&s.lon!=null).map(s=>[s!.lat!,s!.lon!]as const);const parallel=this.geometry.parallel.get(l.id),off=settings.layoutMode==='separated'&&parallel?(parallel.index-(parallel.count-1)/2)*5:0,screenPath=offsetPath(pts.map(p=>this.point(p[1],p[0])),off);this.paths.set(l.id,this.splitRoutePath(l,screenPath,n));}}
     if(!this.lengths.size)for(const[id,path]of this.paths){const segments=path.slice(1).map((p,i)=>Math.hypot(p[0]-path[i][0],p[1]-path[i][1]));this.lengths.set(id,{segments,total:segments.reduce((a,b)=>a+b,0)});}
     const area=this.ctx.filters.areaId,sites=new Map(n.sites.map(s=>[s.id,s])),volts=this.ctx.filters.voltages;
     this.visibleLines=n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&(!area||l.siteIds.some(id=>sites.get(id)?.areaId===area)));
@@ -86,11 +126,16 @@ export class CanvasMapRenderer implements MapRenderer {
     }
     g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){
       const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id,delta=this.voltageDeltas.get(s.id),siteIsland=this.islandMap?.siteIslands.get(s.id),dominant=siteIsland?.dominant;
+      const splitStations=this.splitGroupsBySite.get(s.id)||[],drawSplit=this.zoom>=2&&splitStations.length>0;
       const n1SiteIslands=this.n1Lookups()?.islandsBySite.get(s.id)||[],n1Island=n1SiteIslands.find(island=>island.hasReference)||n1SiteIslands[0];
       g.fillStyle=settings.displayMode==='n1-island'?n1Island?.hasReference?islandColor(n1Island.componentId):settings.colorNoResult:settings.displayMode==='island'?dominant&&dominant.status!=='NO_REFERENCE'&&dominant.status!=='NO_RESULT'?islandColor(dominant.islandId):settings.colorNoResult:settings.displayMode==='v'?voltageColor(this.voltages.get(s.id)?.worst.vmPu,settings):settings.displayMode==='angle'?scaleColor(this.angles.get(s.id)?.median,settings.angleMin,settings.angleNeutral,settings.angleMax,settings.angleNegativeColor,settings.angleNeutralColor,settings.anglePositiveColor,settings.colorNoResult):settings.displayMode==='delta'&&settings.deltaMetric==='v'?deltaColor(delta,settings):'#b8e1e3';
-      g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.fillText(s.name,x+5,y-5);}
+      if(drawSplit){splitStations.forEach((station,index)=>{const cy=y+(index-(splitStations.length-1)/2)*16,left=[x-8,cy] as const,right=[x+8,cy] as const;g.beginPath();g.moveTo(left[0],left[1]);g.lineTo(x-3,cy);g.moveTo(x+3,cy);g.lineTo(right[0],right[1]);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,3]);g.stroke();g.setLineDash([]);g.beginPath();g.arc(x-3,cy,1.8,0,Math.PI*2);g.arc(x+3,cy,1.8,0,Math.PI*2);g.strokeStyle='#f0f5fa';g.lineWidth=1;g.stroke();g.beginPath();g.moveTo(x-2,cy);g.lineTo(x+2,cy-4);g.strokeStyle='#f0f5fa';g.stroke();
+        for(const[side,point]of[[station.bus1,left],[station.bus2,right]] as const){g.beginPath();g.arc(point[0],point[1],5,0,Math.PI*2);g.fillStyle=this.splitSideColor(station,side.electricalBusId);g.fill();g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.stroke();if(this.showLabels||this.zoom>=2.6){g.fillStyle='#e5eef5';g.font='8px system-ui';g.fillText(side.barDesignation==='UNKNOWN'?side.busName:side.barDesignation,point[0]-9,point[1]-7);}}
+      });if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+9,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}}
+      else{g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(splitStations.length){g.beginPath();g.arc(x,y,settings.siteSize+4,0,Math.PI*2);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,2]);g.stroke();g.setLineDash([]);}}
+      if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.font='10px system-ui';g.fillText(s.name,x+5,y-5);}
     }
-    cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.clearRect(0,0,this.overlay.width,this.overlay.height);if(settings.flowDefault&&!['q','v','angle','delta','island','n1-island','n1-risk'].includes(settings.displayMode)&&result?.branches.length)this.animate();
+    cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.clearRect(0,0,this.overlay.width,this.overlay.height);if(settings.flowDefault&&settings.displayMode==='q')this.drawQArrows(overlay,dpr);else if(settings.flowDefault&&!['v','angle','delta','island','n1-island','n1-risk'].includes(settings.displayMode)&&result?.branches.length)this.animate();
   }
   detailText(entity:Site|Line):string {
     if(this.ctx.settings.value.displayMode==='n1-island'||this.ctx.settings.value.displayMode==='n1-risk')return this.n1DetailText(entity);
@@ -115,9 +160,11 @@ export class CanvasMapRenderer implements MapRenderer {
   }
   islandLegendMarkup(noResultColor='#708596'):string {
     const islands=this.islandMap?.islands||[],unreferenced=islands.filter(island=>island.status==='NO_REFERENCE').length;
-    if(!islands.length)return '<span>Hesaplama sonucu yok</span><span>Gri · ┄ NO_REFERENCE</span>';
-    return `<span>${islands.length} elektrik adası · ${unreferenced} referanssız</span>${islands.map(island=>`<span><i style="background:${island.status==='NO_REFERENCE'||island.status==='NO_RESULT'?noResultColor:islandColor(island.islandId)};${island.status==='NO_REFERENCE'?'border-bottom:2px dashed #fff':''}"></i>${escapeHtml(island.islandId)} · ${island.busCount} bara · ${island.branchCount} dal · ${escapeHtml(island.referenceSourceName||'NO_REFERENCE')} · ${escapeHtml(island.status)}</span>`).join('')}<span>NO_REFERENCE: gri · ┄</span>`;
+    const splitCount=this.splitGroupsBySite.size,splitLegend=`<span><i style="background:#ffbd4a;border:1px dashed #fff"></i>Yarı ada / ayrık bara · ${splitCount} TM · B-1/B-2</span>`,categories=`<span><i style="background:#b8e1e3"></i>Normal</span><span><i style="background:#708596"></i>Gerçek elektrik adası</span><span><i style="background:${noResultColor};border-bottom:2px dashed #fff"></i>Referanssız ada</span>`;
+    if(!islands.length)return `${categories}<span>Gerçek ada hesaplama sonucu yok</span>${splitLegend}`;
+    return `${categories}<span>${islands.length} elektrik adası · ${unreferenced} referanssız</span>${islands.map(island=>`<span><i style="background:${island.status==='NO_REFERENCE'||island.status==='NO_RESULT'?noResultColor:islandColor(island.islandId)};${island.status==='NO_REFERENCE'?'border-bottom:2px dashed #fff':''}"></i>${escapeHtml(island.islandId)} · ${island.busCount} bara · ${island.branchCount} dal · ${escapeHtml(island.referenceSourceName||'NO_REFERENCE')} · ${escapeHtml(island.status)}</span>`).join('')}<span>NO_REFERENCE: gri · ┄</span>${splitLegend}`;
   }
+  splitBusLegendMarkup():string {return `<span><i style="background:#b8e1e3"></i>Normal TM</span><span><i style="background:#ffbd4a;border:1px dashed #fff"></i>Yarı ada / açık 154 kV kuplaj · ${this.splitGroupsBySite.size} TM</span><span><i style="background:#708596"></i>Gerçek elektrik adası</span><span><i style="background:${this.ctx.settings.value.colorNoResult};border-bottom:2px dashed #fff"></i>Referanssız ada</span><span>Yakınlaştırın: B-1/B-2 baraları ve açık kuplaj</span>`;}
   n1IslandLegendMarkup(noResultColor='#708596'):string {
     const detail=this.n1Detail();if(!detail)return `<span>${this.ctx.n1DetailLoading?'N-1 ayrıntısı hesaplanıyor…':'N-1 ayrıntısı yok · Sonuç görünümü için N-1 adayını seçin.'}</span>`;
     const islands=detail.outageIslands,unreferenced=islands.filter(island=>!island.hasReference).length;
@@ -133,6 +180,13 @@ export class CanvasMapRenderer implements MapRenderer {
     const rows=detail.branchImpacts,counts=[rows.filter(row=>row.postEstimatedLoadingPct!=null&&row.postEstimatedLoadingPct<80).length,rows.filter(row=>row.postEstimatedLoadingPct!=null&&row.postEstimatedLoadingPct>=80&&row.postEstimatedLoadingPct<85).length,rows.filter(row=>row.postEstimatedLoadingPct!=null&&row.postEstimatedLoadingPct>=85&&row.postEstimatedLoadingPct<=90).length,rows.filter(row=>row.postEstimatedLoadingPct!=null&&row.postEstimatedLoadingPct>90).length],unrated=rows.filter(row=>row.postEstimatedLoadingPct==null).length;
     const colors=['#43b874','#e4c84f','#e99340','#e34848'];
     return `<span>${escapeHtml(detail.candidate.name)} · ${rows.length} izlenen dal · ${detail.candidate.estimatedOverloadCount} tahmini limit aşımı</span><span><i style="background:#111318;border-bottom:2px dashed #f2f5f7"></i>Kesinti ekipmanı</span>${['&lt;80%','80–85%','85–90%','&gt;90%'].map((label,index)=>`<span><i style="background:${colors[index]}"></i>${label} · ${counts[index]}</span>`).join('')}<span><i style="background:${noResultColor};border-bottom:2px dashed #f2f5f7"></i>Kapasite / sonuç yok · ${unrated}</span><span>90–100% kırmızı risk bandı olabilir; kapasite ihlali &gt;100%.</span>`;
+  }
+  private drawQArrows(g:CanvasRenderingContext2D,dpr:number):void {
+    if(this.zoom<1.7)return;
+    g.setTransform(dpr,0,0,dpr,0,0);g.font='10px system-ui';
+    for(const line of this.visibleLines){if(line.vnKv!==400&&line.vnKv!==154)continue;const row=this.flowRows.get(line.id),path=this.paths.get(line.id),lengths=this.lengths.get(line.id);if(!row||!path||path.length<2||!lengths||lengths.total<48)continue;
+      for(const [fraction,q,forward] of [[.16,row.qf,row.qf>=0],[.84,row.qt,row.qt<0]] as const){if(!Number.isFinite(q)||Math.abs(q)<.1)continue;let distance=lengths.total*fraction,index=0;while(index<lengths.segments.length-1&&distance>lengths.segments[index])distance-=lengths.segments[index++];const a=path[index],b=path[index+1],segment=lengths.segments[index]||1,t=distance/segment,x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t,rotation=Math.atan2(b[1]-a[1],b[0]-a[0])+(forward?0:Math.PI);g.save();g.translate(x,y);g.rotate(rotation);g.fillStyle='#a7efff';g.strokeStyle='#12364a';g.lineWidth=1;g.beginPath();g.moveTo(7,0);g.lineTo(-5,-4);g.lineTo(-3,0);g.lineTo(-5,4);g.closePath();g.fill();g.stroke();g.restore();if(this.zoom>3.5||this.ctx.selection?.id===line.id){g.fillStyle='#d4f8ff';g.fillText(`${Math.abs(q).toFixed(1)} MVAr`,x+7,y-8);}}
+    }
   }
   private animate=()=>{
     if(this.ctx.view!=='map'||document.hidden||!this.ctx.settings.value.flowDefault){this.raf=0;return;}const result=this.ctx.resultStore.active;if(!result){this.raf=0;return;}const dpr=devicePixelRatio||1,g=this.overlay.getContext('2d')!,rows=this.flowRows;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);const cells=new Map<string,number>(),settings=this.ctx.settings.value;
