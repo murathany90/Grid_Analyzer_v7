@@ -1,6 +1,6 @@
 import type { CanonicalNetwork, Generator } from '../../domain/model/network';
 import { buildTopology, type ElectricalBus, type ElectricalTopology } from '../../topology/electrical-topology';
-export interface NumericBranch { i:number;j:number;r:number;x:number;bch:number;tap:number;phase:number }
+export interface NumericBranch { i:number;j:number;r:number;x:number;bch:number;tap:number;phase:number;gMagPu?:number;bMagPu?:number }
 export interface NumericModel {
   n:number;baseMVA:number;slack:number;slackVm:number;pSpec:Float64Array;qSpec:Float64Array;busType:Int8Array;vmSet:Float64Array;
   shuntG:Float64Array;shuntB:Float64Array;qMinNet:(number|null)[];qMaxNet:(number|null)[];branches:NumericBranch[];
@@ -12,13 +12,13 @@ export function prepareModel(n:CanonicalNetwork):PreparedModel{
   const pSpec=new Float64Array(N),qSpec=new Float64Array(N),busType=new Int8Array(N),vmSet=new Float64Array(N).fill(1),shuntG=new Float64Array(N),shuntB=new Float64Array(N),qMinNet:(number|null)[]=Array(N).fill(null),qMaxNet:(number|null)[]=Array(N).fill(null);
   const branches:NumericBranch[]=[],metadata:BranchMeta[]=[];
   const enabled=(e:{id:string;inService:boolean})=>e.inService&&!topology.blockedEquipment.has(e.id);
-  const add=(e:{id:string;name:string;sourceClass:string;from:string;to:string;siteIds:readonly string[]},r:number,x:number,bch:number,tap:number,phase:number,ratingMva:number|null)=>{
+  const add=(e:{id:string;name:string;sourceClass:string;from:string;to:string;siteIds:readonly string[]},r:number,x:number,bch:number,tap:number,phase:number,ratingMva:number|null,gMagPu=0,bMagPu=0)=>{
     const i=bi.get(e.from),j=bi.get(e.to);if(i==null||j==null||i===j)return;
     if(!Number.isFinite(r)||!Number.isFinite(x)||Math.abs(r)+Math.abs(x)<=1e-12||!(tap>0)){warnings.push(`Geçersiz dal parametresi: ${e.name}`);return;}
-    branches.push({i,j,r,x,bch,tap,phase});metadata.push({...e,siteIds:[...e.siteIds],vnKv:topology.buses[i].vnKv,ratingMva,i,j});
+    branches.push({i,j,r,x,bch,tap,phase,gMagPu,bMagPu});metadata.push({...e,siteIds:[...e.siteIds],vnKv:topology.buses[i].vnKv,ratingMva,i,j});
   };
   for(const e of n.lines.filter(enabled)){const z=(topology.buses[bi.get(e.from)??-1]?.vnKv||0)**2/n.baseMva;if(!(e.xOhm>0&&z>0)){warnings.push(`Hat X/Zbase geçersiz: ${e.name}`);continue;}add(e,e.rOhm/z,e.xOhm/z,e.bSiemens*z,1,0,e.ratingMva);}
-  for(const e of n.transformers.filter(enabled)){add(e,e.rPu,e.xPu,0,e.tap,e.phase,e.ratingMva);const i=bi.get(e.from);if(i!=null){shuntG[i]+=e.gPu;shuntB[i]+=e.bPu;}}
+  for(const e of n.transformers.filter(enabled)){add(e,e.rPu,e.xPu,0,e.tap,e.phase,e.ratingMva,e.gPu,e.bPu);const i=bi.get(e.from);if(i!=null){shuntG[i]+=e.gPu;shuntB[i]+=e.bPu;}}
   for(const e of n.seriesCompensators.filter(enabled)){const z=(topology.buses[bi.get(e.from)??-1]?.vnKv||0)**2/n.baseMva;add(e,e.rOhm/z,e.xOhm/z,0,1,0,null);}
   for(const e of n.shunts.filter(enabled)){const i=bi.get(e.bus);if(i!=null){shuntG[i]+=e.gPu;shuntB[i]+=e.bPu;}}
   const generators:(Generator&{index:number})[]=[];

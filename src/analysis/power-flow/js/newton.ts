@@ -73,8 +73,11 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
  const branchResults=model.branches.map((e,idx)=>{
   const i=e.i,j=e.j,r=+e.r,x=+e.x,bch=+e.bch||0,tap=+e.tap||1,ph=+e.phase||0,den=r*r+x*x,g=r/den,b=-x/den,c=Math.cos(Va[i]-Va[j]-ph),s=Math.sin(Va[i]-Va[j]-ph),vi=Vm[i],vj=Vm[j];
   // Equivalent branch powers using same off-nominal tap convention, phase included in angle difference.
-  const pf=(vi*vi*g/(tap*tap)-vi*vj/tap*(g*c+b*s))*base;
-  const qf=(-vi*vi*(b+bch/2)/(tap*tap)-vi*vj/tap*(g*s-b*c))*base;
+  // Transformer magnetizing admittance is placed at the from/HV bus in Ybus.
+  // Include that same shunt in the reported from-terminal power so branch flows
+  // reconcile with the solved bus injection and transformer losses.
+  const pf=(vi*vi*g/(tap*tap)-vi*vj/tap*(g*c+b*s)+vi*vi*(e.gMagPu||0))*base;
+  const qf=(-vi*vi*(b+bch/2)/(tap*tap)-vi*vj/tap*(g*s-b*c)-vi*vi*(e.bMagPu||0))*base;
   const pt=(vj*vj*g-vi*vj/tap*(g*c-b*s))*base;
   const qt=(-vj*vj*(b+bch/2)+vi*vj/tap*(g*s+b*c))*base;
   return {index:idx,pf,qf,pt,qt};
