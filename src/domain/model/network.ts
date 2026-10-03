@@ -47,6 +47,7 @@ export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: 
 export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[] }
 export interface CanonicalNetwork {
   readonly schemaVersion: 1; readonly modelHash: string; readonly name: string; readonly size: number;
+  readonly studyCase?:string;
   readonly baseMva: number; readonly buses: readonly Bus[]; readonly lines: readonly Line[];
   readonly transformers: readonly Transformer2W[]; readonly generators: readonly Generator[];
   readonly loads: readonly Load[]; readonly shunts: readonly Shunt[];
