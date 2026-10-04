@@ -1,5 +1,5 @@
 import type { AnalysisSettingsStore, FullAcProfile } from '../../domain/calculation/analysis-settings';
-import { defaultAnalysisSettings } from '../../domain/calculation/analysis-settings';
+import { defaultAnalysisSettings, profileFidelity, unsupportedFullAcSettings, unsupportedSharedSettings } from '../../domain/calculation/analysis-settings';
 import { button, element } from '../../ui/components/dom';
 import { powerFactoryLoadFlowSettings, type PowerFactoryReference } from '../../analysis/validation/powerfactory-reference';
 
@@ -27,7 +27,7 @@ export function createAnalysisSettingsDialog(store: AnalysisSettingsStore, chang
     tabs.replaceChildren(); for (const [key, title] of [['powerFlow', 'Tam AC'], ['fastAc', 'Hızlı AC'], ['dc', 'DC']] as const) { const tab = button(title, () => { active = key; render(); }); tab.setAttribute('aria-pressed', String(active === key)); tabs.append(tab); }
     panel.replaceChildren(); const s = store.value;
     if (active === 'powerFlow') {
-      panel.append(select('Profil', s.powerFlow.profile, [['POWERFACTORY_TEIAS_PARITY', 'PowerFactory / TEİAŞ Parity'], ['GA_ROBUST', 'GA Robust'], ['CUSTOM', 'Custom']], value => {
+      panel.append(select('Profil', s.powerFlow.profile, [['POWERFACTORY_TEIAS_PARITY', profileFidelity('POWERFACTORY_TEIAS_PARITY').label], ['GA_ROBUST', profileFidelity('GA_ROBUST').label], ['CUSTOM', profileFidelity('CUSTOM').label]], value => {
         const defaults = defaultAnalysisSettings(); if (value === 'POWERFACTORY_TEIAS_PARITY') store.value.powerFlow = defaults.powerFlow;
         else if (value === 'GA_ROBUST') store.value.powerFlow = { ...defaults.powerFlow, profile: 'GA_ROBUST', activeBalancingMode: 'SINGLE_REFERENCE', stationControlMode: 'off', maxInnerIterations: 30, maxOuterIterations: 8, nodalToleranceKva: 100 };
         else store.value.powerFlow.profile = 'CUSTOM'; save();
@@ -51,10 +51,13 @@ export function createAnalysisSettingsDialog(store: AnalysisSettingsStore, chang
       });
       applyReference.disabled = !detected || !Object.keys(detected.semantic).some(key => key in ({activeBalancingMode:1,stationControlMode:1,reactiveLimitsEnabled:1,maxInnerIterations:1,maxOuterIterations:1,nodalToleranceKva:1,modelEquationTolerancePercent:1})); panel.append(applyReference);
       panel.append(select('Aktif güç dengeleme', s.powerFlow.activeBalancingMode, [['SINGLE_REFERENCE', 'Tek referans'], ['DISTRIBUTED_ADJUSTABLE_LOADS', 'Ayarlanabilir yüklerle dağıtılmış']], value => { s.powerFlow.activeBalancingMode = value as typeof s.powerFlow.activeBalancingMode; s.powerFlow.profile = 'CUSTOM'; save(); }));
-      panel.append(thisNumber('Maks. Newton adımı', 'maxInnerIterations', s.powerFlow.maxInnerIterations, 1, 10000, 1), thisNumber('Maks. dış kontrol adımı', 'maxOuterIterations', s.powerFlow.maxOuterIterations, 1, 10000, 1), thisNumber('Düğüm toleransı', 'nodalToleranceKva', s.powerFlow.nodalToleranceKva, .001, 1e6, .1, 'kVA'), thisNumber('Model denklem toleransı', 'modelEquationTolerancePercent', s.powerFlow.modelEquationTolerancePercent, .001, 100, .01, '%'), thisNumber('İyileşmesiz adım eşiği', 'maxNoImprovementIterations', s.powerFlow.maxNoImprovementIterations, 1, 10000, 1), thisNumber('Tekrarlı Q sınırı algılama', 'repeatedReactiveLimitDetection', s.powerFlow.repeatedReactiveLimitDetection, 1, 1000, 1), thisNumber('Q sınırı toleransı', 'qLimitToleranceMvar', s.powerFlow.qLimitToleranceMvar, 0, 10000, .01, 'MVAr'));
+      panel.append(thisNumber('Maks. Newton adımı', 'maxInnerIterations', s.powerFlow.maxInnerIterations, 1, 10000, 1), thisNumber('Maks. dış kontrol adımı', 'maxOuterIterations', s.powerFlow.maxOuterIterations, 1, 10000, 1), thisNumber('Düğüm toleransı', 'nodalToleranceKva', s.powerFlow.nodalToleranceKva, .001, 1e6, .1, 'kVA'), thisNumber('Model denklem toleransı', 'modelEquationTolerancePercent', s.powerFlow.modelEquationTolerancePercent, .001, 100, .01, '%'), thisNumber('İyileşmesiz adım eşiği', 'maxNoImprovementIterations', s.powerFlow.maxNoImprovementIterations, 1, 10000, 1), thisNumber('Aktif denge düzeltme sınırı', 'maxActiveBalanceCorrections', s.powerFlow.maxActiveBalanceCorrections, 1, 10000, 1), thisNumber('Maks. Q limit turu', 'maxQLimitRounds', s.powerFlow.maxQLimitRounds, 1, 10000, 1), thisNumber('İstasyon kontrol düzeltme sınırı', 'maxStationControlCorrections', s.powerFlow.maxStationControlCorrections, 1, 10000, 1), unsupported('Tekrarlı Q sınırı algılama'), thisNumber('Q sınırı toleransı', 'qLimitToleranceMvar', s.powerFlow.qLimitToleranceMvar, 0, 10000, .01, 'MVAr'));
       panel.append(toggle('Reaktif güç limitleri', s.powerFlow.reactiveLimitsEnabled, v => { s.powerFlow.reactiveLimitsEnabled = v; s.powerFlow.profile = 'CUSTOM'; save(); }));
       const activeLimits = element('label', 'ga-analysis-setting'); activeLimits.append(element('span', '', 'Aktif güç limitleri')); activeLimits.append(element('strong', '', 'Kapalı · motor seçeneği')); panel.append(activeLimits);
-      panel.append(select('İstasyon kontrolü', s.powerFlow.stationControlMode, [['off', 'Kapalı'], ['zeroDroop', 'Sıfır droop'], ['droop', 'Droop']], value => { s.powerFlow.stationControlMode = value as typeof s.powerFlow.stationControlMode; s.powerFlow.profile = 'CUSTOM'; save(); }));
+      panel.append(select('İstasyon kontrolü', s.powerFlow.stationControlMode, [['off', 'Kapalı'], ['zeroDroop', 'Sıfır droop'], ['droop', 'Droop (UNSUPPORTED — droop denklemi uygulanmıyor)']], value => { s.powerFlow.stationControlMode = value as typeof s.powerFlow.stationControlMode; s.powerFlow.profile = 'CUSTOM'; save(); }));
+      const claim = profileFidelity(s.powerFlow.profile);
+panel.append(element('p', 'ga-notice', `Profil sadakati: ${claim.fidelity}. ${claim.limits.join(' ')}`));
+      panel.append(element('p', 'ga-muted', `Motor tarafından tüketilmeyen ayarlar: ${[...unsupportedSharedSettings(), ...unsupportedFullAcSettings()].join(', ')}`));
     } else {
       if (active === 'fastAc') {
         const f = s.fastAc;
@@ -71,6 +74,8 @@ export function createAnalysisSettingsDialog(store: AnalysisSettingsStore, chang
     }
   }
   function thisNumber(label: string, key: string, value: number, min: number, max: number, step: number, unit = '') { return field(label, key, value, min, max, step, unit); }
+  /** A setting the engine does not consume is shown as explicitly unsupported, never as an effective option. */
+  function unsupported(label: string) { const wrap = element('label', 'ga-analysis-setting ga-analysis-setting-unsupported'); wrap.append(element('span', '', label), element('strong', '', 'UNSUPPORTED · hesaplamaya uygulanmıyor')); return wrap; }
   dialog.append(header, body); body.append(tabs, panel); dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
   function open() { render(); if (!dialog.open) dialog.showModal(); }
   render(); return { element: dialog, open, setReference(value: PowerFactoryReference | null) { reference = value; if (dialog.open) render(); } };

@@ -7,16 +7,26 @@ import type { AdmittanceMatrix, IntegratedStationControl, JacobianLayout, Linear
 export type { NumericalModel } from './types';
 
 export interface FullAcSolverSettings {
- maxInnerIterations:number; maxOuterIterations:number; nodalToleranceKva:number;
- modelEquationTolerancePercent:number; maxNoImprovementIterations:number;
- repeatedReactiveLimitDetection:number; reactiveLimitsEnabled:boolean; qLimitToleranceMvar:number;
+  maxInnerIterations:number; maxOuterIterations:number; nodalToleranceKva:number;
+  modelEquationTolerancePercent:number; maxNoImprovementIterations:number;
+  repeatedReactiveLimitDetection:number; reactiveLimitsEnabled:boolean; qLimitToleranceMvar:number;
+  /** Effective bound of the reactive active-set (Q-limit) round loop. */
+  maxQLimitRounds?:number;
 }
-const DEFAULT_SOLVER_SETTINGS:FullAcSolverSettings={maxInnerIterations:30,maxOuterIterations:8,nodalToleranceKva:.1,modelEquationTolerancePercent:.01,maxNoImprovementIterations:20,repeatedReactiveLimitDetection:3,reactiveLimitsEnabled:true,qLimitToleranceMvar:.02};
+const DEFAULT_SOLVER_SETTINGS:FullAcSolverSettings={maxInnerIterations:30,maxOuterIterations:8,nodalToleranceKva:.1,modelEquationTolerancePercent:.01,maxNoImprovementIterations:20,repeatedReactiveLimitDetection:3,reactiveLimitsEnabled:true,qLimitToleranceMvar:.02,maxQLimitRounds:8};
 export function nodalToleranceKvaToPu(toleranceKva:number,baseMva:number):number{return toleranceKva/1000/baseMva;}
 
-/** Armijo decrease is proportional to the step actually applied after capping. */
-export function acceptsNewtonStep(baseNorm:number,nextNorm:number,stepFraction:number,maxMismatch:number):boolean {
- return nextNorm<baseNorm*(1-1e-5*stepFraction)||maxMismatch<1e-6;
+/**
+ * Armijo decrease is proportional to the step actually applied after capping.
+ *
+ * `convergenceTolerancePu` is the nodal convergence tolerance in pu. The previous
+ * fixed `1e-6` mismatch acceptance contradicted the configured `nodalToleranceKva`
+ * (default 5 kVA => 5e-5 pu), so a step could be accepted as "converged enough"
+ * while the nodal criterion was still violated. The default keeps the historical
+ * behaviour for direct callers that pass no tolerance.
+ */
+export function acceptsNewtonStep(baseNorm:number,nextNorm:number,stepFraction:number,maxMismatch:number,convergenceTolerancePu=1e-6):boolean {
+  return nextNorm<baseNorm*(1-1e-5*stepFraction)||maxMismatch<convergenceTolerancePu;
 }
 
 function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusCount:number}{
@@ -39,13 +49,20 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
  Vm[slack]=model.slackVm||1;for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
  for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
  const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[],qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
- // Reactive active-set rounds are independent of station-controller outer rounds.
- const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??8));
+// Reactive active-set rounds are independent of station-controller outer rounds.
+  // The bound is a typed setting so provenance can report the value actually used.
+  const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxQLimitRounds??8));
  for(round=0;round<qLimitRoundLimit;round++){
   const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack:'';let L:JacobianLayout;
   try{L=layoutCache?.get(layoutKey)??makeLayout(Y,busType,slack,controls);if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
   catch(error){const message=error instanceof Error?error.message:String(error),diagnostic=failure('LINEAR_SOLVE',message,null,round+1,null);return{status:'INTEGRATED_LAYOUT_FAILED',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
   const Jvals=new Float64Array(L.colIdx.length),rhs=new Float64Array(L.N);let converged=false,nrReason='',nrFailure:NumericalFailureDiagnostic|undefined,lastMinPivot:number|null=null,lastLinearStage:string|undefined,bestMismatch=Infinity,noImprovement=0;
+   // Direct-solve acceptance is a linear-accuracy criterion, not the nodal convergence
+   // criterion. It must stay at least three orders of magnitude tighter than the nodal
+   // tolerance so an accepted Newton direction cannot carry a residual that the nodal
+   // test would then treat as progress. Previously a fixed 1e-8 with no stated relation
+   // to `nodalToleranceKva`.
+   const directResidualLimitPu=Math.min(1e-8,tolerancePu*1e-3);
   for(let it=0;it<settings.maxInnerIterations;it++){
    calcPQ(Y,Vm,Va,P,Q);refreshEffectiveQ();let mx=0,ss=0;
    for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]-P[i];rhs[k]=d;mx=Math.max(mx,abs(d));ss+=d*d;}
@@ -57,7 +74,7 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin:LinearSolution|null=null;
    const linearDiagnostics={minPivot:null as number|null,stage:'START',pivotSource:undefined as NumericalFailureDiagnostic['pivotSource']};
    const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
-    try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=1e-8){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}}
+    try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=directResidualLimitPu){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}}
     catch{/* Preserve the other method's failure diagnostic. */}
     finally{direct.dispose();}};
    // ILU is inexpensive on small matrices; direct factorization avoids long Krylov tails on large grids.
@@ -77,7 +94,7 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
     for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]-P[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
     for(let k=0;k<L.pq.length;k++){const i=L.pq[k],d=effectiveQ[i]-Q[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
      const nextNorm=Math.sqrt(ss2);bestNorm=Math.min(bestNorm,nextNorm);
-     if(acceptsNewtonStep(baseNorm,nextNorm,stepCap*scale,mx2)){accepted=true;break;}
+     if(acceptsNewtonStep(baseNorm,nextNorm,stepCap*scale,mx2,tolerancePu)){accepted=true;break;}
     }
    if(!accepted){Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);nrReason='NR_LINE_SEARCH_FAILED';
     let maxDxVm=0,maxDxVmBus=-1,maxDxTheta=0,maxDxThetaBus=-1,maxDxControlDq=0,maxDxControlIndex=-1;

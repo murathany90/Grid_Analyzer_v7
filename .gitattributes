@@ -1,1 +1,6 @@
 # Real control1 JSON models are local-only; do not track them with Git or LFS.
+
+# The single-file portable build is a release artifact that is benchmarked and hashed
+# byte-for-byte. `core.autocrlf` would rewrite it in the index, so the committed blob
+# would no longer be the artifact that was tested. Store it verbatim.
+dist-portable/GridAnalyzer_v7.html -text

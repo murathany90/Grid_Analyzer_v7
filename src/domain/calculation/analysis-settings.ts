@@ -14,6 +14,15 @@ export interface FullAcSettings {
   stationControlMode: 'off' | 'zeroDroop' | 'droop';
   maxInnerIterations: number;
   maxOuterIterations: number;
+  /**
+   * Effective bound of the distributed active-balance correction loop. Previously an
+   * internal constant (8) that `maxOuterIterations` did not control.
+   */
+  maxActiveBalanceCorrections: number;
+  /** Effective bound of the reactive Q-limit round loop. Previously an internal constant (8). */
+  maxQLimitRounds: number;
+  /** Effective bound of the station-controller outer correction loop. Previously an internal constant (12). */
+  maxStationControlCorrections: number;
   nodalToleranceKva: number;
   modelEquationTolerancePercent: number;
   maxNoImprovementIterations: number;
@@ -35,11 +44,117 @@ export interface AnalysisSettings { shared: SharedAnalysisSettings; powerFlow: F
 
 const parityPowerFlow = (): FullAcSettings => ({
   profile: 'POWERFACTORY_TEIAS_PARITY', activeControlMode: 'AS_DISPATCHED', activeBalancingMode: 'DISTRIBUTED_ADJUSTABLE_LOADS', stationControlMode: 'zeroDroop',
-  maxInnerIterations: 100, maxOuterIterations: 50, nodalToleranceKva: 5, modelEquationTolerancePercent: .2,
+  maxInnerIterations: 100, maxOuterIterations: 50,
+  maxActiveBalanceCorrections: 8, maxQLimitRounds: 8, maxStationControlCorrections: 12,
+  nodalToleranceKva: 5, modelEquationTolerancePercent: .2,
   maxNoImprovementIterations: 20, repeatedReactiveLimitDetection: 3, qLimitToleranceMvar: .02, reactiveLimitsEnabled: true, activePowerLimitsEnabled: false,
   automaticTransformerTap: false, automaticShunt: false, loadVoltageDependency: false, feederLoadScaling: false, interchangeSchedule: false,
   lineResistanceTemperatureCorrection: false, qLimitScalingEnabled: false
 });
+
+/**
+ * Settings that the engine exposes but does not consume.
+ *
+ * A field listed here is reported as UNSUPPORTED in the UI, in calculation provenance
+ * and in the README feature matrix. It is never presented as an effective calculation
+ * setting. `repeatedReactiveLimitDetection` is included because the value is carried
+ * through provenance but the solver applies a monotonic PV->limited pass instead.
+ */
+export const UNSUPPORTED_SHARED_SETTINGS = [
+  'loadScalePercent',
+  'generationScalePercent',
+  'motorScalePercent',
+  'storageHeaterScalePercent',
+] as const;
+
+export const UNSUPPORTED_FULL_AC_SETTINGS = [
+  'activePowerLimitsEnabled',
+  'automaticTransformerTap',
+  'automaticShunt',
+  'loadVoltageDependency',
+  'feederLoadScaling',
+  'interchangeSchedule',
+  'lineResistanceTemperatureCorrection',
+  'qLimitScalingEnabled',
+  'repeatedReactiveLimitDetection',
+] as const;
+
+export type UnsupportedSharedSetting = (typeof UNSUPPORTED_SHARED_SETTINGS)[number];
+export type UnsupportedFullAcSetting = (typeof UNSUPPORTED_FULL_AC_SETTINGS)[number];
+
+export function unsupportedSharedSettings(): UnsupportedSharedSetting[] {
+  return [...UNSUPPORTED_SHARED_SETTINGS];
+}
+
+export function unsupportedFullAcSettings(): UnsupportedFullAcSetting[] {
+  return [...UNSUPPORTED_FULL_AC_SETTINGS];
+}
+
+/** The loop bounds the Full AC engine actually applies, for provenance and diagnostics. */
+export interface EffectiveFullAcLimits {
+  maxNewtonIterations: number;
+  maxActiveBalanceCorrections: number;
+  maxQLimitRounds: number;
+  maxStationControlCorrections: number;
+  maxOuterIterations: number;
+}
+
+export function effectiveFullAcLimits(settings: FullAcSettings | undefined): EffectiveFullAcLimits | null {
+  if (!settings) return null;
+  return {
+    maxNewtonIterations: settings.maxInnerIterations,
+    maxActiveBalanceCorrections: settings.maxActiveBalanceCorrections,
+    maxQLimitRounds: settings.maxQLimitRounds,
+    maxStationControlCorrections: settings.maxStationControlCorrections,
+    maxOuterIterations: settings.maxOuterIterations,
+  };
+}
+
+/** VERIFIED / PARTIAL / UNSUPPORTED provenance for a Full AC profile. */
+export type FidelityLevel = 'VERIFIED' | 'PARTIAL' | 'UNSUPPORTED';
+
+export interface ProfileFidelity {
+  profile: FullAcProfile;
+  /** Storage identifier. `POWERFACTORY_TEIAS_PARITY` is retained for persisted settings. */
+  storageId: FullAcProfile;
+  label: string;
+  fidelity: FidelityLevel;
+  /** Why the profile is not VERIFIED against PowerFactory. */
+  limits: string[];
+}
+
+/**
+ * Profile names must not imply a validated equivalence that has not been proven.
+ * `POWERFACTORY_TEIAS_PARITY` is kept only as a persisted storage id and is always
+ * presented with its actual fidelity.
+ */
+export function profileFidelity(profile: FullAcProfile | undefined): ProfileFidelity {
+  const limits = [
+    'Droop station-control semantics are not implemented; such controllers are reported UNSUPPORTED rather than approximated.',
+    'Reactive-limit release (limited -> PV) is not implemented; the active set is monotonic.',
+    'Repeated reactive-limit detection is not applied.',
+    'Active-power limits, automatic transformer tap, automatic shunt, load voltage dependency, feeder load scaling, interchange schedule, line temperature correction and Q-limit scaling are not implemented.',
+  ];
+  if (profile === 'GA_ROBUST') {
+    return {
+      profile: 'GA_ROBUST',
+      storageId: 'GA_ROBUST',
+      label: 'GA Robust',
+      fidelity: 'PARTIAL',
+      limits: ['Single-reference active balancing and local PV control; station control is off.', ...limits],
+    };
+  }
+  if (profile === 'CUSTOM') {
+    return { profile: 'CUSTOM', storageId: 'CUSTOM', label: 'Custom', fidelity: 'PARTIAL', limits: [...limits] };
+  }
+  return {
+    profile: 'POWERFACTORY_TEIAS_PARITY',
+    storageId: 'POWERFACTORY_TEIAS_PARITY',
+    label: 'PowerFactory / TEİAŞ aligned (parity not verified)',
+    fidelity: 'PARTIAL',
+    limits,
+  };
+}
 export const defaultAnalysisSettings = (): AnalysisSettings => ({
   shared: { loadScalePercent: 100, generationScalePercent: 100, motorScalePercent: 100, storageHeaterScalePercent: 100 },
   powerFlow: parityPowerFlow(), fastAc: { minVoltageKv: 66, maxIterations: 110, mismatchTolerance: 1e-5, nrRefinementEnabled: true, nrRefinementMaxIterations: 20, maxQLimitRounds: 5, usePvControls: true, considerQLimits: true, fallbackPolicy: 'APPROXIMATE' }, dc: { minVoltageKv: 66, maxLinearIterations: 20000, relativeResidualTolerance: 1e-7, activeBalancingMode: 'SINGLE_REFERENCE' }
@@ -78,6 +193,9 @@ function mergeSettings(input: unknown): AnalysisSettings {
       activeControlMode: 'AS_DISPATCHED', activeBalancingMode: enumValue(pf.activeBalancingMode, ['SINGLE_REFERENCE', 'DISTRIBUTED_ADJUSTABLE_LOADS'], d.powerFlow.activeBalancingMode),
       stationControlMode: enumValue(pf.stationControlMode, ['off', 'zeroDroop', 'droop'], d.powerFlow.stationControlMode),
       maxInnerIterations: bounded(pf.maxInnerIterations, d.powerFlow.maxInnerIterations, 1, 10000, true), maxOuterIterations: bounded(pf.maxOuterIterations, d.powerFlow.maxOuterIterations, 1, 10000, true),
+      maxActiveBalanceCorrections: bounded(pf.maxActiveBalanceCorrections, d.powerFlow.maxActiveBalanceCorrections, 1, 10000, true),
+      maxQLimitRounds: bounded(pf.maxQLimitRounds, d.powerFlow.maxQLimitRounds, 1, 10000, true),
+      maxStationControlCorrections: bounded(pf.maxStationControlCorrections, d.powerFlow.maxStationControlCorrections, 1, 10000, true),
       nodalToleranceKva: bounded(pf.nodalToleranceKva, d.powerFlow.nodalToleranceKva, .001, 1e6), modelEquationTolerancePercent: bounded(pf.modelEquationTolerancePercent, d.powerFlow.modelEquationTolerancePercent, .001, 100),
       maxNoImprovementIterations: bounded(pf.maxNoImprovementIterations, d.powerFlow.maxNoImprovementIterations, 1, 10000, true), repeatedReactiveLimitDetection: bounded(pf.repeatedReactiveLimitDetection, d.powerFlow.repeatedReactiveLimitDetection, 1, 1000, true), qLimitToleranceMvar: bounded(pf.qLimitToleranceMvar, d.powerFlow.qLimitToleranceMvar, 0, 10000),
       reactiveLimitsEnabled: pickBool(pf.reactiveLimitsEnabled, d.powerFlow.reactiveLimitsEnabled), activePowerLimitsEnabled: pickBool(pf.activePowerLimitsEnabled, d.powerFlow.activePowerLimitsEnabled),
@@ -88,6 +206,11 @@ function mergeSettings(input: unknown): AnalysisSettings {
     dc: { minVoltageKv: bounded(dc.minVoltageKv, d.dc.minVoltageKv, 1, 1000), maxLinearIterations: bounded(dc.maxLinearIterations, d.dc.maxLinearIterations, 1, 1000000, true), relativeResidualTolerance: bounded(dc.relativeResidualTolerance, d.dc.relativeResidualTolerance, 1e-12, 1), activeBalancingMode: 'SINGLE_REFERENCE' }
   };
 }
+/** Validates and bounds externally supplied settings. Exported for tests and tooling. */
+export function mergeExposedAnalysisSettings(input: unknown): AnalysisSettings {
+  return mergeSettings(input);
+}
+
 export class AnalysisSettingsStore {
   value = defaultAnalysisSettings();
   constructor() { try { this.value = mergeSettings(JSON.parse(localStorage.getItem(storageKey) || 'null')); } catch { /* file:// storage can be unavailable */ } }

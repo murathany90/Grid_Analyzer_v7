@@ -44,7 +44,7 @@ export interface StationController extends Entity {
 }
 export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
 export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
-export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[] }
+export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[]; /** Machine-readable scope of what the capability actually covers. */ scope?: string }
 export interface CanonicalNetwork {
   readonly schemaVersion: 1; readonly modelHash: string; readonly name: string; readonly size: number;
   readonly studyCase?:string;
