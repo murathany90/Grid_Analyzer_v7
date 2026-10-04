@@ -13,7 +13,7 @@ test('analysis settings default to the documented PowerFactory parity profile an
   assert.equal(settings.powerFlow.maxOuterIterations, 50);
   assert.equal(settings.powerFlow.nodalToleranceKva, 5);
   assert.equal(settings.powerFlow.modelEquationTolerancePercent, .2);
-  assert.equal(settings.powerFlow.stationControlMode, 'zeroDroop');
+  assert.equal(settings.powerFlow.stationControlMode, 'droop');
   assert.equal(settings.dc.maxLinearIterations, 20000);
   assert.equal('qTolerance' in settings.dc, false);
 });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedControllerObjective,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -14,6 +14,7 @@ import packageJson from '../../package.json';
 import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
 import {identity} from '../../src/domain/calculation/identity';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
+import {defaultAnalysisSettings} from '../../src/domain/calculation/analysis-settings';
 
 const entity=(id:string,sourceClass='ElmTerm')=>({id,name:id,sourceClass,sourceId:id,inService:true,siteIds:['S'],sourceRefs:{}});
 test('classification fixed point keeps two controllers in a monotone 5→3→2→2 sequence',()=>{
@@ -59,6 +60,12 @@ test('sourced cvqq shares govern Q allocation and remain active after a unit sat
   assert.equal(redistributed.qByUnit.get('A'),5);
   assert.ok(Math.abs(redistributed.qByUnit.get('B')!-35)<1e-9);
   assert.deepEqual([...activeParticipation([{...limited[0],qMvar:5},{...limited[1],qMvar:35}],1,sourced.weights)!],[['B',1]]);
+});
+test('bounded coupled objective retains cross-controller effects at an active Q limit',()=>{
+  const result=solveBoundedControllerObjective([[1,1],[1,-1]],[2,0],[-.5,-2],[.5,2],12);
+  assert.ok(Math.abs(result.solution[0]-.5)<1e-6);
+  assert.ok(Math.abs(result.solution[1]-1)<1e-6);
+  assert.ok(result.predictedNorm<.51);
 });
 test('source participation re-enters a clamped unit when Q direction reverses',()=>{
   const units=[{id:'A',bus:1,pMw:20,qMvar:2,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:3,qMin:-20,qMax:100}];
@@ -227,6 +234,28 @@ test('shared droop remote bus participates in the coupled solve',()=>{
   const droop=(()=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop');})();
   assert.ok(droop.controllers.every(c=>c.supported&&c.status!=='REMOTE_CONTROL_CONFLICT'));assert.equal(droop.result.converged,true);
   assert.ok(droop.unitOverrides.has('G1')&&droop.unitOverrides.has('G2'));
+});
+test('two shared-remote droop units satisfy their measured Q/V equations',()=>{
+  const base=fixture(),generators=base.generators.map(g=>({...g,sourceClass:'ElmGenStat',qMin:-200,qMax:200}));
+  const controllers=generators.map((g,i)=>({...base.stationControllers[0],id:`D${i+1}`,unitIds:[g.id],vmSet:1.012+i*.001,droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:1,measurementSelfCubicle:true}));
+  const network={...base,generators,stationControllers:controllers},part=prepareModel(network);
+  const settings=defaultAnalysisSettings().powerFlow;settings.activeBalancingMode='SINGLE_REFERENCE';settings.modelEquationTolerancePercent=.01;
+  const solved=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop',undefined,'SENSITIVITY',settings);
+  assert.equal(solved.result.converged,true);
+  for(const row of solved.controllers){const unit=generators.find(g=>g.id===row.unitIds[0])!,q=solved.unitOverrides.get(unit.id)?.qMvar;
+    assert.ok(q!=null&&q>=unit.qMin!&&q<=unit.qMax!);
+    assert.ok(Math.abs(row.targetVpu+q/10000-solved.result.Vm![row.remoteBusIndex!])<1e-4,`${row.id}: residual=${row.voltageResidualPu} q=${q} status=${row.status} rounds=${solved.outerRounds}`);
+  }
+});
+test('zero-width droop Q limit is reported while its shared-remote peer stays eligible',()=>{
+  const base=fixture(),generators=base.generators.map((g,i)=>({...g,sourceClass:'ElmGenStat',qMvar:i?0:5,qMin:i?-200:0,qMax:i?200:0}));
+  const controllers=generators.map((g,i)=>({...base.stationControllers[0],id:`D${i+1}`,unitIds:[g.id],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:50,measurementSelfCubicle:true}));
+  const network={...base,generators,stationControllers:controllers},part=prepareModel(network);
+  const solved=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop');
+  assert.equal(solved.controllers.find(c=>c.id==='D1')?.status,'NO_REACTIVE_HEADROOM');
+  assert.equal(solved.controllers.find(c=>c.id==='D2')?.supported,true);
+  assert.equal(solved.unitOverrides.get('G1')?.qMvar,0);
+  assert.ok(Math.abs(solved.prepared.model.qSpec[part.generators.find(g=>g.id==='G1')!.index]-(part.model.qSpec[part.generators.find(g=>g.id==='G1')!.index]-5))<1e-8);
 });
 test('remote voltage target releases after every actuator reaches a Q limit',()=>{
   const base=fixture(false),network={...base,generators:base.generators.map(g=>({...g,qMin:-.25,qMax:.25})),stationControllers:base.stationControllers.map(c=>({...c,vmSet:1.2}))},controlled=run(network),row=controlled.controllers[0];

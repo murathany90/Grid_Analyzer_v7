@@ -23,6 +23,15 @@ The parity profile remains **PARTIAL**. Zero-droop station control is
 223 droop controllers remain `UNSUPPORTED_DROOP`. These states are reported in the
 diagnostics and release manifest. Active balancing converges and SL1 remains Qmin-limited.
 
+## Q/V parity recovery candidate
+
+The parity profile now selects droop station control. On the canonical SN4 fixture,
+the bounded coupled Q solve and a warm final P/Q coordination pass reduced movable
+station residuals from 313 to 89 while keeping the Full AC run below 15 seconds.
+This remains **PARTIAL**: 89 movable controllers retain a reported residual,
+9 controllers have zero reactive headroom, and 7 have unavailable Q limits.
+The 8.2.5 release manifest above records the historical release baseline.
+
 
 ## Supported inputs
 
@@ -56,9 +65,10 @@ Model files and reference data stay local and are never committed (`kontrol1/` i
   reaches a limit is switched to PQ at that limit. **Limit release is not implemented**
   (`releaseSupport: UNSUPPORTED`), and repeated reactive-limit detection is **not applied**
   (`repeatedReactiveLimitDetectionApplied: false`). Both limits are stated rather than hidden.
-- **Station controllers.** Zero-droop remote voltage control is solved with a sensitivity /
-  trust-region outer loop. Droop semantics are **not implemented**: droop controllers are reported
-  `UNSUPPORTED_DROOP` rather than approximated with an unverified equation.
+- **Station controllers.** Zero-droop and validated self-cubicle single-unit droop
+  equations use a bounded coupled Q solve with a warm final P/Q coordination pass.
+  Unsupported profiles, unavailable Q limits, saturation and unresolved residuals
+  remain visible in controller diagnostics.
 
 ## Effective Full AC limits
 
@@ -196,7 +206,7 @@ It does **not** cover reactive power, voltage behaviour, or Full AC contingency 
 | Repeated reactive-limit detection | **UNSUPPORTED** | Value carried in provenance, not applied |
 | Distributed active balancing | PARTIAL | P target met; Q response of adjusted loads is not claimed |
 | Station control, zero droop | PARTIAL | Sensitivity/trust-region solve; residual count reported |
-| Station control, droop | **UNSUPPORTED** | Reported, not approximated |
+| Station control, droop | PARTIAL | Self-cubicle single-unit equation modeled; residuals and unavailable limits reported |
 | PowerFactory parity profile | PARTIAL | Named `POWERFACTORY_TEIAS_PARITY` for stored settings only; always shown as not verified |
 | Active power limits | **UNSUPPORTED** | Setting exposed and marked unsupported |
 | Automatic transformer tap | **UNSUPPORTED** | Snapshot tap positions only |

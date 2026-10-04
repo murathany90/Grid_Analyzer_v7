@@ -109,6 +109,8 @@ await writeFile(
 const diagnostics = result.diagnostics as Record<string, unknown>;
 const summaryBlock = (diagnostics.stationControllerSummary ?? {}) as Record<string, unknown>;
 const activeBalance = diagnostics.activeBalancing as Record<string, unknown> | undefined;
+const finalControl = diagnostics.finalControlRevalidation as {perIsland?:Array<{before?:unknown;after?:unknown;causeCounts?:unknown}|null>}|undefined;
+const controlRounds = (diagnostics.stationTrialAttempts as Array<Record<string,unknown>>|undefined)?.map(row=>({round:row.round,active:row.activeControllerCount,zeroDroopActive:row.zeroDroopActive,droopActive:row.droopActive,proposalKind:row.proposalKind,oldNorm:row.oldNorm,predictedNorm:row.predictedNorm,newNorm:row.newNorm,rho:row.rho,accepted:row.accepted,trustFraction:row.trustFraction,newlySatisfied:row.newlySatisfied,newlySaturated:row.newlySaturated}))??[];
 process.stdout.write(
   `${JSON.stringify(
     {
@@ -120,7 +122,9 @@ process.stdout.write(
       fullNrSolves: diagnostics.fullNrSolves,
       kluNewtonFactorizations: diagnostics.kluNewtonFactorizations,
       outerControlRounds: diagnostics.outerControlRounds,
-      controllerSummary: summaryBlock,
+      controllerSummary: {mode:summaryBlock.mode,supported:summaryBlock.supported,zeroDroopCount:summaryBlock.zeroDroopActive,droopCount:summaryBlock.droopActive,statusCounts:summaryBlock.statusCounts},
+      finalControl: finalControl?.perIsland?.map(row=>row?{before:row.before,after:row.after,causeCounts:row.causeCounts}:null),
+      controlRounds,
       activeBalanceFidelity: activeBalance?.activeBalanceFidelity,
       activeBalanceIterations: activeBalance?.iterations,
       externalGridResults: diagnostics.externalGridResults,
