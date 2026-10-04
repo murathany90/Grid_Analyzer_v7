@@ -1,0 +1,493 @@
+{
+  "schema": "grid-analyzer-release-manifest-1",
+  "version": "8.2.5",
+  "gitCommitSha": "660bb8180445e37810e55e98aee87c1c0bb8033e",
+  "sourceProvenance": {
+    "gitTreeSha": "5cc46cc47d7a9ad31de988eaada3d42455020481",
+    "measuredSourceMatchesCurrent": true,
+    "measuredInputsMatch": true
+  },
+  "engine": {
+    "name": "BrowserJsEngine",
+    "appVersion": "8.2.5",
+    "engineVersion": "8.2.5",
+    "calculationIdentityVersion": "src/domain/calculation/identity.ts"
+  },
+  "artifacts": {
+    "modelZip": {
+      "file": "kontrol1/20261001_1500_SN4_TR0.zip",
+      "sha256": "7c6ab46df28408f6ff4c9be675bd32924cceab7dbaeff45579bdcdedca0388bb"
+    },
+    "modelJsonEntry": {
+      "sha256": "31b9a53f4a8fa29627d53064fd079b1fc4bb141e019c4285db3752bca8319663"
+    },
+    "powerFactoryNumericCsv": {
+      "file": "kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv",
+      "sha256": "ac53521de1b83c6dc391de4107b02fb774c8bd7e78fad8ecdca7a6d7c64d50db"
+    },
+    "powerFactoryControlContextCsv": {
+      "file": "kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv",
+      "sha256": "be0c7f5b4662de989c3ad4364bcd2dfe0dff4f8533dae90fbcfe6f3f5305c347",
+      "sourceHash": "2258c0ffe5b3a3ab"
+    },
+    "portable": {
+      "file": "dist-portable/GridAnalyzer_v7.html",
+      "sha256": "9db9fca8e8d41d1d1f0c20a10a5c3875cf4747406cbda51d083fe19eb0797721",
+      "bytes": 974126
+    }
+  },
+  "calculationSettings": {
+    "hash": "6d12a3d1",
+    "hashAlgorithm": "FNV-1a over stableJson (src/domain/calculation/analysis-settings.ts)",
+    "effectiveLimits": {
+      "maxNewtonIterations": 100,
+      "maxActiveBalanceCorrections": 8,
+      "maxFinalActiveBalanceCorrections": 8,
+      "maxQLimitRounds": 8,
+      "maxStationControlCorrections": 16,
+      "maxOuterIterations": 50
+    },
+    "profile": "POWERFACTORY_TEIAS_PARITY",
+    "profileFidelity": "PARTIAL",
+    "unsupportedSharedSettings": [
+      "loadScalePercent",
+      "generationScalePercent",
+      "motorScalePercent",
+      "storageHeaterScalePercent"
+    ],
+    "unsupportedPowerFlowSettings": [
+      "activePowerLimitsEnabled",
+      "automaticTransformerTap",
+      "automaticShunt",
+      "loadVoltageDependency",
+      "feederLoadScaling",
+      "interchangeSchedule",
+      "lineResistanceTemperatureCorrection",
+      "qLimitScalingEnabled",
+      "repeatedReactiveLimitDetection"
+    ]
+  },
+  "performance": {
+    "portableEngineElapsedMs": 1920,
+    "portableWallClockMs": 3085,
+    "portableStatusLine": "Tam AC · Baz · NR yakınsadı · P dengesi yakınsadı · istasyon kontrolü kısmi (101) · 61 toplam Newton iterasyonu · 1 son NR Newton iterasyonu · 27 NR çözümü · 1.92 s",
+    "newtonIterations": 61,
+    "finalNewtonIterations": 1,
+    "fullNrSolves": 27,
+    "kluFactorizations": 61,
+    "stationControlRounds": 16,
+    "activeBalanceRounds": 10,
+    "qLimitRounds": 1,
+    "nodeKluFactorizations": 61,
+    "nodeStationControlRounds": 16,
+    "nodeActiveBalanceRounds": 10,
+    "nodeEngineElapsedMs": 2108.0291000000007,
+    "nodeWallMs": 2124.3076,
+    "budgetMs": 15000,
+    "withinBudget": true,
+    "browser": "Chromium 153.0.8010.12",
+    "note": "Portable/browser and Node are different environments and are reported separately. Repeated portable runs on one host varied between roughly 10 s and 21 s."
+  },
+  "powerFactoryComparison": {
+    "modelId": "20261001_1500_SN4_TR0",
+    "studyTimeLocal": "2026-10-01 15:00:00",
+    "powerFactoryVersion": "24.0.7.1",
+    "minimumNominalKv": 66,
+    "populationSignature": "minKv=66|lines=2308|transformers=2892|busesVoltage=1733|busesAngle=1733|lineP=4616|lineQ=4616|trafoP=5784|trafoQ=5784",
+    "populationMatchesBaseline": true,
+    "unmatched": {
+      "powerFactoryLines": 0,
+      "powerFactoryTransformers": 0,
+      "powerFactoryBusGroups": 0,
+      "gridAnalyzerBranches": 5200,
+      "gridAnalyzerBuses": 4117
+    },
+    "kpis": [
+      {
+        "id": "lineActivePowerMw",
+        "label": "Line active power",
+        "unit": "MW",
+        "n": 4616,
+        "sumAbsoluteError": 2758.2569436341955,
+        "sumAbsoluteReference": 313632.7095988681,
+        "absoluteAverage": 0.5975426654320181,
+        "normalizedPercent": 0.8794544890301678,
+        "baseline": {
+          "n": 4616,
+          "sumAbsoluteError": 2758.2569436341955,
+          "sumAbsoluteReference": 313632.7095988681,
+          "absoluteAverage": 0.5975426654320181,
+          "normalizedPercent": 0.8794544890301678
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      },
+      {
+        "id": "lineReactivePowerMvar",
+        "label": "Line reactive power",
+        "unit": "MVAr",
+        "n": 4616,
+        "sumAbsoluteError": 29733.44770845666,
+        "sumAbsoluteReference": 64691.760474213304,
+        "absoluteAverage": 6.441388151745377,
+        "normalizedPercent": 45.96172293117401,
+        "baseline": {
+          "n": 4616,
+          "sumAbsoluteError": 29733.44770845666,
+          "sumAbsoluteReference": 64691.760474213304,
+          "absoluteAverage": 6.441388151745377,
+          "normalizedPercent": 45.96172293117401
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      },
+      {
+        "id": "transformerActivePowerMw",
+        "label": "Transformer active power",
+        "unit": "MW",
+        "n": 5784,
+        "sumAbsoluteError": 1270.9918204810874,
+        "sumAbsoluteReference": 176079.00096271807,
+        "absoluteAverage": 0.21974270755205522,
+        "normalizedPercent": 0.7218304360723854,
+        "baseline": {
+          "n": 5784,
+          "sumAbsoluteError": 1270.9918204810874,
+          "sumAbsoluteReference": 176079.00096271807,
+          "absoluteAverage": 0.21974270755205522,
+          "normalizedPercent": 0.7218304360723854
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      },
+      {
+        "id": "transformerReactivePowerMvar",
+        "label": "Transformer reactive power",
+        "unit": "MVAr",
+        "n": 5784,
+        "sumAbsoluteError": 13709.535166106192,
+        "sumAbsoluteReference": 28791.99970294503,
+        "absoluteAverage": 2.370251584734819,
+        "normalizedPercent": 47.615779756707525,
+        "baseline": {
+          "n": 5784,
+          "sumAbsoluteError": 13709.535166106192,
+          "sumAbsoluteReference": 28791.99970294503,
+          "absoluteAverage": 2.370251584734819,
+          "normalizedPercent": 47.615779756707525
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      },
+      {
+        "id": "busVoltageKv",
+        "label": "Bus voltage",
+        "unit": "kV",
+        "n": 1733,
+        "sumAbsoluteError": 2567.3980879913693,
+        "sumAbsoluteReference": 334101.8040070997,
+        "absoluteAverage": 1.481476103861148,
+        "normalizedPercent": 0.7684478375150622,
+        "baseline": {
+          "n": 1733,
+          "sumAbsoluteError": 2567.3980879913693,
+          "sumAbsoluteReference": 334101.8040070997,
+          "absoluteAverage": 1.481476103861148,
+          "normalizedPercent": 0.7684478375150622
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      },
+      {
+        "id": "busAlignedAngleDeg",
+        "label": "Reference-aligned bus angle magnitude",
+        "unit": "deg",
+        "n": 1733,
+        "sumAbsoluteError": 131.70499090732548,
+        "sumAbsoluteReference": 15953.63112194301,
+        "absoluteAverage": 0.07599826365108221,
+        "normalizedPercent": 0.8255486785461352,
+        "baseline": {
+          "n": 1733,
+          "sumAbsoluteError": 131.70499090732548,
+          "sumAbsoluteReference": 15953.63112194301,
+          "absoluteAverage": 0.07599826365108221,
+          "normalizedPercent": 0.8255486785461352
+        },
+        "improvementPercent": 0,
+        "improved": false,
+        "regressed": false
+      }
+    ],
+    "secondaryDiagnostics": [
+      {
+        "id": "lineActivePowerMw",
+        "unit": "MW",
+        "signedMeanError": -0.0003413700252381545,
+        "signedSumError": -1.5757640364993213,
+        "signedMaxAbsoluteError": 10.264543794421115,
+        "signDisagreementCount": 16,
+        "signComparableCount": 4538,
+        "p95AbsoluteError": 2.5270520618805676,
+        "maxAbsoluteError": 10.264543794421115
+      },
+      {
+        "id": "lineReactivePowerMvar",
+        "unit": "MVAr",
+        "signedMeanError": -0.018764584922418743,
+        "signedSumError": -86.61732400188491,
+        "signedMaxAbsoluteError": 231.23209080405033,
+        "signDisagreementCount": 635,
+        "signComparableCount": 4571,
+        "p95AbsoluteError": 35.74031183310092,
+        "maxAbsoluteError": 231.23209080405033
+      },
+      {
+        "id": "transformerActivePowerMw",
+        "unit": "MW",
+        "signedMeanError": 0.0011116372145000583,
+        "signedSumError": 6.429709648668337,
+        "signedMaxAbsoluteError": 13.064799872710537,
+        "signDisagreementCount": 1,
+        "signComparableCount": 5632,
+        "p95AbsoluteError": 1.3005178270024602,
+        "maxAbsoluteError": 13.064799872710537
+      },
+      {
+        "id": "transformerReactivePowerMvar",
+        "unit": "MVAr",
+        "signedMeanError": -0.0650480839218344,
+        "signedSumError": -376.2381174038901,
+        "signedMaxAbsoluteError": 271.607230520993,
+        "signDisagreementCount": 432,
+        "signComparableCount": 5050,
+        "p95AbsoluteError": 15.085957473587575,
+        "maxAbsoluteError": 271.607230520993
+      },
+      {
+        "id": "busVoltageKv",
+        "unit": "kV",
+        "signedMeanError": 0.3346909443855075,
+        "signedSumError": 580.0194066200845,
+        "signedMaxAbsoluteError": 12.039092526509023,
+        "signDisagreementCount": 0,
+        "signComparableCount": 1733,
+        "p95AbsoluteError": 4.199776815428498,
+        "maxAbsoluteError": 12.039092526509023
+      },
+      {
+        "id": "busAlignedAngleDeg",
+        "unit": "deg",
+        "signedMeanError": -0.013111573815315662,
+        "signedSumError": -22.722357421942043,
+        "signedMaxAbsoluteError": 0.9125901485182251,
+        "signDisagreementCount": 0,
+        "signComparableCount": 1732,
+        "p95AbsoluteError": 0.20949529525600527,
+        "maxAbsoluteError": 0.9125901485182251
+      }
+    ],
+    "mergeGates": {
+      "improvedByAtLeast0_1Percent": 0,
+      "regressedByAtLeast0_5Percent": 0,
+      "developmentPolicyWouldRequireFiveOfSixImproved": false,
+      "lineReactivePowerRegressed": false,
+      "transformerReactivePowerRegressed": false,
+      "policy": "PRESERVE_VALIDATED_BASELINE",
+      "mergeReady": true,
+      "failedGates": []
+    },
+    "signDisagreement": {
+      "lineActivePowerMw": {
+        "count": 16,
+        "comparable": 4538
+      },
+      "lineReactivePowerMvar": {
+        "count": 635,
+        "comparable": 4571
+      },
+      "transformerActivePowerMw": {
+        "count": 1,
+        "comparable": 5632
+      },
+      "transformerReactivePowerMvar": {
+        "count": 432,
+        "comparable": 5050
+      },
+      "busVoltageKv": {
+        "count": 0,
+        "comparable": 1733
+      },
+      "busAlignedAngleDeg": {
+        "count": 0,
+        "comparable": 1732
+      }
+    }
+  },
+  "convergence": {
+    "newtonRaphson": "NR_CONVERGED",
+    "activeBalance": "ACTIVE_BALANCE_CONVERGED",
+    "stationControl": "STATION_CONTROL_PARTIAL",
+    "powerFactoryComparability": "NOT_FULLY_COMPARABLE",
+    "pendingControllerStatuses": {
+      "CONTROL_RESIDUAL_AFTER_FINAL_BALANCE": 101
+    }
+  },
+  "stationControllers": {
+    "total": 366,
+    "statusCounts": {
+      "CONTROL_RESIDUAL_AFTER_FINAL_BALANCE": 101,
+      "SATISFIED": 27,
+      "SATURATED_QMAX": 5,
+      "SATURATED_QMIN": 10,
+      "UNSUPPORTED_DROOP": 223
+    },
+    "finalRevalidation": {
+      "perIsland": [
+        {
+          "revalidatedControllerCount": 115,
+          "controlResidualCount": 101,
+          "entries": [
+            "VK1822:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1816:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1818:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1819:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK82:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3079:SATISFIED",
+            "VK2091:SATISFIED",
+            "VK2527:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1670:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1672:SATISFIED",
+            "VK1673:SATISFIED",
+            "VK1674:SATISFIED",
+            "VK2999:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2994:SATISFIED",
+            "VK1784:SATISFIED",
+            "VK2962:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2723:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2724:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2961:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2960:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2717:SATURATED_QMIN",
+            "VK2715:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1727:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1729:SATISFIED",
+            "VK1604:SATISFIED",
+            "VK1605:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK686:SATISFIED",
+            "VK2000:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2001:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3329:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK690:SATISFIED",
+            "VK691:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1263:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1265:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1266:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK569:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK687:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK688:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2226:SATURATED_QMAX",
+            "VK785:SATURATED_QMIN",
+            "VK780:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK781:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2340:SATURATED_QMAX",
+            "VK537:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK536:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1246:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2692:SATISFIED",
+            "VK1001:SATISFIED",
+            "VK1002:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1245:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK306:SATURATED_QMIN",
+            "VK304:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK763:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2682:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2202:SATURATED_QMIN",
+            "VK518:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK531:SATURATED_QMAX",
+            "VK2314:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK650:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK647:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK648:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK620:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK858:SATISFIED",
+            "VK623:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK986:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK281:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK282:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2089:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2197:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3048:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3274:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1090:SATURATED_QMAX",
+            "VK275:SATISFIED",
+            "VK2057:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2059:SATISFIED",
+            "VK2058:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2050:SATISFIED",
+            "VK125:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK242:SATURATED_QMIN",
+            "VK2283:SATISFIED",
+            "VK2286:SATISFIED",
+            "VK2164:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2285:SATISFIED",
+            "VK2287:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2289:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1190:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1192:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2161:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1193:SATURATED_QMIN",
+            "VK496:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK494:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK495:SATISFIED",
+            "VK250:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK493:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1185:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1186:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3000:SATISFIED",
+            "VK1187:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3003:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1188:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3002:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK3004:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2148:SATISFIED",
+            "VK584:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2020:SATISFIED",
+            "VK1296:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1297:SATISFIED",
+            "VK1298:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2023:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK2147:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK458:SATURATED_QMIN",
+            "VK338:CONTROL_RESIDUAL_AFTER_FINAL_BALANCE",
+            "VK1286:SATURATED_QMAX",
+            "VK3465:SATISFIED",
+            "VK1288:SATISFIED"
+          ]
+        }
+      ],
+      "revalidatedControllerCount": 115,
+      "controlResidualCount": 101
+    }
+  },
+  "externalGrid": [
+    {
+      "id": "SL1",
+      "isReference": true,
+      "pMw": -0.00018708498630282122,
+      "qMvar": -499.99999996948713,
+      "voltagePu": 1.0140544843048669,
+      "qLimitState": "QMIN_LIMITED"
+    }
+  ],
+  "verdict": {
+    "policy": "PRESERVE_VALIDATED_BASELINE",
+    "mergeReady": true,
+    "failedGates": []
+  }
+}
