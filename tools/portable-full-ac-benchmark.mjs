@@ -104,6 +104,8 @@ try {
     throw waitError;
   }
   artifact.wallClockMs = Date.now() - started;
+  const summaryTab = page.locator('section[data-view="analysis"] button[data-analysis="summary"]');
+  if (await summaryTab.count()) await summaryTab.click();
 
   const observed = await page.evaluate(() => {
     const text = document.body.innerText;
