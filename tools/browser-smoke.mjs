@@ -66,7 +66,7 @@ try{
  await view.locator(`.ga-panel .ga-table tbody tr[data-id="${selectedId}"].ga-selected`).waitFor({state:'visible'});
  await page.getByRole('button',{name:'Analizler',exact:true}).click();
  await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
- await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('Yakınsadı'));
+ await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('NR yakınsadı'));
  const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'XLSX sonuç indir'}).click();const workbook=await downloadEvent;
  if(workbook.suggestedFilename()!=='GridAnalyzer_FullNR_Results.xlsx')throw new Error('XLSX result download missing.');
  const analysis=page.locator('section[data-view="analysis"]');
