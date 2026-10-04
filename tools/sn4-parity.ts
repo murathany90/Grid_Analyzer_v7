@@ -7,7 +7,7 @@
  * gitignored path so that tools/pf-kpi.ts can score it without re-solving.
  *
  * Usage:
- *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json] [--station-control-mode=zeroDroop|droop]
+ *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json] [--station-control-mode=zeroDroop|droop] [--model-equation-tolerance-percent=0.2]
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -29,6 +29,9 @@ const contextArg = process.argv[3] ?? 'kontrol1/PowerFactory_ControlContext_2026
 const outArg = process.argv[4] ?? '.tmp/sn4-full-ac-result.json';
 const stationModeArg = process.argv.find(arg => arg.startsWith('--station-control-mode='))?.split('=')[1] as 'zeroDroop'|'droop'|undefined;
 if(stationModeArg && stationModeArg !== 'zeroDroop' && stationModeArg !== 'droop') throw new Error(`Unsupported station-control mode: ${stationModeArg}`);
+const toleranceArg=process.argv.find(arg=>arg.startsWith('--model-equation-tolerance-percent='))?.split('=')[1];
+const tolerancePercent=toleranceArg==null?undefined:Number(toleranceArg);
+if(toleranceArg!=null&&(tolerancePercent==null||!Number.isFinite(tolerancePercent)||tolerancePercent<=0))throw new Error(`Invalid controller equation tolerance: ${toleranceArg}`);
 
 const modelPath = resolve(root, modelArg);
 const contextPath = resolve(root, contextArg);
@@ -55,6 +58,7 @@ const withContext = applyPowerFactoryControlContext(network, parsedContext);
 
 const settings = defaultAnalysisSettings();
 if(stationModeArg) settings.powerFlow.stationControlMode=stationModeArg;
+if(tolerancePercent!=null)settings.powerFlow.modelEquationTolerancePercent=tolerancePercent;
 const scenario = emptyScenario();
 const id = identity(network.modelHash, scenario, 'powerFlow', {
   analysisSettings: { shared: settings.shared, powerFlow: settings.powerFlow },
@@ -91,6 +95,7 @@ await writeFile(
       appVersion: APP_VERSION,
       engineVersion: engine.version,
       stationControlMode: settings.powerFlow.stationControlMode,
+      modelEquationTolerancePercent: settings.powerFlow.modelEquationTolerancePercent,
       modelFile: modelArg,
       controlContextFile: contextArg,
       controlContextHash: parsedContext.sourceHash,
@@ -110,7 +115,10 @@ const diagnostics = result.diagnostics as Record<string, unknown>;
 const summaryBlock = (diagnostics.stationControllerSummary ?? {}) as Record<string, unknown>;
 const activeBalance = diagnostics.activeBalancing as Record<string, unknown> | undefined;
 const finalControl = diagnostics.finalControlRevalidation as {perIsland?:Array<{before?:unknown;after?:unknown;causeCounts?:unknown}|null>}|undefined;
-const controlRounds = (diagnostics.stationTrialAttempts as Array<Record<string,unknown>>|undefined)?.map(row=>({round:row.round,active:row.activeControllerCount,zeroDroopActive:row.zeroDroopActive,droopActive:row.droopActive,proposalKind:row.proposalKind,oldNorm:row.oldNorm,predictedNorm:row.predictedNorm,newNorm:row.newNorm,rho:row.rho,accepted:row.accepted,trustFraction:row.trustFraction,newlySatisfied:row.newlySatisfied,newlySaturated:row.newlySaturated}))??[];
+const controlRounds = (diagnostics.stationTrialAttempts as Array<Record<string,unknown>>|undefined)?.map(row=>({round:row.round,active:row.activeControllerCount,zeroDroopActive:row.zeroDroopActive,droopActive:row.droopActive,proposalKind:row.proposalKind,oldNorm:row.oldNorm,predictedNorm:row.predictedNorm,newNorm:row.newNorm,rho:row.rho,accepted:row.accepted,rejectedReason:row.rejectedReason,trustFraction:row.trustFraction,newlySatisfied:row.newlySatisfied,newlySaturated:row.newlySaturated,stagnatedSubsetCount:row.stagnatedSubsetCount}))??[];
+const bounded = ((summaryBlock.coupledSolveDiagnostics as Array<Record<string,unknown>>|undefined)??[]).filter(row=>row.solveStatus==='BOUNDED_ITERATIVE');
+const boundedSweeps=bounded.map(row=>Number(row.boundedSweeps??0));
+const boundedSolver={calls:bounded.length,averageSweeps:bounded.length?boundedSweeps.reduce((sum,value)=>sum+value,0)/bounded.length:0,maxSweeps:Math.max(0,...boundedSweeps),kktConverged:bounded.filter(row=>row.converged===true).length,maxProjectedGradientNorm:Math.max(0,...bounded.map(row=>Number(row.projectedGradientNorm??0))),directionRebuilds:bounded.reduce((sum,row)=>sum+Number(row.directionRebuilds??0),0),inconsistentDirections:bounded.filter(row=>row.directionConsistent===false).length,stagnatedSubsetCount:controlRounds.reduce((sum,row)=>sum+Number(row.stagnatedSubsetCount??0),0)};
 process.stdout.write(
   `${JSON.stringify(
     {
@@ -120,10 +128,12 @@ process.stdout.write(
       engineElapsedMs: result.elapsedMs,
       wallMs: Math.round(wallMs),
       fullNrSolves: diagnostics.fullNrSolves,
+      totalNewtonIterations: diagnostics.totalNewtonIterations,
       kluNewtonFactorizations: diagnostics.kluNewtonFactorizations,
       outerControlRounds: diagnostics.outerControlRounds,
       controllerSummary: {mode:summaryBlock.mode,supported:summaryBlock.supported,zeroDroopCount:summaryBlock.zeroDroopActive,droopCount:summaryBlock.droopActive,statusCounts:summaryBlock.statusCounts},
       finalControl: finalControl?.perIsland?.map(row=>row?{before:row.before,after:row.after,causeCounts:row.causeCounts}:null),
+      boundedSolver,
       controlRounds,
       activeBalanceFidelity: activeBalance?.activeBalanceFidelity,
       activeBalanceIterations: activeBalance?.iterations,

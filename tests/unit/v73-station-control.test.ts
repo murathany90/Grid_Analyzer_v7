@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedControllerObjective,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedControllerObjective,solveDirectionConsistentBoundedObjective,partitionControllerDescent,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -66,6 +66,28 @@ test('bounded coupled objective retains cross-controller effects at an active Q 
   assert.ok(Math.abs(result.solution[0]-.5)<1e-6);
   assert.ok(Math.abs(result.solution[1]-1)<1e-6);
   assert.ok(result.predictedNorm<.51);
+});
+test('bounded objective stops on projected KKT and can continue beyond six sweeps',()=>{
+  const easy=solveBoundedControllerObjective([[1,0],[0,2]],[1,-2],[-2,-2],[2,2]);
+  assert.equal(easy.converged,true);assert.ok(easy.sweeps<80);assert.ok(easy.projectedGradientNorm<1e-6);
+  assert.ok(easy.objectiveEnd<easy.objectiveStart);
+  const matrix=[[1,.9],[.9,1]],residual=[1,0],six=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100],6),long=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100]);
+  assert.ok(long.sweeps>6);assert.ok(long.objectiveEnd<six.objectiveEnd);
+});
+test('bounded direction rebuild lets a Q-max unit re-enter a negative multi-unit move',()=>{
+  const units=[{id:'A',bus:1,pMw:20,qMvar:5,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:0,qMin:-20,qMax:20}];
+  const solved=solveDirectionConsistentBoundedObjective([-1],[1],directions=>{
+    const weights=activeParticipation(units,directions[0])!,column=[...weights].reduce((sum,[id,share])=>sum+share*(id==='A'?3:1),0);
+    return{matrix:[[column]],lower:[-2],upper:[2]};
+  });
+  assert.equal(solved.directionRebuilds,1);assert.equal(solved.directionConsistent,true);
+  assert.deepEqual(solved.directions,[-1]);assert.ok(solved.solution[0]<0);
+  assert.deepEqual([...activeParticipation(units,-1)!],[['A',.25],['B',.75]]);
+});
+test('one stationary controller leaves the movable peer in the coupled retry',()=>{
+  const stagnant={id:'stagnant'},movable={id:'movable'},active=[stagnant,movable],partition=partitionControllerDescent(active,new Map([[movable,-2]]));
+  assert.deepEqual(partition.stationary,[stagnant]);assert.deepEqual(partition.movable,[movable]);
+  assert.deepEqual(active,[stagnant,movable]);
 });
 test('source participation re-enters a clamped unit when Q direction reverses',()=>{
   const units=[{id:'A',bus:1,pMw:20,qMvar:2,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:3,qMin:-20,qMax:100}];
