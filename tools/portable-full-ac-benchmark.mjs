@@ -108,6 +108,8 @@ try {
   const observed = await page.evaluate(() => {
     const text = document.body.innerText;
     const statusLine = (text.match(/[^\n]*Newton iterasyonu[^\n]*/) || [])[0] ?? null;
+    const cards = Object.fromEntries([...document.querySelectorAll('section[data-view="analysis"] .ga-card-grid .ga-card')]
+      .map(card => [card.querySelector('small')?.textContent?.trim(), card.querySelector('strong')?.textContent?.trim()]).filter(([key, value]) => key && value));
     const number = pattern => {
       const match = statusLine ? statusLine.match(pattern) : null;
       return match ? Number(match[1].replace(',', '.')) : null;
@@ -118,6 +120,12 @@ try {
       fullNrSolves: number(/(\d+)\s+NR/),
       engineSeconds: number(/([0-9.,]+)\s+s\s*$/),
       converged: statusLine ? /Yakınsadı/.test(statusLine) : null,
+      workCounters: {
+        kluFactorizations: Number(cards['KLU ayrıştırma'] ?? NaN),
+        stationControlRounds: Number(cards['İstasyon kontrol turu'] ?? NaN),
+        activeBalanceRounds: Number(cards['Aktif denge düzeltme'] ?? NaN),
+        qLimitRounds: Number(cards['Q limit turu'] ?? NaN),
+      },
       unsupportedSettingMarked: /UNSUPPORTED/.test(text),
       profileFidelityNotice: (text.match(/Profil sadakati:\s*(\w+)/) || [])[1] ?? null,
       pageErrors: [],
@@ -126,7 +134,7 @@ try {
   observed.pageErrors = pageErrors;
   artifact.observed = observed;
   artifact.engineElapsedMs = typeof observed.engineSeconds === 'number' ? Math.round(observed.engineSeconds * 1000) : null;
-  artifact.status = pageErrors.length ? 'ERROR' : 'OK';
+  artifact.status = pageErrors.length || observed.converged !== true || observed.fullNrSolves == null ? 'ERROR' : 'OK';
 } catch (error) {
   if (!artifact.error) artifact.error = error instanceof Error ? error.message : String(error);
 } finally {

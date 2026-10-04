@@ -54,7 +54,7 @@ const portableBenchmark = (await readJson(portableBenchmarkPath)) as {
   browser: string;
   engineElapsedMs: number | null;
   wallClockMs: number | null;
-  observed: { statusLine: string; newtonIterations: number; fullNrSolves: number } | null;
+  observed: { statusLine: string; newtonIterations: number; fullNrSolves: number; workCounters?:{kluFactorizations:number|null;stationControlRounds:number|null;activeBalanceRounds:number|null;qLimitRounds:number|null} } | null;
 };
 
 const settings = defaultAnalysisSettings();
@@ -155,6 +155,13 @@ const manifest = {
     portableStatusLine: portableBenchmark.observed?.statusLine ?? null,
     newtonIterations: portableBenchmark.observed?.newtonIterations ?? null,
     fullNrSolves: portableBenchmark.observed?.fullNrSolves ?? null,
+    kluFactorizations: portableBenchmark.observed?.workCounters?.kluFactorizations ?? null,
+    stationControlRounds: portableBenchmark.observed?.workCounters?.stationControlRounds ?? null,
+    activeBalanceRounds: portableBenchmark.observed?.workCounters?.activeBalanceRounds ?? null,
+    qLimitRounds: portableBenchmark.observed?.workCounters?.qLimitRounds ?? null,
+    nodeKluFactorizations: diagnostics.kluNewtonFactorizations ?? null,
+    nodeStationControlRounds: diagnostics.outerControlRounds ?? null,
+    nodeActiveBalanceRounds: (diagnostics.activeBalancing as {iterations?:number}|undefined)?.iterations ?? null,
     nodeEngineElapsedMs: captured.engineElapsedMs,
     nodeWallMs: captured.wallMs,
     budgetMs: 15000,
