@@ -25,6 +25,11 @@ const outArg = process.argv[5] || '.tmp/portable-full-ac-benchmark.json';
 
 const portablePath = path.resolve(root, portableArg);
 const portableBytes = await readFile(portablePath);
+const modelBytes = await readFile(path.resolve(root, modelArg));
+const controlContextBytes = await readFile(path.resolve(root, contextArg));
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+const sourcePaths = ['src', 'tools', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'tsconfig.json'];
+const sourceDirty = execFileSync('git', ['status', '--porcelain', '--', ...sourcePaths], { cwd: root, encoding: 'utf8' }).trim();
 const repositoryPath = path.relative(root, portablePath).split(path.sep).join('/');
 if (repositoryPath.startsWith('../') || path.isAbsolute(repositoryPath)) throw new Error('Portable path must be inside the repository.');
 const committedPortableBytes = execFileSync('git', ['show', `HEAD:${repositoryPath}`], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
@@ -32,13 +37,17 @@ const committedPortableSha256 = createHash('sha256').update(committedPortableByt
 const artifact = {
   tool: 'tools/portable-full-ac-benchmark.mjs',
   portableFile: portableArg,
-  portableSha256: createHash('sha256').update(portableBytes).digest('hex'),
+  portableSha256: sha256(portableBytes),
   committedPortableSha256,
   portableMatchesCommit: portableBytes.equals(committedPortableBytes),
   portableBytes: portableBytes.length,
-  modelFile: path.basename(modelArg),
-  controlContextFile: path.basename(contextArg),
+  modelFile: modelArg,
+  modelSha256: sha256(modelBytes),
+  controlContextFile: contextArg,
+  controlContextSha256: sha256(controlContextBytes),
   gitSha: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
+  gitTreeSha: execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: root, encoding: 'utf8' }).trim(),
+  sourceDirtyAtMeasurement: Boolean(sourceDirty),
   browser: null,
   engineElapsedMs: null,
   wallClockMs: null,
@@ -58,6 +67,7 @@ const port = server.address().port;
 let browser;
 try {
   if (!artifact.portableMatchesCommit) throw new Error('Benchmark portable bytes differ from the committed HEAD artifact.');
+  if (artifact.sourceDirtyAtMeasurement) throw new Error(`Benchmark source differs from HEAD: ${sourceDirty}`);
   browser = await chromium.launch({ headless: true });
   artifact.browser = `Chromium ${browser.version()}`;
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
@@ -94,7 +104,7 @@ try {
   // "<engine> - <role> - <converged> - N Newton iterasyonu - M NR çözümü - T s".
   try {
     await page.waitForFunction(
-      () => /\d+ Newton iterasyonu\s*.\s*\d+ NR\s.*\s[0-9.,]+ s/.test(document.body.innerText),
+      () => /\d+ toplam Newton iterasyonu\s*.\s*\d+ son NR Newton iterasyonu\s*.\s*\d+ NR\s.*\s[0-9.,]+ s/.test(document.body.innerText),
       null,
       { timeout: 600000 },
     );
@@ -118,10 +128,11 @@ try {
     };
     return {
       statusLine,
-      newtonIterations: number(/(\d+)\s+Newton/),
+      newtonIterations: number(/(\d+)\s+toplam Newton/),
+      finalNewtonIterations: number(/(\d+)\s+son NR Newton/),
       fullNrSolves: number(/(\d+)\s+NR/),
       engineSeconds: number(/([0-9.,]+)\s+s\s*$/),
-      converged: statusLine ? /Yakınsadı/.test(statusLine) : null,
+      converged: statusLine ? /NR yakınsadı|Yakınsadı/.test(statusLine) : null,
       workCounters: {
         kluFactorizations: Number(cards['KLU ayrıştırma'] ?? NaN),
         stationControlRounds: Number(cards['İstasyon kontrol turu'] ?? NaN),

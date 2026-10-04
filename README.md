@@ -5,9 +5,24 @@ network, and presents inventory, scenario, map, single-line diagram, electrical 
 PowerFactory comparison. **Calculated values are model results, not measurements.** The ZIP
 reader and the offline Türkiye basemap are bundled; no server or runtime CDN is required.
 
-- Version: **8.2.3**
+- Version: **8.2.5**
 - Engine: `BrowserJsEngine` (classical Newton–Raphson power equations, sparse direct KLU/WASM)
-- Release manifest: [`docs/validation/v8.2.3-release.json`](docs/validation/v8.2.3-release.json)
+- Release manifest: [`docs/validation/v8.2.5-release.json`](docs/validation/v8.2.5-release.json)
+
+## 8.2.5 release status
+
+The numerical solver baseline is the validated v8.2.3 source. Version 8.2.5 finalizes
+diagnostics, release provenance and packaging without carrying over the rejected numerical
+changes. The v8.2.4 numerical candidate regressed all six KPIs and was **REJECTED / NEVER
+MERGED**. Rejected commits: `a9ff9145838dcc85b34e2c27848f33163ab55146`,
+`f25053f9e36c6e9d160701b604a10e0b36ab5d2f`; rejection record:
+`ed31ecb670c0741dc365bceb556ab7551cc288de`.
+
+The parity profile remains **PARTIAL**. Zero-droop station control is
+`STATION_CONTROL_PARTIAL` with 101 `CONTROL_RESIDUAL_AFTER_FINAL_BALANCE` controllers;
+223 droop controllers remain `UNSUPPORTED_DROOP`. These states are reported in the
+diagnostics and release manifest. Active balancing converges and SL1 remains Qmin-limited.
+
 
 ## Supported inputs
 
@@ -55,7 +70,7 @@ actually used — there are no hidden internal caps.
 | `maxInnerIterations` | 100 | Newton iterations per full NR solve |
 | `maxQLimitRounds` | 8 | Reactive active-set rounds |
 | `maxActiveBalanceCorrections` | 8 | Distributed active-balance corrections |
-| `maxStationControlCorrections` | 12 | Station-controller outer corrections |
+| `maxStationControlCorrections` | 16 in parity profile | Station-controller outer corrections |
 | `maxOuterIterations` | 50 | Outer control budget; the station loop still uses `maxStationControlCorrections` |
 | `nodalToleranceKva` | 5 | Nodal P/Q residual tolerance |
 | `modelEquationTolerancePercent` | 0.2 | Controller voltage-residual tolerance |
@@ -89,26 +104,11 @@ NR solves, Q-limit rounds, active-balance corrections, station-control rounds, K
 
 ## PowerFactory benchmark workflow
 
-```powershell
-# 1. Solve Full AC on the golden fixture and capture the CalculationResult.
-node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts `
-  kontrol1/20261001_1500_SN4_TR0.zip `
-  kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv `
-  .tmp/sn4-final-result.json
-
-# 2. Score the six canonical KPIs against the PowerFactory numeric CSV.
-node --max-old-space-size=6144 --import tsx tools/pf-kpi.ts `
-  .tmp/sn4-final-result.json `
-  kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv `
-  --out=.tmp/kpi-final.json --baseline=.tmp/kpi-baseline-8.2.1.json
-
-# 3. Build the release manifest from the measured artifacts.
-node --import tsx tools/release-manifest.ts --version=8.2.2 ... (see file header)
-```
-
-`src/analysis/validation/pf-kpi.ts` is the **single** KPI implementation. This README, the release
-manifest and the merge decision all consume it, so no document can quote a differently computed
-number.
+The canonical scorer is `src/analysis/validation/pf-kpi.ts`. The final benchmark uses
+the exact committed `dist-portable/GridAnalyzer_v7.html` and the three golden inputs
+recorded in the [release manifest](docs/validation/v8.2.5-release.json).
+The preservation gate compares every KPI with the validated v8.2.3 result. It permits at most
+0.5% **relative** regression per KPI and requires source, input and portable byte provenance.
 
 ### Golden fixture facts
 
@@ -149,53 +149,30 @@ normalizedPercent = 100 * sum(error_i) / sum(abs(PF_i))
 Secondary diagnostics are also exported: signed terminal P error, signed terminal Q error, signed
 aligned-angle error, and sign-disagreement counts over materially non-zero values.
 
-## Baseline and final KPIs (8.2.2)
+## Canonical 8.2.5 KPIs
 
-Population is identical in both runs — `minKv=66 | lines=2308 | transformers=2892 |
-busesVoltage=1733 | busesAngle=1733` — with zero unmatched PowerFactory lines, transformers or
-electrical buses.
+The v8.2.3 numerical baseline is preserved. The final measured values and signed secondary
+diagnostics are recorded in the [8.2.5 release manifest](docs/validation/v8.2.5-release.json).
+Population: 2308 lines (4616 observations), 2892 transformers (5784 observations),
+and 1733 voltage/angle buses.
 
-| # | KPI | N | Baseline norm. % | Final norm. % | Improved ≥0.1 % |
-| ---: | --- | ---: | ---: | ---: | :---: |
-| 1 | Line active power (MW) | 4616 | 1.001351392 | 1.001351392 | no |
-| 2 | Line reactive power (MVAr) | 4616 | 48.708913438 | 48.708913438 | no |
-| 3 | Transformer active power (MW) | 5784 | 0.740357908 | 0.740357908 | no |
-| 4 | Transformer reactive power (MVAr) | 5784 | 48.412123624 | 48.412123624 | no |
-| 5 | Bus voltage (kV) | 1733 | 1.133309538 | 1.133309538 | no |
-| 6 | Reference-aligned bus angle magnitude (deg) | 1733 | 1.995560238 | 1.995560238 | no |
-
-Absolute averages (baseline = final): 0.680365144 MW, 6.826398096 MVAr, 0.225382920 MW,
-2.409892547 MVAr, 2.184886099 kV, 0.183707051 deg.
-
-**The baseline was reproduced independently with `tools/pf-kpi.ts` and matched to nine decimals.**
-This release changes provenance, diagnostics and settings truthfulness; it does not change the
-numerical solution, so 0 of 6 KPIs improved. **Full PowerFactory parity is not claimed.**
-
-### Where the remaining error is
-
-Diagnostic finding, reproducible from the captured result and the numeric CSV: the entire reactive
-discrepancy originates at voltage-controlling units. Uncontrolled generators match PowerFactory
-exactly (0.00 % normalized Q error over 1614 units), while the total generator Q differs by about
-1370 MVAr (PowerFactory +564 MVAr, Grid Analyzer −806 MVAr). Per-controller totals are as far off as
-per-unit values, so this is a reactive **ownership/target** problem rather than a participation-weight
-problem. Sign disagreement is widespread on reactive quantities (654 / 4571 line Q observations,
-440 / 5050 transformer Q observations).
+| KPI | N | v8.2.3 normalized % | 8.2.5 normalized % |
+| --- | ---: | ---: | ---: |
+| Line MW | 4616 | 0.879454489 | 0.879454489 |
+| Line MVAr | 4616 | 45.961722931 | 45.961722931 |
+| Transformer MW | 5784 | 0.721830436 | 0.721830436 |
+| Transformer MVAr | 5784 | 47.615779757 | 47.615779757 |
+| Bus voltage | 1733 | 0.768447838 | 0.768447838 |
+| Reference-aligned angle | 1733 | 0.825548679 | 0.825548679 |
 
 ## Performance
 
-Measured on the exact committed portable artifact in headless Chromium
-(`tools/portable-full-ac-benchmark.mjs`):
-
-| Measure | Value |
-| --- | ---: |
-| `CalculationResult.elapsedMs` (portable, Chromium 153) | **11 540 ms** (budget 15 000 ms) |
-| Browser wall clock from click to result | 12 980 ms |
-| Newton iterations / full NR solves | 7 / 30 |
-| Node engine time (separate environment) | 12 836 ms |
-
-Repeated portable runs on one host varied between roughly 10 s and 21 s, so the budget is met in the
-recorded run but with substantial host-level variance. Portable/browser and Node are different
-environments and are reported separately rather than as an identical timing pair.
+The release gate requires the exact committed portable in Chromium to complete Full AC in
+at most **15,000 ms**. Its final engine time, browser wall time, total/final Newton counts,
+NR solves and KLU factorizations are recorded in the
+[8.2.5 release manifest](docs/validation/v8.2.5-release.json). The validated v8.2.3
+reference took 3,710 ms engine time and 5,699 ms browser wall time; these are prior
+measurements, not a substituted 8.2.5 result.
 
 ## N-1 scope and limitations
 
@@ -259,21 +236,9 @@ regular Vite build in `dist/`.
 
 Portable integrity for this release:
 
-```powershell
-node tools/portable-full-ac-benchmark.mjs   # SHA-256 of the exact artifact, before commit
-Get-FileHash dist-portable/GridAnalyzer_v7.html -Algorithm SHA256
-```
-
-- Portable SHA-256: `fe2efa6d79dfcc0508cbc3e062c4f58f00adfe11dc8ab35b11dd4f866450539f`
-- Portable bytes: 970 722
-
-## Further fidelity work
-
-In priority order, using source-first evidence: (A) reactive ownership and the voltage target for
-zero-droop station controllers, including the `STAGNATED_TRIAL` cases; (B) `cvqq` / `qu_char`
-reactive sharing priority; (C) Q-limit release semantics; (D) droop, only with `i_droop`, `pQmeas`,
-`Srated` and `iQorient` semantics confirmed against official documentation and fixture behaviour;
-(E) transformer phase and vector group. No enum behaviour is inferred from its numeric value alone.
+- Final portable SHA-256: `9db9fca8e8d41d1d1f0c20a10a5c3875cf4747406cbda51d083fe19eb0797721`
+- The Chromium-tested bytes must match the committed portable byte for byte.
+- Exact measured performance and source commit are recorded in the release manifest.
 
 Earlier context: [architecture](docs/architecture.md),
 [v8.2.1 Full AC performance audit](docs/full-ac-performance-v8-2-1.md),

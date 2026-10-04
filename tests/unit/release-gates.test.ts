@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateReleaseGates, isFullGitSha, type ReleaseGateInput } from '../../tools/release-gates';
+import { evaluateBaselinePreservationGates, evaluateReleaseGates, isFullGitSha, type BaselinePreservationGateInput, type ReleaseGateInput } from '../../tools/release-gates';
 
 const ids=['lineActivePowerMw','lineReactivePowerMvar','transformerActivePowerMw','transformerReactivePowerMvar','busVoltageKv','busAlignedAngleDeg'];
 const good=():ReleaseGateInput=>({
@@ -9,6 +9,46 @@ const good=():ReleaseGateInput=>({
   activeBalanceConverged:true,stationControlConverged:true,unresolvedControllerCount:0,
   portableElapsedMs:14999,portableStatus:'OK',portableSha256:'a'.repeat(64),committedPortableSha256:'a'.repeat(64),measuredPortableSha256:'a'.repeat(64),
   measuredGitSha:'b'.repeat(40),manifestGitSha:'b'.repeat(40),commitExists:true,
+  measuredSourceMatchesCurrent:true,measuredInputsMatch:true,
+});
+
+const preserved=():BaselinePreservationGateInput=>({
+  ...good(),
+  kpis:ids.map(id=>({id,n:100,baselineN:100,improvementPercent:0})),
+  stationControlConverged:false,unresolvedControllerCount:101,
+  baselineValidated:true,goldenInputsMatch:true,
+  sl1PMw:-0.000187,sl1QMvar:-500,sl1QMinMvar:-500,sl1QLimitState:'QMIN_LIMITED',
+  activeBalanceToleranceMw:0.005,qLimitToleranceMvar:0.02,
+  stationControlStatus:'STATION_CONTROL_PARTIAL',stationPartialDisclosed:true,
+  requiredValidationPassed:true,
+});
+
+test('validated baseline with disclosed partial station control is merge ready',()=>{
+  assert.deepEqual(evaluateBaselinePreservationGates(preserved()),{policy:'PRESERVE_VALIDATED_BASELINE',mergeReady:true,failedGates:[]});
+});
+
+test('baseline preservation rejects one KPI above 0.5 percent relative regression',()=>{
+  const input=preserved();input.kpis=input.kpis.map((row,i)=>i===0?{...row,improvementPercent:0.50001}:row);
+  assert.ok(evaluateBaselinePreservationGates(input).failedGates.includes('SIX_KPI_RELATIVE_REGRESSION_0_5_PERCENT'));
+});
+
+test('baseline preservation rejects slow portable',()=>{
+  const input=preserved();input.portableElapsedMs=15001;
+  assert.ok(evaluateBaselinePreservationGates(input).failedGates.includes('PORTABLE_ELAPSED_15000_MS'));
+});
+
+test('baseline preservation rejects artifact, source and input provenance mismatches',()=>{
+  for(const [field,gate] of [['committedPortableSha256','COMMITTED_PORTABLE_BYTES'],['measuredSourceMatchesCurrent','MEASURED_SOURCE_TREE'],['measuredInputsMatch','MEASURED_INPUT_BYTES'],['goldenInputsMatch','GOLDEN_INPUT_HASHES']] as const){
+    const input=preserved();(input as unknown as Record<string,unknown>)[field]=field==='committedPortableSha256'?'c'.repeat(64):false;
+    assert.ok(evaluateBaselinePreservationGates(input).failedGates.includes(gate));
+  }
+});
+
+test('baseline preservation rejects duplicate or missing canonical KPI',()=>{
+  for(const rows of [preserved().kpis.slice(0,5),[...preserved().kpis.slice(0,5),preserved().kpis[0]]]){
+    const input=preserved();input.kpis=rows;
+    assert.ok(evaluateBaselinePreservationGates(input).failedGates.includes('CANONICAL_KPI_POPULATION'));
+  }
 });
 
 test('release gate truth table requires all numerical, convergence, timing and provenance facts',()=>{

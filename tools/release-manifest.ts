@@ -4,7 +4,7 @@
  * nothing is typed in by hand.
  *
  * Usage:
- *   node --import tsx tools/release-manifest.ts --version=8.2.3 --result=.tmp/sn4-final-result.json --kpi=.tmp/kpi-final.json --kpi-baseline=.tmp/kpi-v822-baseline.json --portable-benchmark=.tmp/portable-full-ac-benchmark.json
+ *   node --import tsx tools/release-manifest.ts --version=8.2.5 --result=.tmp/sn4-v825-result.json --kpi=.tmp/kpi-v825.json --kpi-baseline=.tmp/kpi-v823.json --portable-benchmark=.tmp/portable-v825-benchmark.json --portable=dist-portable/GridAnalyzer_v7.html --model=kontrol1/20261001_1500_SN4_TR0.zip --powerfactory=kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv --control-context=kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv --validation-passed=true
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 import { analysisSettingsHash, defaultAnalysisSettings, effectiveFullAcLimits, profileFidelity, unsupportedFullAcSettings, unsupportedSharedSettings } from '../src/domain/calculation/analysis-settings';
 import type { CalculationResult } from '../src/domain/results/types';
 import type { PfKpiReport } from '../src/analysis/validation/pf-kpi';
-import { evaluateReleaseGates, isFullGitSha } from './release-gates';
+import { evaluateBaselinePreservationGates, isFullGitSha } from './release-gates';
 
 function flag(name: string): string {
   const prefix = `--${name}=`;
@@ -44,8 +44,13 @@ const captured = (await readJson(resultPath)) as {
   engineElapsedMs: number;
   wallMs: number;
 };
-const kpi = (await readJson(kpiPath)) as PfKpiReport & { kpis: PfKpiReport['kpis']; powerFactory: Record<string, string | null> };
-const baseline = (await readJson(kpiBaselinePath)) as PfKpiReport & { kpis: PfKpiReport['kpis'] };
+const kpi = (await readJson(kpiPath)) as PfKpiReport & { kpis: PfKpiReport['kpis']; powerFactory: Record<string, string | null>;modelHash:string;controlContextHash:string };
+const baseline = (await readJson(kpiBaselinePath)) as PfKpiReport & { kpis: PfKpiReport['kpis'];modelHash:string;controlContextHash:string };
+const validatedBaseline = (await readJson('docs/validation/v8.2.3-release.json')) as {
+  gitCommitSha:string;
+  artifacts:{modelZip:{sha256:string};modelJsonEntry:{sha256:string};powerFactoryNumericCsv:{sha256:string};powerFactoryControlContextCsv:{sha256:string;sourceHash:string}};
+  powerFactoryComparison:{populationSignature:string;kpis:Array<{id:string;n:number;normalizedPercent:number}>};
+};
 const portableBenchmark = (await readJson(portableBenchmarkPath)) as {
   portableSha256: string;
   committedPortableSha256: string | null;
@@ -54,7 +59,13 @@ const portableBenchmark = (await readJson(portableBenchmarkPath)) as {
   browser: string;
   engineElapsedMs: number | null;
   wallClockMs: number | null;
-  observed: { statusLine: string; newtonIterations: number; fullNrSolves: number; workCounters?:{kluFactorizations:number|null;stationControlRounds:number|null;activeBalanceRounds:number|null;qLimitRounds:number|null} } | null;
+  modelFile: string;
+  modelSha256: string;
+  controlContextFile: string;
+  controlContextSha256: string;
+  gitTreeSha: string;
+  sourceDirtyAtMeasurement: boolean;
+  observed: { statusLine: string; newtonIterations: number; finalNewtonIterations: number; fullNrSolves: number; workCounters?:{kluFactorizations:number|null;stationControlRounds:number|null;activeBalanceRounds:number|null;qLimitRounds:number|null} } | null;
 };
 
 const settings = defaultAnalysisSettings();
@@ -105,10 +116,25 @@ if(!isFullGitSha(manifestGitSha))throw new Error(`Invalid measured git commit SH
 let commitExists=false;
 try{commitExists=execFileSync('git',['cat-file','-t',manifestGitSha],{cwd:process.cwd(),encoding:'utf8'}).trim()==='commit';}catch{commitExists=false;}
 const measuredPortableSha256=await sha256(portablePath);
+const modelSha256=await sha256(modelPath),powerFactorySha256=await sha256(powerFactoryPath),controlContextSha256=await sha256(controlContextPath);
+const canonical=['lineActivePowerMw','lineReactivePowerMvar','transformerActivePowerMw','transformerReactivePowerMvar','busVoltageKv','busAlignedAngleDeg'];
+const validKpis=(rows:PfKpiReport['kpis'])=>rows.length===canonical.length&&new Set(rows.map(row=>row.id)).size===canonical.length&&canonical.every(id=>rows.some(row=>row.id===id&&row.n>0&&Number.isFinite(row.normalizedPercent)));
+const baselineByIdValidated=new Map(validatedBaseline.powerFactoryComparison.kpis.map(row=>[row.id,row]));
+const baselineValidated=validatedBaseline.gitCommitSha==='0c5fe53453d513fdc0bd2e32d0a5784ddd57303c'&&validKpis(baseline.kpis)&&validatedBaseline.powerFactoryComparison.kpis.length===canonical.length&&new Set(validatedBaseline.powerFactoryComparison.kpis.map(row=>row.id)).size===canonical.length&&baseline.population.populationSignature===validatedBaseline.powerFactoryComparison.populationSignature&&baseline.modelHash===validatedBaseline.artifacts.modelJsonEntry.sha256&&baseline.controlContextHash===validatedBaseline.artifacts.powerFactoryControlContextCsv.sourceHash&&baseline.kpis.every(row=>{const source=baselineByIdValidated.get(row.id);return source?.n===row.n&&Math.abs(source.normalizedPercent-row.normalizedPercent)<1e-12;});
+const goldenInputsMatch=modelSha256==='7c6ab46df28408f6ff4c9be675bd32924cceab7dbaeff45579bdcdedca0388bb'&&powerFactorySha256==='ac53521de1b83c6dc391de4107b02fb774c8bd7e78fad8ecdca7a6d7c64d50db'&&controlContextSha256==='be0c7f5b4662de989c3ad4364bcd2dfe0dff4f8533dae90fbcfe6f3f5305c347'&&captured.modelHash==='31b9a53f4a8fa29627d53064fd079b1fc4bb141e019c4285db3752bca8319663'&&modelSha256===validatedBaseline.artifacts.modelZip.sha256&&powerFactorySha256===validatedBaseline.artifacts.powerFactoryNumericCsv.sha256&&controlContextSha256===validatedBaseline.artifacts.powerFactoryControlContextCsv.sha256;
 const convergence=diagnostics.convergence as {activeBalance?:string;stationControl?:string;pendingControllerStatuses?:Record<string,number>}|undefined;
-const unresolvedControllerCount=(revalidation?.controlResidualCount??0)+Object.values(convergence?.pendingControllerStatuses??{}).reduce((sum,count)=>sum+count,0);
-const releaseGates=evaluateReleaseGates({
-  populationMatches:kpi.population.populationSignature===baseline.population.populationSignature,
+const unresolvedControllerCount=Object.values(convergence?.pendingControllerStatuses??{}).reduce((sum,count)=>sum+count,0);
+if(revalidation&&revalidation.controlResidualCount!==(convergence?.pendingControllerStatuses?.CONTROL_RESIDUAL_AFTER_FINAL_BALANCE??0))throw new Error('Final controller revalidation disagrees with pending status counts.');
+const sourcePaths=['src','tools','package.json','package-lock.json','index.html','vite.config.ts','tsconfig.json'];
+const git=(...args:string[])=>execFileSync('git',args,{cwd:process.cwd(),encoding:'utf8'}).trim();
+const gitQuiet=(...args:string[])=>{try{execFileSync('git',args,{cwd:process.cwd(),stdio:'ignore'});return true;}catch{return false;}};
+const measuredTreeSha=commitExists?git('rev-parse',`${manifestGitSha}^{tree}`):null;
+const measuredSourceMatchesCurrent=commitExists&&!portableBenchmark.sourceDirtyAtMeasurement&&measuredTreeSha===portableBenchmark.gitTreeSha&&gitQuiet('diff','--quiet',manifestGitSha,'HEAD','--',...sourcePaths)&&git('status','--porcelain','--',...sourcePaths)==='';
+const measuredInputsMatch=portableBenchmark.modelFile===modelPath&&portableBenchmark.controlContextFile===controlContextPath&&portableBenchmark.modelSha256===modelSha256&&portableBenchmark.controlContextSha256===controlContextSha256&&captured.modelHash===kpi.modelHash&&captured.controlContextHash===kpi.controlContextHash&&captured.controlContextHash===validatedBaseline.artifacts.powerFactoryControlContextCsv.sourceHash&&captured.appVersion===version&&captured.engineVersion===version;
+const sl1=externalGrid.find(row=>row.id==='SL1'&&row.isReference) as (typeof externalGrid)[number]&{qMin?:number|null}|undefined;
+const releaseGates=evaluateBaselinePreservationGates({
+  baselineValidated,goldenInputsMatch,
+  populationMatches:Boolean(kpi.population.populationSignature)&&kpi.population.populationSignature===baseline.population.populationSignature,
   kpis:kpiRows.map(row=>({id:row.id,n:row.n,baselineN:row.baseline?.n??null,improvementPercent:row.improvementPercent})),
   activeBalanceConverged:convergence?.activeBalance==='ACTIVE_BALANCE_CONVERGED',
   stationControlConverged:convergence?.stationControl==='STATION_CONTROL_CONVERGED',
@@ -121,12 +147,20 @@ const releaseGates=evaluateReleaseGates({
   measuredGitSha:portableBenchmark.gitSha,
   manifestGitSha,
   commitExists,
+  measuredSourceMatchesCurrent,
+  measuredInputsMatch,
+  sl1PMw:sl1?.pMw??null,sl1QMvar:sl1?.qMvar??null,sl1QMinMvar:sl1?.qMin??null,sl1QLimitState:sl1?.qLimitState??null,
+  activeBalanceToleranceMw:settings.powerFlow.nodalToleranceKva/1000,qLimitToleranceMvar:settings.powerFlow.qLimitToleranceMvar,
+  stationControlStatus:convergence?.stationControl??null,
+  stationPartialDisclosed:convergence?.stationControl!=='STATION_CONTROL_PARTIAL'||(unresolvedControllerCount>0&&controllerCounts.CONTROL_RESIDUAL_AFTER_FINAL_BALANCE===revalidation?.controlResidualCount&&controllerCounts.UNSUPPORTED_DROOP>0&&profileFidelity(settings.powerFlow.profile).fidelity==='PARTIAL'),
+  requiredValidationPassed:process.argv.includes('--validation-passed=true'),
 });
 
 const manifest = {
   schema: 'grid-analyzer-release-manifest-1',
   version,
   gitCommitSha: manifestGitSha,
+  sourceProvenance:{gitTreeSha:measuredTreeSha,measuredSourceMatchesCurrent,measuredInputsMatch},
   engine: {
     name: 'BrowserJsEngine',
     appVersion: captured.appVersion,
@@ -134,10 +168,10 @@ const manifest = {
     calculationIdentityVersion: 'src/domain/calculation/identity.ts',
   },
   artifacts: {
-    modelZip: { file: modelPath, sha256: await sha256(modelPath) },
+    modelZip: { file: modelPath, sha256: modelSha256 },
     modelJsonEntry: { sha256: captured.modelHash },
-    powerFactoryNumericCsv: { file: powerFactoryPath, sha256: await sha256(powerFactoryPath) },
-    powerFactoryControlContextCsv: { file: controlContextPath, sha256: await sha256(controlContextPath), sourceHash: captured.controlContextHash },
+    powerFactoryNumericCsv: { file: powerFactoryPath, sha256: powerFactorySha256 },
+    powerFactoryControlContextCsv: { file: controlContextPath, sha256: controlContextSha256, sourceHash: captured.controlContextHash },
     portable: { file: portablePath, sha256: measuredPortableSha256, bytes: (await readFile(resolve(process.cwd(), portablePath))).length },
   },
   calculationSettings: {
@@ -154,6 +188,7 @@ const manifest = {
     portableWallClockMs: portableBenchmark.wallClockMs,
     portableStatusLine: portableBenchmark.observed?.statusLine ?? null,
     newtonIterations: portableBenchmark.observed?.newtonIterations ?? null,
+    finalNewtonIterations: portableBenchmark.observed?.finalNewtonIterations ?? null,
     fullNrSolves: portableBenchmark.observed?.fullNrSolves ?? null,
     kluFactorizations: portableBenchmark.observed?.workCounters?.kluFactorizations ?? null,
     stationControlRounds: portableBenchmark.observed?.workCounters?.stationControlRounds ?? null,
@@ -182,7 +217,7 @@ const manifest = {
     mergeGates: {
       improvedByAtLeast0_1Percent: improvedCount,
       regressedByAtLeast0_5Percent: regressedCount,
-      requiresFiveOfSixImproved: improvedCount >= 5,
+      developmentPolicyWouldRequireFiveOfSixImproved: improvedCount >= 5,
       lineReactivePowerRegressed: kpiRows.find(row => row.id === 'lineReactivePowerMvar')?.regressed ?? false,
       transformerReactivePowerRegressed: kpiRows.find(row => row.id === 'transformerReactivePowerMvar')?.regressed ?? false,
       ...releaseGates,

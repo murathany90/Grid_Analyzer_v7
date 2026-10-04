@@ -19,7 +19,7 @@ import type { CapacitySeason } from '../domain/model/capacity';
 import type { N1Progress } from '../domain/n1';
 import type { N1CandidateCatalog } from '../domain/n1/catalog';
 import { applyPowerFactoryControlContext, importPowerFactoryControlContext } from '../analysis/validation/powerfactory-control-context';
-import { fullAcDiagnostics } from '../domain/results/diagnostics';
+import { calculationConvergenceLabel,fullAcDiagnostics } from '../domain/results/diagnostics';
 
 export class Application implements AppContext {
   network:CanonicalNetwork|null=null;modelQualityResult:ModelQualityAuditResult|null=null;modelQualityScenarioHash:string|null=null;modelQualityAnalysisScope:AppContext['modelQualityAnalysisScope']=null;n1Result:N1ScreenResult|null=null;n1Progress:N1Progress|null=null;n1CatalogResult:N1CandidateCatalog|null=null;n1CatalogIdentity:AppContext['n1CatalogIdentity']=null;selectedN1CandidateId:string|null=null;selectedN1IslandId:string|null=null;n1Detail:N1SelectedDetail|null=null;n1DetailLoading=false;resultStore=new ResultStore();scenario=new ScenarioStore();settings=new SettingsStore();analysisSettings=new AnalysisSettingsStore();powerFactoryControlContextHash:string|null=null;powerFactoryControlContextNumericFile:string|null=null;
@@ -57,10 +57,8 @@ export class Application implements AppContext {
       const packed=await this.calculation.request<PackedResult>({type:type==='dc'?'RUN_DC':type==='fastAc'?'RUN_FAST':'RUN_AC',scenario,identity:id,analysisSettings:snapshot});if(job!==this.job)return;
       const result=unpackResult(packed);if(!this.resultStore.accept(role,result)){this.status='Senaryo/model değişti; eski hesap reddedildi.';return;}
       const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
-      // `result.iterations` counts Newton iterations only. Reporting it as "adım" implied a
-    // step count for the whole calculation; the work counters are named explicitly instead.
     const work=fullAcDiagnostics(result),workDetail=work.fullNrSolves==null?'':` · ${work.fullNrSolves} NR çözümü`;
-    this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${result.converged?'Yakınsadı':result.status} · ${work.newtonIterations??0} Newton iterasyonu${workDetail} · ${(result.elapsedMs/1000).toFixed(2)} s`;
+    this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${calculationConvergenceLabel(result)} · ${work.newtonIterations??0} toplam Newton iterasyonu · ${work.finalNewtonIterations??0} son NR Newton iterasyonu${workDetail} · ${(result.elapsedMs/1000).toFixed(2)} s`;
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'Hesap iptal edildi.':`Hesap hatası: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','analysis',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }

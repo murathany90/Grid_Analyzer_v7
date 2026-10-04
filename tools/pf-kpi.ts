@@ -55,12 +55,12 @@ async function main(): Promise<void> {
       kpis: PfKpiReport['kpis'];
       populationSignature?: string;
     };
+    if(baseline.kpis.length!==PF_KPI_IDS.length||new Set(baseline.kpis.map(row=>row.id)).size!==PF_KPI_IDS.length||PF_KPI_IDS.some(id=>!baseline.kpis.some(row=>row.id===id&&row.n>0&&Number.isFinite(row.normalizedPercent))))throw new Error('Baseline has duplicate, missing or invalid canonical KPI rows.');
+    if(!baseline.populationSignature||baseline.populationSignature!==report.population.populationSignature)throw new Error('Baseline population signature is missing or differs from candidate.');
     const baselineById = new Map(baseline.kpis.map(kpi => [kpi.id, kpi]));
     comparison = {
       baselineFile: baselinePath,
-      populationSignatureMatches:
-        baseline.populationSignature === undefined ||
-        baseline.populationSignature === report.population.populationSignature,
+      populationSignatureMatches: true,
       baselinePopulationSignature: baseline.populationSignature ?? null,
       candidatePopulationSignature: report.population.populationSignature,
       kpis: report.kpis.map(kpi => {
