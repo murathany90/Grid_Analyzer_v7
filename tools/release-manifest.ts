@@ -99,7 +99,7 @@ const externalGrid = (diagnostics.externalGridResults ?? []) as Array<{ id: stri
 const manifest = {
   schema: 'grid-analyzer-release-manifest-1',
   version,
-  gitCommitSha: portableBenchmark.gitSha,
+  gitCommitSha: process.argv.find(a => a.startsWith('--git-sha='))?.slice(11) ?? portableBenchmark.gitSha,
   engine: {
     name: 'BrowserJsEngine',
     appVersion: captured.appVersion,

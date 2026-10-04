@@ -1,7 +1,7 @@
 {
   "schema": "grid-analyzer-release-manifest-1",
   "version": "8.2.2",
-  "gitCommitSha": "eb13b687433db6b3e35f9537edeee79314aa9c9e",
+  "gitCommitSha": "fccf6fb5708c14aba8d514b9ba6dc66616e7d22",
   "engine": {
     "name": "BrowserJsEngine",
     "appVersion": "8.2.2",
