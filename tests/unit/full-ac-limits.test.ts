@@ -17,6 +17,7 @@ test('effective loop bounds are typed settings, not internal constants', () => {
   assert.ok(limits);
   assert.equal(limits?.maxNewtonIterations, settings.maxInnerIterations);
   assert.equal(limits?.maxActiveBalanceCorrections, settings.maxActiveBalanceCorrections);
+  assert.equal(limits?.maxFinalActiveBalanceCorrections, settings.maxFinalActiveBalanceCorrections);
   assert.equal(limits?.maxQLimitRounds, settings.maxQLimitRounds);
   assert.equal(limits?.maxStationControlCorrections, settings.maxStationControlCorrections);
 });
@@ -24,22 +25,25 @@ test('effective loop bounds are typed settings, not internal constants', () => {
 test('defaults reproduce the previously hardcoded internal caps', () => {
   const settings = defaultAnalysisSettings().powerFlow;
   assert.equal(settings.maxActiveBalanceCorrections, 8);
+  assert.equal(settings.maxFinalActiveBalanceCorrections, 8);
   assert.equal(settings.maxQLimitRounds, 8);
-  assert.equal(settings.maxStationControlCorrections, 12);
+  assert.equal(settings.maxStationControlCorrections, 16);
   // The UI-exposed outer bound stays separate and larger, as before.
   assert.equal(settings.maxOuterIterations, 50);
 });
 
 test('exposed loop bounds survive settings merge and are bounded', () => {
-  const merged = mergeExposedAnalysisSettings({ powerFlow: { maxQLimitRounds: 3, maxActiveBalanceCorrections: 2, maxStationControlCorrections: 4 } });
+  const merged = mergeExposedAnalysisSettings({ powerFlow: { maxQLimitRounds: 3, maxActiveBalanceCorrections: 2, maxFinalActiveBalanceCorrections: 7, maxStationControlCorrections: 4 } });
   assert.equal(merged.powerFlow.maxQLimitRounds, 3);
   assert.equal(merged.powerFlow.maxActiveBalanceCorrections, 2);
+  assert.equal(merged.powerFlow.maxFinalActiveBalanceCorrections, 7);
   assert.equal(merged.powerFlow.maxStationControlCorrections, 4);
-  const clamped = mergeExposedAnalysisSettings({ powerFlow: { maxQLimitRounds: 0, maxActiveBalanceCorrections: -5 } });
+  const clamped = mergeExposedAnalysisSettings({ powerFlow: { maxQLimitRounds: 0, maxActiveBalanceCorrections: -5, maxFinalActiveBalanceCorrections: 0 } });
   assert.equal(clamped.powerFlow.maxQLimitRounds, 1, 'out-of-range loop bounds clamp to the minimum');
   assert.equal(clamped.powerFlow.maxActiveBalanceCorrections, 1);
+  assert.equal(clamped.powerFlow.maxFinalActiveBalanceCorrections, 1);
   const nonNumeric = mergeExposedAnalysisSettings({ powerFlow: { maxStationControlCorrections: 'many' } });
-  assert.equal(nonNumeric.powerFlow.maxStationControlCorrections, 12, 'invalid values fall back to the default');
+  assert.equal(nonNumeric.powerFlow.maxStationControlCorrections, 16, 'invalid values fall back to the default');
 });
 
 test('no profile claims verified PowerFactory parity', () => {

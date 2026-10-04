@@ -110,7 +110,7 @@ test('natural and full RCM adjoint solves preserve sensitivities and true residu
   assert.equal(natural.solverDiagnostics.backend,'KLU_WASM');assert.equal(legacy.solverDiagnostics.backend,'LEGACY_KRYLOV');
 });
 test('package, application engine and calculation identity share one version',()=>{
-  assert.equal(packageJson.version,'8.2.2');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
+  assert.equal(packageJson.version,'8.2.3');assert.equal(APP_VERSION,packageJson.version);assert.equal(new BrowserJsPowerFlowEngine().version,APP_VERSION);
   assert.equal(identity('model',emptyScenario(),'powerFlow').engineVersion,APP_VERSION);
 });
 test('A/B/C modes separate local PV, ownership and integrated multi-bus station control',()=>{

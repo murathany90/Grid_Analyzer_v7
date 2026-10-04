@@ -36,7 +36,7 @@ function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusC
  return{islandCount,unsuppliedBusCount:model.n-supplied.reduce((a,b)=>a+b,0)};
 }
 
-export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialControlDqPu?:ArrayLike<number>;stationControls?:readonly IntegratedStationControl[];admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number} } = {}): PowerFlowResult {
+export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialLimitedBuses?:PowerFlowResult['pvToPq'];initialControlDqPu?:ArrayLike<number>;stationControls?:readonly IntegratedStationControl[];admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number} } = {}): PowerFlowResult {
  const t0=performance.now?.()||Date.now(),n=model.n,base=model.baseMVA||100,slack=model.slack,counts=topologyCounts(model),elapsed=()=>((performance.now?.()||Date.now())-t0);
  if(options.workCounters)options.workCounters.fullNrSolves++;
  const settings={...DEFAULT_SOLVER_SETTINGS,...options.settings},tolerancePu=nodalToleranceKvaToPu(settings.nodalToleranceKva,base);
@@ -46,9 +46,13 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
  const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=options.initialVm?.length===n?Float64Array.from(options.initialVm,v=>finite(v)&&v>.35&&v<1.85?v:1):new Float64Array(n).fill(1),Va=options.initialVa?.length===n?Float64Array.from(options.initialVa,v=>finite(v)?v:0):new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
  const controls=options.stationControls??[],controlDq=options.initialControlDqPu?.length===controls.length?Float64Array.from(options.initialControlDqPu,v=>finite(v)?v:0):new Float64Array(controls.length),effectiveQ=new Float64Array(n);
  const refreshEffectiveQ=()=>{effectiveQ.set(qSpec);controls.forEach((control,index)=>{for(const actuator of control.actuators)effectiveQ[actuator.bus]+=actuator.participation*controlDq[index];});};
- Vm[slack]=model.slackVm||1;for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
+ const seededLimits:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[];
+ for(const limited of options.initialLimitedBuses??[]){const bus=limited.bus;if(!Number.isInteger(bus)||bus<0||bus>=n||!finite(limited.qLimit)||!(busType[bus]===1||bus===slack&&busType[bus]===2))continue;
+   busType[bus]=0;qSpec[bus]=limited.qLimit/base;seededLimits.push({...limited});}
+ if(busType[slack]===2)Vm[slack]=model.slackVm||1;
+ for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
  for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
- const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[],qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
+ const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=seededLimits,qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
 // Reactive active-set rounds are independent of station-controller outer rounds.
   // The bound is a typed setting so provenance can report the value actually used.
   const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxQLimitRounds??8));

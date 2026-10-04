@@ -5,9 +5,9 @@ network, and presents inventory, scenario, map, single-line diagram, electrical 
 PowerFactory comparison. **Calculated values are model results, not measurements.** The ZIP
 reader and the offline Türkiye basemap are bundled; no server or runtime CDN is required.
 
-- Version: **8.2.2**
+- Version: **8.2.3**
 - Engine: `BrowserJsEngine` (classical Newton–Raphson power equations, sparse direct KLU/WASM)
-- Release manifest: [`docs/validation/v8.2.2-release.json`](docs/validation/v8.2.2-release.json)
+- Release manifest: [`docs/validation/v8.2.3-release.json`](docs/validation/v8.2.3-release.json)
 
 ## Supported inputs
 

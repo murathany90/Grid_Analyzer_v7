@@ -11,7 +11,9 @@ export interface ControlContextLoad {
 }
 export interface ControlContextStationController {
   fid: string; memberFids: string[]; cvqq: number[]; remoteBusFid: string;
-  droopModeRaw: number; ddroop: number; measurementFid: string | null;
+  controlledNodeFids: string[]; targetVpu: number; controlModeRaw: number;
+  selectedBusModeRaw: number; distributionModeRaw: number; qSetpointRaw: number;
+  qOrientationRaw: number; droopModeRaw: number; ddroop: number; measurementFid: string | null;
 }
 export interface PowerFactoryControlContext {
   metadata: Record<string, string>; sourceHash: string; loads: ControlContextLoad[];
@@ -80,8 +82,24 @@ export function importPowerFactoryControlContext(text: string): PowerFactoryCont
     if(members.length!==cvqq.length||members.some((row,index)=>row.index!==index||row.status!=='OK'||!row.refFid||cvqq[index].index!==index||cvqq[index].status!=='OK'))
       throw new Error(`ControlContext ElmStactrl ${fid}: psym/cvqq üye dizisi uyuşmuyor.`);
     const measurement=field('reference','pQmeas');
+    const remoteBusFid=required('reference','rembar').refFid;
+    const selectedNode=required('reference','cpCtrlNode').refFid;
+    if(!remoteBusFid||selectedNode!==remoteBusFid)throw new Error(`ControlContext ElmStactrl ${fid}: rembar/cpCtrlNode uyuşmazlığı.`);
+    const controlledNodeFids=members.map(member=>{
+      const hv=group.find(row=>row.kind==='reference'&&row.key==='controlledHVNode'&&row.index===member.index);
+      const lv=group.find(row=>row.kind==='reference'&&row.key==='controlledLVNode'&&row.index===member.index);
+      if(!hv||!lv||hv.status!=='OK'||lv.status!=='OK'||hv.refFid!==remoteBusFid||lv.refFid!==remoteBusFid)
+        throw new Error(`ControlContext ElmStactrl ${fid}: controlledHVNode/controlledLVNode uyuşmazlığı.`);
+      return hv.refFid;
+    });
     stationControllers.push({fid,memberFids:members.map(row=>row.refFid),cvqq:cvqq.map(row=>decimal(row.value,`${fid}.cvqq`)),
-      remoteBusFid:required('reference','rembar').refFid,droopModeRaw:decimal(required('attribute','i_droop').value,`${fid}.i_droop`),
+      remoteBusFid,controlledNodeFids,targetVpu:decimal(required('attribute','usetp').value,`${fid}.usetp`),
+      controlModeRaw:decimal(required('attribute','i_ctrl').value,`${fid}.i_ctrl`),
+      selectedBusModeRaw:decimal(required('attribute','selBus').value,`${fid}.selBus`),
+      distributionModeRaw:decimal(required('attribute','imode').value,`${fid}.imode`),
+      qSetpointRaw:decimal(required('attribute','qsetp').value,`${fid}.qsetp`),
+      qOrientationRaw:decimal(required('attribute','iQorient').value,`${fid}.iQorient`),
+      droopModeRaw:decimal(required('attribute','i_droop').value,`${fid}.i_droop`),
       ddroop:decimal(required('attribute','ddroop').value,`${fid}.ddroop`),measurementFid:measurement?.status==='OK'?measurement.refFid:null});
   }
   if(Number(metadata['summary.elmStactrlCount'])!==stationControllers.length||Number(metadata['summary.stationControllerMemberCount'])!==stationControllers.reduce((sum,row)=>sum+row.memberFids.length,0))
@@ -116,9 +134,13 @@ export function applyPowerFactoryControlContext(network: CanonicalNetwork, conte
     const row=controllerByFid.get(controller.id);
     if(!row||row.remoteBusFid!==controller.remoteBus||row.memberFids.length!==controller.unitIds.length||row.memberFids.some((fid,index)=>fid!==controller.unitIds[index]))
       throw new Error(`ControlContext ElmStactrl FID/rembar/psym uyuşmazlığı: ${controller.id}`);
-    if(row.droopModeRaw!==controller.droopModeRaw||controller.droopValueRaw!=null&&Math.abs(row.ddroop-controller.droopValueRaw)>1e-4)
-      throw new Error(`ControlContext ElmStactrl droop kaynak uyuşmazlığı: ${controller.id}`);
-    return {...controller,qParticipationRaw:row.cvqq,sourceRefs:{...controller.sourceRefs,qParticipation:[{sourceClass:'ElmStactrl',sourceId:controller.id,field:'ControlContext.cvqq:*',unit:'%'}]}};
+    const close=(a:number,b:number)=>Math.abs(a-b)<=Math.max(1e-6,1e-6*Math.max(Math.abs(a),Math.abs(b)));
+    if(row.droopModeRaw!==controller.droopModeRaw||controller.droopValueRaw!=null&&!close(row.ddroop,controller.droopValueRaw)||
+       !close(row.targetVpu,controller.vmSet)||row.controlModeRaw!==controller.controlModeRaw||
+       row.selectedBusModeRaw!==controller.selectedBusModeRaw||row.distributionModeRaw!==controller.distributionModeRaw||
+       !close(row.qSetpointRaw,controller.qSetpointRaw??NaN)||row.qOrientationRaw!==controller.qOrientationRaw)
+      throw new Error(`ControlContext ElmStactrl hedef/mod kaynak uyuşmazlığı: ${controller.id}`);
+    return {...controller,vmSet:row.targetVpu,qParticipationRaw:row.cvqq,sourceRefs:{...controller.sourceRefs,vmSet:[{sourceClass:'ElmStactrl',sourceId:controller.id,field:'ControlContext.usetp',unit:'pu'}],qParticipation:[{sourceClass:'ElmStactrl',sourceId:controller.id,field:'ControlContext.cvqq:*',unit:'%'}]}};
   });
   return { ...network, loads, stationControllers, diagnostics: [...(network.diagnostics || []).filter(d => d.code !== 'ACTIVE_BALANCE_ELIGIBILITY_MISSING'),
     { code: 'ACTIVE_BALANCE_ELIGIBILITY_FROM_PF_CONTROL_CONTEXT', message: `${activeLoads.length} etkin ElmLod i_scale alanı FID ve başlangıç P/Q üzerinden doğrulandı.`, severity: 'INFO', sourceClass: 'ElmLod' },

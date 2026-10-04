@@ -4,14 +4,16 @@
  * nothing is typed in by hand.
  *
  * Usage:
- *   node --import tsx tools/release-manifest.ts --version=8.2.2 --result=.tmp/sn4-final-result.json --kpi=.tmp/kpi-final.json --kpi-baseline=.tmp/kpi-baseline-8.2.1.json --portable-benchmark=.tmp/portable-full-ac-benchmark.json
+ *   node --import tsx tools/release-manifest.ts --version=8.2.3 --result=.tmp/sn4-final-result.json --kpi=.tmp/kpi-final.json --kpi-baseline=.tmp/kpi-v822-baseline.json --portable-benchmark=.tmp/portable-full-ac-benchmark.json
  */
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { analysisSettingsHash, defaultAnalysisSettings, effectiveFullAcLimits, profileFidelity, unsupportedFullAcSettings, unsupportedSharedSettings } from '../src/domain/calculation/analysis-settings';
 import type { CalculationResult } from '../src/domain/results/types';
 import type { PfKpiReport } from '../src/analysis/validation/pf-kpi';
+import { evaluateReleaseGates, isFullGitSha } from './release-gates';
 
 function flag(name: string): string {
   const prefix = `--${name}=`;
@@ -46,7 +48,9 @@ const kpi = (await readJson(kpiPath)) as PfKpiReport & { kpis: PfKpiReport['kpis
 const baseline = (await readJson(kpiBaselinePath)) as PfKpiReport & { kpis: PfKpiReport['kpis'] };
 const portableBenchmark = (await readJson(portableBenchmarkPath)) as {
   portableSha256: string;
+  committedPortableSha256: string | null;
   gitSha: string;
+  status: string;
   browser: string;
   engineElapsedMs: number | null;
   wallClockMs: number | null;
@@ -95,11 +99,34 @@ const controllerCounts = Object.fromEntries(
 );
 const revalidation = diagnostics.finalControlRevalidation as { revalidatedControllerCount: number; controlResidualCount: number } | undefined;
 const externalGrid = (diagnostics.externalGridResults ?? []) as Array<{ id: string; pMw: number; qMvar: number; voltagePu: number; qLimitState: string; isReference: boolean }>;
+const requestedGitSha=process.argv.find(a=>a.startsWith('--git-sha='))?.slice('--git-sha='.length);
+const manifestGitSha=requestedGitSha??portableBenchmark.gitSha;
+if(!isFullGitSha(manifestGitSha))throw new Error(`Invalid measured git commit SHA: ${manifestGitSha}`);
+let commitExists=false;
+try{commitExists=execFileSync('git',['cat-file','-t',manifestGitSha],{cwd:process.cwd(),encoding:'utf8'}).trim()==='commit';}catch{commitExists=false;}
+const measuredPortableSha256=await sha256(portablePath);
+const convergence=diagnostics.convergence as {activeBalance?:string;stationControl?:string;pendingControllerStatuses?:Record<string,number>}|undefined;
+const unresolvedControllerCount=(revalidation?.controlResidualCount??0)+Object.values(convergence?.pendingControllerStatuses??{}).reduce((sum,count)=>sum+count,0);
+const releaseGates=evaluateReleaseGates({
+  populationMatches:kpi.population.populationSignature===baseline.population.populationSignature,
+  kpis:kpiRows.map(row=>({id:row.id,n:row.n,baselineN:row.baseline?.n??null,improvementPercent:row.improvementPercent})),
+  activeBalanceConverged:convergence?.activeBalance==='ACTIVE_BALANCE_CONVERGED',
+  stationControlConverged:convergence?.stationControl==='STATION_CONTROL_CONVERGED',
+  unresolvedControllerCount,
+  portableElapsedMs:portableBenchmark.engineElapsedMs,
+  portableStatus:portableBenchmark.status,
+  portableSha256:portableBenchmark.portableSha256,
+  committedPortableSha256:portableBenchmark.committedPortableSha256,
+  measuredPortableSha256,
+  measuredGitSha:portableBenchmark.gitSha,
+  manifestGitSha,
+  commitExists,
+});
 
 const manifest = {
   schema: 'grid-analyzer-release-manifest-1',
   version,
-  gitCommitSha: process.argv.find(a => a.startsWith('--git-sha='))?.slice(11) ?? portableBenchmark.gitSha,
+  gitCommitSha: manifestGitSha,
   engine: {
     name: 'BrowserJsEngine',
     appVersion: captured.appVersion,
@@ -111,7 +138,7 @@ const manifest = {
     modelJsonEntry: { sha256: captured.modelHash },
     powerFactoryNumericCsv: { file: powerFactoryPath, sha256: await sha256(powerFactoryPath) },
     powerFactoryControlContextCsv: { file: controlContextPath, sha256: await sha256(controlContextPath), sourceHash: captured.controlContextHash },
-    portable: { file: portablePath, sha256: await sha256(portablePath), bytes: (await readFile(resolve(process.cwd(), portablePath))).length },
+    portable: { file: portablePath, sha256: measuredPortableSha256, bytes: (await readFile(resolve(process.cwd(), portablePath))).length },
   },
   calculationSettings: {
     hash: analysisSettingsHash(settings, 'powerFlow'),
@@ -151,6 +178,7 @@ const manifest = {
       requiresFiveOfSixImproved: improvedCount >= 5,
       lineReactivePowerRegressed: kpiRows.find(row => row.id === 'lineReactivePowerMvar')?.regressed ?? false,
       transformerReactivePowerRegressed: kpiRows.find(row => row.id === 'transformerReactivePowerMvar')?.regressed ?? false,
+      ...releaseGates,
     },
     signDisagreement: Object.fromEntries(
       [...secondaryById].map(([id, entry]) => [id, { count: entry.signDisagreementCount, comparable: entry.signComparableCount }]),
@@ -170,19 +198,7 @@ const manifest = {
     voltagePu: row.voltagePu,
     qLimitState: row.qLimitState,
   })),
-  verdict: {
-    mergeReady:
-      improvedCount >= 5 &&
-      regressedCount === 0 &&
-      (portableBenchmark.engineElapsedMs != null ? portableBenchmark.engineElapsedMs <= 15000 : false) &&
-      kpi.population.populationSignature === baseline.population.populationSignature,
-    failedGates: [
-      ...(improvedCount >= 5 ? [] : [`PRIMARY_KPI_IMPROVEMENT ${improvedCount}/6 improved by >=0.1 % (requires 5)`]),
-      ...(portableBenchmark.engineElapsedMs != null && portableBenchmark.engineElapsedMs <= 15000
-        ? []
-        : ['FULL_AC_ELAPSED_MS_ABOVE_15000']),
-    ],
-  },
+  verdict: releaseGates,
 };
 
 const outPath = resolve(process.cwd(), `docs/validation/v${version}-release.json`);

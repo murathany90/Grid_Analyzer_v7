@@ -25,10 +25,16 @@ const outArg = process.argv[5] || '.tmp/portable-full-ac-benchmark.json';
 
 const portablePath = path.resolve(root, portableArg);
 const portableBytes = await readFile(portablePath);
+const repositoryPath = path.relative(root, portablePath).split(path.sep).join('/');
+if (repositoryPath.startsWith('../') || path.isAbsolute(repositoryPath)) throw new Error('Portable path must be inside the repository.');
+const committedPortableBytes = execFileSync('git', ['show', `HEAD:${repositoryPath}`], { cwd: root, maxBuffer: 16 * 1024 * 1024 });
+const committedPortableSha256 = createHash('sha256').update(committedPortableBytes).digest('hex');
 const artifact = {
   tool: 'tools/portable-full-ac-benchmark.mjs',
   portableFile: portableArg,
   portableSha256: createHash('sha256').update(portableBytes).digest('hex'),
+  committedPortableSha256,
+  portableMatchesCommit: portableBytes.equals(committedPortableBytes),
   portableBytes: portableBytes.length,
   modelFile: path.basename(modelArg),
   controlContextFile: path.basename(contextArg),
@@ -51,6 +57,7 @@ const port = server.address().port;
 
 let browser;
 try {
+  if (!artifact.portableMatchesCommit) throw new Error('Benchmark portable bytes differ from the committed HEAD artifact.');
   browser = await chromium.launch({ headless: true });
   artifact.browser = `Chromium ${browser.version()}`;
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });

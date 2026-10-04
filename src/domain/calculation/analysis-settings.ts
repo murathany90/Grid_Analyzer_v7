@@ -19,6 +19,8 @@ export interface FullAcSettings {
    * internal constant (8) that `maxOuterIterations` did not control.
    */
   maxActiveBalanceCorrections: number;
+  /** Bound for active-balance corrections after station control changes network losses. */
+  maxFinalActiveBalanceCorrections: number;
   /** Effective bound of the reactive Q-limit round loop. Previously an internal constant (8). */
   maxQLimitRounds: number;
   /** Effective bound of the station-controller outer correction loop. Previously an internal constant (12). */
@@ -45,7 +47,7 @@ export interface AnalysisSettings { shared: SharedAnalysisSettings; powerFlow: F
 const parityPowerFlow = (): FullAcSettings => ({
   profile: 'POWERFACTORY_TEIAS_PARITY', activeControlMode: 'AS_DISPATCHED', activeBalancingMode: 'DISTRIBUTED_ADJUSTABLE_LOADS', stationControlMode: 'zeroDroop',
   maxInnerIterations: 100, maxOuterIterations: 50,
-  maxActiveBalanceCorrections: 8, maxQLimitRounds: 8, maxStationControlCorrections: 12,
+  maxActiveBalanceCorrections: 8, maxFinalActiveBalanceCorrections: 8, maxQLimitRounds: 8, maxStationControlCorrections: 16,
   nodalToleranceKva: 5, modelEquationTolerancePercent: .2,
   maxNoImprovementIterations: 20, repeatedReactiveLimitDetection: 3, qLimitToleranceMvar: .02, reactiveLimitsEnabled: true, activePowerLimitsEnabled: false,
   automaticTransformerTap: false, automaticShunt: false, loadVoltageDependency: false, feederLoadScaling: false, interchangeSchedule: false,
@@ -94,6 +96,7 @@ export function unsupportedFullAcSettings(): UnsupportedFullAcSetting[] {
 export interface EffectiveFullAcLimits {
   maxNewtonIterations: number;
   maxActiveBalanceCorrections: number;
+  maxFinalActiveBalanceCorrections: number;
   maxQLimitRounds: number;
   maxStationControlCorrections: number;
   maxOuterIterations: number;
@@ -104,6 +107,7 @@ export function effectiveFullAcLimits(settings: FullAcSettings | undefined): Eff
   return {
     maxNewtonIterations: settings.maxInnerIterations,
     maxActiveBalanceCorrections: settings.maxActiveBalanceCorrections,
+    maxFinalActiveBalanceCorrections: settings.maxFinalActiveBalanceCorrections,
     maxQLimitRounds: settings.maxQLimitRounds,
     maxStationControlCorrections: settings.maxStationControlCorrections,
     maxOuterIterations: settings.maxOuterIterations,
@@ -194,6 +198,7 @@ function mergeSettings(input: unknown): AnalysisSettings {
       stationControlMode: enumValue(pf.stationControlMode, ['off', 'zeroDroop', 'droop'], d.powerFlow.stationControlMode),
       maxInnerIterations: bounded(pf.maxInnerIterations, d.powerFlow.maxInnerIterations, 1, 10000, true), maxOuterIterations: bounded(pf.maxOuterIterations, d.powerFlow.maxOuterIterations, 1, 10000, true),
       maxActiveBalanceCorrections: bounded(pf.maxActiveBalanceCorrections, d.powerFlow.maxActiveBalanceCorrections, 1, 10000, true),
+      maxFinalActiveBalanceCorrections: bounded(pf.maxFinalActiveBalanceCorrections, d.powerFlow.maxFinalActiveBalanceCorrections, 1, 10000, true),
       maxQLimitRounds: bounded(pf.maxQLimitRounds, d.powerFlow.maxQLimitRounds, 1, 10000, true),
       maxStationControlCorrections: bounded(pf.maxStationControlCorrections, d.powerFlow.maxStationControlCorrections, 1, 10000, true),
       nodalToleranceKva: bounded(pf.nodalToleranceKva, d.powerFlow.nodalToleranceKva, .001, 1e6), modelEquationTolerancePercent: bounded(pf.modelEquationTolerancePercent, d.powerFlow.modelEquationTolerancePercent, .001, 100),

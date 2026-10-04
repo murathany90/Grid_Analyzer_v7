@@ -1,5 +1,5 @@
 import type {CanonicalNetwork,StationController} from '../../domain/model/network';
-import type {FullAcSettings} from '../../domain/calculation/analysis-settings';
+import {defaultAnalysisSettings,type FullAcSettings} from '../../domain/calculation/analysis-settings';
 import type {StationControlImplementation,StationControlMode} from '../api/engine';
 import type {PreparedModel,NumericModel} from './preparation';
 import type {PowerFlowResult,NumericalFailureDiagnostic,AdmittanceMatrix,JacobianLayout,IntegratedStationControl} from './js/types';
@@ -106,7 +106,7 @@ export function solveNRWithActiveBalance(model:NumericModel,progress:((stage:str
   const working=cloneModel(model),targetP=working.referencePMw??0,toleranceMva=(settings.nodalToleranceKva/1000),maxOuter=activeBalanceCorrectionLimit(settings),loadAdjustments=new Float64Array(model.n);let last:PowerFlowResult|null=null,mismatch=Infinity,eligibleLoadsExhausted=false,iterations=0;
   for(let iteration=1;iteration<=maxOuter;iteration++){
     iterations=iteration;
-    last=solveNR(working,progress,{...options,initialVm:last?.Vm??options.initialVm,initialVa:last?.Va??options.initialVa,settings});if(!last.converged||!last.P)return last;
+    last=solveNR(working,progress,{...options,initialVm:last?.Vm??options.initialVm,initialVa:last?.Va??options.initialVa,initialLimitedBuses:last?.pvToPq??options.initialLimitedBuses,settings});if(!last.converged||!last.P)return last;
     const fixedAtReference=working.pSpec[working.slack]-targetP,externalP=last.P[working.slack]-fixedAtReference;mismatch=externalP-targetP;
     progress?.('ACTIVE_BALANCE_ITERATION',{round:iteration,externalGridPMw:externalP,mismatchMw:mismatch});
     if(Math.abs(mismatch)<=toleranceMva){if(capture){capture.model=working;capture.adjustmentsMw=loadAdjustments;capture.iterations=iteration;}return{...last,activeBalanceIterations:iteration,activeBalanceMismatchMw:mismatch,activeBalanceLoadAdjustmentsMw:Array.from(loadAdjustments)};}
@@ -123,10 +123,10 @@ export function solveNRWithActiveBalance(model:NumericModel,progress:((stage:str
 }
 
 /** Q-control trials keep the initially balanced P specification; only the final loss change is corrected. */
-export function finalizeActiveBalanceAfterControls(model:NumericModel,initial:PowerFlowResult,capture:ActiveBalanceCapture,progress:((stage:string,detail?:Record<string,number>)=>void)|undefined,settings:FullAcSettings|undefined,options:Parameters<typeof solveNR>[2]={},maxCorrections=4):PowerFlowResult{
+export function finalizeActiveBalanceAfterControls(model:NumericModel,initial:PowerFlowResult,capture:ActiveBalanceCapture,progress:((stage:string,detail?:Record<string,number>)=>void)|undefined,settings:FullAcSettings|undefined,options:Parameters<typeof solveNR>[2]={}):PowerFlowResult{
   const weights=model.activeBalanceParticipation;
   if(settings?.activeBalancingMode!=='DISTRIBUTED_ADJUSTABLE_LOADS'||model.activeBalanceEligibilityComplete!==true||!weights||!weights.some(value=>value>0)||!initial.converged||!initial.P)return initial;
-  const adjustments=Float64Array.from(capture.adjustmentsMw??new Float64Array(model.n)),totalLoad=Array.from(model.activeBalanceEligibleLoadMw||[]).reduce((sum,value)=>sum+value,0),targetP=model.referencePMw??0,toleranceMw=settings.nodalToleranceKva/1000;
+  const adjustments=Float64Array.from(capture.adjustmentsMw??new Float64Array(model.n)),totalLoad=Array.from(model.activeBalanceEligibleLoadMw||[]).reduce((sum,value)=>sum+value,0),targetP=model.referencePMw??0,toleranceMw=settings.nodalToleranceKva/1000,maxCorrections=settings.maxFinalActiveBalanceCorrections??defaultAnalysisSettings().powerFlow.maxFinalActiveBalanceCorrections;
   const referenceMismatch=(result:PowerFlowResult,operatingModel:NumericModel=model)=>result.P![model.slack]-(operatingModel.pSpec[model.slack]-targetP)-targetP;
   let result=initial,mismatch=referenceMismatch(result),corrections=0,lastFailure:string|null=null;
   while(Math.abs(mismatch)>toleranceMw&&corrections<maxCorrections){
@@ -136,7 +136,8 @@ export function finalizeActiveBalanceAfterControls(model:NumericModel,initial:Po
     for(const fraction of [1,.5,.25,.125]){
       const step=change*fraction,trial=cloneModel(model);
       for(let bus=0;bus<trial.n;bus++)trial.pSpec[bus]+=(weights[bus]||0)*step;
-      const solved=solveNR(trial,progress,{...options,initialVm:result.Vm,initialVa:result.Va,settings});
+      // Resolve each P trial more tightly than the outer P gate, as for Q-control trials.
+      const solved=solveNR(trial,progress,{...options,initialVm:result.Vm,initialVa:result.Va,initialLimitedBuses:result.pvToPq,settings:{...settings,nodalToleranceKva:Math.min(settings.nodalToleranceKva,.1)}});
       if(!solved.converged||!solved.P){lastFailure=solved.status;continue;}
       const nextMismatch=referenceMismatch(solved,trial);
       if(Math.abs(nextMismatch)>=Math.abs(mismatch)){lastFailure='NO_ACTIVE_BALANCE_PROGRESS';continue;}
@@ -176,7 +177,7 @@ function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows
       if(actuators.length){active.push(state);specs.push({remoteBus:c.remote,targetVmPu:c.source.vmSet,actuators});}
     }
     if(restarts===0)integrated=specs.length;
-    const start=now();let solved=solveNR(model,progress,{initialVm:previous.Vm,initialVa:previous.Va,initialControlDqPu:active.map(state=>state.initialDqPu),stationControls:specs,admittance:Y,linearFill:specs.length?1:0,busIds:part.buses.map(bus=>bus.id),controlIds:active.map(state=>state.control.row.id),settings,workCounters:times});
+    const start=now();let solved=solveNR(model,progress,{initialVm:previous.Vm,initialVa:previous.Va,initialLimitedBuses:previous.pvToPq,initialControlDqPu:active.map(state=>state.initialDqPu),stationControls:specs,admittance:Y,linearFill:specs.length?1:0,busIds:part.buses.map(bus=>bus.id),controlIds:active.map(state=>state.control.row.id),settings,workCounters:times});
     if(restarts===0)times.finalNrMs+=now()-start;else times.controlLimitRestartNrMs+=now()-start;
     if(!solved.converged){for(const state of states){state.control.row.status='CONTROL_SOLVE_FAILED';state.control.row.controlSolveFailure=`${solved.status} iteration=${solved.failure?.iteration??'—'} mismatchMw=${solved.failure?.maxMismatchMw??'—'} stage=${solved.failure?.linearStage??'—'} pivot=${solved.failure?.minPivot??'—'} stepCap=${solved.failure?.lineSearchStepCap??'—'} bestNormRatio=${solved.failure?.lineSearchBestNormRatio??'—'}: ${solved.failure?.message||''}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:restarts,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedFailure:solved.failure,integratedControllers:0,controlLimitRestarts:restarts};}
     previous=solved;let anyControllerChanged=false;
@@ -238,7 +239,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   }
   times.controllerClassificationMs=now()-started;
   if(mode==='zeroDroop'&&controls.length&&implementation==='INTEGRATED_EXPERIMENTAL')return runIntegratedStationControls(part,controls,rows,times,progress,settings);
-  const solve=(model:NumericModel,warm?:PowerFlowResult,Y?:AdmittanceMatrix,layouts?:Map<string,JacobianLayout>,trial=false)=>solveNR(model,progress,{initialVm:warm?.Vm,initialVa:warm?.Va,admittance:Y,layoutCache:layouts,linearFill:model===part.model?0:1,settings:trial?{...settings,nodalToleranceKva:Math.min(settings?.nodalToleranceKva??5,.1)}:settings,workCounters:times});
+  const solve=(model:NumericModel,warm?:PowerFlowResult,Y?:AdmittanceMatrix,layouts?:Map<string,JacobianLayout>,trial=false)=>solveNR(model,progress,{initialVm:warm?.Vm,initialVa:warm?.Va,initialLimitedBuses:warm?.pvToPq,admittance:Y,layoutCache:layouts,linearFill:model===part.model?0:1,settings:trial?{...settings,nodalToleranceKva:Math.min(settings?.nodalToleranceKva??5,.1)}:settings,workCounters:times});
   if(mode==='off'||!controls.length){const t=now(),result=solveNRWithActiveBalance(part.model,progress,settings,{workCounters:times});times.baseNrMs=now()-t;return{prepared:part,result,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'LOCAL_PV'};}
   const model=cloneModel(part.model),Y=buildY(model),layouts=new Map<string,JacobianLayout>();
   const applyOwnership=(c:Control)=>{for(const bus of c.row.actuatorBuses){model.busType[bus]=0;model.qMinNet[bus]=null;model.qMaxNet[bus]=null;}};
@@ -349,6 +350,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     }break;}
     const remaining=pending();if(remaining.length&&rounds<maxOuterIterations&&refreshRequired){refresh(remaining);if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`REFRESH_${solved.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};}}
   }
+  const beforeFinalBalanceResiduals=new Map(controls.map(c=>[c,residual(c,solved)]));
   const finalBalanceStart=now();solved=finalizeActiveBalanceAfterControls(model,solved,initialBalance,progress,settings,{admittance:Y,layoutCache:layouts,linearFill:1,workCounters:times});times.finalNrMs+=now()-finalBalanceStart;times.finalBalanceCorrections=Math.max(0,(solved.activeBalanceIterations??0)-(initialBalance.iterations??0));
 const overrides=new Map<string,{qMvar:number|null;qState:string}>();
    // The final distributed-P correction moves load injections, so every remote voltage
@@ -359,8 +361,9 @@ const overrides=new Map<string,{qMvar:number|null;qState:string}>();
    for(const c of controls){if(c.row.status==='ROLLED_BACK_TO_LOCAL_PV')continue;const error=residual(c,solved),withinTolerance=Math.abs(error)<=equationTolerance;
      const revalidated=c.row.status!=='PENDING';
      if(!withinTolerance){
-       c.row.status=c.units.every(u=>u.qMvar>=u.qMax-EPS)?'SATURATED_QMAX':c.units.every(u=>u.qMvar<=u.qMin+EPS)?'SATURATED_QMIN':'CONTROL_RESIDUAL_AFTER_FINAL_BALANCE';
-       c.row.controlSolveFailure=c.row.status==='CONTROL_RESIDUAL_AFTER_FINAL_BALANCE'?'FINAL_ACTIVE_BALANCE_MOVED_REMOTE_VOLTAGE':c.row.controlSolveFailure;
+       const direction:1|-1=error>=0?1:-1;
+       c.row.status=activeParticipation(c.units,direction,c.sourceWeights)?'CONTROL_RESIDUAL_AFTER_FINAL_BALANCE':direction>0?'SATURATED_QMAX':'SATURATED_QMIN';
+       c.row.controlSolveFailure=c.row.status==='CONTROL_RESIDUAL_AFTER_FINAL_BALANCE'?(Math.abs(beforeFinalBalanceResiduals.get(c)??Infinity)>equationTolerance?'CONTROL_RESIDUAL_BEFORE_FINAL_BALANCE':'FINAL_ACTIVE_BALANCE_MOVED_REMOTE_VOLTAGE'):c.row.controlSolveFailure;
      }else if(c.row.status==='PENDING'||c.row.status==='MAX_OUTER_ROUNDS'||c.row.status==='STAGNATED_TRIAL'||c.row.status==='CONTROL_RESIDUAL_AFTER_FINAL_BALANCE'){
        c.row.status='SATISFIED';
      }

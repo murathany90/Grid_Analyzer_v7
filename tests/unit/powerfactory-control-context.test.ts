@@ -36,16 +36,28 @@ test('ControlContext rejects missing eligibility, duplicate FID field and wrong 
 });
 
 test('ControlContext validates station psym membership by FID and supplies source cvqq sharing',()=>{
-  const stationRows='attribute;VK1;Station;ElmStactrl;;i_droop;0;;;;;OK\r\n'
+  const stationRows='attribute;VK1;Station;ElmStactrl;;i_ctrl;0;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;selBus;0;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;imode;0;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;iQorient;0;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;qsetp;0;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;usetp;1,025000;;;;;OK\r\n'
+    +'attribute;VK1;Station;ElmStactrl;;i_droop;0;;;;;OK\r\n'
     +'attribute;VK1;Station;ElmStactrl;;ddroop;0,000000;;;;;OK\r\n'
     +'reference;VK1;Station;ElmStactrl;;rembar;;;B1;;ElmTerm;OK\r\n'
+    +'reference;VK1;Station;ElmStactrl;;cpCtrlNode;;;B1;;ElmTerm;OK\r\n'
     +'reference;VK1;Station;ElmStactrl;0;psym;;;G1;;ElmSym;OK\r\n'
+    +'reference;VK1;Station;ElmStactrl;0;controlledHVNode;;;B1;;ElmTerm;OK\r\n'
+    +'reference;VK1;Station;ElmStactrl;0;controlledLVNode;;;B1;;ElmTerm;OK\r\n'
     +'attribute;VK1;Station;ElmStactrl;0;cvqq;100,000000;;;;;OK\r\n';
   const text=source.replace('summary.elmStactrlCount;0','summary.elmStactrlCount;1').replace('summary.stationControllerMemberCount;0','summary.stationControllerMemberCount;1')+stationRows;
-  const input={...network,stationControllers:[{id:'VK1',inService:true,remoteBus:'B1',unitIds:['G1'],droopModeRaw:0,droopValueRaw:0,sourceRefs:{}}]} as unknown as CanonicalNetwork;
+  const input={...network,stationControllers:[{id:'VK1',inService:true,remoteBus:'B1',unitIds:['G1'],vmSet:1.025,controlModeRaw:0,selectedBusModeRaw:0,distributionModeRaw:0,qOrientationRaw:0,qSetpointRaw:0,droopModeRaw:0,droopValueRaw:0,sourceRefs:{}}]} as unknown as CanonicalNetwork;
   const context=importPowerFactoryControlContext(text),applied=applyPowerFactoryControlContext(input,context);
   assert.deepEqual(applied.stationControllers[0].qParticipationRaw,[100]);
   assert.equal(applied.diagnostics?.some(item=>item.code==='STATION_CVQQ_FROM_PF_CONTROL_CONTEXT'),true);
   const wrong={...input,stationControllers:[{...input.stationControllers[0],unitIds:['renamed-generator']}]} as CanonicalNetwork;
   assert.throws(()=>applyPowerFactoryControlContext(wrong,context),/psym/);
+  assert.throws(()=>importPowerFactoryControlContext(text.replace('cpCtrlNode;;;B1','cpCtrlNode;;;B2')), /cpCtrlNode/);
+  assert.throws(()=>importPowerFactoryControlContext(text.replace('controlledHVNode;;;B1','controlledHVNode;;;B2')), /controlledHVNode/);
+  assert.throws(()=>applyPowerFactoryControlContext(input,importPowerFactoryControlContext(text.replace('usetp;1,025000','usetp;1,026000'))), /hedef\/mod/);
 });

@@ -50,6 +50,18 @@ test('Q-only control trials reuse balanced P and final loss correction preserves
  const final=finalizeActiveBalanceAfterControls(balanced,qTrial,capture,undefined,settings,{workCounters:counters});
  assert.equal(final.converged,true);assert.ok(Math.abs(final.activeBalanceMismatchMw??Infinity)<=settings.nodalToleranceKva/1000);
  assert.ok((final.activeBalanceIterations??0)>(capture.iterations??0),'changed Q losses require a final P correction');
- assert.ok(counters.fullNrSolves<=17,'final active balance uses at most four bounded corrections with four backtracking trials each');
+ assert.ok(counters.fullNrSolves<=1+settings.maxFinalActiveBalanceCorrections*4,'final active balance obeys the typed correction bound');
  assert.ok(Math.abs((final.activeBalanceLoadAdjustmentsMw?.[1]??0)-(capture.adjustmentsMw?.[1]??0))<1,'final correction extends the initial adjustment');
+});
+
+test('a carried reference Q limit keeps the angle reference and frees its voltage in the next NR solve',()=>{
+ const source=model();source.n=2;source.pSpec=Float64Array.from([0,-20]);source.qSpec=Float64Array.from([0,-5]);source.busType=Int8Array.from([2,0]);source.vmSet=Float64Array.from([1,1]);source.shuntG=new Float64Array(2);source.shuntB=new Float64Array(2);source.qMinNet=[null,null];source.qMaxNet=[null,null];source.branches=[source.branches[0]];
+ const first=solveNR(source);
+ assert.equal(first.converged,true,first.failure?.message??first.status);
+ const limit=first.Q![source.slack]-.01;source.referenceQMinNet=[-100,null];source.referenceQMaxNet=[limit,null];
+ const carried=solveNR(source,undefined,{initialVm:first.Vm,initialVa:first.Va,initialLimitedBuses:[{bus:source.slack,qRequired:first.Q![source.slack],qLimit:limit,state:'QMAX_LIMITED'}],settings:{maxInnerIterations:100}});
+ assert.equal(carried.converged,true,carried.failure?.message??carried.status);
+ assert.ok(carried.pvToPq?.some(row=>row.bus===source.slack&&row.state==='QMAX_LIMITED'));
+ assert.ok(Math.abs(carried.Va![source.slack])<1e-12,'the reference angle remains fixed after its Q limit becomes active');
+ assert.ok(Math.abs(carried.Vm![source.slack]-source.slackVm)>1e-4,'the Q-limited reference voltage is free to move');
 });
