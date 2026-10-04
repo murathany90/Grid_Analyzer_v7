@@ -7,7 +7,7 @@
  * gitignored path so that tools/pf-kpi.ts can score it without re-solving.
  *
  * Usage:
- *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json]
+ *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json] [--station-control-mode=zeroDroop|droop]
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -27,6 +27,8 @@ const root = process.cwd();
 const modelArg = process.argv[2] ?? 'kontrol1/20261001_1500_SN4_TR0.zip';
 const contextArg = process.argv[3] ?? 'kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv';
 const outArg = process.argv[4] ?? '.tmp/sn4-full-ac-result.json';
+const stationModeArg = process.argv.find(arg => arg.startsWith('--station-control-mode='))?.split('=')[1] as 'zeroDroop'|'droop'|undefined;
+if(stationModeArg && stationModeArg !== 'zeroDroop' && stationModeArg !== 'droop') throw new Error(`Unsupported station-control mode: ${stationModeArg}`);
 
 const modelPath = resolve(root, modelArg);
 const contextPath = resolve(root, contextArg);
@@ -52,6 +54,7 @@ const parsedContext = importPowerFactoryControlContext(contextText);
 const withContext = applyPowerFactoryControlContext(network, parsedContext);
 
 const settings = defaultAnalysisSettings();
+if(stationModeArg) settings.powerFlow.stationControlMode=stationModeArg;
 const scenario = emptyScenario();
 const id = identity(network.modelHash, scenario, 'powerFlow', {
   analysisSettings: { shared: settings.shared, powerFlow: settings.powerFlow },
@@ -87,6 +90,7 @@ await writeFile(
       capturedBy: 'tools/sn4-parity.ts',
       appVersion: APP_VERSION,
       engineVersion: engine.version,
+      stationControlMode: settings.powerFlow.stationControlMode,
       modelFile: modelArg,
       controlContextFile: contextArg,
       controlContextHash: parsedContext.sourceHash,

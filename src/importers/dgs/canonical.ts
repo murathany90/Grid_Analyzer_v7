@@ -84,7 +84,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
         if (points.length) { let a = points[0], b = a; for (const point of points) { b = point; if (point[0] >= pMw) break; a = point; } const t = Math.max(0, Math.min(1, (pMw-a[0])/(b[0]-a[0] || 1))); qMin = a[1] + t*(b[1]-a[1]); qMax = a[2] + t*(b[2]-a[2]); }
       }
     }
-    return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
+    return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), pDispatchMw:pMw, qDispatchMvar:num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
       sourceRefs: { ...base(cls, r).sourceRefs, dispatch: [ref(cls, r.FID, 'pgini/qgini', 'MW/MVAr')], qLimits: [ref(cls, r.FID, 'cQ_min/cQ_max/pQlimType'), ref('IntQlim', r.pQlimType, 'cap_P/cap_Qmn/cap_Qmx')] } };
   }));
   const loads = rows('ElmLod').map(r => {

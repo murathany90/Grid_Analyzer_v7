@@ -22,6 +22,8 @@ export interface Transformer2W extends Entity {
 }
 export interface Generator extends Entity {
   readonly bus: string; readonly pMw: number; readonly qMvar: number;
+  /** Immutable source dispatch (pgini/qgini), independent of solved output. */
+  readonly pDispatchMw?: number; readonly qDispatchMvar?: number;
   readonly vmSet: number; readonly voltageControl: boolean;
   readonly qMin: number | null; readonly qMax: number | null;
 }

@@ -211,9 +211,8 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   const all=network.stationControllers.filter(c=>c.inService),island=all.filter(c=>byId.get(c.id)?.islandId===part.islandId),zeroUnitOwners=new Map<string,number>(),allUnitOwners=new Map<string,number>(),zeroBusOwners=new Map<number,number>(),allBusOwners=new Map<number,number>();
   for(const c of all)for(const id of c.unitIds){allUnitOwners.set(id,(allUnitOwners.get(id)||0)+1);if(c.droopModeRaw===0)zeroUnitOwners.set(id,(zeroUnitOwners.get(id)||0)+1);}
   for(const c of island){const buses=new Set(c.unitIds.map(id=>generators.get(id)?.index).filter((i):i is number=>i!=null));for(const bus of buses){allBusOwners.set(bus,(allBusOwners.get(bus)||0)+1);if(c.droopModeRaw===0)zeroBusOwners.set(bus,(zeroBusOwners.get(bus)||0)+1);}}
-  const remoteOwners=new Map<number,number>(),zeroRemoteOwners=new Map<number,number>();for(const c of all){const idx=byId.get(c.id)?.solverBusIndex;if(idx==null)continue;const owners=c.droopModeRaw===1?remoteOwners:zeroRemoteOwners;owners.set(idx,(owners.get(idx)||0)+1);}
   const rows:ControlDiagnostic[]=[],controls:Control[]=[];
-  for(const c of island){const remote=byId.get(c.id)?.solverBusIndex??null,active=c.unitIds.map(id=>generators.get(id)).filter((g):g is NonNullable<typeof g>=>!!g&&g.inService),buses=[...new Set(active.map(g=>g.index))],units=active.map(g=>({id:g.id,bus:g.index,pMw:g.pMw,qMvar:g.qMvar,qMin:g.qMin!,qMax:g.qMax!})),cvqq=c.qParticipationRaw?active.map(g=>c.qParticipationRaw![c.unitIds.indexOf(g.id)]??null):undefined,weights=stationParticipation(units,cvqq),droop=c.droopModeRaw===1;
+  for(const c of island){const remote=byId.get(c.id)?.solverBusIndex??null,active=c.unitIds.map(id=>generators.get(id)).filter((g):g is NonNullable<typeof g>=>!!g&&g.inService),buses=[...new Set(active.map(g=>g.index))],units=active.map(g=>({id:g.id,bus:g.index,pMw:g.pDispatchMw??g.pMw,qMvar:g.qDispatchMvar??g.qMvar,qDispatchMvar:g.qDispatchMvar??g.qMvar,qMin:g.qMin!,qMax:g.qMax!})),cvqq=c.qParticipationRaw?active.map(g=>c.qParticipationRaw![c.unitIds.indexOf(g.id)]??null):undefined,weights=stationParticipation(units,cvqq),droop=c.droopModeRaw===1;
     const qMin=active.length&&active.every(g=>finite(g.qMin))?active.reduce((s,g)=>s+g.qMin!,0):null,qMax=active.length&&active.every(g=>finite(g.qMax))?active.reduce((s,g)=>s+g.qMax!,0):null,qInitial=active.length?active.reduce((s,g)=>s+g.qMvar,0):null;
     let status:ControlStatus='PENDING';
     if(mode==='off')status='BASELINE_LOCAL_PV';
@@ -222,11 +221,6 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(c.droopModeRaw!==0&&c.droopModeRaw!==1)status='UNSUPPORTED_PROFILE';
     else if(droop&&mode!=='droop')status='UNSUPPORTED_DROOP';
     else if(!active.length)status='NO_REACTIVE_HEADROOM';
-    // The zero-droop path solves all remote voltage residuals as one coupled
-    // least-squares system, so shared remote buses are valid aggregate targets.
-    // Droop remains unsupported for shared targets because its coupled slope
-    // semantics have not been established from the source model.
-    else if(droop&&remoteOwners.get(remote)!>1)status='REMOTE_CONTROL_CONFLICT';
     else if(new Set(c.unitIds).size!==c.unitIds.length||active.some(g=>((droop?allUnitOwners:zeroUnitOwners).get(g.id)||0)>1||((droop?allBusOwners:zeroBusOwners).get(g.index)||0)>1))status='UNSUPPORTED_DISTRIBUTION';
     else if(!finite(c.vmSet)||c.vmSet<.5||c.vmSet>1.5)status='UNSUPPORTED_PROFILE';
     else if(qMin==null||qMax==null||qMin>qMax)status='Q_LIMITS_UNAVAILABLE';
@@ -235,7 +229,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(remote===part.model.slack||buses.some(bus=>bus===part.model.slack||part.generators.some(g=>g.index===bus&&g.voltageControl&&!c.unitIds.includes(g.id)))||part.generators.some(g=>g.index===remote&&g.voltageControl&&!c.unitIds.includes(g.id)))status='LOCAL_PV_CONFLICT';
     else if(qMax-qMin<EPS)status='NO_REACTIVE_HEADROOM';
     const row:ControlDiagnostic={id:c.id,controllerId:c.id,remoteBus:c.remoteBus,islandId:part.islandId??null,targetVpu:c.vmSet,initialVpu:null,finalVpu:null,voltageResidualPu:null,initialQ:qInitial,finalQ:qInitial,qMin,qMax,outerRounds:0,status,supported:status==='PENDING',unitIds:active.map(g=>g.id),actuatorBus:buses.length===1?buses[0]:null,actuatorBuses:buses,remoteBusIndex:remote,participationKi:Object.fromEntries(weights?.weights||[]),qDistributionSource:weights?.source??null,jacobianDimension:null,linearMethod:null,linearIterations:null,linearResidual:null,iluMinimumPivot:null,effectiveSlope:null,individualDvDqi:{},elapsedSensitivityMs:null,failureReason:null};rows.push(row);
-    if(status==='PENDING'&&remote!=null)controls.push({source:c,row,units,remote,droopQ:droop?c.ratedPowerRaw!*100/c.droopValueRaw!:null,sourceWeights:weights?.source==='SOURCE_CVQQ'?weights.weights:undefined});
+    if(status==='PENDING'&&remote!=null)controls.push({source:c,row,units,remote,droopQ:droop?c.ratedPowerRaw!*100/c.droopValueRaw!:null,sourceWeights:weights?.weights});
   }
   times.controllerClassificationMs=now()-started;
   if(mode==='zeroDroop'&&controls.length&&implementation==='INTEGRATED_EXPERIMENTAL')return runIntegratedStationControls(part,controls,rows,times,progress,settings);
@@ -250,7 +244,12 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   if(baseline.converged)for(const limited of baseline.pvToPq||[])if(model.busType[limited.bus]===1){model.busType[limited.bus]=0;model.qSpec[limited.bus]=limited.qLimit;model.qMinNet[limited.bus]=null;model.qMaxNet[limited.bus]=null;}
   // Transfer ownership at the solved local-PV operating point. This leaves the first
   // PQ solve at the same physical Q state instead of resetting 158 buses to raw Q.
-  if(mode!=='ownership'&&baseline.converged&&baseline.Q)for(const c of controls){let unmet=0;for(const bus of c.row.actuatorBuses){const local=c.units.filter(u=>u.bus===bus),delta=baseline.Q[bus]-model.qSpec[bus],allocation=allocateReactiveDelta(local,delta,c.sourceWeights);for(const unit of local)unit.qMvar=allocation.qByUnit.get(unit.id)!;unmet+=Math.abs(allocation.remainingDelta);model.qSpec[bus]=baseline.Q[bus];}c.row.initialQ=c.units.reduce((sum,u)=>sum+u.qMvar,0);c.row.ownershipUnallocatedMvar=unmet;}
+  if(mode!=='ownership'&&baseline.converged&&baseline.Q)for(const c of controls){
+    const desiredDelta=c.row.actuatorBuses.reduce((sum,bus)=>sum+baseline.Q![bus]-model.qSpec[bus],0);
+    const allocation=allocateReactiveDelta(c.units,desiredDelta,c.sourceWeights);
+    for(const unit of c.units){const next=allocation.qByUnit.get(unit.id)!;model.qSpec[unit.bus]+=next-unit.qMvar;unit.qMvar=next;}
+    c.row.initialQ=c.units.reduce((sum,u)=>sum+u.qMvar,0);c.row.ownershipUnallocatedMvar=Math.abs(allocation.remainingDelta);
+  }
   const firstStart=now();let solved=solve(model,baseline.converged?baseline:undefined,Y,layouts);times.finalNrMs=now()-firstStart;
   if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`${solved.status}: ${solved.failure?.message||''}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK'};}
   for(const c of controls)c.row.initialVpu=solved.Vm![c.remote];
@@ -269,12 +268,12 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
   if(!solved.converged){for(const c of pending()){c.row.status='ROLLED_BACK_TO_LOCAL_PV';c.row.failureReason='SENSITIVITY_LINEAR_SOLVE_FAILED';}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:false};}
   let rounds=0,trustFraction=.25,controlCycles=0,qLimitSignature=JSON.stringify((solved.pvToPq||[]).map(row=>[row.bus,row.qLimit]).sort((a,b)=>a[0]-b[0]));const coupledSystems:CoupledSystemDiagnostic[]=[],trialAttempts:ControllerTrialDiagnostic[]=[],seenTrialSignatures=new Set<string>();
   const controlScale=(c:Control)=>Math.max(1,c.row.qMax!-c.row.qMin!);
-  const buildMatrix=(rows:Control[],cols:Control[],directions:Map<Control,1|-1|null>)=>rows.map(output=>cols.map(input=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return null;const direction=directions.get(input),weights=direction==null?(input.sourceWeights??dispatchedPWeights(input.units)):activeParticipation(input.units,direction,input.sourceWeights);if(!weights)return 0;let value=0;for(const unit of input.units)value+=(weights.get(unit.id)||0)*(busSensitivity.get(unit.bus)||0);return finite(value)?value:null;}));
+  const buildMatrix=(rows:Control[],cols:Control[],directions:Map<Control,1|-1|null>)=>rows.map(output=>cols.map(input=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return null;const direction=directions.get(input),weights=direction==null?(input.sourceWeights??dispatchedPWeights(input.units)):activeParticipation(input.units,direction,input.sourceWeights);if(!weights)return 0;let value=0;for(const unit of input.units)value+=(weights.get(unit.id)||0)*(busSensitivity.get(unit.bus)||0);if(output===input&&output.droopQ!=null)value-=1/output.droopQ;return finite(value)?value:null;}));
   const norm=(rows:Control[],result:PowerFlowResult)=>rows.length?Math.sqrt(rows.reduce((sum,c)=>sum+residual(c,result)**2,0)/rows.length):0;
   const refresh=(active:Control[])=>{let probes:SensitivityProbe[];try{probes=probe(active);}catch{probes=active.map(()=>({reason:'SENSITIVITY_LINEAR_SOLVE_FAILED' as const,slope:null,individualSlopes:[],jacobianDimension:0,linearMethod:null,linearIterations:null,linearResidual:null,iluMinPivot:null,elapsedMs:0}));}
     let changed=false;active.forEach((c,i)=>{const p=probes[i];if(p.reason){c.row.status='ROLLED_BACK_TO_LOCAL_PV';c.row.failureReason=p.reason;restoreOwnership(c);changed=true;}});if(changed){const t=now();solved=solve(model,solved,Y,layouts);times.finalNrMs+=now()-t;if(solved.converged){const survivors=pending();if(survivors.length)probe(survivors);}}return changed;};
   while(rounds<maxOuterIterations&&controlCycles<maxOuterIterations*2){controlCycles++;for(const c of pending())if(Math.abs(residual(c,solved))<=equationTolerance)c.row.status='SATISFIED';const active=pending();if(!active.length)break;
-    const unitMoveEffect=(output:Control,input:Control,allocation:ReturnType<typeof allocateReactiveDelta>)=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return 0;let effect=0;for(const unit of input.units)effect+=(busSensitivity.get(unit.bus)||0)*(allocation.qByUnit.get(unit.id)!-unit.qMvar);return effect;};
+    const unitMoveEffect=(output:Control,input:Control,allocation:ReturnType<typeof allocateReactiveDelta>)=>{const busSensitivity=sensitivityByRemote.get(output);if(!busSensitivity)return 0;let effect=0;for(const unit of input.units)effect+=(busSensitivity.get(unit.bus)||0)*(allocation.qByUnit.get(unit.id)!-unit.qMvar);if(output===input&&output.droopQ!=null)effect-=allocation.appliedDelta/output.droopQ;return effect;};
     const solveDenseDirection=()=>{
       const directions=new Map<Control,1|-1|null>(active.map(c=>[c,residual(c,solved)>=0?1:-1])),fixedMoves=new Map<Control,ReturnType<typeof allocateReactiveDelta>>(),rawDeltas=new Map<Control,number>(),free=active.slice();let denseFailed=false,iterations=0,lastDense:CoupledSystemDiagnostic|null=null;
       while(free.length&&iterations++<=active.length){
@@ -320,7 +319,9 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
       return output;};
     let accepted=false,denseFailed=false,refreshRequired=false;
     for(let attempt=0;attempt<4;attempt++){
-      const dense=solveDenseDirection();if(dense.denseFailed){denseFailed=true;break;}
+      // Large canonical droop systems choose the gradient proposal; avoid repeated
+      // dense solves when the coupled matrix has more than 64 active controls.
+      const dense=mode==='droop'&&active.length>64?{rawDeltas:new Map<Control,number>(),fixedMoves:new Map<Control,ReactiveAllocation>(),denseFailed:false,lastDense:null as CoupledSystemDiagnostic|null}:solveDenseDirection();if(dense.denseFailed){denseFailed=true;break;}
       let proposal=makeProposal(dense.rawDeltas,dense.fixedMoves,'COUPLED');
       const gradientProposal=makeProposal(gradientDeltas(),new Map(),'GRADIENT');
       if(gradientProposal.predictedReduction>proposal.predictedReduction)proposal=gradientProposal;

@@ -60,6 +60,18 @@ test('sourced cvqq shares govern Q allocation and remain active after a unit sat
   assert.ok(Math.abs(redistributed.qByUnit.get('B')!-35)<1e-9);
   assert.deepEqual([...activeParticipation([{...limited[0],qMvar:5},{...limited[1],qMvar:35}],1,sourced.weights)!],[['B',1]]);
 });
+test('source participation re-enters a clamped unit when Q direction reverses',()=>{
+  const units=[{id:'A',bus:1,pMw:20,qMvar:2,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:3,qMin:-20,qMax:100}];
+  const weights=stationParticipation(units,[25,75])!.weights,up=allocateReactiveDelta(units,40,weights);
+  assert.equal(up.qByUnit.get('A'),5);assert.equal(up.qByUnit.get('B'),40);
+  const down=allocateReactiveDelta(units.map(unit=>({...unit,qMvar:up.qByUnit.get(unit.id)!})),-20,weights);
+  assert.equal(down.qByUnit.get('A'),0);assert.equal(down.qByUnit.get('B'),25);
+});
+test('station participation uses immutable source P when solved P differs',()=>{
+  const network=fixture(),generators=network.generators.map((g,i)=>({...g,pDispatchMw:i?60:40,pMw:i?120:5})),modified={...network,generators};
+  const part=prepareModel(modified),rows=runStationControlledIslandV73(modified,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'off').controllers;
+  assert.deepEqual(rows[0].participationKi,{G1:.4,G2:.6});
+});
 test('units at either Q limit do not regain unrestricted participation',()=>{
   const units=[{id:'MIN',bus:1,pMw:20,qMvar:-5,qMin:-5,qMax:5},{id:'MID',bus:2,pMw:60,qMvar:0,qMin:-5,qMax:5},{id:'MAX',bus:3,pMw:20,qMvar:5,qMin:-5,qMax:5}];
   assert.deepEqual([...interiorParticipation(units)!],[['MID',1]]);
@@ -208,12 +220,13 @@ test('integrated Q limit active set clamps one unit and redistributes to its pee
   assert.equal(Math.abs(controlled.unitOverrides.get('G1')?.qMvar??NaN),.25);assert.ok(Math.abs(controlled.unitOverrides.get('G2')?.qMvar??0)>.25);
   assert.ok(controlled.controlLimitRestarts!>0);assert.ok(Math.abs(controlled.result.Vm![row.remoteBusIndex!]-1.02)<1e-4);assert.equal(controlled.timings.sensitivitySolveMs,0);
 });
-test('duplicate droop remote bus conflicts return to local PV without competing',()=>{
+test('shared droop remote bus participates in the coupled solve',()=>{
   const base=fixture(),controllers=[{...base.stationControllers[0],id:'D1',unitIds:['G1'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true},{...base.stationControllers[0],id:'D2',unitIds:['G2'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true}].map(c=>({...c,sourceClass:'ElmGenStat'}));
   const network={...base,stationControllers:controllers,generators:base.generators.map(g=>({...g,sourceClass:'ElmGenStat'}))};
   const controlled=run(network,'zeroDroop');assert.ok(controlled.controllers.every(c=>c.status==='UNSUPPORTED_DROOP'));
   const droop=(()=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop');})();
-  assert.ok(droop.controllers.every(c=>c.status==='REMOTE_CONTROL_CONFLICT'));assert.equal(droop.result.converged,true);
+  assert.ok(droop.controllers.every(c=>c.supported&&c.status!=='REMOTE_CONTROL_CONFLICT'));assert.equal(droop.result.converged,true);
+  assert.ok(droop.unitOverrides.has('G1')&&droop.unitOverrides.has('G2'));
 });
 test('remote voltage target releases after every actuator reaches a Q limit',()=>{
   const base=fixture(false),network={...base,generators:base.generators.map(g=>({...g,qMin:-.25,qMax:.25})),stationControllers:base.stationControllers.map(c=>({...c,vmSet:1.2}))},controlled=run(network),row=controlled.controllers[0];
