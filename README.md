@@ -130,11 +130,152 @@ Canonical SN4 ve `modelEquationTolerancePercent=0.20` ile ölçülen Phase 2 son
 
 Movable residual **89 → 58** (53 zero-droop, 5 droop). Droop generator Q MAE
 **1.996 → 1.666 MVAr**; zero-droop Q MAE **23.075 → 16.458 MVAr**.
-Motor süresi yaklaşık **4.62 s**, 32 Full NR solve ve 73 Newton iterasyonudur.
-Bounded objective 18 çağrının tamamında 80-sweep safety cap'e ulaştı;
+Historical Phase 2 capture'da `engineElapsedMs` yaklaşık **4,620 ms** olarak raporlandı;
+aynı capture için `wallMs` saklanmadı. Bu değer Phase 3 ölçümünden ayrı bir benchmark
+run'ıdır. Bounded objective 18 çağrının tamamında 80-sweep safety cap'e ulaştı;
 projected KKT yakınsaması **0/18**. Bu nedenle Phase 2, hedeflenen <30 residual,
 <30% hat/trafo Q ve <0.45% bara V düzeyine henüz ulaşmadı. Tolerans taramasında
 0.10, 0.05 ve 0.02 daha kötü Q/V sonuçları verdi; varsayılan 0.20 korundu.
+
+## 1.4 Q/V parity recovery Phase 3 — diagnostic candidate (gate failed)
+
+Phase 3 canonical ayarları: `20261001_1500_SN4_TR0`, PowerFactory 24.0.7.1,
+`stationControlMode=droop`, `modelEquationTolerancePercent=0.20`, aynı ControlContext
+CSV'si ve 6144 MB Node heap. Main ile merge edilmemiştir. Benchmark yalnızca solver
+değişikliğinden sonra bir kez, ardından bir objective-regression guard düzeltmesiyle
+bir kez çalıştırıldı; ikinci koşu son Phase 3 sonucu olarak kaydedildi.
+
+Zaman alanları farklı capture'ları ayırır: README'deki eski **4.62 s** Phase 2
+`engineElapsedMs` değeridir. Agent notundaki **~5.35 s** ayrı bir run'dan geldi ve
+ona karşılık gelen capture/timer alanı mevcut olmadığından 4.62 s ile doğrudan
+karşılaştırılamaz. Phase 3 harness'i `engineElapsedMs` ve `wallMs`'yi birlikte
+kaydeder. Kod değişmemiş başlangıç benchmark'ında bunlar sırasıyla **5,481 ms** ve
+**5,494 ms** idi (DGS/context import: ayrıca **3,585 ms**). Bu harness'te wall timer
+`engine.runPowerFlow` çağrısından hemen önce başlar; dolayısıyla 4.62 s ile 5.35 s
+arasındaki farkı engine/wall kapsamı tek başına açıklamıyor. Bunlar farklı ölçümlerdir;
+bundan sonra yalnız eşleştirilmiş capture alanları karşılaştırılmalıdır.
+
+| Ölçüm | Kod değişmemiş başlangıç | Phase 3 son aday |
+| --- | ---: | ---: |
+| Commit / source state | `e8e718fc339c60a7ef2e78eda50acc2180aa4757` | `ca41600` (Phase 3 solver/diagnostic commit) |
+| `engineElapsedMs` | 5,481.3 ms | 4,940.7 ms |
+| `wallMs` | 5,493.8 ms | 4,951.0 ms |
+| Full NR | 32 | 32 |
+| Newton iterations | 73 | 74 |
+| Benchmark settings | droop, tolerance 0.20 | droop, tolerance 0.20 |
+
+| Kontrol / KPI | Başlangıç | Phase 3 son aday |
+| --- | ---: | ---: |
+| Control residual | 58 (53 zero-droop, 5 droop) | 61 (55 zero-droop, 6 droop) |
+| Zero-droop generator Q MAE | 16.458 MVAr | 16.408 MVAr |
+| Droop generator Q MAE | 1.666 MVAr | 1.656 MVAr |
+| Station dışı generator Q MAE | 4.04e-9 MVAr | 4.04e-9 MVAr |
+| Hat P | 0.7978 % | 0.7907 % |
+| Hat Q | 31.8434 % | 31.6557 % |
+| Trafo P | 0.7200 % | 0.7187 % |
+| Trafo Q | 30.1962 % | 29.9648 % |
+| Bara V | 0.5484 % | 0.5614 % |
+| Açı | 0.9098 % | 0.9342 % |
+
+Bounded solver: başlangıçta 18 call, son adayda 19 call; her iki capture'da ortalama
+ve maksimum 80 sweep. Son aday objective'i sweep 40'tan 80'e ortalama **%1.04** daha
+düşürdü (p50 %0.92, p95 %1.68, max %3.56); objective 80 sweep'te plato yapmamıştı.
+Son objective/start oranı ortalama **0.750** (max 0.910). En yüksek projected
+gradient **1.4521**, normalize edilmiş projected optimality **0.00893** idi; 19 call'ın
+hiçbiri KKT-converged olmadı. Ortalama call başına 66.7 interior, 66.0 lower-bound,
+41.7 upper-bound ve 7.8 zero-move değişken vardı.
+
+Active-set polish en fazla 96 sütun seçti; bir call'da en fazla 90 ek sütun ertelendi.
+Toplam 286 polish iteration çalıştı; **0/19** constrained KKT convergence elde edildi.
+18/19 call'da polish, coordinate warm start objective'ini artırdığı için sonuç
+reddedildi. En yüksek polish condition estimate **113,516**, en yüksek column norm
+oranı **110.3** idi. 20 direction rebuild yapıldı, direction inconsistency görülmedi;
+stagnated subset sayısı 0 oldu.
+
+Teşhis: objective'in 40→80 sweep arasında düşmesi nedeniyle **CASE A** geçerlidir;
+80 sweep cap'e ulaşmak tek başına stagnation sayılmaz. Bound'lar etkin olmasına rağmen
+projected optimality constrained stationary olduğunu göstermedi. Ölçülen condition ve
+column norm oranları solver polish'in yakınsamamasına eşlik etti, ancak objective
+bozulmasının ana kanıtı değildi. Asıl parity farkı station total Q tarafındadır:
+Phase 2 numeric capture'ında zero-droop member dağılımı genel olarak PF ile uyumluydu,
+controller toplam Q hatası ise büyüktü. Bu Phase 3 polish bunu çözmedi.
+
+### Phase 2 numeric capture — station Q decomposition
+
+| Tip / hata | Başlangıç mean | p50 | p95 | max | Son aday mean | p50 | p95 | max |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Zero-droop `E_total` (143 controller) | 28.202 | 6.554 | 154.383 | 375.896 | 28.104 | 5.618 | 150.040 | 395.572 |
+| Zero-droop `E_distribution` | 0.226 | 0 | ~0 | 22.334 | 0.237 | 0 | ~0 | 22.697 |
+| Droop `E_total` (223 controller) | 1.666 | 0.513 | 7.051 | 36.321 | 1.656 | 0.510 | 6.901 | 33.908 |
+| Droop `E_distribution` | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+`E_total = abs(sum(Q_GA)-sum(Q_PF))`; `E_distribution = max(0, sum(abs(Q_GA_i-Q_PF_i))-E_total)`.
+Bu sonuçta toplam station Q hatası baskındır; üye dağılımı yalnız az sayıdaki
+controller'da anlamlıdır. PF implied `dQ_sco` spread'i multi-member, non-saturated
+zero-droop grubunda 57 controller için median **1.14e-6**, p95 **23.05**, max **198.43**
+MVAr-equivalent units idi.
+
+Top 20 controller `E_total` (başlangıç capture; MVAr):
+
+| Controller | Üye | State | `E_total` |
+| --- | ---: | --- | ---: |
+| VK537 | 2 | residual | 375.896 |
+| VK282 | 3 | residual | 257.193 |
+| VK1197 | 1 | saturated | 237.149 |
+| VK3004 | 2 | satisfied | 209.699 |
+| VK3000 | 3 | residual | 170.211 |
+| VK2527 | 2 | residual | 163.491 |
+| VK496 | 3 | residual | 162.370 |
+| VK1186 | 2 | residual | 159.408 |
+| VK1670 | 7 | satisfied | 109.160 |
+| VK2198 | 3 | residual | 105.356 |
+| VK25 | 1 | residual | 96.371 |
+| VK304 | 2 | residual | 96.065 |
+| VK460 | 1 | residual | 86.336 |
+| VK3003 | 2 | satisfied | 83.886 |
+| VK1296 | 5 | residual | 80.182 |
+| VK1198 | 1 | saturated | 73.078 |
+| VK1243 | 1 | residual | 70.448 |
+| VK1193 | 1 | saturated | 69.331 |
+| VK520 | 1 | residual | 68.264 |
+| VK2682 | 3 | satisfied | 59.423 |
+
+Top 20 `E_distribution` (başlangıç capture; MVAr). Sıfır değerli satırlar en büyük
+değerden sonra kalan eşitlik sırasıdır; yalnız ilk iki controller'da anlamlı dağılım
+hatası vardı.
+
+| Controller | Üye | State | `E_total` | `E_distribution` |
+| --- | ---: | --- | ---: | ---: |
+| VK623 | 2 | satisfied | 11.305 | 22.334 |
+| VK2148 | 5 | residual | 1.153 | 9.936 |
+| VK2020 | 2 | saturated | 0.000 | 0.000 |
+| VK282 | 3 | residual | 257.193 | 0.000 |
+| VK3004 | 2 | satisfied | 209.699 | 0.000 |
+| VK305 | 2 | residual | 44.579 | 0.000 |
+| VK2050 | 2 | satisfied | 45.530 | 0.000 |
+| VK647 | 2 | residual | 23.138 | 0.000 |
+| VK1603 | 2 | satisfied | 7.238 | 0.000 |
+| VK1605 | 4 | residual | 15.123 | 0.000 |
+| VK759 | 5 | satisfied | 5.049 | 0.000 |
+| VK3274 | 3 | satisfied | 4.175 | 0.000 |
+| VK585 | 3 | residual | 7.629 | 0.000 |
+| VK2715 | 2 | residual | 5.132 | 0.000 |
+| VK1727 | 3 | satisfied | 6.117 | 0.000 |
+| VK281 | 3 | satisfied | 2.501 | 0.000 |
+| VK1822 | 1 | saturated | 0.000 | 0.000 |
+| VK1816 | 2 | residual | 0.895 | 0.000 |
+| VK1818 | 1 | residual | 4.542 | 0.000 |
+| VK1819 | 2 | residual | 10.625 | 0.000 |
+
+Phase 3 minimum gate başarısızdır: residual **61 > 40**, zero-droop Q MAE **16.408 > 14**,
+droop Q MAE **1.656 > 1.5**, line Q **31.656 > 30** ve bus V **0.561 > 0.52**.
+Line/trafo Q iyileşmesi yalnız 0.19/0.23 yüzde puandır; hedeflenen belirgin iyileşme
+değildir. Bu yüzden Phase 3 burada durduruldu. Q-limit state attribution ve branch
+physics değişikliği yapılmadı; doğrulanmış PF semantiği korunuyor.
+
+Kod commit'i `ca41600` için `npm run typecheck`, `npm run lint`, `npm test` (210/210),
+`npm run test:e2e`, `npm run build` ve `npm run build:portable` geçti. Bu kalite
+sonuçları parity gate'in başarısız olduğu gerçeğini değiştirmez.
 
 ---
 
