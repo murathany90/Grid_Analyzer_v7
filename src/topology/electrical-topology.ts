@@ -7,7 +7,7 @@ export class UnionFind {
 }
 export interface ElectricalBus { id: string; name: string; vnKv: number; terms: string[]; siteIds: string[] }
 export interface ElectricalTopology { buses: ElectricalBus[]; terminalToBus: Map<string,number>; blockedEquipment: Set<string>; warnings: string[]; closedSwitches: number }
-export function buildTopology(network: CanonicalNetwork): ElectricalTopology {
+export function buildTopology(network: Pick<CanonicalNetwork,'buses'|'switches'|'lines'|'transformers'|'seriesCompensators'|'generators'|'loads'|'shunts'|'externalGrids'|'internationalConnections'>): ElectricalTopology {
   const terminals = new Map(network.buses.filter(b=>b.inService && b.vnKv>0).map(b=>[b.id,b]));
   const uf = new UnionFind(terminals.keys()), warnings: string[] = [], blockedEquipment = new Set<string>(); let closedSwitches=0;
   for (const sw of network.switches) {

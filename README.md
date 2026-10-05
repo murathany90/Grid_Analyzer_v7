@@ -11,11 +11,35 @@ Grid Analyzer, DIgSILENT PowerFactory DGS JSON/ZIP modellerini tarayıcı içind
 - Çalışma biçimi: tarayıcı içi / offline-capable
 - Ana referans: **DIgSILENT PowerFactory 24.0.7.1**
 - Kanonik doğrulama modeli: **`20261001_1500_SN4_TR0`**
-- Q/V parity recovery branch: **`codex/pf-qv-parity-recovery`**
+- Final PowerFactory parity branch: **`codex/pf-final-parity-v2`**
 - Q/V recovery Phase 1 reference commit: **`6c0dea78ef7ccd6a16588f79274be0cdb7d4b483`**
 - Historical release manifest: `docs/validation/v8.2.5-release.json`
 
 Bu README yalnız kullanım kılavuzu değildir. Aynı zamanda uygulamanın **model hafızası / teknik doğruluk kaydıdır**. Aşağıdaki “CONFIRMED / PARTIAL / UNSUPPORTED” ayrımı korunmalıdır; doğrulanmış PowerFactory semantiği daha sonra yeniden tahmin edilmemelidir.
+
+---
+
+# Final PowerFactory parity v2 — local canonical result
+
+`20261001_1500_SN4_TR0` was solved locally from DGS + validated ControlContext with the production integrated sparse AC/controller path. PowerFactory output is used only by the audit and KPI tools after solving. All hard acceptance thresholds pass.
+
+| KPI | Local v2 | Cloud reference | Hard limit |
+| --- | ---: | ---: | ---: |
+| Line P | **0.06935%** | 0.06719% | <1% |
+| Line Q | **4.77953%** | 4.48633% | <10% |
+| Transformer P | **0.01813%** | 0.01783% | <1% |
+| Transformer Q | **3.72712%** | 3.28025% | <10% |
+| Bus V | **0.07982%** | 0.07219% | <0.25% |
+| Aligned angle | **0.13316%** | 0.12858% | <0.75% |
+| Zero-droop generator Q MAE | **1.48199 MVAr** | 1.17452 MVAr | <5 MVAr |
+| Droop generator Q MAE | **0.34805 MVAr** | 0.33170 MVAr | <0.5 MVAr |
+| Movable controller residual | **0** | 0 | <10 |
+
+Local Node engine time was **3.99 s** (107 Newton steps, 107 KLU factorizations, 90 station active-set restarts). Controller states were ACTIVE 291 / QMIN 49 / QMAX 17 / fixed 9; 46 saturated controllers retain a physical setpoint residual. Non-station generator Q MAE was about **4.0×10⁻⁹ MVAr**. SL1 was approximately 0 MW, −500 MVAr, 1.023762 pu, `QMIN_LIMITED`.
+
+The independent frozen-PF-state equation gate reproduced line P/Q **3.61×10⁻⁶% / 8.38×10⁻⁶%**, transformer P/Q **0.05529% / 0.38859%**, and bus-Q MAE **0.02574 MVAr**. The attached Formula Set's LV-tap series term says `1/ρ²`; applying that term gives transformer P/Q **4.12% / 5.87%** at the frozen PF state. The implemented `ρ²` factor reproduces the attached report's frozen-state values and corresponds to the tapped LV winding's squared voltage ratio. This discrepancy is recorded explicitly so it is not silently treated as an empirical correction.
+
+Reproduce the source-equation gate with `node --import tsx tools/frozen-state-audit.ts`, the local Full AC solve with `node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts`, and the KPI score with `node --import tsx tools/pf-kpi.ts .tmp/sn4-full-ac-result.json kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv`.
 
 ---
 

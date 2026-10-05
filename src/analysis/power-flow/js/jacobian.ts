@@ -63,20 +63,44 @@ export function makeLayout(Y: AdmittanceMatrix, busType: ArrayLike<number>, slac
  return {angIndex,vIndex,qIndex,controlIndex,ang:Int32Array.from(ang),pq:Int32Array.from(pq),vm:Int32Array.from(vm),nang,N,rowPtr,colIdx:Int32Array.from(col),pos,diagPos};
 }
 
-export function fillJacobian(Y: AdmittanceMatrix, L: JacobianLayout, Vm: Float64Array, Va: Float64Array, P: Float64Array, Q: Float64Array, values: Float64Array, controls:readonly IntegratedStationControl[]=[]): void {
+/** Full sparse AC, station equations and distributed P-balance in one system. */
+export function makeExplicitLayout(Y:AdmittanceMatrix,busType:ArrayLike<number>,slack:number,controls:readonly IntegratedStationControl[],activeBalance=false,weights?:ArrayLike<number>):JacobianLayout {
+ const base=makeLayout(Y,busType,slack),c=controls.length,alpha=activeBalance?1:0,N=base.N+c+alpha;
+ const controlIndex=Int32Array.from(controls,(_,i)=>base.N+i),controlRow=Int32Array.from(controls,(_,i)=>base.N+i),alphaIndex=activeBalance?N-1:-1,alphaRow=alphaIndex;
+ const rowSets=Array.from({length:N},(_,row)=>new Set<number>(row<base.N?Array.from(base.colIdx.slice(base.rowPtr[row],base.rowPtr[row+1])):[]));
+ controls.forEach((control,index)=>{
+  const remoteV=base.vIndex[control.remoteBus];if(remoteV<0)throw Error('EXPLICIT_CONTROL_REMOTE_VM_MISSING');
+  rowSets[controlRow[index]].add(remoteV);rowSets[controlRow[index]].add(controlIndex[index]);
+  for(const actuator of control.actuators){const qRow=base.qIndex[actuator.bus];if(qRow<0)throw Error('EXPLICIT_CONTROL_ACTUATOR_Q_MISSING');rowSets[qRow].add(controlIndex[index]);}
+ });
+ if(activeBalance){
+  if(!weights||weights.length!==Y.n)throw Error('EXPLICIT_ACTIVE_BALANCE_WEIGHTS_INVALID');
+  for(let i=0;i<Y.n;i++)if(weights[i]!==0){const row=i===slack?alphaRow:base.angIndex[i];if(row>=0)rowSets[row].add(alphaIndex);}
+  rowSets[alphaRow].add(alphaIndex);
+  for(let k=Y.rowPtr[slack];k<Y.rowPtr[slack+1];k++){const bus=Y.colIdx[k],a=base.angIndex[bus],v=base.vIndex[bus];if(a>=0)rowSets[alphaRow].add(a);if(v>=0)rowSets[alphaRow].add(v);}
+ }
+ const rowPtr=new Int32Array(N+1),col:number[]=[],pos=Array.from({length:N},():Map<number,number>=>new Map());
+ for(let row=0;row<N;row++){rowPtr[row]=col.length;for(const column of [...rowSets[row]].sort((a,b)=>a-b)){pos[row].set(column,col.length);col.push(column);}}
+ rowPtr[N]=col.length;const diagPos=Int32Array.from({length:N},(_,row)=>pos[row].get(row)??-1);
+ return {...base,N,controlIndex,controlRow,alphaIndex,alphaRow,slack,explicitControlEquations:true,rowPtr,colIdx:Int32Array.from(col),pos,diagPos};
+}
+
+export function fillJacobian(Y: AdmittanceMatrix, L: JacobianLayout, Vm: Float64Array, Va: Float64Array, P: Float64Array, Q: Float64Array, values: Float64Array, controls:readonly IntegratedStationControl[]=[],baseMva=100,activeBalanceWeights?:ArrayLike<number>): void {
  values.fill(0);const {g,b,rowPtr,colIdx}=Y;
  const put=(r:number,c:number,v:number)=>{if(r<0||c<0||!finite(v))return;const p=L.pos[r].get(c);if(p!==undefined)values[p]+=v;};
  for(let i=0;i<Y.n;i++){
-  const ai=L.angIndex[i],vi=L.vIndex[i],qi=L.qIndex[i],v=Vm[i],v2=v*v;
+  const ai=L.angIndex[i],pi=i===L.slack&&L.alphaRow!=null?L.alphaRow:ai,vi=L.vIndex[i],qi=L.qIndex[i],v=Vm[i],v2=v*v;
   let Gii=0,Bii=0;
   for(let k=rowPtr[i];k<rowPtr[i+1];k++)if(colIdx[k]===i){Gii=g[k];Bii=b[k];break;}
-  if(ai>=0){put(ai,ai,-Q[i]-Bii*v2);if(vi>=0)put(ai,vi,P[i]/Math.max(v,1e-9)+Gii*v);}
+  if(pi>=0){if(ai>=0)put(pi,ai,-Q[i]-Bii*v2);if(vi>=0)put(pi,vi,P[i]/Math.max(v,1e-9)+Gii*v);}
   if(qi>=0){put(qi,ai,P[i]-Gii*v2);if(vi>=0)put(qi,vi,Q[i]/Math.max(v,1e-9)-Bii*v);}
   for(let k=rowPtr[i];k<rowPtr[i+1];k++){
    const j=colIdx[k];if(j===i)continue;const aj=L.angIndex[j],vj=L.vIndex[j],G=g[k],B=b[k],d=Va[i]-Va[j],c=Math.cos(d),s=Math.sin(d),vv=v*Vm[j];
-   if(ai>=0){if(aj>=0)put(ai,aj,vv*(G*s-B*c));if(vj>=0)put(ai,vj,v*(G*c+B*s));}
+   if(pi>=0){if(aj>=0)put(pi,aj,vv*(G*s-B*c));if(vj>=0)put(pi,vj,v*(G*c+B*s));}
    if(qi>=0){if(aj>=0)put(qi,aj,-vv*(G*c+B*s));if(vj>=0)put(qi,vj,v*(G*s-B*c));}
   }
  }
  controls.forEach((control,index)=>{for(const actuator of control.actuators)put(L.qIndex[actuator.bus],L.controlIndex[index],-actuator.participation);});
+ if(L.explicitControlEquations){controls.forEach((control,index)=>{const row=L.controlRow![index];put(row,L.vIndex[control.remoteBus],1);if(control.droopQmvar)put(row,L.controlIndex[index],-(control.measurementParticipation??1)*baseMva/control.droopQmvar);});}
+ if(L.alphaIndex!=null&&L.alphaIndex>=0&&activeBalanceWeights)for(let bus=0;bus<Y.n;bus++){const row=bus===L.slack?L.alphaRow!:L.angIndex[bus];if(row>=0&&activeBalanceWeights[bus])put(row,L.alphaIndex,-activeBalanceWeights[bus]/baseMva);}
 }

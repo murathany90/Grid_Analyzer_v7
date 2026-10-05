@@ -321,11 +321,13 @@ test('one controller reaching a Q limit leaves its peer controller active',()=>{
   assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
   assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
 });
-test('production Full AC defaults to local PV while station controls require an explicit experiment',async()=>{
+test('production Full AC uses integrated station control when a station mode is selected',async()=>{
   const network=fixture(false),scenario=emptyScenario(),calculationIdentity=identity(network.modelHash,scenario,'powerFlow'),engine=new BrowserJsPowerFlowEngine();
-  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
+  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),integrated=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'SENSITIVITY'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
   assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'LOCAL_PV');
   assert.equal((production.diagnostics.stationControllerSummary as {mode:string}).mode,'off');
+  assert.equal(integrated.converged,true);assert.equal(integrated.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');
+  assert.equal((integrated.diagnostics.stationControllerSummary as {implementation:string}).implementation,'INTEGRATED');
   assert.equal(sensitivity.converged,true);assert.equal(sensitivity.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
   assert.equal((sensitivity.diagnostics.sensitivitySolver as {ordering:string}).ordering,'NATURAL');
   assert.equal(experimental.converged,true);assert.equal(experimental.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');

@@ -28,6 +28,7 @@ const modelArg = process.argv[2] ?? 'kontrol1/20261001_1500_SN4_TR0.zip';
 const contextArg = process.argv[3] ?? 'kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv';
 const outArg = process.argv[4] ?? '.tmp/sn4-full-ac-result.json';
 const stationModeArg = process.argv.find(arg => arg.startsWith('--station-control-mode='))?.split('=')[1] as 'zeroDroop'|'droop'|undefined;
+const implementationArg=process.argv.find(arg=>arg.startsWith('--implementation='))?.split('=')[1] as 'SENSITIVITY'|'INTEGRATED'|undefined;
 if(stationModeArg && stationModeArg !== 'zeroDroop' && stationModeArg !== 'droop') throw new Error(`Unsupported station-control mode: ${stationModeArg}`);
 const toleranceArg=process.argv.find(arg=>arg.startsWith('--model-equation-tolerance-percent='))?.split('=')[1];
 const tolerancePercent=toleranceArg==null?undefined:Number(toleranceArg);
@@ -76,7 +77,7 @@ const result: CalculationResult = await engine.runPowerFlow(
     identity: id,
     analysisSettings: settings,
     stationControlMode: settings.powerFlow.stationControlMode,
-    stationControlImplementation: 'SENSITIVITY',
+    stationControlImplementation: implementationArg,
   },
   stage => {
     if (stage === lastStage) return;
