@@ -35,7 +35,7 @@ Bu README yalnız kullanım kılavuzu değildir. Aynı zamanda uygulamanın **mo
 | Droop generator Q MAE | **0.34805 MVAr** | 0.33170 MVAr | <0.5 MVAr |
 | Movable controller residual | **0** | 0 | <10 |
 
-Local Node engine time was **3.99 s** (107 Newton steps, 107 KLU factorizations, 90 station active-set restarts). Controller states were ACTIVE 291 / QMIN 49 / QMAX 17 / fixed 9; 46 saturated controllers retain a physical setpoint residual. Non-station generator Q MAE was about **4.0×10⁻⁹ MVAr**. SL1 was approximately 0 MW, −500 MVAr, 1.023762 pu, `QMIN_LIMITED`.
+Local Node engine time was **3.99 s**; the exact committed portable build measured **4.06 s in Chromium** (107 Newton steps, 107 KLU factorizations, 90 station active-set restarts). Controller states were ACTIVE 291 / QMIN 49 / QMAX 17 / fixed 9; 46 saturated controllers retain a physical setpoint residual. Non-station generator Q MAE was about **4.0×10⁻⁹ MVAr**. SL1 was approximately 0 MW, −500 MVAr, 1.023762 pu, `QMIN_LIMITED`.
 
 The independent frozen-PF-state equation gate reproduced line P/Q **3.61×10⁻⁶% / 8.38×10⁻⁶%**, transformer P/Q **0.05529% / 0.38859%**, and bus-Q MAE **0.02574 MVAr**. The attached Formula Set's LV-tap series term says `1/ρ²`; applying that term gives transformer P/Q **4.12% / 5.87%** at the frozen PF state. The implemented `ρ²` factor reproduces the attached report's frozen-state values and corresponds to the tapped LV winding's squared voltage ratio. This discrepancy is recorded explicitly so it is not silently treated as an empirical correction.
 
