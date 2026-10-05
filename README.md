@@ -1,246 +1,90 @@
 # Grid Analyzer
 
-Grid Analyzer imports PowerFactory DGS JSON or ZIP files in the browser, builds a canonical
-network, and presents inventory, scenario, map, single-line diagram, electrical analysis and a
-PowerFactory comparison. **Calculated values are model results, not measurements.** The ZIP
-reader and the offline Türkiye basemap are bundled; no server or runtime CDN is required.
+Grid Analyzer, DIgSILENT PowerFactory DGS JSON/ZIP şebekelerini tarayıcıda açan ve envanter, harita, tek hat, senaryo, Full AC, Fast AC, DC ve N-1 analizleri sunan istemci uygulamasıdır. Hesaplanan değerler ölçüm değildir; kaynak model, çalışma durumu ve ayarlara bağlıdır. Sürüm **8.2.5**; Full AC motoru sparse KLU/WASM destekli `BrowserJsEngine`dir. `dist-portable/GridAnalyzer_v7.html` çevrimdışı kullanılabilen tek dosyalık derlemedir.
 
-- Version: **8.2.5**
-- Engine: `BrowserJsEngine` (classical Newton–Raphson power equations, sparse direct KLU/WASM)
-- Release manifest: [`docs/validation/v8.2.5-release.json`](docs/validation/v8.2.5-release.json)
+## Üretim durumu ve kaynaklar
 
-## 8.2.5 release status
+Full AC, DGS + doğrulanmış ControlContext ile çözülür. PowerFactory sayısal sonuçları yalnızca çözümden sonra frozen-state denetimi ve parity ölçümü için okunur. Üretim çözümünde FID düzeltmesi, PF sonucu araması veya ampirik R/X/B/Q katsayısı yoktur. Doğrulanan son aday `pf-parity-v2-validated` annotated tag'idir. Çalışılan `main` SHA'sı `git rev-parse main` ile okunur; SHA dosyanın kendi commit'ine gömülmez.
 
-The numerical solver baseline is the validated v8.2.3 source. Version 8.2.5 finalizes
-diagnostics, release provenance and packaging without carrying over the rejected numerical
-changes. The v8.2.4 numerical candidate regressed all six KPIs and was **REJECTED / NEVER
-MERGED**. Rejected commits: `a9ff9145838dcc85b34e2c27848f33163ab55146`,
-`f25053f9e36c6e9d160701b604a10e0b36ab5d2f`; rejection record:
-`ed31ecb670c0741dc365bceb556ab7551cc288de`.
+Doğrulama girdileri:
 
-The parity profile remains **PARTIAL**. Zero-droop station control is
-`STATION_CONTROL_PARTIAL` with 101 `CONTROL_RESIDUAL_AFTER_FINAL_BALANCE` controllers;
-223 droop controllers remain `UNSUPPORTED_DROOP`. These states are reported in the
-diagnostics and release manifest. Active balancing converges and SL1 remains Qmin-limited.
-
-
-## Supported inputs
-
-| Input | Purpose |
-| --- | --- |
-| DGS `.json` / `.zip` | Network model (buses, lines, 2-winding transformers, generators, loads, shunts, series compensation, external grids, station controllers, switches) |
-| PowerFactory numeric `.csv` | Load-flow reference for comparison (`PF-GA-BENCHMARK-*`) |
-| PowerFactory ControlContext `.csv` | Load attributes, controller membership and source control fields (`PF-GA-CONTROL-1.0`) |
-
-Model files and reference data stay local and are never committed (`kontrol1/` is ignored).
-
-## Calculation engines
-
-| Engine | Scope | Notes |
+| Model | DGS ZIP ve ControlContext | PowerFactory LoadFlow CSV |
 | --- | --- | --- |
-| **Full AC** | All voltage levels | Newton–Raphson on power equations, PV/PQ buses, reactive limits, distributed active balancing, station controllers, KLU/WASM direct solves on large systems, separate electrical islands |
-| **Fast AC** | ≥ configured `minVoltageKv` (default 66 kV) | Reduced model, approximate; Q and control fidelity reported as partial |
-| **DC** | ≥ configured `minVoltageKv` (default 66 kV) | Active power and angle only; no reactive or voltage settings |
+| SN4 | `kontrol1/20261001_1500_SN4_TR0.zip`; `kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv` | `kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv` |
+| SN7 | `kontrol1/20261004_1600_SN7_TR0.zip`; `kontrol1/PowerFactory_ControlContext_20261004_1600_SN7_TR0_20261005_205516.csv` | `C:/Users/Murathan Yeniceli/Downloads/PowerFactory_LoadFlow_20261004_1600_SN7_TR0_20261005_205516.csv` |
 
-### Full AC specifics
+`kontrol1` içindeki iki Grid Analyzer XLSX sonucu ve PowerFactory station-control DOCX'i korunur. SN7 PowerFactory CSV'si mevcut envanterde Downloads içindedir; doğrulama onu taşımadan okur. Karşılaştırmalar aynı model ve aynı PF export'u kullanır, yalnız ≥66 kV hat/trafo/bara nüfusu üzerinde normalize edilir.
 
-- **Newton + KLU/WASM.** Small systems use the iterative-first path; systems with at least 512
-  unknowns use the KLU sparse direct factorization. A direct solve is accepted only when its true
-  residual is at least three orders of magnitude tighter than the nodal tolerance
-  (`min(1e-8, nodalTolerancePu * 1e-3)`), so an accepted direction cannot carry a residual the
-  nodal test would treat as progress.
-- **Distributed active balancing.** With `activeBalancingMode=DISTRIBUTED_ADJUSTABLE_LOADS` the
-  reference P target is met by adjusting sourced adjustable loads. Load eligibility comes from the
-  source ControlContext (`i_scale`), never from a hardcoded list.
-- **Q-limit handling.** Reactive limits are a monotonic PV → limited active set. Each bus that
-  reaches a limit is switched to PQ at that limit. **Limit release is not implemented**
-  (`releaseSupport: UNSUPPORTED`), and repeated reactive-limit detection is **not applied**
-  (`repeatedReactiveLimitDetectionApplied: false`). Both limits are stated rather than hidden.
-- **Station controllers.** Zero-droop remote voltage control is solved with a sensitivity /
-  trust-region outer loop. Droop semantics are **not implemented**: droop controllers are reported
-  `UNSUPPORTED_DROOP` rather than approximated with an unverified equation.
+## Full AC denklemleri ve fizik
 
-## Effective Full AC limits
+Her elektrik barasında `I = YV`, `Sᵢ = Vᵢ conj(Iᵢ) = Pᵢ + jQᵢ`. `Pᵢ = |Vᵢ| Σⱼ |Vⱼ|(Gᵢⱼ cos θᵢⱼ + Bᵢⱼ sin θᵢⱼ)` ve `Qᵢ = |Vᵢ| Σⱼ |Vⱼ|(Gᵢⱼ sin θᵢⱼ − Bᵢⱼ cos θᵢⱼ)`. Newton–Raphson, `J Δx = [Pspec−Pcalc, Qspec−Qcalc]` sistemini çözer. Slack açı referansını, PV barası P ve gerilimi, PQ barası P ve Q'yu belirler. Branch uç güçleri çözülmüş kompleks gerilim ve π/admitans modeliyle hesaplanır.
 
-These are typed settings. Provenance, diagnostics and the settings table all report the values
-actually used — there are no hidden internal caps.
+- Hat: `R = TypLne.rline × dline`, `X = TypLne.xline × dline`, `B = TypLne.bline × 10⁻⁶ × dline`; bölümlü hatlarda `ElmLnesec` değerleri toplanır. `ElmScap` seri kolu `R=0, X=−1/bcap` olarak kullanılır.
+- İki sargılı trafo: `rₒ = pcutr/(1000·strn)`, `|zₒ|=uktr/100`, `xₒ=√max(0,|zₒ|²−rₒ²)`; seri değerler 100 MVA ve fiziksel bara gerilim tabanına dönüştürülür. Tap için geçerli `mTaps` kV değeri, yoksa `dutap` seçilir. HV tarafı no-load `pfe/curmg` admitansı uç P/Q raporunda da bulunur. LV tap seri eşdeğerinde `ρ²` uygulanır: SN4 frozen-state trafo P/Q %0,05529/%0,38859 ile bunu doğrular. Önceki Formula Set'teki `1/ρ²` ifadesi aynı denetimde %4,12/%5,87 verdiği için uygulanmadı.
+- `ElmShnt`: reaktör negatif, kapasitör pozitif Q taşır. Değişken şöntte `ncapa` ile seçilen `mTaps` MVAr kullanılır; sabitte `qrean/qcapn`. `ushnm` ve bağlı baranın nominal kV değeri susceptance tabanını belirler. Geçersiz kademe sessizce tahmin edilmez.
+- Yükler sabit P/Q'dur. Dağıtılmış aktif dengelemede uygun yüklerin P'si değişir, Q'su kaynak dispatch'ında sabit kalır. Station dışı generator Q da kaynak `qgini` dispatch'ını korur.
 
-| Setting | Default | Meaning |
-| --- | ---: | --- |
-| `maxInnerIterations` | 100 | Newton iterations per full NR solve |
-| `maxQLimitRounds` | 8 | Reactive active-set rounds |
-| `maxActiveBalanceCorrections` | 8 | Distributed active-balance corrections |
-| `maxStationControlCorrections` | 16 in parity profile | Station-controller outer corrections |
-| `maxOuterIterations` | 50 | Outer control budget; the station loop still uses `maxStationControlCorrections` |
-| `nodalToleranceKva` | 5 | Nodal P/Q residual tolerance |
-| `modelEquationTolerancePercent` | 0.2 | Controller voltage-residual tolerance |
-| `maxNoImprovementIterations` | 20 | Stagnation guard |
-| `qLimitToleranceMvar` | 0.02 | PV → limited transition band |
+## Integrated station control ve Q sınırları
 
-The Newton line-search acceptance test uses `nodalToleranceKva` rather than a fixed `1e-6`
-threshold that contradicted the configured tolerance.
+Zero-droop controller üyelerinde `Qᵢ = qginiᵢ + Kᵢ·ΔQₛ꜀ₒ`; kaynak `cvqq` varsa `Kᵢ=cvqqᵢ/100`, uygun `imode=0` durumda fallback immutable `pgini` payıdır. Dengelemeden sonraki generator P katılım için kullanılmaz. Signed droop için `Qdroop=Srated·100/ddroop` ve `Vtarget=usetp+Qmeas/Qdroop`; SN4/SN7 desteklenen profilde `pQmeas` ilgili generator cubicle'ıdır. Paylaşılan uzak baralı controllerlar aynı sparse Newton sistemine girer. Çözülen değişkenler arasında `Vm`, `Va`, controller `ΔQ` ve etkin P-dengeleme değişkeni bulunur.
 
-## Convergence states
+`ElmSym.pQlimType` geçerli `IntQlim` eğrisine işaret ederse `cap_P/cap_Qmn/cap_Qmx` noktaları immutable `pgini` üzerinde doğrusal enterpolasyonla değerlendirilir; uçların dışında uç değer korunur. Eğri geçersiz veya yoksa geçerli doğrudan `cQ_min/cQ_max` kullanılır. Station üyesi Qmin/Qmax'a ulaşınca kalan değişim hareketli üyelere dağıtılır; yön tersine dönerse sınırdaki üye yeniden girebilir. Genel PV→PQ bus limit geçişi monotondur ve genel PV'ye geri dönüş desteklenmez.
 
-Convergence is reported per concern; one generic "converged" is never used.
+Hareketli controller residual'ı, hâlâ Q hareket alanı varken `|Vtarget−Vremote|>0,002 pu` kalmasıdır. Doymuş controllerın aynı residual'ı fiziksel Q sınırının sonucu olabilir; ayrı sayılır. Çözüm sonunda sınırsız/movable residual SN4 ve SN7'de **0**'dır.
 
-| State | Meaning |
-| --- | --- |
-| `NR_CONVERGED` / `NR_NOT_CONVERGED` | Newton–Raphson only |
-| `ACTIVE_BALANCE_CONVERGED` / `ACTIVE_BALANCE_PARTIAL` | Distributed P target reached or not |
-| `STATION_CONTROL_CONVERGED` / `STATION_CONTROL_PARTIAL` | All supported controllers satisfied, saturated, or pending |
-| `COMPARABLE` / `NOT_FULLY_COMPARABLE` | Overall PowerFactory comparability |
+## Son PowerFactory karşılaştırması
 
-After the final distributed-P correction every remote voltage residual is recomputed and **all**
-controller states are revalidated. A controller that satisfied its target before the correction
-does not keep `SATISFIED` when the corrected operating point leaves it outside tolerance; it becomes
-`SATURATED_QMIN`/`SATURATED_QMAX` at a reactive limit, or
-`CONTROL_RESIDUAL_AFTER_FINAL_BALANCE` otherwise. When any such residual exists the result
-provenance is downgraded from `SENSITIVITY_STATION_CONTROL` to `BASELINE_FALLBACK` and the
-operating point is not presented as control-converged.
+Normalize ortalama mutlak hata, %. “Önce” validated `2a163ef8fa2dc6c5d098fe5058eca65569bbb468`; “Sonra” kabul edilen `IntQlim` davranışıdır.
 
-Work counters are reported separately and never as a single "step" count: Newton iterations, full
-NR solves, Q-limit rounds, active-balance corrections, station-control rounds, KLU factorizations.
+| KPI | SN4 önce | SN4 sonra | SN7 önce | SN7 sonra |
+| --- | ---: | ---: | ---: | ---: |
+| Hat P | 0,069348 | **0,067189** | 0,163533 | **0,161739** |
+| Hat Q | 4,779534 | **4,486271** | 5,691946 | **5,068336** |
+| Trafo P | 0,018134 | **0,017830** | 0,085339 | **0,085263** |
+| Trafo Q | 3,727118 | **3,469948** | 4,907454 | **3,901936** |
+| Bara V | 0,079824 | **0,072193** | 0,102358 | **0,094963** |
+| Hizalı açı | 0,133162 | **0,128602** | 0,323144 | **0,313805** |
 
-## PowerFactory benchmark workflow
+| İkincil sonuç | SN4 önce → sonra | SN7 önce → sonra |
+| --- | ---: | ---: |
+| Tüm generator Q MAE, MVAr | 0,212891 → **0,199575** | 0,259819 → **0,192245** |
+| Zero-droop generator Q MAE, MVAr | 1,481989 → **1,384396** | 2,063576 → **1,446401** |
+| Droop generator Q MAE, MVAr | 0,348045 → **0,331702** | 0,393575 → **0,375352** |
+| Hareketli / doymuş residual | 0 / 46 → **0 / 46** | 0 / 41 → **0 / 39** |
+| Karşıt Qmin/Qmax generator sayısı | 5 → **5** | 5 → **5** |
+| Node motor süresi, s | 4,907 → **4,464** | 2,448 → **2,911** |
 
-The canonical scorer is `src/analysis/validation/pf-kpi.ts`. The final benchmark uses
-the exact committed `dist-portable/GridAnalyzer_v7.html` and the three golden inputs
-recorded in the [release manifest](docs/validation/v8.2.5-release.json).
-The preservation gate compares every KPI with the validated v8.2.3 result. It permits at most
-0.5% **relative** regression per KPI and requires source, input and portable byte provenance.
+SN4 nüfusu: 2.308 hat, 2.892 trafo, 1.733 bara; SN7: 2.303 hat, 2.846 trafo, 1.726 bara. Station dışı Q MAE sırasıyla yaklaşık `4,0×10⁻⁹` ve `3,4×10⁻⁹` MVAr'dır. Frozen PF state denetiminde SN4 hat P/Q `0,00000361/0,00000838%`, trafo P/Q `0,05529/0,38859%`, bus-Q `0,02574 MVAr`; SN7 `0,00000361/0,00000858%`, `0,07503/0,39472%`, `0,02624 MVAr`.
 
-### Golden fixture facts
+SN7 kalan en büyük Q farkları: ZORLU T7550 HV `258,59 MVAr`, ilişkili H4627 uç Q `230,97 MVAr`; `IntQlim` düzeltmesi KARAKAYA VK1295 total-Q farkını `58,16 → 0,175 MVAr` düşürdü. Beş GA-QMIN/PF-QMAX üyesi hâlâ vardır. Genel λ=0→1 station continuation denemesi bu farkları değiştirmediği için geri alındı. Bu durum mevcut nonlinear aktif sınır seçimi sınırlamasıdır; ekipman denklemleri frozen-state kapısından geçer.
 
-- Model `20261001_1500_SN4_TR0`, study time `2026-10-01 15:00:00`, PowerFactory 24.0.7.1.
-- 1986 relevant loads, all with sourced `i_scale = 1`.
-- 366 `ElmStactrl` controllers, 604 controller memberships, 223 droop controllers.
-- `SL1` is the reference external grid. The fixture has no phase-shifting transformers.
-- Automatic transformer tap and automatic shunt control are **off**.
-- **FID and `electricalBusKey` are the authoritative identities.** `loc_name` is presentation only.
-- No fixture-specific coefficients, FIDs or PowerFactory-result fitting are used anywhere.
-
-### ControlContext role
-
-The ControlContext sidecar supplies load dispatch attributes and the measured `i_scale` eligibility
-that distributed active balancing needs, plus the source station-controller fields. It is applied to
-the network before the solve; its SHA-256 is recorded in the release manifest.
-
-## Canonical merge KPIs
-
-Only equipment at **≥ 66 kV** is used. For each individual terminal or value:
-
-```
-error_i          = abs( abs(GA_i) - abs(PF_i) )
-absoluteAverage  = sum(error_i) / N
-normalizedPercent = 100 * sum(error_i) / sum(abs(PF_i))
-```
-
-`abs(GA - PF)`, row-wise MAPE and averages of row percentages are **not** the primary KPI.
-
-- **Lines** — `pFrom` and `pTo` are separate observations; likewise `qFrom` and `qTo`.
-- **Transformers** — qualified by HV nominal voltage ≥ 66 kV; then both HV and LV terminal P and Q
-  are observations.
-- **Buses** — nominal voltage ≥ 66 kV, one observation per distinct PF electrical bus.
-- **Bus angle** — the existing per-island reference-angle alignment is applied first, then the KPI is
-  `abs(abs(GA_aligned) - abs(PF))`. Islands without a PowerFactory reference bus fall back to the
-  median offset, which is reported. Signed aligned-angle error is kept as a secondary diagnostic.
-
-Secondary diagnostics are also exported: signed terminal P error, signed terminal Q error, signed
-aligned-angle error, and sign-disagreement counts over materially non-zero values.
-
-## Canonical 8.2.5 KPIs
-
-The v8.2.3 numerical baseline is preserved. The final measured values and signed secondary
-diagnostics are recorded in the [8.2.5 release manifest](docs/validation/v8.2.5-release.json).
-Population: 2308 lines (4616 observations), 2892 transformers (5784 observations),
-and 1733 voltage/angle buses.
-
-| KPI | N | v8.2.3 normalized % | 8.2.5 normalized % |
-| --- | ---: | ---: | ---: |
-| Line MW | 4616 | 0.879454489 | 0.879454489 |
-| Line MVAr | 4616 | 45.961722931 | 45.961722931 |
-| Transformer MW | 5784 | 0.721830436 | 0.721830436 |
-| Transformer MVAr | 5784 | 47.615779757 | 47.615779757 |
-| Bus voltage | 1733 | 0.768447838 | 0.768447838 |
-| Reference-aligned angle | 1733 | 0.825548679 | 0.825548679 |
-
-## Performance
-
-The release gate requires the exact committed portable in Chromium to complete Full AC in
-at most **15,000 ms**. Its final engine time, browser wall time, total/final Newton counts,
-NR solves and KLU factorizations are recorded in the
-[8.2.5 release manifest](docs/validation/v8.2.5-release.json). The validated v8.2.3
-reference took 3,710 ms engine time and 5,699 ms browser wall time; these are prior
-measurements, not a substituted 8.2.5 result.
-
-## N-1 scope and limitations
-
-Reduced DC N-1 screening exists and is reported as `REDUCED_GE66_DC_P_ONLY` / `PARTIAL`:
-
-- In-service lines and two-winding transformers in the reduced ≥ 66 kV network.
-- Classifies islanding outages and ranks estimated **active-power** impacts.
-- Runs in a worker, supports cancellation, exports summary CSV and full JSON.
-
-It does **not** cover reactive power, voltage behaviour, or Full AC contingency verification.
-`SCREENED_NO_VIOLATION` does not mean AC security is verified.
-
-## Feature matrix
-
-| Feature | State | Note |
-| --- | --- | --- |
-| DGS JSON/ZIP import | VERIFIED | Bounded ZIP reader with CRC and size checks |
-| Full AC Newton–Raphson | VERIFIED | Multi-island, PV/PQ, KLU/WASM on large systems |
-| Reactive limits PV → limited | VERIFIED | Monotonic active set |
-| Reactive limit release | **UNSUPPORTED** | Limited buses are not returned to PV |
-| Repeated reactive-limit detection | **UNSUPPORTED** | Value carried in provenance, not applied |
-| Distributed active balancing | PARTIAL | P target met; Q response of adjusted loads is not claimed |
-| Station control, zero droop | PARTIAL | Sensitivity/trust-region solve; residual count reported |
-| Station control, droop | **UNSUPPORTED** | Reported, not approximated |
-| PowerFactory parity profile | PARTIAL | Named `POWERFACTORY_TEIAS_PARITY` for stored settings only; always shown as not verified |
-| Active power limits | **UNSUPPORTED** | Setting exposed and marked unsupported |
-| Automatic transformer tap | **UNSUPPORTED** | Snapshot tap positions only |
-| Automatic shunt control | **UNSUPPORTED** | Snapshot shunts only |
-| Load voltage dependency | **UNSUPPORTED** | Constant-power loads |
-| Feeder load scaling | **UNSUPPORTED** | |
-| Interchange schedule | **UNSUPPORTED** | |
-| Line resistance temperature correction | **UNSUPPORTED** | |
-| Q-limit scaling | **UNSUPPORTED** | |
-| Load / generation / motor / storage-heater scaling | **UNSUPPORTED** | Shared settings exposed and marked unsupported |
-| Fast AC (reduced) | PARTIAL | Approximate Q and control |
-| DC | VERIFIED for P and angle | No Q or voltage settings |
-| Reduced DC N-1 | PARTIAL | `REDUCED_GE66_DC_P_ONLY` |
-| Full AC contingency verification | **UNSUPPORTED** | |
-| Transformer phase shift / vector group | **UNSUPPORTED** | `PHASE_SHIFT_SOURCE_UNAVAILABLE`; fixture has none |
-| Short circuit, OPF, Rust/Tauri port | out of scope | |
-
-A setting that the engine does not consume is never presented as an effective calculation setting;
-it is listed as `UNSUPPORTED` in the settings dialog, in the settings comparison table and in
-calculation provenance.
-
-## Build, test and validation commands
+## Çalıştırma ve doğrulama
 
 ```powershell
 npm ci
-npm run dev
 npm run typecheck
 npm run lint
 npm test
 npm run test:e2e
 npm run build
 npm run build:portable
+node --import tsx tools/frozen-state-audit.ts
+node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts
+node --import tsx tools/pf-kpi.ts .tmp/sn4-full-ac-result.json kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv
+node tools/portable-full-ac-benchmark.mjs
 ```
 
-`dist-portable/GridAnalyzer_v7.html` is the single-file portable build; the app also runs from the
-regular Vite build in `dist/`.
+SN7 için aynı komutlara yukarıdaki ZIP, ControlContext ve Downloads içindeki PF CSV'si verilir. Portable benchmark commit edilmiş `dist-portable` byte'larını kaynakla eşleştirir ve Chromium'da çözer. Son Chromium motor süreleri SN4 **3,09 s**, SN7 **1,89 s**; iki koşuda artifact SHA-256 `7742a11ddbf98328cea4b4c5f4d1093eaa15ada79db3f04586a48261813464a4` kaynakla eşleşti. Full AC motor bütçesi **15 s**'dir.
 
-Portable integrity for this release:
+## Bilinen sınırlar ve geçmiş
 
-- Final portable SHA-256: `9db9fca8e8d41d1d1f0c20a10a5c3875cf4747406cbda51d083fe19eb0797721`
-- The Chromium-tested bytes must match the committed portable byte for byte.
-- Exact measured performance and source commit are recorded in the release manifest.
+Kaynak `IntQlim` için voltage-dependent varyantlar, `inputmod` ve parallel-unit ölçekleri tam modellenmemiştir. Generator dışındaki genel Q-limit release yoktur. Kaynakta olmayan trafo phase shift varsayılarak eklenmez. Full AC N-1 yerine mevcut ≥66 kV DC aktif güç taraması kullanılır. PowerFactory ile kalan SN7 Q outlierları nedeniyle tek tek santral Q sonuçları genel KPI'larla aynı doğrulukta kabul edilmemelidir.
 
-Earlier context: [architecture](docs/architecture.md),
-[v8.2.1 Full AC performance audit](docs/full-ac-performance-v8-2-1.md),
-[v8.2 PowerFactory parity notes](docs/pf-full-ac-parity-v8-2.md),
-[source audit](docs/validation/20260928-source-audit.md).
+| Tarihsel aşama | Durum |
+| --- | --- |
+| 8.2.5 ilk Full AC | Altı KPI ve unsupported droop için tarihsel karşılaştırma: `docs/validation/v8.2.5-finalization.md` |
+| Q/V recovery Phase 1–3 | Deneysel geçmiş; üretim semantiği yerine kullanılmaz |
+| Final parity v2 | SN4 frozen-state ve integrated station control doğrulandı |
+| Final quick fix | Geçerli `IntQlim` önceliği kabul edildi; λ-continuation geri alındı |
+
+Ayrıntılı mimari: `docs/architecture.md`, DGS kaynak profili: `docs/dgs-source-profile.md`, station-control kaynak notu: `docs/DIgSILENT_ElmStactrl_Aktif_Reaktif_Guc_Oturum_Referansi.md`, testler: `tests/unit` ve `tests/regression`.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedActiveSetPolish,solveBoundedControllerObjective,solveDirectionConsistentBoundedObjective,partitionControllerDescent,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -14,6 +14,7 @@ import packageJson from '../../package.json';
 import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
 import {identity} from '../../src/domain/calculation/identity';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
+import {defaultAnalysisSettings} from '../../src/domain/calculation/analysis-settings';
 
 const entity=(id:string,sourceClass='ElmTerm')=>({id,name:id,sourceClass,sourceId:id,inService:true,siteIds:['S'],sourceRefs:{}});
 test('classification fixed point keeps two controllers in a monotone 5→3→2→2 sequence',()=>{
@@ -59,6 +60,67 @@ test('sourced cvqq shares govern Q allocation and remain active after a unit sat
   assert.equal(redistributed.qByUnit.get('A'),5);
   assert.ok(Math.abs(redistributed.qByUnit.get('B')!-35)<1e-9);
   assert.deepEqual([...activeParticipation([{...limited[0],qMvar:5},{...limited[1],qMvar:35}],1,sourced.weights)!],[['B',1]]);
+});
+test('bounded coupled objective retains cross-controller effects at an active Q limit',()=>{
+  const result=solveBoundedControllerObjective([[1,1],[1,-1]],[2,0],[-.5,-2],[.5,2],12);
+  assert.ok(Math.abs(result.solution[0]-.5)<1e-6);
+  assert.ok(Math.abs(result.solution[1]-1)<1e-6);
+  assert.ok(result.predictedNorm<.51);
+});
+test('bounded objective records coordinate sweeps and active-set polish after six sweeps',()=>{
+  const easy=solveBoundedControllerObjective([[1,0],[0,2]],[1,-2],[-2,-2],[2,2]);
+  assert.equal(easy.converged,true);assert.ok(easy.sweeps<80);assert.ok(easy.projectedGradientNorm<1e-6);
+  assert.ok(easy.objectiveEnd<easy.objectiveStart);
+  const matrix=[[1,.9],[.9,1]],residual=[1,0],six=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100],6),long=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100]);
+  assert.equal(six.sweeps,6);assert.ok(long.sweeps>6);assert.ok(long.objectiveAtSweeps['5']!>0);assert.ok(long.objectiveEnd<=six.objectiveEnd+1e-12);
+  assert.ok(long.activeSetPolishIterations>0);assert.ok(long.objectiveRatio!<1);
+});
+test('active-set least-squares polish finds an interior optimum',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,0],[0,1]],[2,-3],[-5,-5],[5,5],[0,0]);
+  assert.equal(solved.converged,true);assert.deepEqual(solved.solution,[2,-3]);
+});
+test('active-set polish clamps a violating variable and resolves the remaining free subset',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,0],[0,1]],[2,3],[-.5,-10],[.5,10],[0,0]);
+  assert.equal(solved.converged,true);assert.ok(Math.abs(solved.solution[0]-.5)<1e-10);assert.ok(Math.abs(solved.solution[1]-3)<1e-9);
+});
+test('active-set polish releases a bound variable when its KKT sign points inward',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,1]],[-1],[-1,-.5],[0,1],[0,-.5]);
+  assert.equal(solved.converged,true);assert.ok(Math.abs(solved.solution[0]+.5)<1e-9);assert.equal(solved.solution[1],-.5);
+});
+test('direction rebuild and active-set polish preserve a negative coupled solution',()=>{
+  const solved=solveDirectionConsistentBoundedObjective([-1,-1],[1,1],directions=>{
+    const first=directions[0]===1?1.01:1,second=directions[1]===1?.99:.98;
+    return{matrix:[[first,second],[.99,1]],lower:[-2,-2],upper:[2,2]};
+  });
+  assert.ok(solved.directionRebuilds>0);assert.equal(solved.directionConsistent,true);assert.ok(solved.activeSetPolishIterations>0);
+  assert.ok(solved.solution.every(value=>value<0));assert.ok(solved.solution.every((value,index)=>Math.sign(value)===solved.directions[index]));
+});
+test('bounded direction rebuild lets a Q-max unit re-enter a negative multi-unit move',()=>{
+  const units=[{id:'A',bus:1,pMw:20,qMvar:5,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:0,qMin:-20,qMax:20}];
+  const solved=solveDirectionConsistentBoundedObjective([-1],[1],directions=>{
+    const weights=activeParticipation(units,directions[0])!,column=[...weights].reduce((sum,[id,share])=>sum+share*(id==='A'?3:1),0);
+    return{matrix:[[column]],lower:[-2],upper:[2]};
+  });
+  assert.equal(solved.directionRebuilds,1);assert.equal(solved.directionConsistent,true);
+  assert.deepEqual(solved.directions,[-1]);assert.ok(solved.solution[0]<0);
+  assert.deepEqual([...activeParticipation(units,-1)!],[['A',.25],['B',.75]]);
+});
+test('one stationary controller leaves the movable peer in the coupled retry',()=>{
+  const stagnant={id:'stagnant'},movable={id:'movable'},active=[stagnant,movable],partition=partitionControllerDescent(active,new Map([[movable,-2]]));
+  assert.deepEqual(partition.stationary,[stagnant]);assert.deepEqual(partition.movable,[movable]);
+  assert.deepEqual(active,[stagnant,movable]);
+});
+test('source participation re-enters a clamped unit when Q direction reverses',()=>{
+  const units=[{id:'A',bus:1,pMw:20,qMvar:2,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:3,qMin:-20,qMax:100}];
+  const weights=stationParticipation(units,[25,75])!.weights,up=allocateReactiveDelta(units,40,weights);
+  assert.equal(up.qByUnit.get('A'),5);assert.equal(up.qByUnit.get('B'),40);
+  const down=allocateReactiveDelta(units.map(unit=>({...unit,qMvar:up.qByUnit.get(unit.id)!})),-20,weights);
+  assert.equal(down.qByUnit.get('A'),0);assert.equal(down.qByUnit.get('B'),25);
+});
+test('station participation uses immutable source P when solved P differs',()=>{
+  const network=fixture(),generators=network.generators.map((g,i)=>({...g,pDispatchMw:i?60:40,pMw:i?120:5})),modified={...network,generators};
+  const part=prepareModel(modified),rows=runStationControlledIslandV73(modified,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'off').controllers;
+  assert.deepEqual(rows[0].participationKi,{G1:.4,G2:.6});
 });
 test('units at either Q limit do not regain unrestricted participation',()=>{
   const units=[{id:'MIN',bus:1,pMw:20,qMvar:-5,qMin:-5,qMax:5},{id:'MID',bus:2,pMw:60,qMvar:0,qMin:-5,qMax:5},{id:'MAX',bus:3,pMw:20,qMvar:5,qMin:-5,qMax:5}];
@@ -208,12 +270,35 @@ test('integrated Q limit active set clamps one unit and redistributes to its pee
   assert.equal(Math.abs(controlled.unitOverrides.get('G1')?.qMvar??NaN),.25);assert.ok(Math.abs(controlled.unitOverrides.get('G2')?.qMvar??0)>.25);
   assert.ok(controlled.controlLimitRestarts!>0);assert.ok(Math.abs(controlled.result.Vm![row.remoteBusIndex!]-1.02)<1e-4);assert.equal(controlled.timings.sensitivitySolveMs,0);
 });
-test('duplicate droop remote bus conflicts return to local PV without competing',()=>{
+test('shared droop remote bus participates in the coupled solve',()=>{
   const base=fixture(),controllers=[{...base.stationControllers[0],id:'D1',unitIds:['G1'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true},{...base.stationControllers[0],id:'D2',unitIds:['G2'],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:-4,measurementSelfCubicle:true}].map(c=>({...c,sourceClass:'ElmGenStat'}));
   const network={...base,stationControllers:controllers,generators:base.generators.map(g=>({...g,sourceClass:'ElmGenStat'}))};
   const controlled=run(network,'zeroDroop');assert.ok(controlled.controllers.every(c=>c.status==='UNSUPPORTED_DROOP'));
   const droop=(()=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop');})();
-  assert.ok(droop.controllers.every(c=>c.status==='REMOTE_CONTROL_CONFLICT'));assert.equal(droop.result.converged,true);
+  assert.ok(droop.controllers.every(c=>c.supported&&c.status!=='REMOTE_CONTROL_CONFLICT'));assert.equal(droop.result.converged,true);
+  assert.ok(droop.unitOverrides.has('G1')&&droop.unitOverrides.has('G2'));
+});
+test('two shared-remote droop units satisfy their measured Q/V equations',()=>{
+  const base=fixture(),generators=base.generators.map(g=>({...g,sourceClass:'ElmGenStat',qMin:-200,qMax:200}));
+  const controllers=generators.map((g,i)=>({...base.stationControllers[0],id:`D${i+1}`,unitIds:[g.id],vmSet:1.012+i*.001,droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:1,measurementSelfCubicle:true}));
+  const network={...base,generators,stationControllers:controllers},part=prepareModel(network);
+  const settings=defaultAnalysisSettings().powerFlow;settings.activeBalancingMode='SINGLE_REFERENCE';settings.modelEquationTolerancePercent=.01;
+  const solved=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop',undefined,'SENSITIVITY',settings);
+  assert.equal(solved.result.converged,true);
+  for(const row of solved.controllers){const unit=generators.find(g=>g.id===row.unitIds[0])!,q=solved.unitOverrides.get(unit.id)?.qMvar;
+    assert.ok(q!=null&&q>=unit.qMin!&&q<=unit.qMax!);
+    assert.ok(Math.abs(row.targetVpu+q/10000-solved.result.Vm![row.remoteBusIndex!])<1e-4,`${row.id}: residual=${row.voltageResidualPu} q=${q} status=${row.status} rounds=${solved.outerRounds}`);
+  }
+});
+test('zero-width droop Q limit is reported while its shared-remote peer stays eligible',()=>{
+  const base=fixture(),generators=base.generators.map((g,i)=>({...g,sourceClass:'ElmGenStat',qMvar:i?0:5,qMin:i?-200:0,qMax:i?200:0}));
+  const controllers=generators.map((g,i)=>({...base.stationControllers[0],id:`D${i+1}`,unitIds:[g.id],droopModeRaw:1,ratedPowerRaw:100,droopValueRaw:50,measurementSelfCubicle:true}));
+  const network={...base,generators,stationControllers:controllers},part=prepareModel(network);
+  const solved=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'droop');
+  assert.equal(solved.controllers.find(c=>c.id==='D1')?.status,'NO_REACTIVE_HEADROOM');
+  assert.equal(solved.controllers.find(c=>c.id==='D2')?.supported,true);
+  assert.equal(solved.unitOverrides.get('G1')?.qMvar,0);
+  assert.ok(Math.abs(solved.prepared.model.qSpec[part.generators.find(g=>g.id==='G1')!.index]-(part.model.qSpec[part.generators.find(g=>g.id==='G1')!.index]-5))<1e-8);
 });
 test('remote voltage target releases after every actuator reaches a Q limit',()=>{
   const base=fixture(false),network={...base,generators:base.generators.map(g=>({...g,qMin:-.25,qMax:.25})),stationControllers:base.stationControllers.map(c=>({...c,vmSet:1.2}))},controlled=run(network),row=controlled.controllers[0];
@@ -236,11 +321,13 @@ test('one controller reaching a Q limit leaves its peer controller active',()=>{
   assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
   assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
 });
-test('production Full AC defaults to local PV while station controls require an explicit experiment',async()=>{
+test('production Full AC uses integrated station control when a station mode is selected',async()=>{
   const network=fixture(false),scenario=emptyScenario(),calculationIdentity=identity(network.modelHash,scenario,'powerFlow'),engine=new BrowserJsPowerFlowEngine();
-  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
+  const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),integrated=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'SENSITIVITY'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});
   assert.equal(production.converged,true);assert.equal(production.diagnostics.resultProvenance,'LOCAL_PV');
   assert.equal((production.diagnostics.stationControllerSummary as {mode:string}).mode,'off');
+  assert.equal(integrated.converged,true);assert.equal(integrated.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');
+  assert.equal((integrated.diagnostics.stationControllerSummary as {implementation:string}).implementation,'INTEGRATED');
   assert.equal(sensitivity.converged,true);assert.equal(sensitivity.diagnostics.resultProvenance,'SENSITIVITY_STATION_CONTROL');
   assert.equal((sensitivity.diagnostics.sensitivitySolver as {ordering:string}).ordering,'NATURAL');
   assert.equal(experimental.converged,true);assert.equal(experimental.diagnostics.resultProvenance,'INTEGRATED_STATION_CONTROL');

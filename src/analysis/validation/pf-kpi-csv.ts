@@ -22,6 +22,8 @@ const NUMBER_FIELDS = new Set([
   'qHvMvar',
   'pLvMw',
   'qLvMvar',
+  'pResultMw',
+  'qResultMvar',
 ]);
 
 const TEXT_FIELDS = new Set(['kind', 'fid', 'electricalBusKey', 'resultAvailable', 'isReferenceBus']);

@@ -34,7 +34,7 @@ export function createAnalysisView(ctx:AppContext):Feature{
       ['Equation formulation','equationFormulation','Classical Newton-Raphson — Power Equations','Classical Newton-Raphson — Power Equations','Newton denklemi'],
       ['P control','activeControlMode','As Dispatched','As Dispatched','Aktif güç talimatı'],
       ['P balancing','activeBalancingMode','Distributed Slack by Loads',effectiveBalance==='DISTRIBUTED_ADJUSTABLE_LOADS'?'Distributed Slack by Loads':'Single Reference','Dengeleme kaynakları ve yük verisi'],
-      ['Station control','stationControlMode','Zero Droop',ga.stationControlMode==='zeroDroop'?'Zero Droop':ga.stationControlMode==='droop'?'Droop':'Off','İstasyon controller fidelity'],
+      ['Station control','stationControlMode','Droop',ga.stationControlMode==='zeroDroop'?'Zero Droop':ga.stationControlMode==='droop'?'Droop':'Off','İstasyon controller fidelity'],
       ['Q limits','reactiveLimitsEnabled','ON',ga.reactiveLimitsEnabled?'ON':'OFF','Üretici ve referans Q sınırları'],
       ['P limits','activePowerLimitsEnabled','OFF','UNSUPPORTED','Aktif üretim sınırları uygulanmıyor'],
       ['Auto tap','automaticTransformerTap','OFF','UNSUPPORTED','Tap aktif-set kontrolü uygulanmıyor'],['Auto shunt','automaticShunt','OFF','UNSUPPORTED','Şönt adım kontrolü uygulanmıyor'],

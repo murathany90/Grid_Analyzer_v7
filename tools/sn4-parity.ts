@@ -7,7 +7,7 @@
  * gitignored path so that tools/pf-kpi.ts can score it without re-solving.
  *
  * Usage:
- *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json]
+ *   node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts [model.zip] [control-context.csv] [out.json] [--station-control-mode=zeroDroop|droop] [--model-equation-tolerance-percent=0.2]
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -27,6 +27,12 @@ const root = process.cwd();
 const modelArg = process.argv[2] ?? 'kontrol1/20261001_1500_SN4_TR0.zip';
 const contextArg = process.argv[3] ?? 'kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv';
 const outArg = process.argv[4] ?? '.tmp/sn4-full-ac-result.json';
+const stationModeArg = process.argv.find(arg => arg.startsWith('--station-control-mode='))?.split('=')[1] as 'zeroDroop'|'droop'|undefined;
+const implementationArg=process.argv.find(arg=>arg.startsWith('--implementation='))?.split('=')[1] as 'SENSITIVITY'|'INTEGRATED'|undefined;
+if(stationModeArg && stationModeArg !== 'zeroDroop' && stationModeArg !== 'droop') throw new Error(`Unsupported station-control mode: ${stationModeArg}`);
+const toleranceArg=process.argv.find(arg=>arg.startsWith('--model-equation-tolerance-percent='))?.split('=')[1];
+const tolerancePercent=toleranceArg==null?undefined:Number(toleranceArg);
+if(toleranceArg!=null&&(tolerancePercent==null||!Number.isFinite(tolerancePercent)||tolerancePercent<=0))throw new Error(`Invalid controller equation tolerance: ${toleranceArg}`);
 
 const modelPath = resolve(root, modelArg);
 const contextPath = resolve(root, contextArg);
@@ -52,6 +58,8 @@ const parsedContext = importPowerFactoryControlContext(contextText);
 const withContext = applyPowerFactoryControlContext(network, parsedContext);
 
 const settings = defaultAnalysisSettings();
+if(stationModeArg) settings.powerFlow.stationControlMode=stationModeArg;
+if(tolerancePercent!=null)settings.powerFlow.modelEquationTolerancePercent=tolerancePercent;
 const scenario = emptyScenario();
 const id = identity(network.modelHash, scenario, 'powerFlow', {
   analysisSettings: { shared: settings.shared, powerFlow: settings.powerFlow },
@@ -69,7 +77,7 @@ const result: CalculationResult = await engine.runPowerFlow(
     identity: id,
     analysisSettings: settings,
     stationControlMode: settings.powerFlow.stationControlMode,
-    stationControlImplementation: 'SENSITIVITY',
+    stationControlImplementation: implementationArg,
   },
   stage => {
     if (stage === lastStage) return;
@@ -87,6 +95,8 @@ await writeFile(
       capturedBy: 'tools/sn4-parity.ts',
       appVersion: APP_VERSION,
       engineVersion: engine.version,
+      stationControlMode: settings.powerFlow.stationControlMode,
+      modelEquationTolerancePercent: settings.powerFlow.modelEquationTolerancePercent,
       modelFile: modelArg,
       controlContextFile: contextArg,
       controlContextHash: parsedContext.sourceHash,
@@ -105,6 +115,11 @@ await writeFile(
 const diagnostics = result.diagnostics as Record<string, unknown>;
 const summaryBlock = (diagnostics.stationControllerSummary ?? {}) as Record<string, unknown>;
 const activeBalance = diagnostics.activeBalancing as Record<string, unknown> | undefined;
+const finalControl = diagnostics.finalControlRevalidation as {perIsland?:Array<{before?:unknown;after?:unknown;causeCounts?:unknown}|null>}|undefined;
+const controlRounds = (diagnostics.stationTrialAttempts as Array<Record<string,unknown>>|undefined)?.map(row=>({round:row.round,active:row.activeControllerCount,zeroDroopActive:row.zeroDroopActive,droopActive:row.droopActive,proposalKind:row.proposalKind,oldNorm:row.oldNorm,predictedNorm:row.predictedNorm,newNorm:row.newNorm,rho:row.rho,accepted:row.accepted,rejectedReason:row.rejectedReason,stagnationReason:row.stagnationReason,trustFraction:row.trustFraction,newlySatisfied:row.newlySatisfied,newlySaturated:row.newlySaturated,stagnatedSubsetCount:row.stagnatedSubsetCount}))??[];
+const bounded = ((summaryBlock.coupledSolveDiagnostics as Array<Record<string,unknown>>|undefined)??[]).filter(row=>row.solveStatus==='BOUNDED_ITERATIVE');
+const boundedSweeps=bounded.map(row=>Number(row.boundedSweeps??0));
+const boundedSolver={calls:bounded.length,averageSweeps:bounded.length?boundedSweeps.reduce((sum,value)=>sum+value,0)/bounded.length:0,maxSweeps:Math.max(0,...boundedSweeps),averageObjectiveRatio:bounded.length?bounded.reduce((sum,row)=>sum+Number(row.objectiveRatio??0),0)/bounded.length:0,maxObjectiveRatio:Math.max(0,...bounded.map(row=>Number(row.objectiveRatio??0))),kktConverged:bounded.filter(row=>row.converged===true).length,maxProjectedGradientNorm:Math.max(0,...bounded.map(row=>Number(row.projectedGradientNorm??0))),maxRelativeProjectedGradient:Math.max(0,...bounded.map(row=>Number(row.relativeProjectedGradient??0))),maxColumnNormRatio:Math.max(0,...bounded.map(row=>Number(row.columnNormRatio??0))),maxPolishConditionEstimate:Math.max(0,...bounded.map(row=>Number(row.activeSetPolishConditionEstimate??0))),activeSetPolishIterations:bounded.reduce((sum,row)=>sum+Number(row.activeSetPolishIterations??0),0),activeSetPolishConverged:bounded.filter(row=>row.activeSetPolishConverged===true).length,activeSetPolishRejectedObjectiveIncrease:bounded.filter(row=>row.activeSetPolishRejectedObjectiveIncrease===true).length,directionRebuilds:bounded.reduce((sum,row)=>sum+Number(row.directionRebuilds??0),0),inconsistentDirections:bounded.filter(row=>row.directionConsistent===false).length,stagnatedSubsetCount:controlRounds.reduce((sum,row)=>sum+Number(row.stagnatedSubsetCount??0),0),callsDetail:bounded.map((row,index)=>({callIndex:index+1,activeControllerCount:row.activeControllerCount,zeroDroopCount:row.zeroDroopCount,droopCount:row.droopCount,objectiveStart:row.objectiveStart,objectiveAtSweeps:row.objectiveAtSweeps,objectiveEnd:row.objectiveEnd,objectiveRatio:row.objectiveRatio,projectedGradientNorm:row.projectedGradientNorm,relativeProjectedGradient:row.relativeProjectedGradient,maxControllerAllowedMove:row.maxControllerAllowedMove,interiorVariableCount:row.interiorVariableCount,atLowerBoundCount:row.atLowerBoundCount,atUpperBoundCount:row.atUpperBoundCount,zeroMoveCount:row.zeroMoveCount,columnNormRatio:row.columnNormRatio,activeSetPolishIterations:row.activeSetPolishIterations,activeSetPolishConverged:row.activeSetPolishConverged,activeSetPolishFreeVariables:row.activeSetPolishFreeVariables,activeSetPolishDeferredVariables:row.activeSetPolishDeferredVariables,activeSetPolishConditionEstimate:row.activeSetPolishConditionEstimate,activeSetPolishRegularization:row.activeSetPolishRegularization,activeSetPolishRejectedObjectiveIncrease:row.activeSetPolishRejectedObjectiveIncrease,directionRebuilds:row.directionRebuilds,directionConsistent:row.directionConsistent,matrixValid:row.matrixValid}))};
 process.stdout.write(
   `${JSON.stringify(
     {
@@ -114,9 +129,13 @@ process.stdout.write(
       engineElapsedMs: result.elapsedMs,
       wallMs: Math.round(wallMs),
       fullNrSolves: diagnostics.fullNrSolves,
+      totalNewtonIterations: diagnostics.totalNewtonIterations,
       kluNewtonFactorizations: diagnostics.kluNewtonFactorizations,
       outerControlRounds: diagnostics.outerControlRounds,
-      controllerSummary: summaryBlock,
+      controllerSummary: {mode:summaryBlock.mode,supported:summaryBlock.supported,zeroDroopCount:summaryBlock.zeroDroopActive,droopCount:summaryBlock.droopActive,statusCounts:summaryBlock.statusCounts},
+      finalControl: finalControl?.perIsland?.map(row=>row?{before:row.before,after:row.after,causeCounts:row.causeCounts}:null),
+      boundedSolver,
+      controlRounds,
       activeBalanceFidelity: activeBalance?.activeBalanceFidelity,
       activeBalanceIterations: activeBalance?.iterations,
       externalGridResults: diagnostics.externalGridResults,

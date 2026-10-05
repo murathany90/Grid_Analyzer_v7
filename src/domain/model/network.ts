@@ -19,14 +19,22 @@ export interface Transformer2W extends Entity {
   readonly from: string; readonly to: string; readonly vnKv: number; readonly lvKv: number;
   readonly rPu: number; readonly xPu: number; readonly tap: number; readonly phase: number;
   readonly ratingMva: number; readonly tapPosition: number; readonly gPu: number; readonly bPu: number;
+  readonly typeHvKv?:number;readonly typeLvKv?:number;readonly tapSide?:number;readonly relativeTapVoltage?:number;
+  readonly tapSource?:'mTaps'|'dutap'|'none';
 }
 export interface Generator extends Entity {
   readonly bus: string; readonly pMw: number; readonly qMvar: number;
+  /** Immutable source dispatch (pgini/qgini), independent of solved output. */
+  readonly pDispatchMw?: number; readonly qDispatchMvar?: number;
   readonly vmSet: number; readonly voltageControl: boolean;
   readonly qMin: number | null; readonly qMax: number | null;
 }
 export interface Load extends Entity { readonly bus: string; readonly pMw: number; readonly qMvar: number; readonly activeBalanceEligibility?: boolean; readonly activeBalanceEligibilitySource?: 'native-scale'|'ElmLod.i_scale'|'ElmLod.scale0'; readonly activeBalanceEligibilityRaw?: number|string|null }
-export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number; readonly nominalQMvar?: number }
+export interface Shunt extends Entity { readonly bus: string; readonly gPu: number; readonly bPu: number; readonly nominalQMvar?: number;
+  readonly ratedVoltageKv?:number|null;readonly activeStepQMvar?:number|null;readonly tapEnabled?:boolean;
+  readonly tapPosition?:number;readonly tapMaximum?:number;readonly tapValues?:readonly (number|null)[];
+  readonly stepProvenance?:'mTaps'|'qrean'|'qcapn'|'INVALID_MTAPS'|'INVALID_RATING';
+}
 export interface SeriesCompensator extends Entity { readonly from: string; readonly to: string; readonly rOhm: number; readonly xOhm: number }
 export interface ExternalGrid extends Load { readonly vmSet: number; readonly pMin?: number|null; readonly pMax?: number|null; readonly qMin?: number|null; readonly qMax?: number|null; readonly bustpRaw?: string; readonly modeInputRaw?: string }
 export interface Switch extends Entity { readonly from: string; readonly to: string; readonly closed: boolean; readonly cubicleId?: string; readonly equipmentId?: string }

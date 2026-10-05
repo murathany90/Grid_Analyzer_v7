@@ -1,5 +1,5 @@
 /** Reactive sharing for the inspected imode=0 profile: dispatched active-power participation. */
-export interface ReactiveUnitState {id:string;bus:number;pMw:number;qMvar:number;qMin:number;qMax:number}
+export interface ReactiveUnitState {id:string;bus:number;pMw:number;qMvar:number;qMin:number;qMax:number;qDispatchMvar?:number}
 export interface ReactiveAllocation {qByUnit:Map<string,number>;appliedDelta:number;remainingDelta:number;saturated:boolean}
 const EPS=1e-9;
 export function dispatchedPWeights(units:readonly Pick<ReactiveUnitState,'id'|'pMw'>[]):Map<string,number>|null {

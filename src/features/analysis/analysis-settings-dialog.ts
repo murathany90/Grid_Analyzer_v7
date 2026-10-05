@@ -55,7 +55,7 @@ export function createAnalysisSettingsDialog(store: AnalysisSettingsStore, chang
       panel.append(thisNumber('Kontrol sonrası P denge düzeltme sınırı', 'maxFinalActiveBalanceCorrections', s.powerFlow.maxFinalActiveBalanceCorrections, 1, 10000, 1));
       panel.append(toggle('Reaktif güç limitleri', s.powerFlow.reactiveLimitsEnabled, v => { s.powerFlow.reactiveLimitsEnabled = v; s.powerFlow.profile = 'CUSTOM'; save(); }));
       const activeLimits = element('label', 'ga-analysis-setting'); activeLimits.append(element('span', '', 'Aktif güç limitleri')); activeLimits.append(element('strong', '', 'Kapalı · motor seçeneği')); panel.append(activeLimits);
-      panel.append(select('İstasyon kontrolü', s.powerFlow.stationControlMode, [['off', 'Kapalı'], ['zeroDroop', 'Sıfır droop'], ['droop', 'Droop (UNSUPPORTED — droop denklemi uygulanmıyor)']], value => { s.powerFlow.stationControlMode = value as typeof s.powerFlow.stationControlMode; s.powerFlow.profile = 'CUSTOM'; save(); }));
+      panel.append(select('İstasyon kontrolü', s.powerFlow.stationControlMode, [['off', 'Kapalı'], ['zeroDroop', 'Sıfır droop'], ['droop', 'Droop (kısmi; kalıntılar raporlanır)']], value => { s.powerFlow.stationControlMode = value as typeof s.powerFlow.stationControlMode; s.powerFlow.profile = 'CUSTOM'; save(); }));
       const claim = profileFidelity(s.powerFlow.profile);
 panel.append(element('p', 'ga-notice', `Profil sadakati: ${claim.fidelity}. ${claim.limits.join(' ')}`));
       panel.append(element('p', 'ga-muted', `Motor tarafından tüketilmeyen ayarlar: ${[...unsupportedSharedSettings(), ...unsupportedFullAcSettings()].join(', ')}`));

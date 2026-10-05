@@ -45,7 +45,7 @@ export interface DcSettings { minVoltageKv: number; maxLinearIterations: number;
 export interface AnalysisSettings { shared: SharedAnalysisSettings; powerFlow: FullAcSettings; fastAc: FastAcSettings; dc: DcSettings; }
 
 const parityPowerFlow = (): FullAcSettings => ({
-  profile: 'POWERFACTORY_TEIAS_PARITY', activeControlMode: 'AS_DISPATCHED', activeBalancingMode: 'DISTRIBUTED_ADJUSTABLE_LOADS', stationControlMode: 'zeroDroop',
+  profile: 'POWERFACTORY_TEIAS_PARITY', activeControlMode: 'AS_DISPATCHED', activeBalancingMode: 'DISTRIBUTED_ADJUSTABLE_LOADS', stationControlMode: 'droop',
   maxInnerIterations: 100, maxOuterIterations: 50,
   maxActiveBalanceCorrections: 8, maxFinalActiveBalanceCorrections: 8, maxQLimitRounds: 8, maxStationControlCorrections: 16,
   nodalToleranceKva: 5, modelEquationTolerancePercent: .2,
@@ -134,7 +134,7 @@ export interface ProfileFidelity {
  */
 export function profileFidelity(profile: FullAcProfile | undefined): ProfileFidelity {
   const limits = [
-    'Droop station-control semantics are not implemented; such controllers are reported UNSUPPORTED rather than approximated.',
+    'Self-cubicle single-unit droop control is modeled; unresolved Q limits and remaining station residuals are reported as partial.',
     'Reactive-limit release (limited -> PV) is not implemented; the active set is monotonic.',
     'Repeated reactive-limit detection is not applied.',
     'Active-power limits, automatic transformer tap, automatic shunt, load voltage dependency, feeder load scaling, interchange schedule, line temperature correction and Q-limit scaling are not implemented.',

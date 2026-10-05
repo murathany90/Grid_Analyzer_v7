@@ -1,6 +1,6 @@
 import { abs, finite } from './math';
 import { buildY } from './ybus';
-import { calcPQ, fillJacobian, makeLayout } from './jacobian';
+import { calcPQ, fillJacobian, makeLayout, makeExplicitLayout } from './jacobian';
 import { solveLinear,solveLinearFill1 } from './linear-solver';
 import { KluSparseDirectFactorization } from './sparse-direct';
 import type { AdmittanceMatrix, IntegratedStationControl, JacobianLayout, LinearSolution, NumericalFailureDiagnostic, NumericalModel, PowerFlowResult, ProgressCallback } from './types';
@@ -36,7 +36,7 @@ function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusC
  return{islandCount,unsuppliedBusCount:model.n-supplied.reduce((a,b)=>a+b,0)};
 }
 
-export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialLimitedBuses?:PowerFlowResult['pvToPq'];initialControlDqPu?:ArrayLike<number>;stationControls?:readonly IntegratedStationControl[];admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number;totalNewtonIterations?:number} } = {}): PowerFlowResult {
+export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialLimitedBuses?:PowerFlowResult['pvToPq'];initialControlDqPu?:ArrayLike<number>;initialAlphaMw?:number;stationControls?:readonly IntegratedStationControl[];integratedEquations?:boolean;integratedActiveBalance?:boolean;admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number;totalNewtonIterations?:number} } = {}): PowerFlowResult {
  const t0=performance.now?.()||Date.now(),n=model.n,base=model.baseMVA||100,slack=model.slack,counts=topologyCounts(model),elapsed=()=>((performance.now?.()||Date.now())-t0);
  if(options.workCounters)options.workCounters.fullNrSolves++;
  const settings={...DEFAULT_SOLVER_SETTINGS,...options.settings},tolerancePu=nodalToleranceKvaToPu(settings.nodalToleranceKva,base);
@@ -44,21 +44,23 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
  if(!(Number.isInteger(slack)&&slack>=0&&slack<n)){const diagnostic=failure('NO_SLACK','Geçerli referans bara bulunamadı.',null,0,null);return{status:'NO_SLACK',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
  let Y:AdmittanceMatrix;try{Y=options.admittance??buildY(model);}catch(e){const message=e instanceof Error?e.message:String(e),diagnostic=failure('YBUS_BUILD',message,null,0,null);return{status:'MODEL_INVALID',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}progress?.('YBUS_READY',{buses:n,nnz:Y.colIdx.length});
  const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=options.initialVm?.length===n?Float64Array.from(options.initialVm,v=>finite(v)&&v>.35&&v<1.85?v:1):new Float64Array(n).fill(1),Va=options.initialVa?.length===n?Float64Array.from(options.initialVa,v=>finite(v)?v:0):new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
- const controls=options.stationControls??[],controlDq=options.initialControlDqPu?.length===controls.length?Float64Array.from(options.initialControlDqPu,v=>finite(v)?v:0):new Float64Array(controls.length),effectiveQ=new Float64Array(n);
+ const controls=options.stationControls??[],explicit=options.integratedEquations===true,activeBalance=explicit&&options.integratedActiveBalance===true&&model.activeBalanceEligibilityComplete===true&&!!model.activeBalanceParticipation?.length&&Array.from(model.activeBalanceParticipation).some(value=>value>0),
+  weights=activeBalance?model.activeBalanceParticipation:undefined,controlDq=options.initialControlDqPu?.length===controls.length?Float64Array.from(options.initialControlDqPu,v=>finite(v)?v:0):new Float64Array(controls.length),effectiveQ=new Float64Array(n);
+ let alphaMw:number=options.initialAlphaMw!=null&&finite(options.initialAlphaMw)?options.initialAlphaMw:0;
  const refreshEffectiveQ=()=>{effectiveQ.set(qSpec);controls.forEach((control,index)=>{for(const actuator of control.actuators)effectiveQ[actuator.bus]+=actuator.participation*controlDq[index];});};
  const seededLimits:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[];
  for(const limited of options.initialLimitedBuses??[]){const bus=limited.bus;if(!Number.isInteger(bus)||bus<0||bus>=n||!finite(limited.qLimit)||!(busType[bus]===1||bus===slack&&busType[bus]===2))continue;
    busType[bus]=0;qSpec[bus]=limited.qLimit/base;seededLimits.push({...limited});}
  if(busType[slack]===2)Vm[slack]=model.slackVm||1;
  for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
- for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
+ if(!explicit||!options.initialVm)for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
  const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=seededLimits,qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
 // Reactive active-set rounds are independent of station-controller outer rounds.
   // The bound is a typed setting so provenance can report the value actually used.
   const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxQLimitRounds??8));
  for(round=0;round<qLimitRoundLimit;round++){
-  const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack:'';let L:JacobianLayout;
-  try{L=layoutCache?.get(layoutKey)??makeLayout(Y,busType,slack,controls);if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
+  const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack+'|'+Number(activeBalance):'';let L:JacobianLayout;
+  try{L=layoutCache?.get(layoutKey)??(explicit?makeExplicitLayout(Y,busType,slack,controls,activeBalance,weights):makeLayout(Y,busType,slack,controls));if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
   catch(error){const message=error instanceof Error?error.message:String(error),diagnostic=failure('LINEAR_SOLVE',message,null,round+1,null);return{status:'INTEGRATED_LAYOUT_FAILED',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
   const Jvals=new Float64Array(L.colIdx.length),rhs=new Float64Array(L.N);let converged=false,nrReason='',nrFailure:NumericalFailureDiagnostic|undefined,lastMinPivot:number|null=null,lastLinearStage:string|undefined,bestMismatch=Infinity,noImprovement=0;
    // Direct-solve acceptance is a linear-accuracy criterion, not the nodal convergence
@@ -69,13 +71,15 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    const directResidualLimitPu=Math.min(1e-8,tolerancePu*1e-3);
   for(let it=0;it<settings.maxInnerIterations;it++){
    calcPQ(Y,Vm,Va,P,Q);refreshEffectiveQ();let mx=0,ss=0;
-   for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]-P[i];rhs[k]=d;mx=Math.max(mx,abs(d));ss+=d*d;}
+   for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]+alphaMw*(weights?.[i]??0)/base-P[i];rhs[k]=d;mx=Math.max(mx,abs(d));ss+=d*d;}
    for(let k=0;k<L.pq.length;k++){const i=L.pq[k],d=effectiveQ[i]-Q[i];rhs[L.nang+k]=d;mx=Math.max(mx,abs(d));ss+=d*d;}
+   if(explicit)controls.forEach((control,index)=>{const q=(control.measurementQmvar??0)+(control.measurementParticipation??1)*controlDq[index]*base,d=control.targetVmPu+(control.droopQmvar?q/control.droopQmvar:0)-Vm[control.remoteBus];rhs[L.controlRow![index]]=d;mx=Math.max(mx,abs(d));ss+=d*d;});
+   if(activeBalance){const d=pSpec[slack]+alphaMw*(weights?.[slack]??0)/base-P[slack];rhs[L.alphaRow!]=d;mx=Math.max(mx,abs(d));ss+=d*d;}
    maxMismatch=mx;progress?.('INNER_ITERATION',{round:round+1,iteration:it+1,maxMismatchMW:mx*base});
    if(mx<tolerancePu){converged=true;break;}
    if(mx<bestMismatch*(1-1e-10)){bestMismatch=mx;noImprovement=0;}else noImprovement++;
    if(noImprovement>=settings.maxNoImprovementIterations){nrReason='NR_STAGNATION';break;}
-   fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin:LinearSolution|null=null;
+   fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls,base,weights);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin:LinearSolution|null=null;
    const linearDiagnostics={minPivot:null as number|null,stage:'START',pivotSource:undefined as NumericalFailureDiagnostic['pivotSource']};
    const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
     try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=directResidualLimitPu){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}}
@@ -85,29 +89,39 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    if(A.N>=512)tryDirect();
    if(!lin)try{lin=(options.linearFill===1?solveLinearFill1:solveLinear)(A,rhs,linearDiagnostics);}catch(e){nrReason='LINEAR_SOLVER_FAILED';nrFailure=failure('LINEAR_SOLVE',e instanceof Error?e.message:String(e),it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});}lastMinPivot=linearDiagnostics.minPivot;lastLinearStage=linearDiagnostics.stage;
    if(!lin&&A.N<512)tryDirect();
-   if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),baseNorm=Math.sqrt(ss);let accepted=false;
-   let stepCap=1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
-    let bestNorm=Infinity,firstInvalidCandidate:NumericalFailureDiagnostic['firstInvalidCandidate'];
+   if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),oldAlpha=alphaMw,baseNorm=Math.sqrt(ss);let accepted=false;
+   let stepCap=1,boundIndex=-1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
+   if(explicit)for(let k=0;k<controls.length;k++){const delta=dx[L.controlIndex[k]],limit=delta>0?controls[k].maxDqPu:controls[k].minDqPu;
+    if(limit==null||!finite(limit)||Math.abs(delta)<1e-15)continue;const fraction=(limit-oldDq[k])/delta;
+    if(fraction>=-1e-9&&fraction<stepCap){stepCap=Math.max(0,fraction);boundIndex=k;}
+   }
+   const boundaryResult=(index:number):PowerFlowResult=>({status:'CONTROL_BOUND_HIT',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,elapsedMs:elapsed(),pvToPq,Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,boundControlIndex:index});
+   if(boundIndex>=0&&stepCap<1e-9)return boundaryResult(boundIndex);
+    let bestNorm=Infinity,acceptedScale=0,firstInvalidCandidate:NumericalFailureDiagnostic['firstInvalidCandidate'];
     for(let scale=1;scale>=1/256;scale/=2){
-    Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);
+    Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);alphaMw=oldAlpha;
     for(let k=0;k<L.ang.length;k++){const i=L.ang[k];Va[i]+=dx[k]*stepCap*scale;}
     for(const i of L.vm)Vm[i]+=dx[L.vIndex[i]]*stepCap*scale;
     for(let k=0;k<controls.length;k++)controlDq[k]+=dx[L.controlIndex[k]]*stepCap*scale;
+    if(activeBalance)alphaMw+=dx[L.alphaIndex!]*stepCap*scale;
     let bad=false;for(let i=0;i<n;i++)if(!(Vm[i]>.35&&Vm[i]<1.85&&finite(Vm[i]))){bad=true;firstInvalidCandidate??={bus:i,busId:options.busIds?.[i]??null,oldVm:oldVm[i],candidateVm:Vm[i],scale,stateUpdated:L.vIndex[i]>=0};break;}if(bad)continue;
     calcPQ(Y,Vm,Va,P,Q);refreshEffectiveQ();let ss2=0,mx2=0;
-    for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]-P[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
+    for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]+alphaMw*(weights?.[i]??0)/base-P[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
     for(let k=0;k<L.pq.length;k++){const i=L.pq[k],d=effectiveQ[i]-Q[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
+    if(explicit)controls.forEach((control,index)=>{const q=(control.measurementQmvar??0)+(control.measurementParticipation??1)*controlDq[index]*base,d=control.targetVmPu+(control.droopQmvar?q/control.droopQmvar:0)-Vm[control.remoteBus];ss2+=d*d;mx2=Math.max(mx2,abs(d));});
+    if(activeBalance){const d=pSpec[slack]+alphaMw*(weights?.[slack]??0)/base-P[slack];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
      const nextNorm=Math.sqrt(ss2);bestNorm=Math.min(bestNorm,nextNorm);
-     if(acceptsNewtonStep(baseNorm,nextNorm,stepCap*scale,mx2,tolerancePu)){accepted=true;break;}
+     if(acceptsNewtonStep(baseNorm,nextNorm,stepCap*scale,mx2,tolerancePu)){accepted=true;acceptedScale=scale;break;}
     }
-   if(!accepted){Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);nrReason='NR_LINE_SEARCH_FAILED';
+   if(!accepted){Vm.set(oldVm);Va.set(oldVa);controlDq.set(oldDq);alphaMw=oldAlpha;nrReason='NR_LINE_SEARCH_FAILED';
     let maxDxVm=0,maxDxVmBus=-1,maxDxTheta=0,maxDxThetaBus=-1,maxDxControlDq=0,maxDxControlIndex=-1;
     for(const bus of L.vm){const value=Math.abs(dx[L.vIndex[bus]]);if(value>maxDxVm){maxDxVm=value;maxDxVmBus=bus;}}
     for(const bus of L.ang){const value=Math.abs(dx[L.angIndex[bus]]);if(value>maxDxTheta){maxDxTheta=value;maxDxThetaBus=bus;}}
     for(let k=0;k<controls.length;k++){const value=Math.abs(dx[L.controlIndex[k]]);if(value>maxDxControlDq){maxDxControlDq=value;maxDxControlIndex=k;}}
     nrFailure=failure('LINE_SEARCH',firstInvalidCandidate&&bestNorm===Infinity?'All line-search candidates violated voltage bounds.':'Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.',it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:lin.method||linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource,lineSearchAccepted:false,lineSearchStepCap:stepCap,lineSearchBestNormRatio:bestNorm/baseNorm,maxDxVm,maxDxVmBus,maxDxVmBusId:options.busIds?.[maxDxVmBus]??null,maxDxTheta,maxDxThetaBus,maxDxThetaBusId:options.busIds?.[maxDxThetaBus]??null,maxDxControlDq,maxDxControlIndex,maxDxControlId:options.controlIds?.[maxDxControlIndex]??null,oldMinVm:Math.min(...oldVm),oldMaxVm:Math.max(...oldVm),firstInvalidCandidate});break;}totalIter++;if(options.workCounters)options.workCounters.totalNewtonIterations=(options.workCounters.totalNewtonIterations??0)+1;
+   if(boundIndex>=0&&acceptedScale===1&&Math.abs(controlDq[boundIndex]-(dx[L.controlIndex[boundIndex]]>0?controls[boundIndex].maxDqPu!:controls[boundIndex].minDqPu!))<1e-7)return boundaryResult(boundIndex);
   }
-  if(!converged){nrFailure??=failure('NEWTON_ITERATION',nrReason||'Newton iteration limit reached.',settings.maxInnerIterations,round+1,maxMismatch*base,{minPivot:lastMinPivot,linearStage:lastLinear?.method||lastLinearStage});return {status:nrReason||'NR_MAX_ITERATION',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:nrFailure,elapsedMs:elapsed()};}
+  if(!converged){nrFailure??=failure('NEWTON_ITERATION',nrReason||'Newton iteration limit reached.',settings.maxInnerIterations,round+1,maxMismatch*base,{minPivot:lastMinPivot,linearStage:lastLinear?.method||lastLinearStage});return {status:nrReason||'NR_MAX_ITERATION',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:nrFailure,elapsedMs:elapsed(),Vm:Array.from(Vm),Va:Array.from(Va),controlDqPu:Array.from(controlDq),alphaMw};}
   calcPQ(Y,Vm,Va,P,Q);let changed=false,limitedThisRound=0;
   if(settings.reactiveLimitsEnabled){
    const qTolerance=settings.qLimitToleranceMvar??.02;
@@ -132,5 +146,5 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
   return {index:idx,pf,qf,pt,qt};
  });
  const minV=Math.min(...Vm),maxV=Math.max(...Vm);
- return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
+ return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
 }

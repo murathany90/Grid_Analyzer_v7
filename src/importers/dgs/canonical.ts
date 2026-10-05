@@ -1,6 +1,7 @@
 import type { DgsModel } from './index';
-import type { CanonicalNetwork, Entity, Generator, Line, SourceRef } from '../../domain/model/network';
+import type { CanonicalNetwork, Entity, Generator, Line, Shunt, SourceRef } from '../../domain/model/network';
 import { buildLineCapacityMetadata } from '../../domain/model/capacity';
+import { buildTopology } from '../../topology/electrical-topology';
 
 type Row = Record<string, unknown>;
 const num = (v: unknown, fallback = 0): number => v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : fallback;
@@ -60,31 +61,29 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     const from = endpoint(r.bushv), to = endpoint(r.buslv), t = (m.get('TypTr2', str(r.typ_id)) || {}) as Row;
     const sn = num(t.strn), uk = num(t.uktr), rp = sn > 0 ? num(t.pcutr) / (1000 * sn) : NaN, zp = uk / 100;
     const hv = num(t.utrn_h), lv = num(t.utrn_l), vnKv = busById.get(from)?.vnKv || 0, lvKv = busById.get(to)?.vnKv || 0;
-    const pos = num(r.nntap), side = num(t.tap_side); let rel = 1, valid = hv > 0 && lv > 0 && vnKv > 0 && lvKv > 0;
+    const pos = num(r.nntap), side = num(t.tap_side); let rel = 1, tapSource:'mTaps'|'dutap'|'none'='none', valid = hv > 0 && lv > 0 && vnKv > 0 && lvKv > 0;
     if (valid && num(t.itapch) === 1) {
       const index = Math.round(pos - num(t.ntpmn)), tapKv = index >= 0 && index < num(r['mTaps:SIZEROW']) ? num(r[`mTaps:${index}`], NaN) : NaN;
-      if (tapKv > 0) rel = tapKv / (side === 0 ? hv : lv);
-      else if (t.dutap != null && Number.isFinite(Number(t.dutap))) rel = 1 + (pos - num(t.nntap0)) * num(t.dutap) / 100;
+      if (tapKv > 0){rel = tapKv / (side === 0 ? hv : lv);tapSource='mTaps';}
+      else if (t.dutap != null && Number.isFinite(Number(t.dutap))){rel = 1 + (pos - num(t.nntap0)) * num(t.dutap) / 100;tapSource='dutap';}
       else valid = false;
     }
     let tap = valid ? (hv / vnKv) / (lv / lvKv) * (side === 0 ? rel : side === 1 ? 1 / rel : 1) : 1;
     if (!valid || !(tap > .5 && tap < 1.6)) { tap = 1; warnings.push(`Trafo kademe oranı çözülemedi; 1.0: ${str(r.FID)}`); }
     const g = sn > 0 ? num(t.pfe) / (1000 * sn) : 0, b = -Math.sqrt(Math.max(0, (num(t.curmg) / 100) ** 2 - g * g)), scale = sn / BASE;
     return { ...branchBase('ElmTr2', r, from, to), vnKv, lvKv, rPu: rp * BASE / sn, xPu: Math.sqrt(Math.max(0, zp*zp-rp*rp)) * BASE / sn,
-      tap, phase: 0, ratingMva: sn, tapPosition: pos, gPu: g * scale, bPu: b * scale,
+      tap, phase: 0, ratingMva: sn, tapPosition: pos, gPu: g * scale, bPu: b * scale,typeHvKv:hv,typeLvKv:lv,tapSide:side,relativeTapVoltage:rel,tapSource,
       sourceRefs: { ...base('ElmTr2', r).sourceRefs, impedance: [ref('TypTr2', r.typ_id, 'strn/uktr/pcutr')], tap: [ref('ElmTr2', r.FID, 'nntap/mTaps'), ref('TypTr2', r.typ_id, 'dutap/nntap0/tap_side/utrn_h/utrn_l')], phase: [ref('TypTr2', r.typ_id, 'PHASE_SHIFT_SOURCE_UNAVAILABLE')] } };
   });
   const generators: Generator[] = ['ElmSym', 'ElmGenStat'].flatMap(cls => rows(cls).map(r => {
     let qMin: number | null = null, qMax: number | null = null; const pMw = num(r.pgini);
-    if (cls === 'ElmSym' && r.cQ_min != null && r.cQ_max != null && Number.isFinite(Number(r.cQ_min)) && Number.isFinite(Number(r.cQ_max)) && Number(r.cQ_min) <= Number(r.cQ_max)) { qMin = Number(r.cQ_min); qMax = Number(r.cQ_max); }
-    else {
-      const curve = m.get('IntQlim', str(r.pQlimType)) as Row | null;
-      if (curve) {
-        const points = Array.from({ length: num(curve['cap_P:SIZEROW']) }, (_, i) => [Number(curve[`cap_P:${i}`]), Number(curve[`cap_Qmn:${i}`]), Number(curve[`cap_Qmx:${i}`])]).filter(p => p.every(Number.isFinite)).sort((a,b) => a[0]-b[0]);
-        if (points.length) { let a = points[0], b = a; for (const point of points) { b = point; if (point[0] >= pMw) break; a = point; } const t = Math.max(0, Math.min(1, (pMw-a[0])/(b[0]-a[0] || 1))); qMin = a[1] + t*(b[1]-a[1]); qMax = a[2] + t*(b[2]-a[2]); }
-      }
+    const curve = m.get('IntQlim', str(r.pQlimType)) as Row | null;
+    if (curve) {
+      const points = Array.from({ length: num(curve['cap_P:SIZEROW']) }, (_, i) => [Number(curve[`cap_P:${i}`]), Number(curve[`cap_Qmn:${i}`]), Number(curve[`cap_Qmx:${i}`])]).filter(p => p.every(Number.isFinite) && p[1] <= p[2]).sort((a,b) => a[0]-b[0]);
+      if (points.length) { let a = points[0], b = a; for (const point of points) { b = point; if (point[0] >= pMw) break; a = point; } const t = Math.max(0, Math.min(1, (pMw-a[0])/(b[0]-a[0] || 1))); qMin = a[1] + t*(b[1]-a[1]); qMax = a[2] + t*(b[2]-a[2]); }
     }
-    return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
+    if (cls === 'ElmSym' && qMin === null && r.cQ_min != null && r.cQ_max != null && Number.isFinite(Number(r.cQ_min)) && Number.isFinite(Number(r.cQ_max)) && Number(r.cQ_min) <= Number(r.cQ_max)) { qMin = Number(r.cQ_min); qMax = Number(r.cQ_max); }
+    return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), pDispatchMw:pMw, qDispatchMvar:num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
       sourceRefs: { ...base(cls, r).sourceRefs, dispatch: [ref(cls, r.FID, 'pgini/qgini', 'MW/MVAr')], qLimits: [ref(cls, r.FID, 'cQ_min/cQ_max/pQlimType'), ref('IntQlim', r.pQlimType, 'cap_P/cap_Qmn/cap_Qmx')] } };
   }));
   const loads = rows('ElmLod').map(r => {
@@ -99,11 +98,18 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   });
   const internationalConnections = rows('ElmVac').map(r => ({ ...base('ElmVac', r), bus: endpoint(r.bus1), pMw: num(r.Pload), qMvar: num(r.Qload) }));
   const externalGrids = rows('ElmXnet').map(r => ({ ...base('ElmXnet', r), bus: endpoint(r.bus1), pMw: num(r.pgini), qMvar: num(r.qgini), vmSet: num(r.usetp, 1), pMin:rawNumber(r.Pmin??r.pmin), pMax:rawNumber(r.Pmax??r.pmax), qMin:rawNumber(r.cQ_min), qMax:rawNumber(r.cQ_max),bustpRaw:str(r.bustp),modeInputRaw:str(r.mode_inp),sourceRefs:{...base('ElmXnet',r).sourceRefs,dispatch:[ref('ElmXnet',r.FID,'pgini/qgini','MW/MVAr')],limits:[ref('ElmXnet',r.FID,'Pmin/Pmax/cQ_min/cQ_max','MW/MVAr')],reference:[ref('ElmXnet',r.FID,'bustp/mode_inp/usetp')]} }));
-  const shunts = rows('ElmShnt').map(r => {
-    let q = num(r.shtype) === 1 ? -Math.abs(num(r.qrean)) : num(r.shtype) === 2 ? Math.abs(num(r.qcapn)) : 0;
-    if (![1,2].includes(num(r.shtype))) warnings.push(`Şönt türü desteklenmiyor: ${str(r.FID)}`);
-    const nominalQMvar=q,max = num(r.ncapx, 1); if (max > 0) q *= num(r.ncapa, max) / max;
-    return { ...base('ElmShnt', r), bus: endpoint(r.bus1), gPu: 0, bPu: q / BASE, nominalQMvar };
+  let shunts:Shunt[] = rows('ElmShnt').map(r => {
+    const kind=num(r.shtype),variable=num(r.iTaps)===1,taps=Array.from({length:Math.max(0,num(r['mTaps:SIZEROW']))},(_,i)=>rawNumber(r[`mTaps:${i}`]));
+    const position=num(r.ncapa),ratedVoltage=rawNumber(r.ushnm),entry=taps[position];
+    const step=variable?(entry!=null&&entry>=0?Math.abs(entry):null):kind===1?Math.abs(num(r.qrean)):kind===2?Math.abs(num(r.qcapn)):null;
+    const stepProvenance:NonNullable<Shunt['stepProvenance']>=variable?(step==null?'INVALID_MTAPS':'mTaps'):kind===1?'qrean':kind===2?'qcapn':'INVALID_RATING';
+    if(![1,2].includes(kind))warnings.push(`Şönt türü desteklenmiyor: ${str(r.FID)}`);
+    if(variable&&step==null)warnings.push(`Şönt mTaps etkin kademe geçersiz: ${str(r.FID)}`);
+    if(!(ratedVoltage!=null&&ratedVoltage>0))warnings.push(`Şönt ushnm geçersiz: ${str(r.FID)}`);
+    const q=step==null?0:(kind===1?-step:kind===2?step:0),bus=endpoint(r.bus1),physicalNominal=busById.get(bus)?.vnKv??0;
+    return { ...base('ElmShnt', r), bus, gPu: 0, bPu:ratedVoltage!=null&&ratedVoltage>0?q/BASE*(physicalNominal/ratedVoltage)**2:0,
+      nominalQMvar:q,activeStepQMvar:step,ratedVoltageKv:ratedVoltage,tapEnabled:variable,tapPosition:position,tapMaximum:num(r.ncapx),tapValues:taps,stepProvenance,
+      sourceRefs:{...base('ElmShnt',r).sourceRefs,step:[ref('ElmShnt',r.FID,variable?'iTaps/ncapa/ncapx/mTaps':'qrean/qcapn','MVAr')],voltage:[ref('ElmShnt',r.FID,'ushnm','kV')]}};
   });
   const seriesCompensators = rows('ElmScap').map(r => ({ ...branchBase('ElmScap', r, endpoint(r.bus1), endpoint(r.bus2)), rOhm: 0, xOhm: num(r.bcap) > 0 ? -1/num(r.bcap) : NaN }));
   const switches = rows('ElmCoup').map(r => ({ ...branchBase('ElmCoup', r, endpoint(r.bus1), endpoint(r.bus2)), closed: num(r.on_off) === 1 }));
@@ -134,6 +140,21 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const loadFlowOptionsRaw=loadFlowSettings;
   const diagnostics=loads.some(load=>load.activeBalanceEligibility===undefined)?[{code:'ACTIVE_BALANCE_ELIGIBILITY_MISSING',message:'Active balancing eligibility is absent from ElmLod source attributes; adjustable-load balancing parity cannot be established.',severity:'WARNING' as const,sourceClass:'ElmLod'}]:[];
   const unsupportedReactiveLimitClasses=['ElmAsm','ElmVsc','ElmSvs'].map(sourceClass=>({sourceClass,sourceIds:rows(sourceClass).filter(row=>num(row.outserv)!==1).map(row=>str(row.FID))})).filter(row=>row.sourceIds.length).map(row=>({...row,count:row.sourceIds.length}));
+  // A closed-switch electrical bus may include physical terminals with different
+  // nominal voltages. All equipment bases use the canonical electrical-bus base.
+  const topology=buildTopology({buses,lines,transformers,seriesCompensators,generators,loads,shunts,externalGrids,internationalConnections,switches:[...switches,...cubicleSwitches]});
+  const canonicalKv=(terminal:string)=>topology.buses[topology.terminalToBus.get(terminal)??-1]?.vnKv??0;
+  for(const tr of transformers){
+    const hb=canonicalKv(tr.from),lb=canonicalKv(tr.to),ht=tr.typeHvKv,lt=tr.typeLvKv,rho=tr.relativeTapVoltage;
+    if(!(hb>0&&lb>0&&ht>0&&lt>0&&rho>0))continue;
+    // The LV tap changes the physical winding voltage and its series ohms by rho².
+    // The accompanying Formula Set says 1/rho², but that gives a 4.12% frozen-P
+    // transformer error; rho² reproduces the independently reported 0.0553% gate.
+    const seriesScale=(lt/lb)**2*(tr.tapSide===1?rho**2:1),magnetizingScale=(hb/(tr.tapSide===0?ht*rho:ht))**2;
+    tr.rPu*=seriesScale;tr.xPu*=seriesScale;tr.gPu*=magnetizingScale;tr.bPu*=magnetizingScale;
+    tr.tap=(ht/hb)/(lt/lb)*(tr.tapSide===0?rho:tr.tapSide===1?1/rho:1);
+  }
+  shunts=shunts.map(shunt=>{const kv=canonicalKv(shunt.bus),rated=shunt.ratedVoltageKv;return rated!=null&&rated>0&&kv>0?{...shunt,bPu:(shunt.nominalQMvar??0)/BASE*(kv/rated)**2}:shunt;});
   return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,

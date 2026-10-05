@@ -204,6 +204,8 @@ export interface PowerFactoryNumericRow {
   qHvMvar?: number;
   pLvMw?: number;
   qLvMvar?: number;
+  pResultMw?: number;
+  qResultMvar?: number;
   resultAvailable?: string;
 }
 
