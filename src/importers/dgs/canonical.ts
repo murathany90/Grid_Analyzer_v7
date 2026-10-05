@@ -77,14 +77,12 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   });
   const generators: Generator[] = ['ElmSym', 'ElmGenStat'].flatMap(cls => rows(cls).map(r => {
     let qMin: number | null = null, qMax: number | null = null; const pMw = num(r.pgini);
-    if (cls === 'ElmSym' && r.cQ_min != null && r.cQ_max != null && Number.isFinite(Number(r.cQ_min)) && Number.isFinite(Number(r.cQ_max)) && Number(r.cQ_min) <= Number(r.cQ_max)) { qMin = Number(r.cQ_min); qMax = Number(r.cQ_max); }
-    else {
-      const curve = m.get('IntQlim', str(r.pQlimType)) as Row | null;
-      if (curve) {
-        const points = Array.from({ length: num(curve['cap_P:SIZEROW']) }, (_, i) => [Number(curve[`cap_P:${i}`]), Number(curve[`cap_Qmn:${i}`]), Number(curve[`cap_Qmx:${i}`])]).filter(p => p.every(Number.isFinite)).sort((a,b) => a[0]-b[0]);
-        if (points.length) { let a = points[0], b = a; for (const point of points) { b = point; if (point[0] >= pMw) break; a = point; } const t = Math.max(0, Math.min(1, (pMw-a[0])/(b[0]-a[0] || 1))); qMin = a[1] + t*(b[1]-a[1]); qMax = a[2] + t*(b[2]-a[2]); }
-      }
+    const curve = m.get('IntQlim', str(r.pQlimType)) as Row | null;
+    if (curve) {
+      const points = Array.from({ length: num(curve['cap_P:SIZEROW']) }, (_, i) => [Number(curve[`cap_P:${i}`]), Number(curve[`cap_Qmn:${i}`]), Number(curve[`cap_Qmx:${i}`])]).filter(p => p.every(Number.isFinite) && p[1] <= p[2]).sort((a,b) => a[0]-b[0]);
+      if (points.length) { let a = points[0], b = a; for (const point of points) { b = point; if (point[0] >= pMw) break; a = point; } const t = Math.max(0, Math.min(1, (pMw-a[0])/(b[0]-a[0] || 1))); qMin = a[1] + t*(b[1]-a[1]); qMax = a[2] + t*(b[2]-a[2]); }
     }
+    if (cls === 'ElmSym' && qMin === null && r.cQ_min != null && r.cQ_max != null && Number.isFinite(Number(r.cQ_min)) && Number.isFinite(Number(r.cQ_max)) && Number(r.cQ_min) <= Number(r.cQ_max)) { qMin = Number(r.cQ_min); qMax = Number(r.cQ_max); }
     return { ...base(cls, r), bus: endpoint(r.bus1), pMw, qMvar: num(r.qgini), pDispatchMw:pMw, qDispatchMvar:num(r.qgini), vmSet: num(r.usetp, 1), voltageControl: r.av_mode === 'constv', qMin, qMax,
       sourceRefs: { ...base(cls, r).sourceRefs, dispatch: [ref(cls, r.FID, 'pgini/qgini', 'MW/MVAr')], qLimits: [ref(cls, r.FID, 'cQ_min/cQ_max/pQlimType'), ref('IntQlim', r.pQlimType, 'cap_P/cap_Qmn/cap_Qmx')] } };
   }));

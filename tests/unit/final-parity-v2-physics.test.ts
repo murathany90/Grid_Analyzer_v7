@@ -9,6 +9,26 @@ async function fixture(){return JSON.parse(await readFile('tests/fixtures/small-
 function set(table:Table,key:string,value:unknown){const column=table.Attributes.indexOf(key);assert.ok(column>=0,key);table.Values[0][column]=value;}
 async function map(raw:Record<string,Table>){return mapCanonical(await new DgsModel(raw as DgsRawData,'parity-physics',1000).build(),'fixture');}
 
+test('ElmSym uses valid IntQlim at immutable pgini and falls back to direct limits',async()=>{
+ const raw=await fixture();
+ raw.ElmSym={Attributes:['FID','loc_name','outserv','bus1','pgini','qgini','cQ_min','cQ_max','pQlimType'],Values:[
+  ['G1','interpolated',0,'C_TR_LV',50,0,-95,33,'QL1'],
+  ['G2','below curve',0,'C_TR_LV',-10,0,-95,33,'QL1'],
+  ['G3','above curve',0,'C_TR_LV',120,0,-95,33,'QL1'],
+  ['G4','invalid curve',0,'C_TR_LV',50,0,-95,33,'QL2'],
+  ['G5','missing curve',0,'C_TR_LV',50,0,-95,33,'MISSING'],
+ ]};
+ raw.IntQlim={Attributes:['FID','cap_P:SIZEROW','cap_P:0','cap_Qmn:0','cap_Qmx:0','cap_P:1','cap_Qmn:1','cap_Qmx:1'],Values:[
+  ['QL1',2,0,-100,40,100,-200,80],
+  ['QL2',1,0,100,-100,null,null,null],
+ ]};
+ const generators=new Map((await map(raw)).generators.map(row=>[row.id,row]));
+ assert.deepEqual([generators.get('G1')!.qMin,generators.get('G1')!.qMax],[-150,60]);
+ assert.deepEqual([generators.get('G2')!.qMin,generators.get('G2')!.qMax],[-100,40]);
+ assert.deepEqual([generators.get('G3')!.qMin,generators.get('G3')!.qMax],[-200,80]);
+ for(const id of ['G4','G5'])assert.deepEqual([generators.get(id)!.qMin,generators.get(id)!.qMax],[-95,33]);
+});
+
 test('variable shunts use the indexed mTaps MVAr and canonical bus to ushnm base',async()=>{
  const raw=await fixture();raw.ElmShnt={Attributes:['FID','loc_name','outserv','bus1','shtype','iTaps','ncapa','ncapx','ushnm','qrean','qcapn','mTaps:SIZEROW','mTaps:0','mTaps:1','mTaps:2'],Values:[
   ['SH1','variable reactor',0,'C_TR_LV',1,1,2,4,100,999,0,3,0,5,11],
