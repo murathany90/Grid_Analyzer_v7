@@ -19,8 +19,8 @@ export interface ControlDiagnostic {
   qDistributionSource?:'SOURCE_CVQQ'|'DERIVED_DISPATCHED_ACTIVE_POWER'|null;
 }
 export interface ControlTimings {baseNrMs:number;controllerClassificationMs:number;jacobianBuildMs:number;rcmReorderMs:number;ilu1FactorMs:number;ilu2FactorMs:number;iluFactorMs:number;sensitivityIterativeSolveMs:number;cscConversionMs:number;symbolicFactorMs:number;numericFactorMs:number;directRhsSolveMs:number;sensitivitySolveMs:number;classificationNrMs:number;outerTrialNrMs:number;finalNrMs:number;controlLimitRestartNrMs:number;fullNrSolves:number;totalNewtonIterations:number;kluNewtonFactorizations:number;finalBalanceCorrections:number}
-export interface CoupledSystemDiagnostic {conditionEstimate:number|null;regularization:number;activeControllers:string[];objectiveRows:number;freeColumns:number;fixedControllers:number;rank:number;solveStatus:'SOLVED'|'REGULARIZED'|'SINGULAR'|'BOUNDED_ITERATIVE';boundedSweeps?:number;projectedGradientNorm?:number;objectiveStart?:number;objectiveEnd?:number;converged?:boolean;directionRebuilds?:number;directionConsistent?:boolean}
-export interface ControllerTrialDiagnostic {round:number;zeroDroopActive:number;droopActive:number;newlySatisfied:number;newlySaturated:number;stagnatedSubsetCount?:number;trustFraction:number;proposalKind:'COUPLED'|'GRADIENT';status:string;accepted:boolean;rejectedReason:string|null;activeControllerCount:number;freeControllerCount:number;saturatedControllerCount:number;denseDimension:number;objectiveRows:number;freeColumns:number;fixedControllers:number;regularization:number;conditionEstimate:number|null;rank:number;oldNorm:number;predictedNorm:number;predictedReduction:number;newNorm:number|null;actualReduction:number|null;rho:number|null;maxRequestedDeltaQ:number;maxAppliedDeltaQ:number;sumAbsDeltaQ:number;nrIterations:number|null;failureIteration:number|null;failureMismatchMw:number|null;linearResidual:number|null}
+export interface CoupledSystemDiagnostic {conditionEstimate:number|null;regularization:number;activeControllers:string[];objectiveRows:number;freeColumns:number;fixedControllers:number;rank:number;solveStatus:'SOLVED'|'REGULARIZED'|'SINGULAR'|'BOUNDED_ITERATIVE';activeControllerCount?:number;zeroDroopCount?:number;droopCount?:number;boundedSweeps?:number;projectedGradientNorm?:number;relativeProjectedGradient?:number;maxControllerAllowedMove?:number;objectiveStart?:number;objectiveEnd?:number;objectiveAtSweeps?:Record<string,number|null>;objectiveRatio?:number|null;interiorVariableCount?:number;atLowerBoundCount?:number;atUpperBoundCount?:number;zeroMoveCount?:number;columnNormRatio?:number|null;activeSetPolishIterations?:number;activeSetPolishConverged?:boolean;activeSetPolishFreeVariables?:number;activeSetPolishDeferredVariables?:number;activeSetPolishConditionEstimate?:number|null;activeSetPolishRegularization?:number;activeSetPolishRejectedObjectiveIncrease?:boolean;converged?:boolean;directionRebuilds?:number;directionConsistent?:boolean;matrixValid?:boolean}
+export interface ControllerTrialDiagnostic {round:number;zeroDroopActive:number;droopActive:number;newlySatisfied:number;newlySaturated:number;stagnatedSubsetCount?:number;stagnationReason?:'NO_DIRECTIONAL_HEADROOM'|'CONSTRAINED_KKT_STATIONARY'|'NO_DESCENT_AFTER_REFRESH';trustFraction:number;proposalKind:'COUPLED'|'GRADIENT';status:string;accepted:boolean;rejectedReason:string|null;activeControllerCount:number;freeControllerCount:number;saturatedControllerCount:number;denseDimension:number;objectiveRows:number;freeColumns:number;fixedControllers:number;regularization:number;conditionEstimate:number|null;rank:number;oldNorm:number;predictedNorm:number;predictedReduction:number;newNorm:number|null;actualReduction:number|null;rho:number|null;maxRequestedDeltaQ:number;maxAppliedDeltaQ:number;sumAbsDeltaQ:number;nrIterations:number|null;failureIteration:number|null;failureMismatchMw:number|null;linearResidual:number|null}
 export interface ControllerResidualSnapshot {satisfied:number;saturated:number;movableResidual:number;residualRmsPu:number;residualMaxPu:number}
 interface Control {source:StationController;row:ControlDiagnostic;units:ReactiveUnitState[];remote:number;droopQ:number|null;sourceWeights?:ReadonlyMap<string,number>}
 export interface ControlledIslandV73 {prepared:PreparedModel;result:PowerFlowResult;controllers:ControlDiagnostic[];outerRounds:number;unitOverrides:Map<string,{qMvar:number|null;qState:string}>;timings:ControlTimings;resultProvenance?:'LOCAL_PV'|'OWNERSHIP'|'SENSITIVITY_STATION_CONTROL'|'INTEGRATED_STATION_CONTROL'|'BASELINE_FALLBACK';integratedFailure?:NumericalFailureDiagnostic;sensitivitySolverDiagnostics?:SensitivitySolverDiagnostic[];classificationPasses?:number;classificationStable?:boolean;integratedControllers?:number;controlLimitRestarts?:number;coupledSystems?:CoupledSystemDiagnostic[];trialAttempts?:ControllerTrialDiagnostic[];stagnatedSubsetCount?:number;
@@ -76,11 +76,47 @@ export function solveActiveControllerObjective(matrix:readonly (readonly number[
   if(residual.length!==matrix.length||fixedEffects.length!==matrix.length||freeIndices.length!==scales.length||freeIndices.some(index=>index<0||index>=width)||matrix.some(row=>row.length!==width))return solveCoupledLeastSquares([],[],[]);
   return solveCoupledLeastSquares(matrix.map(row=>freeIndices.map(index=>row[index])),residual.map((value,index)=>value-fixedEffects[index]),scales);
 }
+export interface BoundedControllerObjectiveResult {solution:number[];sweeps:number;predictedNorm:number;projectedGradientNorm:number;relativeProjectedGradient:number;maxControllerAllowedMove:number;objectiveStart:number;objectiveEnd:number;objectiveAtSweeps:Record<string,number|null>;objectiveRatio:number|null;interiorVariableCount:number;atLowerBoundCount:number;atUpperBoundCount:number;zeroMoveCount:number;columnNormRatio:number|null;activeSetPolishIterations:number;activeSetPolishConverged:boolean;activeSetPolishFreeVariables:number;activeSetPolishDeferredVariables:number;activeSetPolishConditionEstimate:number|null;activeSetPolishRegularization:number;activeSetPolishRejectedObjectiveIncrease:boolean;converged:boolean}
+export interface BoundedActiveSetPolishResult {solution:number[];iterations:number;converged:boolean;freeVariables:number;deferredVariables:number;conditionEstimate:number|null;regularization:number;rejectedObjectiveIncrease:boolean}
+/** Refines the coordinate solution on the strongest remaining coupled columns. */
+export function solveBoundedActiveSetPolish(matrix:readonly (readonly number[])[],residual:readonly number[],lower:readonly number[],upper:readonly number[],initial:readonly number[],maxFreeVariables=96):BoundedActiveSetPolishResult {
+  const n=lower.length,m=matrix.length;
+  if(initial.length!==n||upper.length!==n||residual.length!==m||matrix.some(row=>row.length!==n)||lower.some((value,i)=>!finite(value)||!finite(upper[i])||value>0||upper[i]<0))throw Error('BOUNDED_ACTIVE_SET_POLISH_INVALID');
+  const solution=initial.map((value,i)=>Math.max(lower[i],Math.min(upper[i],value))),squared=Array.from({length:n},(_,j)=>matrix.reduce((sum,row)=>sum+row[j]*row[j],0));
+  const remaining=()=>matrix.map((row,i)=>residual[i]-row.reduce((sum,value,j)=>sum+value*solution[j],0));
+  const projectedMoves=()=>{const r=remaining();return Array.from({length:n},(_,j)=>{if(squared[j]<=1e-18)return 0;let gradient=0;for(let i=0;i<m;i++)gradient+=matrix[i][j]*r[i];return Math.max(lower[j],Math.min(upper[j],solution[j]+gradient/squared[j]))-solution[j];});};
+  const allowed=Array.from({length:n},(_,j)=>Math.max(Math.abs(lower[j]),Math.abs(upper[j]))),scores=projectedMoves().map((move,j)=>Math.abs(move)/Math.max(1e-12,allowed[j]));
+  const candidates=Array.from({length:n},(_,j)=>j).filter(j=>scores[j]>1e-10&&squared[j]>1e-18).sort((a,b)=>scores[b]-scores[a]).slice(0,Math.max(1,Math.floor(maxFreeVariables)));
+  const deferredVariables=Array.from({length:n},(_,j)=>j).filter(j=>scores[j]>1e-10&&squared[j]>1e-18).length-candidates.length;
+  const state=new Map<number,'LOWER'|'UPPER'|'FREE'>(),boundTol=(j:number)=>1e-8*Math.max(1,allowed[j]);
+  for(const j of candidates){const tol=boundTol(j);state.set(j,Math.abs(solution[j]-lower[j])<=tol?'LOWER':Math.abs(solution[j]-upper[j])<=tol?'UPPER':'FREE');}
+  let iterations=0,activeSetChanges=0,converged=!candidates.length,conditionEstimate:number|null=null,regularization=0;
+  const changeLimit=candidates.length+4;
+  for(;iterations<changeLimit&&candidates.length;){
+    iterations++;
+    const free=candidates.filter(j=>state.get(j)==='FREE'),freeSet=new Set(free),fixedEffects=matrix.map(row=>row.reduce((sum,value,j)=>sum+(freeSet.has(j)?0:value*solution[j]),0));
+    if(free.length){
+      const scales=free.map(j=>Math.max(1,upper[j]-lower[j])),fit=solveActiveControllerObjective(matrix,residual,free,fixedEffects,scales);
+      if(fit.conditionEstimate!=null)conditionEstimate=Math.max(conditionEstimate??0,fit.conditionEstimate);regularization=Math.max(regularization,fit.regularization);
+      if(!fit.solution)break;
+      const violated:Array<{index:number;value:number;side:'LOWER'|'UPPER'}>=[];
+      free.forEach((j,k)=>{const value=fit.solution![k],tol=boundTol(j);if(value<lower[j]-tol)violated.push({index:j,value:lower[j],side:'LOWER'});else if(value>upper[j]+tol)violated.push({index:j,value:upper[j],side:'UPPER'});});
+      if(violated.length){if(activeSetChanges+violated.length>changeLimit)break;for(const change of violated){solution[change.index]=change.value;state.set(change.index,change.side);}activeSetChanges+=violated.length;continue;}
+      free.forEach((j,k)=>solution[j]=Math.max(lower[j],Math.min(upper[j],fit.solution![k])));
+    }
+    const moves=projectedMoves(),release=candidates.filter(j=>{const side=state.get(j),score=Math.abs(moves[j])/Math.max(1e-12,allowed[j]);return(side==='LOWER'&&moves[j]>0||side==='UPPER'&&moves[j]<0)&&score>1e-7;});
+    if(release.length){if(activeSetChanges+release.length>changeLimit)break;for(const j of release)state.set(j,'FREE');activeSetChanges+=release.length;continue;}
+    converged=true;break;
+  }
+  const objective=(values:readonly number[])=>matrix.reduce((sum,row,i)=>{const error=residual[i]-row.reduce((total,value,j)=>total+value*values[j],0);return sum+error*error;},0),warmObjective=objective(initial),polishedObjective=objective(solution),rejectedObjectiveIncrease=polishedObjective>warmObjective+1e-12*Math.max(1,warmObjective);
+  return{solution:rejectedObjectiveIncrease?[...initial]:solution,iterations,converged:converged&&!rejectedObjectiveIncrease,freeVariables:candidates.length,deferredVariables,conditionEstimate,regularization,rejectedObjectiveIncrease};
+}
 /** Coupled least squares with per-controller directional Q bounds and a projected KKT stop. */
-export function solveBoundedControllerObjective(matrix:readonly (readonly number[])[],residual:readonly number[],lower:readonly number[],upper:readonly number[],maxSweeps=80):{solution:number[];sweeps:number;predictedNorm:number;projectedGradientNorm:number;objectiveStart:number;objectiveEnd:number;converged:boolean} {
+export function solveBoundedControllerObjective(matrix:readonly (readonly number[])[],residual:readonly number[],lower:readonly number[],upper:readonly number[],maxSweeps=80):BoundedControllerObjectiveResult {
   const n=lower.length,m=matrix.length;
   if(!n||upper.length!==n||residual.length!==m||matrix.some(row=>row.length!==n)||lower.some((value,i)=>!finite(value)||!finite(upper[i])||value>0||upper[i]<0))throw Error('BOUNDED_CONTROLLER_OBJECTIVE_INVALID');
   const solution=new Array<number>(n).fill(0),remaining=Array.from(residual),squared=Array.from({length:n},(_,j)=>matrix.reduce((sum,row)=>sum+row[j]*row[j],0));
+  const objectiveAtSweeps:Record<string,number|null>={1:null,5:null,10:null,20:null,40:null,80:null};
   const objectiveStart=remaining.reduce((sum,value)=>sum+value*value,0),projectedGradient=()=>{
     let largest=0;for(let j=0;j<n;j++){if(squared[j]<=1e-18)continue;let projection=0;for(let i=0;i<m;i++)projection+=matrix[i][j]*remaining[i];largest=Math.max(largest,Math.abs(Math.max(lower[j],Math.min(upper[j],solution[j]+projection/squared[j]))-solution[j]));}return largest;
   };
@@ -96,20 +132,26 @@ export function solveBoundedControllerObjective(matrix:readonly (readonly number
       for(let i=0;i<m;i++)remaining[i]-=matrix[i][j]*change;
     }
     sweeps++;
-    const objective=remaining.reduce((sum,value)=>sum+value*value,0),scale=Math.max(1,...solution.map(Math.abs));projectedGradientNorm=projectedGradient();
+    const objective=remaining.reduce((sum,value)=>sum+value*value,0);if(Object.hasOwn(objectiveAtSweeps,String(sweeps)))objectiveAtSweeps[String(sweeps)]=objective;
+    const scale=Math.max(1,...solution.map(Math.abs));projectedGradientNorm=projectedGradient();
     if(projectedGradientNorm<=1e-6*scale){converged=true;break;}
     if(largestChange<=1e-7*scale&&previousObjective-objective<=1e-10*Math.max(objectiveStart,1e-18))break;
     previousObjective=objective;
   }
-  const objectiveEnd=remaining.reduce((sum,value)=>sum+value*value,0);
-  return{solution,sweeps,predictedNorm:Math.sqrt(objectiveEnd/m),projectedGradientNorm,objectiveStart,objectiveEnd,converged};
+  const polish=solveBoundedActiveSetPolish(matrix,residual,lower,upper,solution),finalSolution=polish.solution,finalRemaining=matrix.map((row,i)=>residual[i]-row.reduce((sum,value,j)=>sum+value*finalSolution[j],0));
+  const objectiveEnd=finalRemaining.reduce((sum,value)=>sum+value*value,0),maxControllerAllowedMove=Math.max(0,...Array.from({length:n},(_,j)=>Math.max(Math.abs(lower[j]),Math.abs(upper[j]))));
+  let finalGradient=0;for(let j=0;j<n;j++){if(squared[j]<=1e-18)continue;let projection=0;for(let i=0;i<m;i++)projection+=matrix[i][j]*finalRemaining[i];finalGradient=Math.max(finalGradient,Math.abs(Math.max(lower[j],Math.min(upper[j],finalSolution[j]+projection/squared[j]))-finalSolution[j]));}
+  const boundTolerance=(j:number)=>1e-7*Math.max(1,Math.abs(lower[j]),Math.abs(upper[j]));let atLowerBoundCount=0,atUpperBoundCount=0,interiorVariableCount=0,zeroMoveCount=0;
+  for(let j=0;j<n;j++){const atLower=Math.abs(finalSolution[j]-lower[j])<=boundTolerance(j),atUpper=Math.abs(finalSolution[j]-upper[j])<=boundTolerance(j);if(atLower)atLowerBoundCount++;else if(atUpper)atUpperBoundCount++;else interiorVariableCount++;if(Math.abs(finalSolution[j])<=1e-8*Math.max(1,maxControllerAllowedMove))zeroMoveCount++;}
+  const columnNorms=squared.map(value=>Math.sqrt(value)).filter(value=>value>1e-12),columnNormRatio=columnNorms.length?Math.max(...columnNorms)/Math.min(...columnNorms):null;
+  return{solution:finalSolution,sweeps,predictedNorm:Math.sqrt(objectiveEnd/Math.max(1,m)),projectedGradientNorm:finalGradient,relativeProjectedGradient:finalGradient/Math.max(1e-12,maxControllerAllowedMove),maxControllerAllowedMove,objectiveStart,objectiveEnd,objectiveAtSweeps,objectiveRatio:objectiveStart>1e-18?objectiveEnd/objectiveStart:null,interiorVariableCount,atLowerBoundCount,atUpperBoundCount,zeroMoveCount,columnNormRatio,activeSetPolishIterations:polish.iterations,activeSetPolishConverged:polish.converged,activeSetPolishFreeVariables:polish.freeVariables,activeSetPolishDeferredVariables:polish.deferredVariables,activeSetPolishConditionEstimate:polish.conditionEstimate,activeSetPolishRegularization:polish.regularization,activeSetPolishRejectedObjectiveIncrease:polish.rejectedObjectiveIncrease,converged:finalGradient<=1e-6*Math.max(1,...finalSolution.map(Math.abs))};
 }
 /** Rebuilds columns when the bounded Q direction changes which units can participate. */
 export function solveDirectionConsistentBoundedObjective(residual:readonly number[],preferred:readonly (1|-1)[],build:(directions:readonly (1|-1)[])=>{matrix:number[][];lower:number[];upper:number[]},maxRebuilds=3){
-  const directions=[...preferred];let directionRebuilds=0;
-  for(;;){const system=build(directions),bounded=solveBoundedControllerObjective(system.matrix,residual,system.lower,system.upper);
+  const directions=[...preferred];let directionRebuilds=0,totalPolishIterations=0,polishRejectedObjectiveIncrease=false;
+  for(;;){const system=build(directions),bounded=solveBoundedControllerObjective(system.matrix,residual,system.lower,system.upper);totalPolishIterations+=bounded.activeSetPolishIterations;polishRejectedObjectiveIncrease||=bounded.activeSetPolishRejectedObjectiveIncrease;
     const mismatched=bounded.solution.flatMap((delta,j)=>Math.abs(delta)>1e-7&&Math.sign(delta)!==directions[j]?[j]:[]);
-    if(!mismatched.length||directionRebuilds>=maxRebuilds)return{...bounded,directions,directionRebuilds,directionConsistent:!mismatched.length};
+    if(!mismatched.length||directionRebuilds>=maxRebuilds)return{...bounded,activeSetPolishIterations:totalPolishIterations,activeSetPolishRejectedObjectiveIncrease:polishRejectedObjectiveIncrease,directions,directionRebuilds,directionConsistent:!mismatched.length};
     for(const j of mismatched)directions[j]=directions[j]===1?-1:1;
     directionRebuilds++;
   }
@@ -341,8 +383,8 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
         chosen.forEach((value,j)=>directions.set(free[j],value));const matrix=buildMatrix(active,free,directions);matrixInvalid=matrix.some(row=>row.some(value=>value==null));
         return{matrix:matrix as number[][],lower,upper};
       });
-      if(matrixInvalid||!direction.directionConsistent)return{rawDeltas,fixedMoves,denseFailed:true,lastDense:null as CoupledSystemDiagnostic|null};
-      const lastDense:CoupledSystemDiagnostic={conditionEstimate:null,regularization:0,activeControllers:free.map(c=>c.row.id),objectiveRows:active.length,freeColumns:free.length,fixedControllers:0,rank:0,solveStatus:'BOUNDED_ITERATIVE',boundedSweeps:direction.sweeps,projectedGradientNorm:direction.projectedGradientNorm,objectiveStart:direction.objectiveStart,objectiveEnd:direction.objectiveEnd,converged:direction.converged,directionRebuilds:direction.directionRebuilds,directionConsistent:direction.directionConsistent};coupledSystems.push(lastDense);
+      const lastDense:CoupledSystemDiagnostic={conditionEstimate:direction.activeSetPolishConditionEstimate,regularization:direction.activeSetPolishRegularization,activeControllers:free.map(c=>c.row.id),objectiveRows:active.length,freeColumns:free.length,fixedControllers:0,rank:0,solveStatus:'BOUNDED_ITERATIVE',activeControllerCount:active.length,zeroDroopCount:active.filter(c=>c.droopQ==null).length,droopCount:active.filter(c=>c.droopQ!=null).length,boundedSweeps:direction.sweeps,projectedGradientNorm:direction.projectedGradientNorm,relativeProjectedGradient:direction.relativeProjectedGradient,maxControllerAllowedMove:direction.maxControllerAllowedMove,objectiveStart:direction.objectiveStart,objectiveEnd:direction.objectiveEnd,objectiveAtSweeps:direction.objectiveAtSweeps,objectiveRatio:direction.objectiveRatio,interiorVariableCount:direction.interiorVariableCount,atLowerBoundCount:direction.atLowerBoundCount,atUpperBoundCount:direction.atUpperBoundCount,zeroMoveCount:direction.zeroMoveCount,columnNormRatio:direction.columnNormRatio,activeSetPolishIterations:direction.activeSetPolishIterations,activeSetPolishConverged:direction.activeSetPolishConverged,activeSetPolishFreeVariables:direction.activeSetPolishFreeVariables,activeSetPolishDeferredVariables:direction.activeSetPolishDeferredVariables,activeSetPolishConditionEstimate:direction.activeSetPolishConditionEstimate,activeSetPolishRegularization:direction.activeSetPolishRegularization,activeSetPolishRejectedObjectiveIncrease:direction.activeSetPolishRejectedObjectiveIncrease,converged:direction.converged,directionRebuilds:direction.directionRebuilds,directionConsistent:direction.directionConsistent,matrixValid:!matrixInvalid};coupledSystems.push(lastDense);
+      if(matrixInvalid||!direction.directionConsistent)return{rawDeltas,fixedMoves,denseFailed:true,lastDense};
       direction.solution.forEach((delta,i)=>rawDeltas.set(free[i],delta));
       return{rawDeltas,fixedMoves,denseFailed:false,lastDense};
     };
@@ -388,10 +430,11 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
       const partition=partitionControllerDescent(active,gradientDeltas());
       if(partition.movable.length&&partition.stationary.length&&activeSubset==null){activeSubset=new Set(partition.movable);failedRefreshes=1;refresh(pending());if(!solved.converged)break;continue;}
       if(failedRefreshes<3){refresh(pending());if(!solved.converged)break;continue;}
-      let newlyStagnated=0;for(const c of active){const direction=residual(c,solved)>=0?1:-1;
-        c.row.status=activeParticipation(c.units,direction,c.sourceWeights)?'STAGNATED_TRIAL':direction>0?'SATURATED_QMAX':'SATURATED_QMIN';if(c.row.status==='STAGNATED_TRIAL')newlyStagnated++;
+      let newlyStagnated=0,noDirectionalHeadroom=0;for(const c of active){const direction=residual(c,solved)>=0?1:-1;
+        c.row.status=activeParticipation(c.units,direction,c.sourceWeights)?'STAGNATED_TRIAL':direction>0?'SATURATED_QMAX':'SATURATED_QMIN';if(c.row.status==='STAGNATED_TRIAL')newlyStagnated++;else noDirectionalHeadroom++;
       }
-      stagnatedSubsetCount+=newlyStagnated;trialAttempts.push({...trialAttempts[trialAttempts.length-1],status:'STAGNATED_SUBSET',accepted:false,rejectedReason:'NO_DESCENT_AFTER_REFRESH',stagnatedSubsetCount:newlyStagnated});
+      const stagnationReason:ControllerTrialDiagnostic['stagnationReason']=newlyStagnated===0||noDirectionalHeadroom===active.length?'NO_DIRECTIONAL_HEADROOM':dense.lastDense?.converged?'CONSTRAINED_KKT_STATIONARY':'NO_DESCENT_AFTER_REFRESH';
+      stagnatedSubsetCount+=newlyStagnated;trialAttempts.push({...trialAttempts[trialAttempts.length-1],status:'STAGNATED_SUBSET',accepted:false,rejectedReason:stagnationReason,stagnationReason,stagnatedSubsetCount:newlyStagnated});
       activeSubset=null;failedRefreshes=0;if(pending().length){refresh(pending());if(!solved.converged)break;continue;}break;
     }
     const remaining=pending();if(remaining.length&&rounds<roundBudget&&refreshRequired){refresh(remaining);if(!solved.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`REFRESH_${solved.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',sensitivitySolverDiagnostics,classificationPasses:classification.passes,classificationStable:classification.stable,coupledSystems,trialAttempts};}}

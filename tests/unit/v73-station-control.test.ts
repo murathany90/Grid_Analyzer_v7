@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
-import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedControllerObjective,solveDirectionConsistentBoundedObjective,partitionControllerDescent,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
+import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedActiveSetPolish,solveBoundedControllerObjective,solveDirectionConsistentBoundedObjective,partitionControllerDescent,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
@@ -67,12 +67,33 @@ test('bounded coupled objective retains cross-controller effects at an active Q 
   assert.ok(Math.abs(result.solution[1]-1)<1e-6);
   assert.ok(result.predictedNorm<.51);
 });
-test('bounded objective stops on projected KKT and can continue beyond six sweeps',()=>{
+test('bounded objective records coordinate sweeps and active-set polish after six sweeps',()=>{
   const easy=solveBoundedControllerObjective([[1,0],[0,2]],[1,-2],[-2,-2],[2,2]);
   assert.equal(easy.converged,true);assert.ok(easy.sweeps<80);assert.ok(easy.projectedGradientNorm<1e-6);
   assert.ok(easy.objectiveEnd<easy.objectiveStart);
   const matrix=[[1,.9],[.9,1]],residual=[1,0],six=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100],6),long=solveBoundedControllerObjective(matrix,residual,[-100,-100],[100,100]);
-  assert.ok(long.sweeps>6);assert.ok(long.objectiveEnd<six.objectiveEnd);
+  assert.equal(six.sweeps,6);assert.ok(long.sweeps>6);assert.ok(long.objectiveAtSweeps['5']!>0);assert.ok(long.objectiveEnd<=six.objectiveEnd+1e-12);
+  assert.ok(long.activeSetPolishIterations>0);assert.ok(long.objectiveRatio!<1);
+});
+test('active-set least-squares polish finds an interior optimum',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,0],[0,1]],[2,-3],[-5,-5],[5,5],[0,0]);
+  assert.equal(solved.converged,true);assert.deepEqual(solved.solution,[2,-3]);
+});
+test('active-set polish clamps a violating variable and resolves the remaining free subset',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,0],[0,1]],[2,3],[-.5,-10],[.5,10],[0,0]);
+  assert.equal(solved.converged,true);assert.ok(Math.abs(solved.solution[0]-.5)<1e-10);assert.ok(Math.abs(solved.solution[1]-3)<1e-9);
+});
+test('active-set polish releases a bound variable when its KKT sign points inward',()=>{
+  const solved=solveBoundedActiveSetPolish([[1,1]],[-1],[-1,-.5],[0,1],[0,-.5]);
+  assert.equal(solved.converged,true);assert.ok(Math.abs(solved.solution[0]+.5)<1e-9);assert.equal(solved.solution[1],-.5);
+});
+test('direction rebuild and active-set polish preserve a negative coupled solution',()=>{
+  const solved=solveDirectionConsistentBoundedObjective([-1,-1],[1,1],directions=>{
+    const first=directions[0]===1?1.01:1,second=directions[1]===1?.99:.98;
+    return{matrix:[[first,second],[.99,1]],lower:[-2,-2],upper:[2,2]};
+  });
+  assert.ok(solved.directionRebuilds>0);assert.equal(solved.directionConsistent,true);assert.ok(solved.activeSetPolishIterations>0);
+  assert.ok(solved.solution.every(value=>value<0));assert.ok(solved.solution.every((value,index)=>Math.sign(value)===solved.directions[index]));
 });
 test('bounded direction rebuild lets a Q-max unit re-enter a negative multi-unit move',()=>{
   const units=[{id:'A',bus:1,pMw:20,qMvar:5,qMin:-20,qMax:5},{id:'B',bus:2,pMw:60,qMvar:0,qMin:-20,qMax:20}];
