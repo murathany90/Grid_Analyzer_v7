@@ -39,6 +39,41 @@ test('distributed active balancing never reduces sourced adjustable load below z
  assert.ok((result.activeBalanceMismatchMw??0)>settings.nodalToleranceKva/1000,'remaining mismatch is reported after the adjustable load saturates');
 });
 
+test('the integrated alpha Newton unknown cannot drive an eligible load below zero',()=>{
+ // A single eligible 10 MW load. The distributed-P unknown alpha scales load injection,
+ // so an unbounded Newton step could reverse its flow direction. The fraction-to-boundary
+ // on alpha keeps every participating eligible load at or above its initial consumption.
+ const model=(eligibleLoadMw:number):NumericModel=>({n:2,baseMVA:100,slack:0,slackVm:1,referencePMw:0,
+  pSpec:Float64Array.from([0,-eligibleLoadMw]),qSpec:Float64Array.from([0,0]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),
+  shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],
+  activeBalanceParticipation:Float64Array.from([0,1]),activeBalanceEligibleLoadMw:Float64Array.from([0,eligibleLoadMw]),activeBalanceEligibilityComplete:true,
+  branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]});
+ const options={integratedEquations:true,integratedActiveBalance:true,settings:{maxInnerIterations:200,maxOuterIterations:8,nodalToleranceKva:5}};
+ const result=solveNR(model(10),undefined,options);
+ assert.equal(result.status,'CONVERGED_FULL_NR');
+ assert.equal(result.activeBalanceLoadAdjustmentsMw?.length,2);
+ // Q is unchanged by a P-only balance: the reactive specification is never scaled.
+ assert.equal(result.Q?.[1],0);
+ // The load may be shed completely but never reversed into generation.
+ const netLoad=result.P![1];
+ assert.ok(netLoad>=-1e-6,`eligible load reversed into generation: ${netLoad} MW`);
+ assert.ok((result.alphaMw??0)<=10+1e-6,`alpha ${result.alphaMw} exceeds the eligible load headroom`);
+ // The bound is reported so provenance can show the value actually used.
+ assert.equal(result.genericQLimitActiveSet?.alphaBoundPu,10);
+ // Warm-starting beyond the bound is clipped back to the physical boundary.
+ const over=solveNR(model(10),undefined,{...options,initialAlphaMw:200});
+ assert.equal(over.status,'CONVERGED_FULL_NR');
+ assert.ok((over.alphaMw??0)<=10+1e-6,`alpha ${over.alphaMw} exceeded the headroom from an over-limit warm start`);
+ assert.ok(over.P![1]>=-1e-6);
+});
+
+test('the alpha bound is unbounded when no eligible load headroom is declared',()=>{
+ const unbounded:NumericModel={...model(),activeBalanceEligibleLoadMw:undefined};
+ const result=solveNR(unbounded,undefined,{integratedEquations:true,integratedActiveBalance:false,settings:{maxInnerIterations:50,nodalToleranceKva:5}});
+ // Without declared headroom the balance is not applied, so no bound is claimed.
+ assert.equal(result.genericQLimitActiveSet?.alphaBoundPu,null);
+});
+
 test('Q-only control trials reuse balanced P and final loss correction preserves cumulative load adjustment',()=>{
  const settings=defaultAnalysisSettings().powerFlow;settings.activeBalancingMode='DISTRIBUTED_ADJUSTABLE_LOADS';
  const source=model(),capture:ActiveBalanceCapture={},baseline=solveNRWithActiveBalance(source,undefined,settings,{},capture);
