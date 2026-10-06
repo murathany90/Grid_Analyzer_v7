@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, rmSync, mkdirSync, readdirSync, statSync, copyFileSync } from 'node:fs';
+import { readFileSync, rmSync, mkdirSync, statSync, copyFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -27,6 +27,13 @@ const countCrlf = (bytes: Buffer): number => {
   return count;
 };
 
+/**
+ * Runs the portable build.
+ *
+ * `npm run` is a shell script on Windows, so it must go through the shell there. The
+ * arguments are fixed and contain no user input, so the shell invocation is not a
+ * injection surface; `shell:false` fails on Windows with EINVAL.
+ */
 const build = (cwd: string): Buffer => {
   execFileSync('npm', ['run', 'build:portable'], { cwd, stdio: 'pipe', shell: process.platform === 'win32' });
   return readFileSync(path.join(cwd, relativePortable));
@@ -63,17 +70,13 @@ const materialiseLfCheckout = (target: string): void => {
     copyFileSync(source, destination);
     const bytes = readFileSync(destination);
     const lf = toLf(bytes);
-    if (lf.length !== bytes.length) {
-      const { writeFileSync } = require('node:fs') as typeof import('node:fs');
-      writeFileSync(destination, lf);
-    }
+    if (lf.length !== bytes.length) writeFileSync(destination, lf);
   }
-  // node_modules and the license text are needed by the build itself.
-  copyFileSync(path.join(root, 'node_modules'), path.join(target, 'node_modules.lnk'));
-  rmSync(path.join(target, 'node_modules.lnk'));
-  execFileSync('cmd', ['/c', 'mklink', '/J', path.join(target, 'node_modules'), path.join(root, 'node_modules')], {
-    stdio: 'pipe',
-  });
+  // The build needs dependencies; a directory junction avoids copying them per check.
+  const modules = path.join(target, 'node_modules');
+  rmSync(modules, { recursive: true, force: true });
+  if (process.platform === 'win32') execFileSync('cmd', ['/c', 'mklink', '/J', modules, path.join(root, 'node_modules')], { stdio: 'pipe' });
+  else symlinkSync(path.join(root, 'node_modules'), modules, 'dir');
 };
 
 const built = build(root);
