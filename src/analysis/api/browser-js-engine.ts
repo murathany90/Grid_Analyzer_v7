@@ -4,24 +4,10 @@ import { effectiveNetwork } from '../../domain/scenario/overlay';
 import { prepareModel } from '../power-flow/preparation';
 import { mapResults } from '../power-flow/results';
 import {runStationControlledIslandV73,type ControlDiagnostic,type ControlTimings} from '../power-flow/station-controls-v73';
-import {Q_LIMITS_MISSING_CODE} from '../power-flow/station-participation';
+import {Q_LIMITS_MISSING_CODE, isStationSolved} from '../power-flow/station-participation';
 import { runReduced } from '../fast-ac/reduced-engine';
 import {APP_VERSION} from '../../version';
 import {analysisSettingsHash,effectiveFullAcLimits,profileFidelity,unsupportedFullAcSettings,unsupportedSharedSettings} from '../../domain/calculation/analysis-settings';
-/**
- * Whether a controller took part in the station-control solve.
- *
- * Comparability may only be affected by a controller that station control actually
- * solved. `supported` is set at classification and stays false for controllers that were
- * never admitted; a rollback additionally removes the controller's bus ownership, so its
- * operating point comes from the plain local-PV equations instead. Either way the station
- * solve did not use that controller's reactive capability, so a missing source Q limit on
- * it cannot make the calculation less source-exact.
- */
-export function isStationSolved(row:{supported:boolean;status:string}):boolean{
-  return row.supported&&row.status!=='ROLLED_BACK_TO_LOCAL_PV';
-}
-
 export class BrowserJsPowerFlowEngine implements AnalysisEngine {
   readonly name='BrowserJsEngine';readonly version=APP_VERSION;
   capabilities(network:CanonicalNetwork){return network.capabilities;}

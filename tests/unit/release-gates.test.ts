@@ -138,6 +138,92 @@ test('the signed gate reports its measured values for the manifest',()=>{
   assert.equal(evaluateSignedKpiGates({signedSummary:{signDisagreementCount:92,signComparableCount:22970,signedMeanError:-0.0087,maxP95AbsoluteError:1.842867,maxAbsoluteError:258.593428},baselineSignedSummary:{signDisagreementCount:107,maxP95AbsoluteError:1.842867,maxAbsoluteError:258.593428}}).signedMeanError,-0.0087);
 });
 
+test('the final baseline-preservation verdict carries the mandatory signed gate',()=>{
+  // `tools/release-manifest.ts` reports its verdict through this function, so if it
+  // ignored the signed input a manifest could show `signedGateRequired.pass=false`
+  // together with `mergeReady=true`.
+  const base=preserved();
+  // Complete signed diagnostics pass.
+  assert.deepEqual(evaluateBaselinePreservationGates(base).failedGates,[]);
+  // Absent entirely.
+  const absent={...base,signed:undefined};
+  assert.equal(evaluateBaselinePreservationGates(absent).mergeReady,false);
+  assert.ok(evaluateBaselinePreservationGates(absent).failedGates.includes('SIGNED_DIAGNOSTICS'));
+  // Explicitly null.
+  const explicitNull=evaluateBaselinePreservationGates({...base,signed:null});
+  assert.equal(explicitNull.mergeReady,false);
+  assert.ok(explicitNull.failedGates.includes('SIGNED_DIAGNOSTICS'));
+  // Each mandatory field missing in turn.
+  for(const field of ['signDisagreementCount','signedMeanError','maxP95AbsoluteError','maxAbsoluteError'] as const){
+    const partial:Partial<ReleaseGateSignedInput>={...completeSigned()};
+    delete partial[field];
+    const actual=evaluateBaselinePreservationGates({...base,signed:partial});
+    assert.equal(actual.mergeReady,false,field);
+    assert.ok(actual.failedGates.includes('SIGNED_DIAGNOSTICS'),field);
+  }
+  // Non-finite values count as absent, not as a passing zero.
+  for(const value of [Number.NaN,Number.POSITIVE_INFINITY]){
+    const actual=evaluateBaselinePreservationGates({...base,signed:{...completeSigned(),maxAbsoluteError:value}});
+    assert.equal(actual.mergeReady,false,String(value));
+  }
+  // A real regression fails even under the legacy policy.
+  for(const mutation of [
+    (v:ReleaseGateSignedInput)=>{v.signDisagreementCount=93;},
+    (v:ReleaseGateSignedInput)=>{v.maxP95AbsoluteError=v.maxP95Baseline!*1.11;},
+    (v:ReleaseGateSignedInput)=>{v.maxAbsoluteError=v.maxBaseline!*1.11;},
+  ]){
+    const regressed=completeSigned();mutation(regressed);
+    const actual=evaluateBaselinePreservationGates({...base,signed:regressed});
+    assert.equal(actual.mergeReady,false);
+    assert.ok(actual.failedGates.includes('SIGNED_DIAGNOSTICS'));
+  }
+  // LEGACY_OPTIONAL is for explicit historical re-verification only: it tolerates
+  // absence, never a regression.
+  assert.ok(!evaluateBaselinePreservationGates({...base,signedPolicy:'LEGACY_OPTIONAL'}).failedGates.includes('SIGNED_DIAGNOSTICS'));
+  const legacyRegressed=completeSigned();legacyRegressed.maxAbsoluteError=9999;
+  assert.ok(evaluateBaselinePreservationGates({...base,signed:legacyRegressed,signedPolicy:'LEGACY_OPTIONAL'}).failedGates.includes('SIGNED_DIAGNOSTICS'));
+});
+
+test('both verdicts agree on the signed gate, so a manifest cannot contradict itself',()=>{
+  const base=preserved();
+  for(const signed of [completeSigned(),undefined,null,{},{...completeSigned(),maxAbsoluteError:Number.NaN},{...completeSigned(),signDisagreementCount:93},{...completeSigned(),maxP95AbsoluteError:99},{...completeSigned(),maxAbsoluteError:99}] as (Partial<ReleaseGateSignedInput>|null|undefined)[]){
+    const preservation=evaluateBaselinePreservationGates({...base,signed});
+    const release=evaluateReleaseGates({...base,signed});
+    // The two functions apply different mandatory gates, but they must never disagree
+    // about the signed one.
+    assert.equal(preservation.failedGates.includes('SIGNED_DIAGNOSTICS'),release.failedGates.includes('SIGNED_DIAGNOSTICS'),JSON.stringify(signed));
+    assert.equal(preservation.failedGates.includes('SIGNED_DIAGNOSTICS'),!evaluateSignedDiagnosticsGate(signed).pass);
+    // A failing signed gate can never leave either verdict merge-ready.
+    if(preservation.failedGates.includes('SIGNED_DIAGNOSTICS'))assert.equal(preservation.mergeReady,false);
+    if(release.failedGates.includes('SIGNED_DIAGNOSTICS'))assert.equal(release.mergeReady,false);
+  }
+});
+
+test('a manifest cannot be merge-ready while the signed gate it also reports fails',()=>{
+  // The reported blocker, expressed as a single invariant over every signed state. The
+  // manifest writes `signedGateRequired.pass` and `verdict.mergeReady` into one document,
+  // so no combination of signed input may make them disagree.
+  const cases:(Partial<ReleaseGateSignedInput>|null|undefined)[]=[
+    completeSigned(), undefined, null, {},
+    {signDisagreementCount:92},
+    {signDisagreementCount:92,signedMeanError:-.0087},
+    {signDisagreementCount:92,signedMeanError:-.0087,maxP95AbsoluteError:1.494191},
+    {signDisagreementCount:92,signedMeanError:Number.NaN,maxP95AbsoluteError:1.494191,maxAbsoluteError:261.007199},
+    {signDisagreementCount:92,signedMeanError:Number.POSITIVE_INFINITY,maxP95AbsoluteError:1.494191,maxAbsoluteError:261.007199},
+    {...completeSigned(),signDisagreementCount:93},
+    {...completeSigned(),maxP95AbsoluteError:1.643611},
+    {...completeSigned(),maxAbsoluteError:287.10792},
+  ];
+  for(const signed of cases){
+    const described=JSON.stringify(signed)??String(signed);
+    const verdict=evaluateBaselinePreservationGates({...preserved(),signed});
+    const reported=evaluateSignedDiagnosticsGate(signed);
+    assert.equal(verdict.failedGates.includes('SIGNED_DIAGNOSTICS'),!reported.pass,described);
+    assert.equal(verdict.mergeReady,reported.pass,`mergeReady must follow the signed gate: ${described}`);
+    assert.equal(verdict.mergeReady,verdict.failedGates.length===0,described);
+  }
+});
+
 test('measured SHA requires all forty hex characters and an existing matching commit',()=>{
   assert.equal(isFullGitSha('a'.repeat(40)),true);
   assert.equal(isFullGitSha('a'.repeat(39)),false);

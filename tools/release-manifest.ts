@@ -151,6 +151,7 @@ const measuredTreeSha=commitExists?git('rev-parse',`${manifestGitSha}^{tree}`):n
 const measuredSourceMatchesCurrent=commitExists&&!portableBenchmark.sourceDirtyAtMeasurement&&measuredTreeSha===portableBenchmark.gitTreeSha&&gitQuiet('diff','--quiet',manifestGitSha,'HEAD','--',...sourcePaths)&&git('status','--porcelain','--',...sourcePaths)==='';
 const measuredInputsMatch=portableBenchmark.modelFile===modelPath&&portableBenchmark.controlContextFile===controlContextPath&&portableBenchmark.modelSha256===modelSha256&&portableBenchmark.controlContextSha256===controlContextSha256&&captured.modelHash===kpi.modelHash&&captured.controlContextHash===kpi.controlContextHash&&captured.controlContextHash===validatedBaseline.artifacts.powerFactoryControlContextCsv.sourceHash&&captured.appVersion===version&&captured.engineVersion===version;
 const sl1=externalGrid.find(row=>row.id==='SL1'&&row.isReference) as (typeof externalGrid)[number]&{qMin?:number|null}|undefined;
+const signedInput=signedGateInput(kpi.signedSummary,baseline.signedSummary);
 const releaseGates=evaluateBaselinePreservationGates({
   baselineValidated,goldenInputsMatch,
   populationMatches:Boolean(kpi.population.populationSignature)&&kpi.population.populationSignature===baseline.population.populationSignature,
@@ -175,10 +176,16 @@ const releaseGates=evaluateBaselinePreservationGates({
   requiredValidationPassed:process.argv.includes('--validation-passed=true'),
   // Signed diagnostics are mandatory input for this path. They are computed here rather
   // than trusted from the captured KPI document, so a manifest cannot be produced without
-  // them.
-  signed:signedGateInput(kpi.signedSummary,baseline.signedSummary),
+  // them. No policy is passed: this path always requires complete signed data.
+  signed:signedInput,
 });
-const signedGateResult=evaluateSignedDiagnosticsGate(signedGateInput(kpi.signedSummary,baseline.signedSummary));
+const signedGateResult=evaluateSignedDiagnosticsGate(signedInput);
+// The verdict and the reported signed gate must never contradict each other. Both are
+// evaluated from the same input under the same default policy, so this is an invariant
+// rather than a recoverable condition; a violation means one of them drifted.
+if(releaseGates.failedGates.includes('SIGNED_DIAGNOSTICS')===signedGateResult.pass){
+  throw new Error(`Manifest verdict disagrees with the signed gate: verdict.mergeReady=${releaseGates.mergeReady}, signedGateRequired.pass=${signedGateResult.pass}, failedGates=${releaseGates.failedGates.join(',')||'none'}.`);
+}
 
 const manifest = {
   schema: 'grid-analyzer-release-manifest-1',

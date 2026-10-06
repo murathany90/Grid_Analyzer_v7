@@ -19,8 +19,30 @@ export type QLimitAvailability='SOURCE_BOUNDED'|'MISSING';
 export type StationSourceFidelity='SOURCE_BOUNDED'|'PARTIAL_SOURCE_FIDELITY';
 /** Diagnostic code emitted when a station controller has no source Q limit. */
 export const Q_LIMITS_MISSING_CODE='Q_LIMITS_MISSING';
-export function stationSourceFidelityOf(rows:readonly {qLimitAvailability?:QLimitAvailability;supported?:boolean}[]):StationSourceFidelity{
-  return rows.some(row=>row.qLimitAvailability==='MISSING')?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
+/**
+ * Statuses in which station control actually produced the controller's operating point.
+ *
+ * `SATISFIED` is the residual-driven case; the other three are the genuine terminal bound
+ * outcomes. Every other `ControlStatus` means the controller was never solved into the
+ * operating point: rejected at classification, rolled back to local PV, unresolved remote
+ * bus, or a failed control solve.
+ */
+const STATION_SOLVED_STATUSES:readonly string[]=['SATISFIED','SATURATED_QMIN','SATURATED_QMAX','NO_REACTIVE_HEADROOM'];
+/**
+ * Whether a controller took part in the station-control solve.
+ *
+ * Only a controller this predicate accepts can make the operating point non-source-exact.
+ * A controller station control never solved contributes nothing: its buses come from the
+ * plain local-PV equations, where an absent source Q limit is already declared by
+ * `reactiveLimitClasses.fidelity`. Counting such a row here would report PARTIAL fidelity
+ * for a calculation that station control never influenced. Implemented as an allowlist of
+ * solved statuses so a future terminal status cannot silently widen the scope.
+ */
+export function isStationSolved(row:{status?:string;supported?:boolean}):boolean{
+  return row.status!=null&&STATION_SOLVED_STATUSES.includes(row.status)&&row.supported!==false;
+}
+export function stationSourceFidelityOf(rows:readonly {qLimitAvailability?:QLimitAvailability;supported?:boolean;status?:string}[]):StationSourceFidelity{
+  return rows.some(row=>row.qLimitAvailability==='MISSING'&&isStationSolved(row))?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
 }
 export interface ReactiveUnitState {
   id:string;bus:number;pMw:number;qMvar:number;

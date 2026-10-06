@@ -201,6 +201,12 @@ const baseline: Record<string, any> = {
     saturatedResidual: controllers.filter(row => ['SATURATED_QMIN', 'SATURATED_QMAX'].includes(row.status) && Math.abs(row.voltageResidualPu ?? 0) > 0.002).length,
     resultProvenance: diagnostics.resultProvenance ?? null,
     stationSourceFidelity: stationSummary?.stationSourceFidelity ?? null,
+    // Solved-vs-unsolved split of the missing-Q-limit controllers. Only a controller the
+    // station solve actually used may make comparability PARTIAL, so the report must keep
+    // the two lists apart instead of recording a single count.
+    missingSourceQLimit: stationSummary?.missingSourceQLimit ?? null,
+    missingQLimitSolvedCount: (stationSummary?.missingSourceQLimit as { controllerCount?: number } | undefined)?.controllerCount ?? null,
+    missingQLimitUnsolvedIds: (stationSummary?.missingSourceQLimit as { unsolvedControllerIds?: string[] } | undefined)?.unsolvedControllerIds ?? null,
     missingQLimitControllers: controllers.filter(row => row.qLimitAvailability === 'MISSING').map(row => row.id).sort(),
     controlLimitRestarts: stationSummary?.controlLimitRestarts ?? null,
     qginiClamp: stationSummary?.qginiClamp ?? null,

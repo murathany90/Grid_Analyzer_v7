@@ -3,7 +3,7 @@ import test from 'node:test';
 import { defaultAnalysisSettings } from '../../src/domain/calculation/analysis-settings';
 import { finalizeActiveBalanceAfterControls, solveNRWithActiveBalance, type ActiveBalanceCapture } from '../../src/analysis/power-flow/station-controls-v73';
 import { alphaLoadReductionBound, solveNR } from '../../src/analysis/power-flow/js/newton';
-import { Q_LIMITS_MISSING_CODE, stationSourceFidelityOf } from '../../src/analysis/power-flow/station-participation';
+import { Q_LIMITS_MISSING_CODE, isStationSolved, stationSourceFidelityOf, type QLimitAvailability } from '../../src/analysis/power-flow/station-participation';
 import { prepareModel } from '../../src/analysis/power-flow/preparation';
 import { runStationControlledIslandV73 } from '../../src/analysis/power-flow/station-controls-v73';
 import { BrowserJsPowerFlowEngine } from '../../src/analysis/api/browser-js-engine';
@@ -122,8 +122,39 @@ test('a station controller without a source Q limit still solves but is not sour
  // No limit state may be invented for an unbounded member.
  assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMIN_LIMITED');
  assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMAX_LIMITED');
- // A bounded station stays source-exact.
- assert.equal(stationSourceFidelityOf([{qLimitAvailability:'SOURCE_BOUNDED'}]),'SOURCE_BOUNDED');
+  // A bounded station stays source-exact.
+  assert.equal(stationSourceFidelityOf([{qLimitAvailability:'SOURCE_BOUNDED'}]),'SOURCE_BOUNDED');
+});
+
+test('only a station controller the solve actually used can make fidelity PARTIAL',()=>{
+  const missing:{qLimitAvailability:QLimitAvailability;supported:boolean;status?:string}={qLimitAvailability:'MISSING',supported:true};
+  // Genuine solve outcomes still declare the shortfall.
+  for(const status of ['SATISFIED','SATURATED_QMIN','SATURATED_QMAX','NO_REACTIVE_HEADROOM']){
+    assert.equal(stationSourceFidelityOf([{...missing,status}]),'PARTIAL_SOURCE_FIDELITY',status);
+  }
+  // Rows station control never solved must not: their buses come from the plain local-PV
+  // equations, where an absent source Q limit is already declared by
+  // reactiveLimitClasses.fidelity, so the calculation station control never influenced
+  // cannot become less source-exact because of them.
+  const notSolved=[
+    'PENDING','ROLLED_BACK_TO_LOCAL_PV','REMOTE_CONTROL_CONFLICT','Q_LIMITS_UNAVAILABLE',
+    'UNSUPPORTED_PROFILE','UNSUPPORTED_DISTRIBUTION','UNSUPPORTED_DROOP','REMOTE_BUS_UNRESOLVED',
+    'NO_REFERENCE_ISLAND','LOCAL_PV_CONFLICT','CONTROL_SOLVE_FAILED','MAX_OUTER_ROUNDS',
+    'STAGNATED_TRIAL','BASELINE_LOCAL_PV','OWNERSHIP_ONLY','CONTROL_RESIDUAL_AFTER_FINAL_BALANCE',
+  ];
+  for(const status of notSolved){
+    assert.equal(stationSourceFidelityOf([{...missing,status}]),'SOURCE_BOUNDED',status);
+    assert.equal(isStationSolved({status,supported:true}),false,status);
+  }
+  // A solved row rejected by classification is not station-solved either.
+  assert.equal(stationSourceFidelityOf([{...missing,status:'SATISFIED',supported:false}]),'SOURCE_BOUNDED');
+  // A status from a future revision must not silently widen the scope.
+  assert.equal(stationSourceFidelityOf([{...missing,status:'SOME_NEW_TERMINAL_STATE'}]),'SOURCE_BOUNDED');
+  // An unsolved row alongside a solved one still reports the real shortfall.
+  assert.equal(stationSourceFidelityOf([{...missing,status:'CONTROL_SOLVE_FAILED'},{...missing,status:'SATISFIED'}]),'PARTIAL_SOURCE_FIDELITY');
+  // Nothing missing at all stays source-exact.
+  assert.equal(stationSourceFidelityOf([{qLimitAvailability:'SOURCE_BOUNDED',status:'SATISFIED'}]),'SOURCE_BOUNDED');
+  assert.equal(stationSourceFidelityOf([]),'SOURCE_BOUNDED');
 });
 
 test('a missing source Q limit is reported as PARTIAL_SOURCE_FIDELITY, not as full comparability',async()=>{
