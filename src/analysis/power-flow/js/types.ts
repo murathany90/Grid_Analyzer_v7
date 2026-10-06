@@ -54,6 +54,8 @@ export interface NumericalFailureDiagnostic {
   maxDxTheta?:number; maxDxThetaBus?:number; maxDxThetaBusId?:string|null;
   maxDxControlDq?:number; maxDxControlIndex?:number; maxDxControlId?:string|null;
   oldMinVm?:number; oldMaxVm?:number;
+  /** Numerical voltage-domain safety bound in force for the rejected step. Not a physical limit. */
+  voltageDomainPu?:{minPu:number;maxPu:number};
   firstInvalidCandidate?:{bus:number;busId:string|null;oldVm:number;candidateVm:number;scale:number;stateUpdated:boolean};
 }
 export interface PowerFlowBranchResult { index:number; pf:number; qf:number; pt:number; qt:number; }

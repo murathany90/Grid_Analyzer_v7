@@ -12,8 +12,31 @@ export interface FullAcSolverSettings {
   repeatedReactiveLimitDetection:number; reactiveLimitsEnabled:boolean; qLimitToleranceMvar:number;
   /** Effective bound of the reactive active-set (Q-limit) round loop. */
   maxQLimitRounds?:number;
+  /** Numerical voltage-domain safety bound in pu. Not a physical solution limit. */
+  minVoltagePu?:number; maxVoltagePu?:number;
 }
-const DEFAULT_SOLVER_SETTINGS:FullAcSolverSettings={maxInnerIterations:30,maxOuterIterations:8,nodalToleranceKva:.1,modelEquationTolerancePercent:.01,maxNoImprovementIterations:20,repeatedReactiveLimitDetection:3,reactiveLimitsEnabled:true,qLimitToleranceMvar:.02,maxQLimitRounds:8};
+/**
+ * Numerical voltage-domain safety bound.
+ *
+ * These are numerical guards only: they reject non-finite, zero and negative
+ * magnitudes that would make the branch-power and Jacobian expressions undefined,
+ * and they cap runaway steps. They are deliberately far wider than any physical
+ * operating point so that a genuine low-voltage solution branch is not excluded.
+ *
+ * The previous fixed `0.35 <= Vm <= 1.85` window rejected converged low-voltage
+ * solutions whose voltage fell below 0.35 pu while satisfying every nodal power
+ * equation. That window was a numerical guard being used as a physical limit.
+ */
+export const DEFAULT_VOLTAGE_DOMAIN_PU:{minPu:number;maxPu:number}={minPu:1e-3,maxPu:8};
+export function resolveVoltageDomainPu(settings:{minVoltagePu?:number;maxVoltagePu?:number}|undefined):{minPu:number;maxPu:number}{
+  const minPu=settings?.minVoltagePu, maxPu=settings?.maxVoltagePu;
+  return{minPu:typeof minPu==='number'&&Number.isFinite(minPu)&&minPu>0?minPu:DEFAULT_VOLTAGE_DOMAIN_PU.minPu,maxPu:typeof maxPu==='number'&&Number.isFinite(maxPu)&&maxPu>1?maxPu:DEFAULT_VOLTAGE_DOMAIN_PU.maxPu};
+}
+/** A voltage magnitude the solver may accept. Non-finite and non-positive values are never admissible. */
+export function isAdmissibleVoltage(vm:number,domain:{minPu:number;maxPu:number}):boolean{
+  return Number.isFinite(vm)&&vm>=domain.minPu&&vm<=domain.maxPu;
+}
+const DEFAULT_SOLVER_SETTINGS:FullAcSolverSettings={maxInnerIterations:30,maxOuterIterations:8,nodalToleranceKva:.1,modelEquationTolerancePercent:.01,maxNoImprovementIterations:20,repeatedReactiveLimitDetection:3,reactiveLimitsEnabled:true,qLimitToleranceMvar:.02,maxQLimitRounds:8,...DEFAULT_VOLTAGE_DOMAIN_PU&&{minVoltagePu:DEFAULT_VOLTAGE_DOMAIN_PU.minPu,maxVoltagePu:DEFAULT_VOLTAGE_DOMAIN_PU.maxPu}};
 export function nodalToleranceKvaToPu(toleranceKva:number,baseMva:number):number{return toleranceKva/1000/baseMva;}
 
 /**
@@ -29,6 +52,10 @@ export function acceptsNewtonStep(baseNorm:number,nextNorm:number,stepFraction:n
   return nextNorm<baseNorm*(1-1e-5*stepFraction)||maxMismatch<convergenceTolerancePu;
 }
 
+/** Array min/max by loop: `Math.min(...values)` overflows the argument limit on large islands. */
+export function loopMin(values:ArrayLike<number>):number{let result=Infinity;for(let i=0;i<values.length;i++)if(values[i]<result)result=values[i];return result;}
+export function loopMax(values:ArrayLike<number>):number{let result=-Infinity;for(let i=0;i<values.length;i++)if(values[i]>result)result=values[i];return result;}
+
 function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusCount:number}{
  const adjacency:number[][]=Array.from({length:model.n},()=>[]);for(const e of model.branches){if(e.i<0||e.j<0||e.i>=model.n||e.j>=model.n)continue;adjacency[e.i].push(e.j);adjacency[e.j].push(e.i);}
  const seen=new Uint8Array(model.n);let islandCount=0;for(let i=0;i<model.n;i++)if(!seen[i]){islandCount++;seen[i]=1;const q=[i];while(q.length){for(const j of adjacency[q.pop()!]||[])if(!seen[j]){seen[j]=1;q.push(j);}}}
@@ -39,11 +66,11 @@ function topologyCounts(model:NumericalModel):{islandCount:number;unsuppliedBusC
 export function solveNR(model: NumericalModel, progress?: ProgressCallback, options: { settings?:Partial<FullAcSolverSettings>; maxQLimitRounds?: number;initialVm?:ArrayLike<number>;initialVa?:ArrayLike<number>;initialLimitedBuses?:PowerFlowResult['pvToPq'];initialControlDqPu?:ArrayLike<number>;initialAlphaMw?:number;stationControls?:readonly IntegratedStationControl[];integratedEquations?:boolean;integratedActiveBalance?:boolean;admittance?:AdmittanceMatrix;layoutCache?:Map<string,JacobianLayout>;linearFill?:0|1;busIds?:readonly string[];controlIds?:readonly string[];workCounters?:{fullNrSolves:number;kluNewtonFactorizations:number;totalNewtonIterations?:number} } = {}): PowerFlowResult {
  const t0=performance.now?.()||Date.now(),n=model.n,base=model.baseMVA||100,slack=model.slack,counts=topologyCounts(model),elapsed=()=>((performance.now?.()||Date.now())-t0);
  if(options.workCounters)options.workCounters.fullNrSolves++;
- const settings={...DEFAULT_SOLVER_SETTINGS,...options.settings},tolerancePu=nodalToleranceKvaToPu(settings.nodalToleranceKva,base);
+ const settings={...DEFAULT_SOLVER_SETTINGS,...options.settings},tolerancePu=nodalToleranceKvaToPu(settings.nodalToleranceKva,base),voltageDomain=resolveVoltageDomainPu(settings);
  const failure=(failureStage:NumericalFailureDiagnostic['failureStage'],message:string,iteration:number|null,controlRound:number,maxMismatchMw:number|null,extra:Partial<NumericalFailureDiagnostic>={})=>({failureStage,iteration,controlRound,maxMismatchMw,minPivot:null,islandCount:counts.islandCount,unsuppliedBusCount:counts.unsuppliedBusCount,referenceBus:Number.isInteger(slack)&&slack>=0&&slack<n?slack:null,message,...extra});
  if(!(Number.isInteger(slack)&&slack>=0&&slack<n)){const diagnostic=failure('NO_SLACK','Geçerli referans bara bulunamadı.',null,0,null);return{status:'NO_SLACK',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
  let Y:AdmittanceMatrix;try{Y=options.admittance??buildY(model);}catch(e){const message=e instanceof Error?e.message:String(e),diagnostic=failure('YBUS_BUILD',message,null,0,null);return{status:'MODEL_INVALID',converged:false,iterations:0,rounds:0,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}progress?.('YBUS_READY',{buses:n,nnz:Y.colIdx.length});
- const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=options.initialVm?.length===n?Float64Array.from(options.initialVm,v=>finite(v)&&v>.35&&v<1.85?v:1):new Float64Array(n).fill(1),Va=options.initialVa?.length===n?Float64Array.from(options.initialVa,v=>finite(v)?v:0):new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
+ const pSpec=Float64Array.from(model.pSpec,v=>v/base),qSpec=Float64Array.from(model.qSpec,v=>v/base),busType=Int8Array.from(model.busType),Vm=options.initialVm?.length===n?Float64Array.from(options.initialVm,v=>isAdmissibleVoltage(v,voltageDomain)?v:1):new Float64Array(n).fill(1),Va=options.initialVa?.length===n?Float64Array.from(options.initialVa,v=>finite(v)?v:0):new Float64Array(n),P=new Float64Array(n),Q=new Float64Array(n);
  const controls=options.stationControls??[],explicit=options.integratedEquations===true,activeBalance=explicit&&options.integratedActiveBalance===true&&model.activeBalanceEligibilityComplete===true&&!!model.activeBalanceParticipation?.length&&Array.from(model.activeBalanceParticipation).some(value=>value>0),
   weights=activeBalance?model.activeBalanceParticipation:undefined,controlDq=options.initialControlDqPu?.length===controls.length?Float64Array.from(options.initialControlDqPu,v=>finite(v)?v:0):new Float64Array(controls.length),effectiveQ=new Float64Array(n);
  let alphaMw:number=options.initialAlphaMw!=null&&finite(options.initialAlphaMw)?options.initialAlphaMw:0;
@@ -104,7 +131,7 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
     for(const i of L.vm)Vm[i]+=dx[L.vIndex[i]]*stepCap*scale;
     for(let k=0;k<controls.length;k++)controlDq[k]+=dx[L.controlIndex[k]]*stepCap*scale;
     if(activeBalance)alphaMw+=dx[L.alphaIndex!]*stepCap*scale;
-    let bad=false;for(let i=0;i<n;i++)if(!(Vm[i]>.35&&Vm[i]<1.85&&finite(Vm[i]))){bad=true;firstInvalidCandidate??={bus:i,busId:options.busIds?.[i]??null,oldVm:oldVm[i],candidateVm:Vm[i],scale,stateUpdated:L.vIndex[i]>=0};break;}if(bad)continue;
+    let bad=false;for(let i=0;i<n;i++)if(!isAdmissibleVoltage(Vm[i],voltageDomain)){bad=true;firstInvalidCandidate??={bus:i,busId:options.busIds?.[i]??null,oldVm:oldVm[i],candidateVm:Vm[i],scale,stateUpdated:L.vIndex[i]>=0};break;}if(bad)continue;
     calcPQ(Y,Vm,Va,P,Q);refreshEffectiveQ();let ss2=0,mx2=0;
     for(let k=0;k<L.ang.length;k++){const i=L.ang[k],d=pSpec[i]+alphaMw*(weights?.[i]??0)/base-P[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
     for(let k=0;k<L.pq.length;k++){const i=L.pq[k],d=effectiveQ[i]-Q[i];ss2+=d*d;mx2=Math.max(mx2,abs(d));}
@@ -118,7 +145,7 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
     for(const bus of L.vm){const value=Math.abs(dx[L.vIndex[bus]]);if(value>maxDxVm){maxDxVm=value;maxDxVmBus=bus;}}
     for(const bus of L.ang){const value=Math.abs(dx[L.angIndex[bus]]);if(value>maxDxTheta){maxDxTheta=value;maxDxThetaBus=bus;}}
     for(let k=0;k<controls.length;k++){const value=Math.abs(dx[L.controlIndex[k]]);if(value>maxDxControlDq){maxDxControlDq=value;maxDxControlIndex=k;}}
-    nrFailure=failure('LINE_SEARCH',firstInvalidCandidate&&bestNorm===Infinity?'All line-search candidates violated voltage bounds.':'Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.',it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:lin.method||linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource,lineSearchAccepted:false,lineSearchStepCap:stepCap,lineSearchBestNormRatio:bestNorm/baseNorm,maxDxVm,maxDxVmBus,maxDxVmBusId:options.busIds?.[maxDxVmBus]??null,maxDxTheta,maxDxThetaBus,maxDxThetaBusId:options.busIds?.[maxDxThetaBus]??null,maxDxControlDq,maxDxControlIndex,maxDxControlId:options.controlIds?.[maxDxControlIndex]??null,oldMinVm:Math.min(...oldVm),oldMaxVm:Math.max(...oldVm),firstInvalidCandidate});break;}totalIter++;if(options.workCounters)options.workCounters.totalNewtonIterations=(options.workCounters.totalNewtonIterations??0)+1;
+    nrFailure=failure('LINE_SEARCH',firstInvalidCandidate&&bestNorm===Infinity?'All line-search candidates violated voltage bounds.':'Newton adımının hiçbir azaltılmış ölçeği mismatch değerini düşürmedi.',it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:lin.method||linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource,lineSearchAccepted:false,lineSearchStepCap:stepCap,lineSearchBestNormRatio:bestNorm/baseNorm,maxDxVm,maxDxVmBus,maxDxVmBusId:options.busIds?.[maxDxVmBus]??null,maxDxTheta,maxDxThetaBus,maxDxThetaBusId:options.busIds?.[maxDxThetaBus]??null,maxDxControlDq,maxDxControlIndex,maxDxControlId:options.controlIds?.[maxDxControlIndex]??null,oldMinVm:loopMin(oldVm),oldMaxVm:loopMax(oldVm),voltageDomainPu:voltageDomain,firstInvalidCandidate});break;}totalIter++;if(options.workCounters)options.workCounters.totalNewtonIterations=(options.workCounters.totalNewtonIterations??0)+1;
    if(boundIndex>=0&&acceptedScale===1&&Math.abs(controlDq[boundIndex]-(dx[L.controlIndex[boundIndex]]>0?controls[boundIndex].maxDqPu!:controls[boundIndex].minDqPu!))<1e-7)return boundaryResult(boundIndex);
   }
   if(!converged){nrFailure??=failure('NEWTON_ITERATION',nrReason||'Newton iteration limit reached.',settings.maxInnerIterations,round+1,maxMismatch*base,{minPivot:lastMinPivot,linearStage:lastLinear?.method||lastLinearStage});return {status:nrReason||'NR_MAX_ITERATION',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:nrFailure,elapsedMs:elapsed(),Vm:Array.from(Vm),Va:Array.from(Va),controlDqPu:Array.from(controlDq),alphaMw};}
@@ -145,6 +172,6 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
   const qt=(-vj*vj*(b+bch/2)+vi*vj/tap*(g*s+b*c))*base;
   return {index:idx,pf,qf,pt,qt};
  });
- const minV=Math.min(...Vm),maxV=Math.max(...Vm);
+ const minV=loopMin(Vm),maxV=loopMax(Vm);
  return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
 }
