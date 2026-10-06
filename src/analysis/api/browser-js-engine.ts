@@ -8,6 +8,20 @@ import {Q_LIMITS_MISSING_CODE} from '../power-flow/station-participation';
 import { runReduced } from '../fast-ac/reduced-engine';
 import {APP_VERSION} from '../../version';
 import {analysisSettingsHash,effectiveFullAcLimits,profileFidelity,unsupportedFullAcSettings,unsupportedSharedSettings} from '../../domain/calculation/analysis-settings';
+/**
+ * Whether a controller took part in the station-control solve.
+ *
+ * Comparability may only be affected by a controller that station control actually
+ * solved. `supported` is set at classification and stays false for controllers that were
+ * never admitted; a rollback additionally removes the controller's bus ownership, so its
+ * operating point comes from the plain local-PV equations instead. Either way the station
+ * solve did not use that controller's reactive capability, so a missing source Q limit on
+ * it cannot make the calculation less source-exact.
+ */
+export function isStationSolved(row:{supported:boolean;status:string}):boolean{
+  return row.supported&&row.status!=='ROLLED_BACK_TO_LOCAL_PV';
+}
+
 export class BrowserJsPowerFlowEngine implements AnalysisEngine {
   readonly name='BrowserJsEngine';readonly version=APP_VERSION;
   capabilities(network:CanonicalNetwork){return network.capabilities;}
@@ -64,9 +78,22 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
     // so the calculation is not source-exact and not fully PowerFactory-comparable.
     const qLimitAvailabilityCounts=Object.fromEntries([...new Set(controllerRows.map(c=>c.qLimitAvailability??'UNKNOWN'))].sort().map(key=>[key,controllerRows.filter(c=>(c.qLimitAvailability??'UNKNOWN')===key).length]));
     const missingQLimitRows=controllerRows.filter(c=>c.qLimitAvailability==='MISSING');
-    const stationSourceFidelity=missingQLimitRows.length?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
+    // Only a controller that was actually solved as part of station control can make the
+    // operating point non-source-exact. A controller rejected by classification, or one
+    // rolled back to local PV, contributes no station solution: its buses are solved from
+    // the plain local-PV equations, where an absent Q limit is already declared by
+    // reactiveLimitClasses.fidelity. Counting those here would report PARTIAL for a
+    // calculation that station control never influenced.
+    const solvedMissingRows=missingQLimitRows.filter(isStationSolved);
+    const stationSourceFidelity=solvedMissingRows.length?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
     controllerSummary.stationSourceFidelity=stationSourceFidelity;
-    controllerSummary.missingSourceQLimit={controllerCount:missingQLimitRows.length,controllerIds:missingQLimitRows.map(c=>c.id).sort(),code:Q_LIMITS_MISSING_CODE,note:'These controllers are solved from their control equation because the source supplies no reactive limit. No limit is inferred and no limit state is reported for them; the result is numerically valid but not source-exact.'};
+    controllerSummary.missingSourceQLimit={
+      controllerCount:solvedMissingRows.length,
+      controllerIds:solvedMissingRows.map(c=>c.id).sort(),
+      unsolvedControllerIds:missingQLimitRows.filter(c=>!isStationSolved(c)).map(c=>c.id).sort(),
+      code:Q_LIMITS_MISSING_CODE,
+      note:'These controllers are solved from their control equation because the source supplies no reactive limit. No limit is inferred and no limit state is reported for them; the result is numerically valid but not source-exact.',
+    };
     const qginiClamped=controllerRows.filter(c=>(c.qginiClampCount??0)>0);
     controllerSummary.qLimitAvailability=qLimitAvailabilityCounts;
     controllerSummary.qLimitAvailabilityNote='MISSING means the source supplies no reactive limit for the station members. Such a station is resolved from its control equation; no bound is inferred and no limit state is reported for it.';

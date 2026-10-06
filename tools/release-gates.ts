@@ -207,7 +207,7 @@ export function evaluateBaselinePreservationGates(input:BaselinePreservationGate
   const regressionsPass=complete&&canonical.every(id=>rows.get(id)!.improvementPercent!<=0.5);
   const validCommit=isFullGitSha(input.measuredGitSha)&&isFullGitSha(input.manifestGitSha)&&input.commitExists&&input.measuredGitSha.toLowerCase()===input.manifestGitSha.toLowerCase();
   const portableBytesMatch=/^[0-9a-f]{64}$/i.test(input.portableSha256)&&input.portableSha256===input.committedPortableSha256&&input.portableSha256===input.measuredPortableSha256;
-  const gates:readonly [string,boolean][]=[
+  const gates:[string,boolean][]=[
     ['VALIDATED_V823_BASELINE',input.baselineValidated],
     ['GOLDEN_INPUT_HASHES',input.goldenInputsMatch],
     ['POPULATION_SIGNATURE',input.populationMatches],
@@ -225,6 +225,12 @@ export function evaluateBaselinePreservationGates(input:BaselinePreservationGate
     ['MEASURED_INPUT_BYTES',input.measuredInputsMatch],
     ['REQUIRED_VALIDATION',input.requiredValidationPassed],
   ];
+  // This function is the final verdict for the manifest, so it must carry the same
+  // mandatory signed-diagnostics gate as `evaluateReleaseGates`. Without it a manifest
+  // could report `signedGateRequired.pass = false` while `mergeReady = true`, because the
+  // magnitude-only KPI cannot detect a wrong-sign error.
+  const signedPolicy=input.signedPolicy??'REQUIRED';
+  gates.push(['SIGNED_DIAGNOSTICS',evaluateSignedDiagnosticsGate(input.signed,signedPolicy).pass]);
   const failedGates=gates.filter(([,passed])=>!passed).map(([name])=>name);
   return{policy:'PRESERVE_VALIDATED_BASELINE',mergeReady:failedGates.length===0,failedGates};
 }

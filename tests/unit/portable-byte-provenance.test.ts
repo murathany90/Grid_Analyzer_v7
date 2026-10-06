@@ -22,21 +22,33 @@ const countCrlf = (bytes: Buffer): number => {
   return count;
 };
 
-/** The portable build must exist for these assertions; the release order builds it first. */
+/**
+ * Builds the portable artifact, then reads it.
+ *
+ * The tests below compare the artifact against a fresh build and against the committed
+ * blob. Reading a possibly stale artifact first would make those comparisons depend on
+ * whether `npm test` ran before or after `npm run build:portable`, so the artifact is
+ * rebuilt here. A stale artifact must still fail the committed-blob comparison: that is
+ * the property the release gate relies on.
+ */
+const build = (): void => {
+  execFileSync('npm', ['run', 'build:portable'], { cwd: root, stdio: 'pipe', shell: process.platform === 'win32' });
+};
 const built = (() => {
   try {
+    build();
     return readFileSync(portablePath);
   } catch {
     return null;
   }
 })();
 
-test('the portable artifact is LF-only, so no checkout can reintroduce CRLF', { skip: built ? false : 'portable build not present; run npm run build:portable first' }, () => {
+test('the portable artifact is LF-only, so no checkout can reintroduce CRLF', { skip: built ? false : 'portable build not present' }, () => {
   assert.ok(built);
   assert.equal(countCrlf(built!), 0, `artifact contains ${countCrlf(built!)} CRLF sequences`);
 });
 
-test('the committed portable blob matches the built artifact by raw byte hash', { skip: built ? false : 'portable build not present; run npm run build:portable first' }, () => {
+test('the committed portable blob matches the built artifact by raw byte hash', { skip: built ? false : 'portable build not present' }, () => {
   assert.ok(built);
   const committed = execFileSync('git', ['show', 'HEAD:dist-portable/GridAnalyzer_v7.html'], { cwd: root, maxBuffer: 32 * 1024 * 1024 });
   // Raw bytes, deliberately not a text comparison.
@@ -45,9 +57,9 @@ test('the committed portable blob matches the built artifact by raw byte hash', 
   assert.equal(countCrlf(committed), 0);
 });
 
-test('the portable build is deterministic: two consecutive builds hash identically', { skip: built ? false : 'portable build not present; run npm run build:portable first' }, () => {
+test('the portable build is deterministic: two consecutive builds hash identically', { skip: built ? false : 'portable build not present' }, () => {
   assert.ok(built);
-  execFileSync('npm', ['run', 'build:portable'], { cwd: root, stdio: 'pipe', shell: process.platform === 'win32' });
+  build();
   const rebuilt = readFileSync(portablePath);
   assert.equal(sha256(rebuilt), sha256(built!));
 });
