@@ -3,7 +3,35 @@ import test from 'node:test';
 import { defaultAnalysisSettings } from '../../src/domain/calculation/analysis-settings';
 import { finalizeActiveBalanceAfterControls, solveNRWithActiveBalance, type ActiveBalanceCapture } from '../../src/analysis/power-flow/station-controls-v73';
 import { solveNR } from '../../src/analysis/power-flow/js/newton';
+import { Q_LIMITS_MISSING_CODE, stationSourceFidelityOf } from '../../src/analysis/power-flow/station-participation';
+import { prepareModel } from '../../src/analysis/power-flow/preparation';
+import { runStationControlledIslandV73 } from '../../src/analysis/power-flow/station-controls-v73';
+import { BrowserJsPowerFlowEngine } from '../../src/analysis/api/browser-js-engine';
+import { identity } from '../../src/domain/calculation/identity';
+import { emptyScenario } from '../../src/domain/scenario/overlay';
+import type { CanonicalNetwork } from '../../src/domain/model/network';
 import type { NumericModel } from '../../src/analysis/power-flow/preparation';
+
+const entity=(id:string,sourceClass='ElmTerm')=>({id,name:id,sourceClass,sourceId:id,inService:true,siteIds:['S'],sourceRefs:{}});
+/** Single-generator station, small enough to reason about exactly. */
+function stationFixture(generatorLimits:{qMin:number|null;qMax:number|null}):CanonicalNetwork{
+  const buses=['B0','B1','B2','B3'].map(id=>({...entity(id),vnKv:154,parentId:'S'}));
+  const line=(id:string,from:string,to:string)=>({...entity(id,'ElmLne'),from,to,vnKv:154,lengthKm:10,rOhm:1,xOhm:12,bSiemens:0,ratingMva:200,coordinates:[] as [number,number][],sections:1});
+  const generator=(id:string,bus:string,pMw:number)=>({...entity(id,'ElmSym'),bus,pMw,qMvar:0,vmSet:1.04,voltageControl:true,...generatorLimits});
+  return {schemaVersion:1,modelHash:'slack',name:'slack',size:0,baseMva:100,buses,
+   lines:[line('L01','B0','B1'),line('L02','B0','B2'),line('L13','B1','B3'),line('L23','B2','B3')],
+   transformers:[],generators:[generator('G1','B1',20)],
+   loads:[{...entity('D3','ElmLod'),bus:'B3',pMw:70,qMvar:20}],shunts:[],seriesCompensators:[],
+   externalGrids:[{...entity('X0','ElmXnet'),bus:'B0',pMw:0,qMvar:0,vmSet:1}],
+   internationalConnections:[],switches:[],
+   stationControllers:[{...entity('C1','ElmStactrl'),remoteBus:'B3',unitIds:['G1'],vmSet:1.02,controlModeRaw:0,selectedBusModeRaw:0,distributionModeRaw:0,droopModeRaw:0,qOrientationRaw:0,qSetpointRaw:0,modeSemantics:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'}],
+   secondaryControllers:[],boundaries:[],sites:[],classCounts:{},records:0,warnings:[],
+   capabilities:{powerFlow:{state:'READY' as const,reasons:[]},shortCircuit3Phase:{state:'BLOCKED' as const,reasons:[]},shortCircuitGround:{state:'BLOCKED' as const,reasons:[]},n1:{state:'BLOCKED' as const,reasons:[]}}};
+}
+const engineRun=async(network:CanonicalNetwork)=>{
+  const engine=new BrowserJsPowerFlowEngine(),scenario=emptyScenario();
+  return engine.runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow'),analysisSettings:defaultAnalysisSettings(),stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED'});
+};
 
 const model=():NumericModel=>({n:3,baseMVA:100,slack:0,slackVm:1,referencePMw:0,pSpec:Float64Array.from([0,20,-20]),qSpec:Float64Array.from([0,0,-5]),busType:Int8Array.from([2,0,0]),vmSet:Float64Array.from([1,1,1]),shuntG:new Float64Array(3),shuntB:new Float64Array(3),qMinNet:[null,null,null],qMaxNet:[null,null,null],activeBalanceParticipation:Float64Array.from([0,1,0]),activeBalanceEligibleLoadMw:Float64Array.from([0,30,0]),activeBalanceEligibilityComplete:true,branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0},{i:1,j:2,r:.01,x:.1,bch:0,tap:1,phase:0}]});
 
@@ -65,6 +93,53 @@ test('the integrated alpha Newton unknown cannot drive an eligible load below ze
  assert.equal(over.status,'CONVERGED_FULL_NR');
  assert.ok((over.alphaMw??0)<=10+1e-6,`alpha ${over.alphaMw} exceeded the headroom from an over-limit warm start`);
  assert.ok(over.P![1]>=-1e-6);
+});
+
+test('a station controller without a source Q limit still solves but is not source-exact',()=>{
+ const network=stationFixture({qMin:null,qMax:null});
+ const part=prepareModel(network);
+ const controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop',undefined,'INTEGRATED'),row=controlled.controllers[0];
+ // The numerical solve is allowed to proceed: the dispatch comes from the control equation.
+ assert.equal(controlled.result.converged,true);
+ assert.ok(Number.isFinite(controlled.unitOverrides.get('G1')!.qMvar!));
+ // The voltage equation is genuinely satisfied, so the solve status stays SATISFIED:
+ // the missing capability is a source-fidelity fact, not an unsolved control equation.
+ assert.equal(row.status,'SATISFIED');
+ assert.equal(row.qLimitAvailability,'MISSING');
+ assert.equal(row.boundedUnitCount,0);
+ assert.equal(stationSourceFidelityOf([row]),'PARTIAL_SOURCE_FIDELITY');
+ assert.equal(Q_LIMITS_MISSING_CODE,'Q_LIMITS_MISSING');
+ // No limit state may be invented for an unbounded member.
+ assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMIN_LIMITED');
+ assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMAX_LIMITED');
+ // A bounded station stays source-exact.
+ assert.equal(stationSourceFidelityOf([{qLimitAvailability:'SOURCE_BOUNDED'}]),'SOURCE_BOUNDED');
+});
+
+test('a missing source Q limit is reported as PARTIAL_SOURCE_FIDELITY, not as full comparability',async()=>{
+ const network=stationFixture({qMin:null,qMax:null});
+ const result=await engineRun(network);
+ const convergence=(result.diagnostics as Record<string,unknown>).convergence as Record<string,string>;
+ // Numerically converged...
+ assert.equal(convergence.newtonRaphson,'NR_CONVERGED');
+ // The station control itself converges: the voltage equation is met.
+ assert.equal(convergence.stationControl,'STATION_CONTROL_CONVERGED');
+ // ...but the source capability is unresolved, so it is not source-exact and not fully
+ // comparable. Convergence per concern and source fidelity are reported separately.
+ assert.equal(convergence.sourceFidelity,'PARTIAL_SOURCE_FIDELITY');
+ assert.notEqual(convergence.powerFactoryComparability,'COMPARABLE');
+ const summary=(result.diagnostics as Record<string,any>).stationControllerSummary;
+ assert.equal(summary.stationSourceFidelity,'PARTIAL_SOURCE_FIDELITY');
+ assert.ok(summary.missingSourceQLimit.controllerCount>=1);
+ assert.equal(summary.missingSourceQLimit.code,'Q_LIMITS_MISSING');
+ // A station whose source supplies limits is source-exact, so comparability is decided only
+ // by the remaining concerns (this fixture has no adjustable load, so the active balance is
+ // separately partial).
+ const bounded=await engineRun(stationFixture({qMin:-5,qMax:5}));
+ const boundedConvergence=(bounded.diagnostics as Record<string,unknown>).convergence as Record<string,string>;
+ assert.equal(boundedConvergence.sourceFidelity,'SOURCE_BOUNDED');
+ assert.equal(((bounded.diagnostics as Record<string,any>).stationControllerSummary).stationSourceFidelity,'SOURCE_BOUNDED');
+ assert.notEqual(boundedConvergence.powerFactoryComparability,'PARTIAL_SOURCE_FIDELITY');
 });
 
 test('the alpha bound is unbounded when no eligible load headroom is declared',()=>{

@@ -3,7 +3,7 @@ import test from 'node:test';
 import type {CanonicalNetwork} from '../../src/domain/model/network';
 import {prepareModel} from '../../src/analysis/power-flow/preparation';
 import {runStationControlledIslandV73,droopTarget,activeControlRms,solveCoupledLeastSquares,solveActiveControllerObjective,solveBoundedActiveSetPolish,solveBoundedControllerObjective,solveDirectionConsistentBoundedObjective,partitionControllerDescent,mergeControllerAllocations,globalGradientStep,classifyMonotoneActiveSet,scaleCoupledProposal,runPredictedDescentTrial} from '../../src/analysis/power-flow/station-controls-v73';
-import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation} from '../../src/analysis/power-flow/station-participation';
+import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation,Q_LIMITS_MISSING_CODE,stationSourceFidelityOf} from '../../src/analysis/power-flow/station-participation';
 import {solveNR} from '../../src/analysis/power-flow/js/newton';
 import {buildY} from '../../src/analysis/power-flow/js/ybus';
 import {calcPQ,fillJacobian,makeLayout} from '../../src/analysis/power-flow/js/jacobian';

@@ -4,6 +4,7 @@ import { effectiveNetwork } from '../../domain/scenario/overlay';
 import { prepareModel } from '../power-flow/preparation';
 import { mapResults } from '../power-flow/results';
 import {runStationControlledIslandV73,type ControlDiagnostic,type ControlTimings} from '../power-flow/station-controls-v73';
+import {Q_LIMITS_MISSING_CODE} from '../power-flow/station-participation';
 import { runReduced } from '../fast-ac/reduced-engine';
 import {APP_VERSION} from '../../version';
 import {analysisSettingsHash,effectiveFullAcLimits,profileFidelity,unsupportedFullAcSettings,unsupportedSharedSettings} from '../../domain/calculation/analysis-settings';
@@ -58,7 +59,14 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
     // Source-limit availability. A member whose source supplies no Q limit has an
     // unknown capability: it is solved from its control equation, and no limit may be
     // reported as enforced for it.
+    // A station controller whose source supplies no Q limit is solved from its control
+    // equation: the numerical result stays valid, but the reactive capability is unknown,
+    // so the calculation is not source-exact and not fully PowerFactory-comparable.
     const qLimitAvailabilityCounts=Object.fromEntries([...new Set(controllerRows.map(c=>c.qLimitAvailability??'UNKNOWN'))].sort().map(key=>[key,controllerRows.filter(c=>(c.qLimitAvailability??'UNKNOWN')===key).length]));
+    const missingQLimitRows=controllerRows.filter(c=>c.qLimitAvailability==='MISSING');
+    const stationSourceFidelity=missingQLimitRows.length?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
+    controllerSummary.stationSourceFidelity=stationSourceFidelity;
+    controllerSummary.missingSourceQLimit={controllerCount:missingQLimitRows.length,controllerIds:missingQLimitRows.map(c=>c.id).sort(),code:Q_LIMITS_MISSING_CODE,note:'These controllers are solved from their control equation because the source supplies no reactive limit. No limit is inferred and no limit state is reported for them; the result is numerically valid but not source-exact.'};
     const qginiClamped=controllerRows.filter(c=>(c.qginiClampCount??0)>0);
     controllerSummary.qLimitAvailability=qLimitAvailabilityCounts;
     controllerSummary.qLimitAvailabilityNote='MISSING means the source supplies no reactive limit for the station members. Such a station is resolved from its control equation; no bound is inferred and no limit state is reported for it.';
@@ -89,18 +97,27 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
     const pendingControlStatuses=['STAGNATED_TRIAL','MAX_OUTER_ROUNDS','CONTROL_SOLVE_FAILED','CONTROL_RESIDUAL_AFTER_FINAL_BALANCE'];
     const stationControlPending=controllerRows.some(row=>pendingControlStatuses.includes(row.status));
     const stationControlConverged=!stationControlPending&&(controllerSummary.mode==='off'||controllerRows.every(row=>!row.supported||['SATISFIED','SATURATED_QMIN','SATURATED_QMAX','NO_REACTIVE_HEADROOM'].includes(row.status)));
+    // Numerical convergence and source fidelity are separate verdicts and must not be
+    // conflated. A station whose source supplies no reactive limit satisfies its voltage
+    // equation, so its solve status stays SATISFIED; what is unresolved is the source
+    // capability. It therefore reports stationControl CONVERGED with sourceFidelity
+    // PARTIAL, and PowerFactory comparability PARTIAL rather than full.
+    const sourceFidelityPartial=stationSourceFidelity==='PARTIAL_SOURCE_FIDELITY';
     first.diagnostics.convergence={
       newtonRaphson:allConverged?'NR_CONVERGED':'NR_NOT_CONVERGED',
       activeBalance:activeBalanceConverged?'ACTIVE_BALANCE_CONVERGED':'ACTIVE_BALANCE_PARTIAL',
       stationControl:stationControlConverged?'STATION_CONTROL_CONVERGED':'STATION_CONTROL_PARTIAL',
-      powerFactoryComparability:allConverged&&activeBalanceConverged&&stationControlConverged?'COMPARABLE':'NOT_FULLY_COMPARABLE',
+      sourceFidelity:sourceFidelityPartial?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED',
+      powerFactoryComparability:allConverged&&activeBalanceConverged&&stationControlConverged?(sourceFidelityPartial?'PARTIAL_SOURCE_FIDELITY':'COMPARABLE'):'NOT_FULLY_COMPARABLE',
       pendingControllerStatuses:Object.fromEntries([...new Set(controllerRows.map(row=>row.status))].sort().filter(status=>pendingControlStatuses.includes(status)).map(status=>[status,controllerRows.filter(row=>row.status===status).length])),
     };
     (first.quality as Record<string,unknown>).controlFidelity=stationControlConverged?'CONVERGED':'PARTIAL';
     const effectiveLimits=effectiveFullAcLimits(fullAcSettings??undefined),profileClaim=profileFidelity(fullAcSettings?.profile);
     first.diagnostics.effectiveLimits=effectiveLimits;
     first.diagnostics.unsupportedSettings={shared:unsupportedSharedSettings(),powerFlow:unsupportedFullAcSettings()};
-    first.diagnostics.calculationProvenance={profile:fullAcSettings?.profile??null,profileFidelity:profileClaim.fidelity,profileLabel:profileClaim.label,profileLimits:profileClaim.limits,effectiveLimits,unsupportedSettings:first.diagnostics.unsupportedSettings,activeSettings:request.analysisSettings?{shared:request.analysisSettings.shared,powerFlow:fullAcSettings}:null,activeSettingsHash:request.analysisSettings?analysisSettingsHash(request.analysisSettings,'powerFlow'):null,calculationOptionsHash:request.identity.optionsHash,engine:this.name,engineVersion:this.version,modelHash:request.identity.modelHash,scenarioHash:request.identity.scenarioHash,studyCase:effective.studyCase??null,studyTime:null,studyTimeSource:null,effectiveActiveBalancingMode:effectiveBalanceMode,activeBalanceFidelity,stationControlMode:controllerSummary.mode,stationControlFidelity:controllerSummary.mode==='off'?'NOT_APPLIED':stationControlConverged?'CONVERGED': 'PARTIAL',qLimitFidelity:implementation==='INTEGRATED'?'STATION_MEMBER_BIDIRECTIONAL;GENERIC_PV_BIDIRECTIONAL;MISSING_SOURCE_LIMITS_UNRESOLVED':'MONOTONIC_PV_TO_LIMITED; RELEASE_UNSUPPORTED',effectiveActiveSetLimits:{maxStationActiveSetRestarts:Math.max(1,Math.floor(fullAcSettings?.maxStationActiveSetRestarts??128)),maxStationUnitReleases:Math.max(0,Math.floor(fullAcSettings?.maxStationUnitReleases??2)),modelEquationTolerancePercent:fullAcSettings?.modelEquationTolerancePercent??0.2}};
+    first.diagnostics.calculationProvenance={profile:fullAcSettings?.profile??null,profileFidelity:profileClaim.fidelity,profileLabel:profileClaim.label,profileLimits:profileClaim.limits,effectiveLimits,unsupportedSettings:first.diagnostics.unsupportedSettings,activeSettings:request.analysisSettings?{shared:request.analysisSettings.shared,powerFlow:fullAcSettings}:null,activeSettingsHash:request.analysisSettings?analysisSettingsHash(request.analysisSettings,'powerFlow'):null,calculationOptionsHash:request.identity.optionsHash,engine:this.name,engineVersion:this.version,modelHash:request.identity.modelHash,scenarioHash:request.identity.scenarioHash,studyCase:effective.studyCase??null,studyTime:null,studyTimeSource:null,effectiveActiveBalancingMode:effectiveBalanceMode,activeBalanceFidelity,stationControlMode:controllerSummary.mode,stationControlFidelity:controllerSummary.mode==='off'?'NOT_APPLIED':stationControlConverged?'CONVERGED':'PARTIAL',
+      stationSourceFidelity,
+      stationSourceFidelityNote:sourceFidelityPartial?'One or more station controllers are solved without a source reactive limit, so the operating point is numerically valid but not source-exact.':null,qLimitFidelity:implementation==='INTEGRATED'?'STATION_MEMBER_BIDIRECTIONAL;GENERIC_PV_BIDIRECTIONAL;MISSING_SOURCE_LIMITS_UNRESOLVED':'MONOTONIC_PV_TO_LIMITED; RELEASE_UNSUPPORTED',effectiveActiveSetLimits:{maxStationActiveSetRestarts:Math.max(1,Math.floor(fullAcSettings?.maxStationActiveSetRestarts??128)),maxStationUnitReleases:Math.max(0,Math.floor(fullAcSettings?.maxStationUnitReleases??2)),modelEquationTolerancePercent:fullAcSettings?.modelEquationTolerancePercent??0.2}};
     return first;
   }
   async runDcPowerFlow(request:AnalysisRequest,onProgress:Progress=()=>{}){return runReduced(request,'dc',onProgress);}

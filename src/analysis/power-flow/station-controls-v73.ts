@@ -11,6 +11,14 @@ import type {SensitivitySolverDiagnostic} from './js/sensitivity-interleaved';
 import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation,qLimitAvailabilityOf,UNKNOWN_Q_LIMIT_HIGH,UNKNOWN_Q_LIMIT_LOW,type QLimitAvailability,type ReactiveAllocation,type ReactiveUnitState} from './station-participation';
 
 type Mapping={id:string;islandId:string|null;solverBusIndex:number|null};
+/**
+ * Solve outcome of one controller.
+ *
+ * `SATISFIED` states that the voltage equation is met, which stays true even when the
+ * source supplies no reactive limit. A missing capability is therefore reported through
+ * `qLimitAvailability` and the Q_LIMITS_MISSING fidelity code, not through this status:
+ * conflating the two would either hide a satisfied controller or claim an unresolved one.
+ */
 export type ControlStatus='PENDING'|'SATISFIED'|'SATURATED_QMIN'|'SATURATED_QMAX'|'NO_REACTIVE_HEADROOM'|'ROLLED_BACK_TO_LOCAL_PV'|'REMOTE_CONTROL_CONFLICT'|'Q_LIMITS_UNAVAILABLE'|'UNSUPPORTED_PROFILE'|'UNSUPPORTED_DISTRIBUTION'|'UNSUPPORTED_DROOP'|'REMOTE_BUS_UNRESOLVED'|'NO_REFERENCE_ISLAND'|'LOCAL_PV_CONFLICT'|'CONTROL_SOLVE_FAILED'|'MAX_OUTER_ROUNDS'|'STAGNATED_TRIAL'|'BASELINE_LOCAL_PV'|'OWNERSHIP_ONLY'|'CONTROL_RESIDUAL_AFTER_FINAL_BALANCE';
 export interface ControlDiagnostic {
   id:string;controllerId:string;remoteBus:string;islandId:string|null;targetVpu:number;initialVpu:number|null;finalVpu:number|null;voltageResidualPu:number|null;
@@ -447,6 +455,11 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(new Set(c.unitIds).size!==c.unitIds.length||active.some(g=>((droop?allUnitOwners:zeroUnitOwners).get(g.id)||0)>1||((droop?allBusOwners:zeroBusOwners).get(g.index)||0)>1))status='UNSUPPORTED_DISTRIBUTION';
     else if(!finite(c.vmSet)||c.vmSet<.5||c.vmSet>1.5)status='UNSUPPORTED_PROFILE';
     else if(qMin!=null&&qMax!=null&&qMin>qMax)status='Q_LIMITS_UNAVAILABLE';
+    // A station whose members supply no reactive limit stays a normal controllable
+    // controller: its dispatch comes from the control equation, so excluding it would
+    // change the operating point without physical justification. The missing capability is
+    // reported as source fidelity (`qLimitAvailability`, Q_LIMITS_MISSING), not as a solve
+    // outcome, because `SATISFIED` remains a true statement about the voltage equation.
     else if(droop&&(!c.measurementSelfCubicle||active.length!==1||active[0].sourceClass!=='ElmGenStat'||!finite(c.ratedPowerRaw)||c.ratedPowerRaw<=0||!finite(c.droopValueRaw)||Math.abs(c.droopValueRaw)<EPS))status='UNSUPPORTED_DROOP';
     else if(!weights)status='UNSUPPORTED_DISTRIBUTION';
     else if(remote===part.model.slack||buses.some(bus=>bus===part.model.slack||part.generators.some(g=>g.index===bus&&g.voltageControl&&!c.unitIds.includes(g.id)))||part.generators.some(g=>g.index===remote&&g.voltageControl&&!c.unitIds.includes(g.id)))status='LOCAL_PV_CONFLICT';

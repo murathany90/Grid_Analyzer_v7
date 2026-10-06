@@ -9,6 +9,19 @@
  * the solver from claiming a limit was enforced.
  */
 export type QLimitAvailability='SOURCE_BOUNDED'|'MISSING';
+/**
+ * Calculation-level source fidelity verdict for reactive-limit data.
+ *
+ * `PARTIAL_SOURCE_FIDELITY` is required when any active station controller is solved from
+ * an unknown reactive capability. The numerical result is still valid; it simply is not
+ * source-exact, so it may not be presented as fully comparable.
+ */
+export type StationSourceFidelity='SOURCE_BOUNDED'|'PARTIAL_SOURCE_FIDELITY';
+/** Diagnostic code emitted when a station controller has no source Q limit. */
+export const Q_LIMITS_MISSING_CODE='Q_LIMITS_MISSING';
+export function stationSourceFidelityOf(rows:readonly {qLimitAvailability?:QLimitAvailability;supported?:boolean}[]):StationSourceFidelity{
+  return rows.some(row=>row.qLimitAvailability==='MISSING')?'PARTIAL_SOURCE_FIDELITY':'SOURCE_BOUNDED';
+}
 export interface ReactiveUnitState {
   id:string;bus:number;pMw:number;qMvar:number;
   /** Effective numeric band used for arithmetic. `MISSING` units carry sentinels that are never reported as enforced limits. */
