@@ -260,7 +260,11 @@ test('sensitivity controller accepts a bounded Q step and reduces remote voltage
 });
 test('accepted sensitivity Q step leaves a limited unit out of remaining participation',()=>{
   const base=fixture(),network={...base,generators:base.generators.map(g=>g.id==='G1'?{...g,qMin:-.25,qMax:.25}:{...g,qMin:-10000,qMax:10000})},part=prepareModel(network);
-  const controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop'),row=controlled.controllers[0];
+  // The tolerance is stated explicitly: the model-equation tolerance now has one typed
+  // source with a 0.2 % default, so this case must not depend on which fallback an
+  // omitted settings object happens to pick.
+  const settings={...defaultAnalysisSettings().powerFlow,modelEquationTolerancePercent:.01};
+  const controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop',undefined,'SENSITIVITY',settings),row=controlled.controllers[0];
   assert.ok(controlled.outerRounds>0);assert.equal(Math.abs(controlled.unitOverrides.get('G1')?.qMvar??NaN),.25);
   assert.deepEqual(row.participationKi,{G2:1});
 });
@@ -321,6 +325,64 @@ test('one controller reaching a Q limit leaves its peer controller active',()=>{
   assert.deepEqual(byId.get('C2')!.participationKi,{G2:1});
   assert.ok(Math.abs(controlled.result.Vm![byId.get('C2')!.remoteBusIndex!]-1.03)<1e-4);
 });
+test('a member released in the +Q direction can re-enter at the opposite limit',()=>{
+  // Two passes through the same station: the first drives the single member to QMAX, the
+  // second reverses the station's reactive requirement so that member must be released
+  // from QMAX and pushed toward QMIN. A release direction taken from the sign of the
+  // previous Q dispatch would keep releasing the wrong bound and never re-enter.
+  const base=fixture(false);
+  const narrow=(g:CanonicalNetwork['generators'][number])=>({...g,qMin:-.25,qMax:.25});
+  // The integrated (V2) station path owns the bidirectional member release logic.
+  const runIntegrated=(network:CanonicalNetwork)=>{const part=prepareModel(network);return runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop',undefined,'INTEGRATED');};
+  // First pass: a high remote target pushes Q up until QMAX binds.
+  const up={...base,generators:base.generators.map(narrow),stationControllers:base.stationControllers.map(c=>({...c,vmSet:1.2}))};
+  const upRun=runIntegrated(up);
+  assert.equal(upRun.result.converged,true);
+  assert.ok(['SATURATED_QMAX','SATURATED_QMIN'].includes(upRun.controllers[0].status));
+  assert.ok(upRun.controlLimitRestarts!>0,'expected active-set restarts in the first pass');
+  const upQ=upRun.unitOverrides.get('G1')!.qMvar!;
+  assert.ok(Math.abs(Math.abs(upQ)-.25)<1e-6,`first pass did not reach a limit: ${upQ}`);
+  const upBound=upQ>0?'QMAX':'QMIN';
+
+  // Second pass: the remote target moves the opposite way, so the same member must be
+  // released from its first-pass bound and travel to the other limit.
+  const down={...up,stationControllers:base.stationControllers.map(c=>({...c,vmSet:upBound==='QMAX'?.7:1.2}))};
+  const downRun=runIntegrated(down);
+  assert.equal(downRun.result.converged,true);
+  const downQ=downRun.unitOverrides.get('G1')!.qMvar!;
+  assert.ok(Math.abs(downQ-upQ)>1e-3,`member did not move away from ${upBound}: ${upQ} -> ${downQ}`);
+  assert.ok(Math.abs(Math.abs(downQ)-.25)<1e-6,`reverse pass did not reach the opposite limit: ${downQ}`);
+  assert.ok(Math.sign(downQ)!==Math.sign(upQ),`member stayed on the same bound ${upBound}`);
+  assert.equal(downRun.controllers[0].releaseDirectionSource,'CONTROLLER_EQUATION_RESIDUAL');
+});
+
+test('a station member whose source supplies no limit is reported, not clamped',()=>{
+  const base=fixture(false);
+  const network={...base,generators:base.generators.map(g=>({...g,qMin:null,qMax:null}))};
+  const controlled=run(network),row=controlled.controllers[0];
+  assert.equal(row.qLimitAvailability,'MISSING');
+  assert.equal(row.boundedUnitCount,0);
+  // The Q dispatch comes from the control equation, so the unit still moves.
+  assert.equal(controlled.result.converged,true);
+  assert.ok(Number.isFinite(controlled.unitOverrides.get('G1')!.qMvar!));
+  // No limit state may be invented for a unit the source does not bound.
+  assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMIN_LIMITED');
+  assert.notEqual(controlled.unitOverrides.get('G1')!.qState,'QMAX_LIMITED');
+});
+
+test('a station member whose qgini sits outside its source band reports the clamp',()=>{
+  const base=fixture(false);
+  // qgini = 5 MVAr but the source band is [-0.25, 0.25].
+  const network={...base,generators:base.generators.map(g=>({...g,qMvar:5,qDispatchMvar:5,qMin:-.25,qMax:.25}))};
+  const part=prepareModel(network);
+  const controlled=runStationControlledIslandV73(network,part,part.diagnostics.stationControllerMappings as {id:string;islandId:string|null;solverBusIndex:number|null}[],'zeroDroop',undefined,'INTEGRATED'),row=controlled.controllers[0];
+  assert.equal(row.qLimitAvailability,'SOURCE_BOUNDED');
+  assert.equal(row.qginiClampCount,1);
+  assert.ok(Math.abs((row.qginiClampMvar??0)-4.75)<1e-6);
+  // The clamp is visible in the unit result and the unit sits on the source limit.
+  assert.ok(Math.abs(Math.abs(controlled.unitOverrides.get('G1')!.qMvar!)-.25)<1e-6);
+});
+
 test('production Full AC uses integrated station control when a station mode is selected',async()=>{
   const network=fixture(false),scenario=emptyScenario(),calculationIdentity=identity(network.modelHash,scenario,'powerFlow'),engine=new BrowserJsPowerFlowEngine();
   const production=await engine.runPowerFlow({network,scenario,identity:calculationIdentity}),integrated=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop'}),sensitivity=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'SENSITIVITY'}),experimental=await engine.runPowerFlow({network,scenario,identity:calculationIdentity,stationControlMode:'zeroDroop',stationControlImplementation:'INTEGRATED_EXPERIMENTAL'});

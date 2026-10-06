@@ -1,5 +1,25 @@
 /** Reactive sharing for the inspected imode=0 profile: dispatched active-power participation. */
-export interface ReactiveUnitState {id:string;bus:number;pMw:number;qMvar:number;qMin:number;qMax:number;qDispatchMvar?:number}
+/**
+ * Availability of a unit's reactive limits in the source.
+ *
+ * `SOURCE_BOUNDED` is the only case in which a limit may be enforced. A source that
+ * supplies no limit must not be turned into an unlimited reactive source: the
+ * capability is unknown, and PF resolves such a unit from its control equation rather
+ * than from a bound. `MISSING` therefore keeps the unit controllable while forbidding
+ * the solver from claiming a limit was enforced.
+ */
+export type QLimitAvailability='SOURCE_BOUNDED'|'MISSING';
+export interface ReactiveUnitState {
+  id:string;bus:number;pMw:number;qMvar:number;
+  /** Effective numeric band used for arithmetic. `MISSING` units carry sentinels that are never reported as enforced limits. */
+  qMin:number;qMax:number;qDispatchMvar?:number;
+  qLimitAvailability?:QLimitAvailability;
+  /** The source-provided band, or null when the source supplies no limit. */
+  sourceQMin?:number|null; sourceQMax?:number|null;
+}
+export const UNKNOWN_Q_LIMIT_LOW=-Number.MAX_VALUE;
+export const UNKNOWN_Q_LIMIT_HIGH=Number.MAX_VALUE;
+export const qLimitAvailabilityOf=(unit:Pick<ReactiveUnitState,'sourceQMin'|'sourceQMax'>):QLimitAvailability=>unit.sourceQMin!=null&&unit.sourceQMax!=null&&Number.isFinite(unit.sourceQMin)&&Number.isFinite(unit.sourceQMax)?'SOURCE_BOUNDED':'MISSING';
 export interface ReactiveAllocation {qByUnit:Map<string,number>;appliedDelta:number;remainingDelta:number;saturated:boolean}
 const EPS=1e-9;
 export function dispatchedPWeights(units:readonly Pick<ReactiveUnitState,'id'|'pMw'>[]):Map<string,number>|null {

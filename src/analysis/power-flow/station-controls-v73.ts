@@ -1,5 +1,5 @@
 import type {CanonicalNetwork,StationController} from '../../domain/model/network';
-import {defaultAnalysisSettings,type FullAcSettings} from '../../domain/calculation/analysis-settings';
+import {defaultAnalysisSettings,modelEquationTolerancePercent,type FullAcSettings} from '../../domain/calculation/analysis-settings';
 import type {StationControlImplementation,StationControlMode} from '../api/engine';
 import type {PreparedModel,NumericModel} from './preparation';
 import type {PowerFlowResult,NumericalFailureDiagnostic,AdmittanceMatrix,JacobianLayout,IntegratedStationControl} from './js/types';
@@ -8,7 +8,7 @@ import {solveNR} from './js/newton';
 import {type SensitivityFailure,type SensitivityProbe} from './js/sensitivity';
 import {probeAdjointSensitivities} from './js/sensitivity-interleaved';
 import type {SensitivitySolverDiagnostic} from './js/sensitivity-interleaved';
-import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation,type ReactiveAllocation,type ReactiveUnitState} from './station-participation';
+import {allocateReactiveDelta,activeParticipation,dispatchedPWeights,interiorParticipation,stationParticipation,qLimitAvailabilityOf,UNKNOWN_Q_LIMIT_HIGH,UNKNOWN_Q_LIMIT_LOW,type QLimitAvailability,type ReactiveAllocation,type ReactiveUnitState} from './station-participation';
 
 type Mapping={id:string;islandId:string|null;solverBusIndex:number|null};
 export type ControlStatus='PENDING'|'SATISFIED'|'SATURATED_QMIN'|'SATURATED_QMAX'|'NO_REACTIVE_HEADROOM'|'ROLLED_BACK_TO_LOCAL_PV'|'REMOTE_CONTROL_CONFLICT'|'Q_LIMITS_UNAVAILABLE'|'UNSUPPORTED_PROFILE'|'UNSUPPORTED_DISTRIBUTION'|'UNSUPPORTED_DROOP'|'REMOTE_BUS_UNRESOLVED'|'NO_REFERENCE_ISLAND'|'LOCAL_PV_CONFLICT'|'CONTROL_SOLVE_FAILED'|'MAX_OUTER_ROUNDS'|'STAGNATED_TRIAL'|'BASELINE_LOCAL_PV'|'OWNERSHIP_ONLY'|'CONTROL_RESIDUAL_AFTER_FINAL_BALANCE';
@@ -17,6 +17,21 @@ export interface ControlDiagnostic {
   initialQ:number|null;finalQ:number|null;qMin:number|null;qMax:number|null;outerRounds:number;status:ControlStatus;supported:boolean;unitIds:string[];actuatorBus:number|null;actuatorBuses:number[];remoteBusIndex:number|null;
   participationKi:Record<string,number>;jacobianDimension:number|null;linearMethod:string|null;linearIterations:number|null;linearResidual:number|null;iluMinimumPivot:number|null;effectiveSlope:number|null;individualDvDqi:Record<string,number|null>;elapsedSensitivityMs:number|null;failureReason:SensitivityFailure|null;controlSolveFailure?:string|null;ownershipUnallocatedMvar?:number;
   qDistributionSource?:'SOURCE_CVQQ'|'DERIVED_DISPATCHED_ACTIVE_POWER'|null;
+  /**
+   * Whether the source supplies a reactive limit for the station members.
+   *
+   * `MISSING` means the capability is unknown. Such a station stays controllable
+   * because PF resolves it from the control equation, but no limit may be enforced or
+   * reported as enforced for it.
+   */
+  qLimitAvailability?:QLimitAvailability;
+  boundedUnitCount?:number;
+  /** Which quantity decided the last Q-limit release direction. */
+  releaseDirectionSource?:'CONTROLLER_EQUATION_RESIDUAL';
+  /** Number of members whose immutable qgini sat outside the source band and was clamped. */
+  qginiClampCount?:number;
+  /** Total absolute MVAr of those qgini corrections. */
+  qginiClampMvar?:number;
 }
 export interface ControlTimings {baseNrMs:number;controllerClassificationMs:number;jacobianBuildMs:number;rcmReorderMs:number;ilu1FactorMs:number;ilu2FactorMs:number;iluFactorMs:number;sensitivityIterativeSolveMs:number;cscConversionMs:number;symbolicFactorMs:number;numericFactorMs:number;directRhsSolveMs:number;sensitivitySolveMs:number;classificationNrMs:number;outerTrialNrMs:number;finalNrMs:number;controlLimitRestartNrMs:number;fullNrSolves:number;totalNewtonIterations:number;kluNewtonFactorizations:number;finalBalanceCorrections:number}
 export interface CoupledSystemDiagnostic {conditionEstimate:number|null;regularization:number;activeControllers:string[];objectiveRows:number;freeColumns:number;fixedControllers:number;rank:number;solveStatus:'SOLVED'|'REGULARIZED'|'SINGULAR'|'BOUNDED_ITERATIVE';activeControllerCount?:number;zeroDroopCount?:number;droopCount?:number;boundedSweeps?:number;projectedGradientNorm?:number;relativeProjectedGradient?:number;maxControllerAllowedMove?:number;objectiveStart?:number;objectiveEnd?:number;objectiveAtSweeps?:Record<string,number|null>;objectiveRatio?:number|null;interiorVariableCount?:number;atLowerBoundCount?:number;atUpperBoundCount?:number;zeroMoveCount?:number;columnNormRatio?:number|null;activeSetPolishIterations?:number;activeSetPolishConverged?:boolean;activeSetPolishFreeVariables?:number;activeSetPolishDeferredVariables?:number;activeSetPolishConditionEstimate?:number|null;activeSetPolishRegularization?:number;activeSetPolishRejectedObjectiveIncrease?:boolean;converged?:boolean;directionRebuilds?:number;directionConsistent?:boolean;matrixValid?:boolean}
@@ -180,6 +195,35 @@ const cloneModel=(base:NumericModel):NumericModel=>({...base,pSpec:Float64Array.
  */
 const ACTIVE_BALANCE_MAX_CORRECTIONS=8;
 const STATION_CONTROL_MAX_CORRECTIONS=12;
+/**
+ * Effective bound of the integrated station-member active-set restart loop.
+ *
+ * This was a hardcoded `128` that `maxOuterIterations` and
+ * `maxStationControlCorrections` did not control. The validated parity models need far
+ * more restarts than those two settings allow (SN4 uses 90 station active-set restarts
+ * and SN7 63), so lowering the effective default to `maxStationControlCorrections`
+ * would change the operating point. The default therefore stays high, it is now a
+ * typed setting, and provenance reports the value actually used.
+ */
+const DEFAULT_STATION_ACTIVE_SET_RESTARTS=128;
+/**
+ * Effective bound of per-unit station Q-limit releases.
+ *
+ * Previously an undeclared literal `2`. It is now a typed setting whose meaning is
+ * documented: a member is released at most this many times within one island solve,
+ * which bounds re-entry attempts without asserting a physical decision. The direction
+ * of each release is decided by the controller equation, not by this count.
+ */
+const DEFAULT_MAX_STATION_UNIT_RELEASES=2;
+export const stationActiveSetRestartLimit=(settings:FullAcSettings|undefined)=>Math.max(1,Math.floor(settings?.maxStationActiveSetRestarts??DEFAULT_STATION_ACTIVE_SET_RESTARTS));
+export const effectiveStationActiveSetLimits=(settings:FullAcSettings|undefined)=>({maxStationActiveSetRestarts:stationActiveSetRestartLimit(settings),maxStationUnitReleases:Math.max(0,Math.floor(settings?.maxStationUnitReleases??DEFAULT_MAX_STATION_UNIT_RELEASES))});
+/**
+ * Model-equation tolerance as a fraction, from the single typed source.
+ *
+ * `.01` and `.2` were two undeclared fallbacks for the same setting; the validated
+ * default is 0.2 %, and the 0.2 % effective value is what the parity models run with.
+ */
+export const modelEquationTolerancePu=(settings:FullAcSettings|undefined)=>modelEquationTolerancePercent(settings)/100;
 const activeBalanceCorrectionLimit=(settings:FullAcSettings|undefined)=>Math.max(1,Math.floor(settings?.maxActiveBalanceCorrections??ACTIVE_BALANCE_MAX_CORRECTIONS));
 const stationControlCorrectionLimit=(settings:FullAcSettings|undefined)=>Math.max(1,Math.floor(settings?.maxStationControlCorrections??STATION_CONTROL_MAX_CORRECTIONS));
 export interface ActiveBalanceCapture {model?:NumericModel;adjustmentsMw?:Float64Array;iterations?:number}
@@ -236,7 +280,7 @@ export function finalizeActiveBalanceAfterControls(model:NumericModel,initial:Po
 }
 
 function runIntegratedStationControls(part:PreparedModel,controls:Control[],rows:ControlDiagnostic[],times:ControlTimings,progress?:(stage:string,detail?:Record<string,number>)=>void,settings?:FullAcSettings):ControlledIslandV73 {
-  const base=part.model,Y=buildY(base),equationTolerance=(settings?.modelEquationTolerancePercent??.01)/100,maxOuterIterations=Math.min(settings?.maxOuterIterations??4,stationControlCorrectionLimit(settings)),initialBalance:ActiveBalanceCapture={},baseStart=now(),baseline=solveNRWithActiveBalance(base,progress,settings,{admittance:Y,workCounters:times},initialBalance);times.baseNrMs=now()-baseStart;
+  const base=part.model,Y=buildY(base),equationTolerance=modelEquationTolerancePu(settings),maxOuterIterations=Math.min(settings?.maxOuterIterations??4,stationControlCorrectionLimit(settings)),initialBalance:ActiveBalanceCapture={},baseStart=now(),baseline=solveNRWithActiveBalance(base,progress,settings,{admittance:Y,workCounters:times},initialBalance);times.baseNrMs=now()-baseStart;
   if(!baseline.converged){for(const c of controls){c.row.status='CONTROL_SOLVE_FAILED';c.row.controlSolveFailure=`BASELINE_${baseline.status}`;}return{prepared:part,result:baseline,controllers:rows,outerRounds:0,unitOverrides:new Map(),timings:times,resultProvenance:'BASELINE_FALLBACK',integratedControllers:0,controlLimitRestarts:0};}
   const states=controls.map(control=>({control,fixed:new Map<string,number>(),weights:new Map(Object.entries(control.row.participationKi)),initialDqPu:0}));
   for(const state of states)state.control.row.initialVpu=baseline.Vm![state.control.remote];
@@ -297,14 +341,19 @@ function runIntegratedStationControlsV2(part:PreparedModel,controls:Control[],ro
     // Station equations are anchored at immutable qgini dispatch. The local-PV
     // solution is used only as a voltage/angle warm start.
     c.row.initialQ=c.units.reduce((sum,unit)=>sum+unit.qMvar,0);c.row.ownershipUnallocatedMvar=unallocated;
-    for(const unit of c.units){const feasibleQ=Math.max(unit.qMin,Math.min(unit.qMax,unit.qMvar));
-      if(feasibleQ!==unit.qMvar){working.qSpec[unit.bus]+=feasibleQ-unit.qMvar;unit.qMvar=feasibleQ;}
+    // qgini may sit outside the source band. Clamping it is a physical correction, so it
+    // is never silent: it is recorded on the row and counted in station provenance.
+    for(const unit of c.units){
+      if(unit.qLimitAvailability!=='SOURCE_BOUNDED')continue;
+      const feasibleQ=Math.max(unit.qMin,Math.min(unit.qMax,unit.qMvar));
+      if(feasibleQ!==unit.qMvar){working.qSpec[unit.bus]+=feasibleQ-unit.qMvar;unit.qMvar=feasibleQ;c.row.qginiClampCount=(c.row.qginiClampCount??0)+1;c.row.qginiClampMvar=(c.row.qginiClampMvar??0)+Math.abs(feasibleQ-(unit.qDispatchMvar??unit.qMvar));}
       if(unit.qMax-unit.qMin<1e-8||unit.qMvar<=unit.qMin+1e-5||unit.qMvar>=unit.qMax-1e-5)state.fixed.set(unit.id,unit.qMvar);
     }
   }
   let previous=baseline,solved=baseline,integrated=0;
-  const maxRestarts=128;
-  const equationTolerance=(settings?.modelEquationTolerancePercent??.2)/100;
+  const maxRestarts=stationActiveSetRestartLimit(settings);
+  const releaseLimit=settings?.maxStationUnitReleases??DEFAULT_MAX_STATION_UNIT_RELEASES;
+  const equationTolerance=modelEquationTolerancePu(settings);
   for(let restart=0;restart<=maxRestarts;restart++){
     const model=cloneModel(working),active:State[]=[],specs:IntegratedStationControl[]=[];
     for(const state of states){const c=state.control;
@@ -329,15 +378,26 @@ function runIntegratedStationControlsV2(part:PreparedModel,controls:Control[],ro
       // Recenter at each solved state. The next restart starts at dQ=0 and the
       // same physical Q/V/angle state; only membership changes.
       for(const unit of c.units){if(state.fixed.has(unit.id))continue;
+        // A unit whose source supplies no limit must not be clamped to an invented band:
+        // its Q comes from the control equation alone.
+        if(unit.qLimitAvailability!=='SOURCE_BOUNDED'){const requested=unit.qMvar+(state.weights.get(unit.id)??0)*dqMvar;working.qSpec[unit.bus]+=requested-unit.qMvar;unit.qMvar=requested;continue;}
         const requested=unit.qMvar+(state.weights.get(unit.id)??0)*dqMvar,q=Math.max(unit.qMin,Math.min(unit.qMax,requested));
         working.qSpec[unit.bus]+=q-unit.qMvar;unit.qMvar=q;
         if(Math.abs(requested-q)>1e-5||boundHit&&activeIndex-1===solved.boundControlIndex&&(q<=unit.qMin+1e-5||q>=unit.qMax-1e-5)){state.fixed.set(unit.id,q);changed=true;}
       }
       const sourceDelta=c.units.reduce((sum,unit)=>sum+unit.qMvar-(unit.qDispatchMvar??unit.qMvar),0);
       const residual=c.source.vmSet+(c.droopQ?c.units[0].qMvar/c.droopQ:0)-solved.Vm![c.remote];
-      const direction=hasFree?Math.sign(sourceDelta):Math.sign(residual);
-      if(!boundHit&&Math.abs(direction)>0&&Math.abs(hasFree?sourceDelta:residual)>1e-4){
-        for(const unit of c.units){const limit=state.fixed.get(unit.id);if(limit==null||unit.qMax-unit.qMin<1e-8||(state.releaseCount.get(unit.id)??0)>=2)continue;
+      // Release direction comes from the controller equation, not from the sign of the
+      // historical Q dispatch. The station Q-sum residual is the marginal value of the
+      // station's own reactive output at its target voltage, so its sign is the KKT
+      // release direction: a positive residual means the target needs more Q, so a
+      // member held at QMIN must be released; negative means the member at QMAX must be
+      // released. `sourceDelta` is dispatch history and its sign says nothing about which
+      // way the next iterate needs to move, so it is reported but never used here.
+      const direction=Math.sign(residual);
+      c.row.releaseDirectionSource='CONTROLLER_EQUATION_RESIDUAL';
+      if(!boundHit&&Math.abs(direction)>0&&Math.abs(residual)>1e-4){
+        for(const unit of c.units){const limit=state.fixed.get(unit.id);if(limit==null||unit.qLimitAvailability!=='SOURCE_BOUNDED'||unit.qMax-unit.qMin<1e-8||(state.releaseCount.get(unit.id)??0)>=releaseLimit)continue;
           if(direction>0&&Math.abs(limit-unit.qMin)<1e-7||direction<0&&Math.abs(limit-unit.qMax)<1e-7){state.fixed.delete(unit.id);state.releaseCount.set(unit.id,(state.releaseCount.get(unit.id)??0)+1);changed=true;}
         }
       }
@@ -349,7 +409,8 @@ function runIntegratedStationControlsV2(part:PreparedModel,controls:Control[],ro
     for(const state of states){const c=state.control,qTotal=c.units.reduce((sum,unit)=>sum+unit.qMvar,0),residual=c.source.vmSet+(c.droopQ?qTotal/c.droopQ:0)-solved.Vm![c.remote],allFixed=state.fixed.size===c.units.length;
       c.row.status=allFixed?(Math.abs(qTotal-(c.row.qMin??Infinity))<.001?'SATURATED_QMIN':Math.abs(qTotal-(c.row.qMax??Infinity))<.001?'SATURATED_QMAX':'NO_REACTIVE_HEADROOM'):Math.abs(residual)<=equationTolerance?'SATISFIED':'CONTROL_SOLVE_FAILED';
       c.row.finalVpu=solved.Vm![c.remote];c.row.voltageResidualPu=residual;c.row.finalQ=qTotal;c.row.outerRounds=restart;c.row.jacobianDimension=model.n-1+Array.from(model.busType).filter(type=>type===0).length+specs.length+(solved.activeBalanceIterations?1:0);c.row.linearMethod=solved.linear?.method??null;c.row.linearIterations=solved.linear?.iterations??null;c.row.linearResidual=solved.linear?.residual??null;c.row.participationKi=Object.fromEntries(state.weights);
-      for(const unit of c.units)overrides.set(unit.id,{qMvar:unit.qMvar,qState:Math.abs(unit.qMvar-unit.qMin)<.001?'QMIN_LIMITED':Math.abs(unit.qMvar-unit.qMax)<.001?'QMAX_LIMITED':c.row.status});
+      // A limit state may only be reported where the source supplies a limit.
+      for(const unit of c.units)overrides.set(unit.id,{qMvar:unit.qMvar,qState:unit.qLimitAvailability!=='SOURCE_BOUNDED'?c.row.status:Math.abs(unit.qMvar-unit.qMin)<.001?'QMIN_LIMITED':Math.abs(unit.qMvar-unit.qMax)<.001?'QMAX_LIMITED':c.row.status});
     }
     const finalModel=cloneModel(working);
     return{prepared:{...part,model:finalModel,stationControlUnitResults:overrides},result:solved,controllers:rows,outerRounds:restart,unitOverrides:overrides,timings:times,resultProvenance:'INTEGRATED_STATION_CONTROL',integratedControllers:integrated,controlLimitRestarts:restart};
@@ -358,15 +419,24 @@ function runIntegratedStationControlsV2(part:PreparedModel,controls:Control[],ro
 }
 
 export function runStationControlledIslandV73(network:CanonicalNetwork,part:PreparedModel,mappings:readonly Mapping[],mode:StationControlMode='zeroDroop',progress?:(stage:string,detail?:Record<string,number>)=>void,implementation:StationControlImplementation='SENSITIVITY',settings?:FullAcSettings):ControlledIslandV73 {
-  const equationTolerance=(settings?.modelEquationTolerancePercent??.01)/100,maxOuterIterations=Math.min(settings?.maxOuterIterations??4,stationControlCorrectionLimit(settings));
+  const equationTolerance=modelEquationTolerancePu(settings),maxOuterIterations=Math.min(settings?.maxOuterIterations??4,stationControlCorrectionLimit(settings));
   const times:ControlTimings={baseNrMs:0,controllerClassificationMs:0,jacobianBuildMs:0,rcmReorderMs:0,ilu1FactorMs:0,ilu2FactorMs:0,iluFactorMs:0,sensitivityIterativeSolveMs:0,cscConversionMs:0,symbolicFactorMs:0,numericFactorMs:0,directRhsSolveMs:0,sensitivitySolveMs:0,classificationNrMs:0,outerTrialNrMs:0,finalNrMs:0,controlLimitRestartNrMs:0,fullNrSolves:0,totalNewtonIterations:0,kluNewtonFactorizations:0,finalBalanceCorrections:0};
   const started=now(),byId=new Map(mappings.map(row=>[row.id,row])),generators=new Map(part.generators.map(g=>[g.id,g]));
   const all=network.stationControllers.filter(c=>c.inService),island=all.filter(c=>byId.get(c.id)?.islandId===part.islandId),zeroUnitOwners=new Map<string,number>(),allUnitOwners=new Map<string,number>(),zeroBusOwners=new Map<number,number>(),allBusOwners=new Map<number,number>();
   for(const c of all)for(const id of c.unitIds){allUnitOwners.set(id,(allUnitOwners.get(id)||0)+1);if(c.droopModeRaw===0)zeroUnitOwners.set(id,(zeroUnitOwners.get(id)||0)+1);}
   for(const c of island){const buses=new Set(c.unitIds.map(id=>generators.get(id)?.index).filter((i):i is number=>i!=null));for(const bus of buses){allBusOwners.set(bus,(allBusOwners.get(bus)||0)+1);if(c.droopModeRaw===0)zeroBusOwners.set(bus,(zeroBusOwners.get(bus)||0)+1);}}
   const rows:ControlDiagnostic[]=[],controls:Control[]=[];
-  for(const c of island){const remote=byId.get(c.id)?.solverBusIndex??null,active=c.unitIds.map(id=>generators.get(id)).filter((g):g is NonNullable<typeof g>=>!!g&&g.inService),buses=[...new Set(active.map(g=>g.index))],units=active.map(g=>({id:g.id,bus:g.index,pMw:g.pDispatchMw??g.pMw,qMvar:g.qDispatchMvar??g.qMvar,qDispatchMvar:g.qDispatchMvar??g.qMvar,qMin:g.qMin??-Infinity,qMax:g.qMax??Infinity})),cvqq=c.qParticipationRaw?active.map(g=>c.qParticipationRaw![c.unitIds.indexOf(g.id)]??null):undefined,weights=stationParticipation(units,cvqq),droop=c.droopModeRaw===1;
+  for(const c of island){const remote=byId.get(c.id)?.solverBusIndex??null,active=c.unitIds.map(id=>generators.get(id)).filter((g):g is NonNullable<typeof g>=>!!g&&g.inService),buses=[...new Set(active.map(g=>g.index))],units=active.map(g=>({id:g.id,bus:g.index,pMw:g.pDispatchMw??g.pMw,qMvar:g.qDispatchMvar??g.qMvar,qDispatchMvar:g.qDispatchMvar??g.qMvar,
+      // A source limit that is absent is unknown, not unbounded. The numeric band uses
+      // sentinels so participation arithmetic still works, and `qLimitAvailability`
+      // records that no limit was enforced so no diagnostic may claim otherwise.
+      sourceQMin:g.qMin,sourceQMax:g.qMax,qLimitAvailability:qLimitAvailabilityOf({sourceQMin:g.qMin,sourceQMax:g.qMax}),
+      qMin:g.qMin??UNKNOWN_Q_LIMIT_LOW,qMax:g.qMax??UNKNOWN_Q_LIMIT_HIGH})),cvqq=c.qParticipationRaw?active.map(g=>c.qParticipationRaw![c.unitIds.indexOf(g.id)]??null):undefined,weights=stationParticipation(units,cvqq),droop=c.droopModeRaw===1;
     const qMin=active.length&&active.every(g=>finite(g.qMin))?active.reduce((s,g)=>s+g.qMin!,0):null,qMax=active.length&&active.every(g=>finite(g.qMax))?active.reduce((s,g)=>s+g.qMax!,0):null,qInitial=active.length?active.reduce((s,g)=>s+g.qMvar,0):null;
+    // Source-limit availability for the whole station: PARTIAL means the band is known
+    // for some members only, so no station-level limit may be enforced or reported.
+    const availability:QLimitAvailability=units.length&&units.every(unit=>unit.qLimitAvailability==='SOURCE_BOUNDED')?'SOURCE_BOUNDED':'MISSING';
+    const boundedUnits=units.filter(unit=>unit.qLimitAvailability==='SOURCE_BOUNDED').length;
     let status:ControlStatus='PENDING';
     if(mode==='off')status='BASELINE_LOCAL_PV';
     else if(remote==null)status='REMOTE_BUS_UNRESOLVED';
@@ -381,7 +451,7 @@ export function runStationControlledIslandV73(network:CanonicalNetwork,part:Prep
     else if(!weights)status='UNSUPPORTED_DISTRIBUTION';
     else if(remote===part.model.slack||buses.some(bus=>bus===part.model.slack||part.generators.some(g=>g.index===bus&&g.voltageControl&&!c.unitIds.includes(g.id)))||part.generators.some(g=>g.index===remote&&g.voltageControl&&!c.unitIds.includes(g.id)))status='LOCAL_PV_CONFLICT';
     else if(qMin!=null&&qMax!=null&&qMax-qMin<EPS)status='NO_REACTIVE_HEADROOM';
-    const row:ControlDiagnostic={id:c.id,controllerId:c.id,remoteBus:c.remoteBus,islandId:part.islandId??null,targetVpu:c.vmSet,initialVpu:null,finalVpu:null,voltageResidualPu:null,initialQ:qInitial,finalQ:qInitial,qMin,qMax,outerRounds:0,status,supported:status==='PENDING',unitIds:active.map(g=>g.id),actuatorBus:buses.length===1?buses[0]:null,actuatorBuses:buses,remoteBusIndex:remote,participationKi:Object.fromEntries(weights?.weights||[]),qDistributionSource:weights?.source??null,jacobianDimension:null,linearMethod:null,linearIterations:null,linearResidual:null,iluMinimumPivot:null,effectiveSlope:null,individualDvDqi:{},elapsedSensitivityMs:null,failureReason:null};rows.push(row);
+    const row:ControlDiagnostic={id:c.id,controllerId:c.id,remoteBus:c.remoteBus,islandId:part.islandId??null,targetVpu:c.vmSet,initialVpu:null,finalVpu:null,voltageResidualPu:null,initialQ:qInitial,finalQ:qInitial,qMin,qMax,outerRounds:0,status,supported:status==='PENDING',unitIds:active.map(g=>g.id),actuatorBus:buses.length===1?buses[0]:null,actuatorBuses:buses,remoteBusIndex:remote,participationKi:Object.fromEntries(weights?.weights||[]),qDistributionSource:weights?.source??null,jacobianDimension:null,linearMethod:null,linearIterations:null,linearResidual:null,iluMinimumPivot:null,effectiveSlope:null,individualDvDqi:{},elapsedSensitivityMs:null,failureReason:null,qLimitAvailability:availability,boundedUnitCount:boundedUnits};rows.push(row);
     if(status==='PENDING'&&remote!=null)controls.push({source:c,row,units,remote,droopQ:droop?c.ratedPowerRaw!*100/c.droopValueRaw!:null,sourceWeights:weights?.weights});
   }
   times.controllerClassificationMs=now()-started;

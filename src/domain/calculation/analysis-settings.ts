@@ -25,6 +25,17 @@ export interface FullAcSettings {
   maxQLimitRounds: number;
   /** Effective bound of the station-controller outer correction loop. Previously an internal constant (12). */
   maxStationControlCorrections: number;
+  /**
+   * Effective bound of the integrated station-member active-set restart loop. Previously
+   * a hardcoded 128; the validated parity models need more restarts than
+   * `maxStationControlCorrections` allows, so the effective default stays high.
+   */
+  maxStationActiveSetRestarts: number;
+  /**
+   * Maximum number of times one station member may be released from its Q limit within a
+   * single island solve. Bounds re-entry attempts; it never decides a release direction.
+   */
+  maxStationUnitReleases: number;
   nodalToleranceKva: number;
   modelEquationTolerancePercent: number;
   maxNoImprovementIterations: number;
@@ -48,6 +59,7 @@ const parityPowerFlow = (): FullAcSettings => ({
   profile: 'POWERFACTORY_TEIAS_PARITY', activeControlMode: 'AS_DISPATCHED', activeBalancingMode: 'DISTRIBUTED_ADJUSTABLE_LOADS', stationControlMode: 'droop',
   maxInnerIterations: 100, maxOuterIterations: 50,
   maxActiveBalanceCorrections: 8, maxFinalActiveBalanceCorrections: 8, maxQLimitRounds: 8, maxStationControlCorrections: 16,
+  maxStationActiveSetRestarts: 128, maxStationUnitReleases: 2,
   nodalToleranceKva: 5, modelEquationTolerancePercent: .2,
   maxNoImprovementIterations: 20, repeatedReactiveLimitDetection: 3, qLimitToleranceMvar: .02, reactiveLimitsEnabled: true, activePowerLimitsEnabled: false,
   automaticTransformerTap: false, automaticShunt: false, loadVoltageDependency: false, feederLoadScaling: false, interchangeSchedule: false,
@@ -99,7 +111,24 @@ export interface EffectiveFullAcLimits {
   maxFinalActiveBalanceCorrections: number;
   maxQLimitRounds: number;
   maxStationControlCorrections: number;
+  maxStationActiveSetRestarts: number;
+  maxStationUnitReleases: number;
   maxOuterIterations: number;
+}
+
+/**
+ * The single source of the controller model-equation tolerance in percent.
+ *
+ * The validated default is 0.2 %. It was previously duplicated as undeclared `.01` and
+ * `.2` fallbacks at two call sites in the station-control path, which made the effective
+ * tolerance depend on whether settings were supplied.
+ */
+export const DEFAULT_MODEL_EQUATION_TOLERANCE_PERCENT = 0.2;
+export function modelEquationTolerancePercent(settings: FullAcSettings | undefined): number {
+  const configured = settings?.modelEquationTolerancePercent;
+  return typeof configured === 'number' && Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_MODEL_EQUATION_TOLERANCE_PERCENT;
 }
 
 export function effectiveFullAcLimits(settings: FullAcSettings | undefined): EffectiveFullAcLimits | null {
@@ -110,6 +139,8 @@ export function effectiveFullAcLimits(settings: FullAcSettings | undefined): Eff
     maxFinalActiveBalanceCorrections: settings.maxFinalActiveBalanceCorrections,
     maxQLimitRounds: settings.maxQLimitRounds,
     maxStationControlCorrections: settings.maxStationControlCorrections,
+    maxStationActiveSetRestarts: settings.maxStationActiveSetRestarts,
+    maxStationUnitReleases: settings.maxStationUnitReleases,
     maxOuterIterations: settings.maxOuterIterations,
   };
 }
@@ -201,6 +232,8 @@ function mergeSettings(input: unknown): AnalysisSettings {
       maxFinalActiveBalanceCorrections: bounded(pf.maxFinalActiveBalanceCorrections, d.powerFlow.maxFinalActiveBalanceCorrections, 1, 10000, true),
       maxQLimitRounds: bounded(pf.maxQLimitRounds, d.powerFlow.maxQLimitRounds, 1, 10000, true),
       maxStationControlCorrections: bounded(pf.maxStationControlCorrections, d.powerFlow.maxStationControlCorrections, 1, 10000, true),
+      maxStationActiveSetRestarts: bounded(pf.maxStationActiveSetRestarts, d.powerFlow.maxStationActiveSetRestarts, 1, 10000, true),
+      maxStationUnitReleases: bounded(pf.maxStationUnitReleases, d.powerFlow.maxStationUnitReleases, 0, 1000, true),
       nodalToleranceKva: bounded(pf.nodalToleranceKva, d.powerFlow.nodalToleranceKva, .001, 1e6), modelEquationTolerancePercent: bounded(pf.modelEquationTolerancePercent, d.powerFlow.modelEquationTolerancePercent, .001, 100),
       maxNoImprovementIterations: bounded(pf.maxNoImprovementIterations, d.powerFlow.maxNoImprovementIterations, 1, 10000, true), repeatedReactiveLimitDetection: bounded(pf.repeatedReactiveLimitDetection, d.powerFlow.repeatedReactiveLimitDetection, 1, 1000, true), qLimitToleranceMvar: bounded(pf.qLimitToleranceMvar, d.powerFlow.qLimitToleranceMvar, 0, 10000),
       reactiveLimitsEnabled: pickBool(pf.reactiveLimitsEnabled, d.powerFlow.reactiveLimitsEnabled), activePowerLimitsEnabled: pickBool(pf.activePowerLimitsEnabled, d.powerFlow.activePowerLimitsEnabled),
