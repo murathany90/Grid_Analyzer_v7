@@ -72,6 +72,16 @@ export interface PfKpiSignedSummary {
   /** Observations where a material GA value has the opposite sign of a material PF value. */
   signDisagreementCount: number;
   signComparableCount: number;
+  /**
+   * Mean of GA - PF over the whole population, in that metric's unit.
+   *
+   * A magnitude sum cannot express a systematic bias: a run that is consistently low by
+   * the same amount scores the same as one with balanced error. This is the signed
+   * counterpart the release gate requires.
+   */
+  signedMeanError: number;
+  /** Sum of the signed errors, for a total-bias reading. */
+  signedSumError: number;
   /** Worst p95 of |GA-PF| across the six metrics. */
   maxP95AbsoluteError: number;
   /** Worst single |GA-PF| across the six metrics. */
@@ -433,6 +443,8 @@ export function computePowerFactoryKpis(input: PowerFactoryKpiInput): PfKpiRepor
   const signedSummary: PfKpiSignedSummary = {
     signDisagreementCount: secondary.reduce((sum, row) => sum + row.signDisagreementCount, 0),
     signComparableCount: secondary.reduce((sum, row) => sum + row.signComparableCount, 0),
+    signedMeanError: secondary.reduce((sum, row) => sum + row.signedMeanError, 0) / Math.max(1, PF_KPI_IDS.length),
+    signedSumError: secondary.reduce((sum, row) => sum + row.signedSumError, 0),
     maxP95AbsoluteError: secondary.reduce((max, row) => Math.max(max, row.p95AbsoluteError), 0),
     maxAbsoluteError: secondary.reduce((max, row) => Math.max(max, row.maxAbsoluteError), 0),
     worstObservation: worst,

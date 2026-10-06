@@ -15,7 +15,15 @@ export interface ReleaseGateInput {
   measuredSourceMatchesCurrent: boolean;
   measuredInputsMatch: boolean;
   /** Signed diagnostics for the same population; evaluated as its own gate. */
-  signed?: ReleaseGateSignedInput;
+  /**
+   * Signed diagnostics for the same population, evaluated as its own gate.
+   *
+   * Under the default REQUIRED policy this input is mandatory: an absent or incomplete
+   * `signed` fails the release. LEGACY_OPTIONAL exists only to re-verify an already
+   * published historical manifest under its own policy.
+   */
+  signed?:Partial<ReleaseGateSignedInput>|null;
+  signedPolicy?:SignedDiagnosticsPolicy;
 }
 
 export const isFullGitSha=(value:string):boolean=>/^[0-9a-f]{40}$/i.test(value);
@@ -31,6 +39,8 @@ export const isFullGitSha=(value:string):boolean=>/^[0-9a-f]{40}$/i.test(value);
 export interface SignedKpiGateInput {
   signedSummary: {
     signDisagreementCount:number; signComparableCount:number;
+    /** Mean of GA - PF, signed. */
+    signedMeanError:number;
     maxP95AbsoluteError:number; maxAbsoluteError:number;
   };
   /** Baseline of the same model; when absent only absolute limits apply. */
@@ -49,6 +59,8 @@ export interface SignedKpiGateResult {
   maxNotRegressed:boolean;
   worstP95AbsoluteError:number;
   worstMaxAbsoluteError:number;
+  /** Signed mean of GA - PF: a systematic bias a magnitude sum cannot express. */
+  signedMeanError:number;
   tolerances:{p95Percent:number;maxPercent:number};
 }
 export function evaluateSignedKpiGates(input:SignedKpiGateInput):SignedKpiGateResult{
@@ -62,6 +74,7 @@ export function evaluateSignedKpiGates(input:SignedKpiGateInput):SignedKpiGateRe
     maxNotRegressed:input.signedSummary.maxAbsoluteError<=maxLimit,
     worstP95AbsoluteError:input.signedSummary.maxP95AbsoluteError,
     worstMaxAbsoluteError:input.signedSummary.maxAbsoluteError,
+    signedMeanError:input.signedSummary.signedMeanError,
     tolerances:{p95Percent:p95TolerancePercent,maxPercent:maxTolerancePercent},
   };
 }
@@ -73,23 +86,65 @@ export function evaluateSignedKpiGates(input:SignedKpiGateInput):SignedKpiGateRe
  * A sign flip contributes only the magnitude of the smaller side to the primary
  * `abs(|GA| - |PF|)` KPI, so a large wrong-sign flow can pass that gate. These values let
  * a release fail on such an error without changing the historical KPI definition.
+ *
+ * All four quantities are mandatory in the `opencode_fix` policy: absent signed data is
+ * itself a failure, because a magnitude-only gate cannot see a wrong-sign error.
  */
 export interface ReleaseGateSignedInput {
   signDisagreementCount:number;
   signDisagreementBaselineCount:number|null;
+  /** Mean of GA - PF, signed. Mandatory so a systematic bias cannot hide behind a magnitude sum. */
+  signedMeanError:number;
   maxP95AbsoluteError:number;
   maxP95Baseline:number|null;
   maxAbsoluteError:number;
   maxBaseline:number|null;
 }
-/** Fails only on a measured regression, so an existing baseline is never blocked retroactively. */
-export function signedDiagnosticsPass(input:ReleaseGateSignedInput):boolean{
-  if(!Number.isFinite(input.maxAbsoluteError)||!Number.isFinite(input.maxP95AbsoluteError))return false;
-  if(input.signDisagreementBaselineCount!=null&&input.signDisagreementCount>input.signDisagreementBaselineCount)return false;
-  if(input.maxP95Baseline!=null&&input.maxP95Baseline>0&&input.maxP95AbsoluteError>input.maxP95Baseline*1.1)return false;
-  if(input.maxBaseline!=null&&input.maxBaseline>0&&input.maxAbsoluteError>input.maxBaseline*1.1)return false;
-  return true;
+/**
+ * Which signed diagnostics a run must supply.
+ *
+ * `REQUIRED` is the policy for any new validation or release run: missing signed data
+ * fails the gate rather than passing it. `LEGACY_OPTIONAL` exists only so an already
+ * published historical manifest can still be re-verified against its own policy; it must
+ * not be used to sign off new work.
+ */
+export type SignedDiagnosticsPolicy='REQUIRED'|'LEGACY_OPTIONAL';
+const SIGNED_FIELDS:Array<keyof ReleaseGateSignedInput>=['signDisagreementCount','signedMeanError','maxP95AbsoluteError','maxAbsoluteError'];
+/** True when every mandatory signed quantity is present and finite. */
+export function signedDiagnosticsComplete(input:Partial<ReleaseGateSignedInput>|null|undefined):boolean{
+  if(!input)return false;
+  return SIGNED_FIELDS.every(field=>{const value=input[field];return typeof value==='number'&&Number.isFinite(value);});
 }
+/**
+ * Signed gate result.
+ *
+ * `pass` requires complete signed data under the REQUIRED policy. Under
+ * LEGACY_OPTIONAL, absent data is tolerated for historical re-verification only.
+ */
+export interface SignedDiagnosticsGateResult{
+  pass:boolean;
+  policy:SignedDiagnosticsPolicy;
+  complete:boolean;
+  missing:Array<keyof ReleaseGateSignedInput>;
+  signDisagreementNotIncreased:boolean|null;
+  p95NotRegressed:boolean|null;
+  maxNotRegressed:boolean|null;
+  signedMeanError:number|null;
+}
+export function evaluateSignedDiagnosticsGate(input:Partial<ReleaseGateSignedInput>|null|undefined,policy:SignedDiagnosticsPolicy='REQUIRED'):SignedDiagnosticsGateResult{
+  const missing=SIGNED_FIELDS.filter(field=>{const value=input?.[field];return typeof value!=='number'||!Number.isFinite(value);}) as Array<keyof ReleaseGateSignedInput>;
+  const complete=missing.length===0;
+  if(!complete)return{pass:policy==='LEGACY_OPTIONAL',policy,complete,missing,signDisagreementNotIncreased:null,p95NotRegressed:null,maxNotRegressed:null,signedMeanError:null};
+  const value=input as ReleaseGateSignedInput;
+  const signDisagreementNotIncreased=value.signDisagreementBaselineCount==null?null:value.signDisagreementCount<=value.signDisagreementBaselineCount;
+  const p95NotRegressed=value.maxP95Baseline==null?null:value.maxP95Baseline<=0||value.maxP95AbsoluteError<=value.maxP95Baseline*1.1;
+  const maxNotRegressed=value.maxBaseline==null?null:value.maxBaseline<=0||value.maxAbsoluteError<=value.maxBaseline*1.1;
+  return{
+    pass:signDisagreementNotIncreasing(signDisagreementNotIncreased)&&p95NotRegressed!==false&&maxNotRegressed!==false,
+    policy,complete,missing,signDisagreementNotIncreased,p95NotRegressed,maxNotRegressed,signedMeanError:value.signedMeanError,
+  };
+}
+const signDisagreementNotIncreasing=(value:boolean|null):boolean=>value!==false;
 
 export function evaluateReleaseGates(input:ReleaseGateInput):{mergeReady:boolean;failedGates:string[];improvedCount:number} {
   const kpis=new Map(input.kpis.map(row=>[row.id,row]));
@@ -118,8 +173,11 @@ export function evaluateReleaseGates(input:ReleaseGateInput):{mergeReady:boolean
     ['MEASURED_SOURCE_TREE',input.measuredSourceMatchesCurrent],
     ['MEASURED_INPUT_BYTES',input.measuredInputsMatch],
   ];
-  // Optional: a run without signed diagnostics is not failed by the absence of them.
-  if(input.signed)gates.push(['SIGNED_DIAGNOSTICS',signedDiagnosticsPass(input.signed)]);
+  // Mandatory by default: a run without complete signed diagnostics is not merge-ready,
+  // because the magnitude-only primary KPI cannot detect a wrong-sign error.
+  const signedPolicy=input.signedPolicy??'REQUIRED';
+  const signedGate=evaluateSignedDiagnosticsGate(input.signed,signedPolicy);
+  gates.push(['SIGNED_DIAGNOSTICS',signedGate.pass]);
   const failedGates=gates.filter(([,passed])=>!passed).map(([name])=>name);
   return{mergeReady:failedGates.length===0,failedGates,improvedCount};
 }

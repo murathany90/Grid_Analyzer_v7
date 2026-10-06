@@ -36,6 +36,26 @@ jobs:
         run: npm run build
       - name: Build portable app
         run: npm run build:portable
+      # The committed portable artifact is hashed byte-for-byte, so CI must compare raw
+      # bytes, not text. A CRLF checkout would previously produce different bytes and this
+      # gate is what makes that impossible to merge silently.
+      - name: Verify committed portable bytes match the CI build
+        run: |
+          set -euo pipefail
+          built_sha=$(sha256sum dist-portable/GridAnalyzer_v7.html | cut -d' ' -f1)
+          committed_sha=$(git show HEAD:dist-portable/GridAnalyzer_v7.html | sha256sum | cut -d' ' -f1)
+          echo "built     $built_sha"
+          echo "committed $committed_sha"
+          if [ "$built_sha" != "$committed_sha" ]; then
+            echo "::error::COMMITTED_PORTABLE_BYTES mismatch: CI build $built_sha != committed $committed_sha"
+            exit 1
+          fi
+          # The artifact must also be LF-only, so no platform can reintroduce CRLF.
+          if grep -qU $'\r' dist-portable/GridAnalyzer_v7.html; then
+            echo "::error::PORTABLE_CONTAINS_CRLF: the artifact must be LF-only"
+            exit 1
+          fi
+          echo "COMMITTED_PORTABLE_BYTES OK ($built_sha)"
       - name: Upload portable build
         uses: actions/upload-artifact@v4
         with:

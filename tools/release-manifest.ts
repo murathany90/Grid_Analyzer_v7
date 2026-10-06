@@ -13,13 +13,32 @@ import { resolve } from 'node:path';
 import { analysisSettingsHash, defaultAnalysisSettings, effectiveFullAcLimits, profileFidelity, unsupportedFullAcSettings, unsupportedSharedSettings } from '../src/domain/calculation/analysis-settings';
 import type { CalculationResult } from '../src/domain/results/types';
 import type { PfKpiReport } from '../src/analysis/validation/pf-kpi';
-import { evaluateBaselinePreservationGates, evaluateSignedKpiGates, isFullGitSha } from './release-gates';
+import { evaluateBaselinePreservationGates, evaluateSignedDiagnosticsGate, evaluateSignedKpiGates, isFullGitSha, type ReleaseGateSignedInput } from './release-gates';
 
 function flag(name: string): string {
   const prefix = `--${name}=`;
   const value = process.argv.find(argument => argument.startsWith(prefix));
   if (!value) throw new Error(`Missing required flag ${name}`);
   return value.slice(prefix.length);
+}
+
+/**
+ * Signed-diagnostic gate input, derived from the two signed summaries.
+ *
+ * Both are required. `signedMeanError` is the mean over the six canonical metrics, so a
+ * systematic bias a magnitude sum cannot express is part of the gate.
+ */
+function signedGateInput(summary:PfKpiReport['signedSummary'],baselineSummary:PfKpiReport['signedSummary']|undefined){
+  const finite=(value:unknown):number|null=>typeof value==='number'&&Number.isFinite(value)?value:null;
+  return{
+    signDisagreementCount:finite(summary.signDisagreementCount),
+    signDisagreementBaselineCount:finite(baselineSummary?.signDisagreementCount),
+    signedMeanError:finite(summary.signedMeanError),
+    maxP95AbsoluteError:finite(summary.maxP95AbsoluteError),
+    maxP95Baseline:finite(baselineSummary?.maxP95AbsoluteError),
+    maxAbsoluteError:finite(summary.maxAbsoluteError),
+    maxBaseline:finite(baselineSummary?.maxAbsoluteError),
+  } as Partial<ReleaseGateSignedInput>;
 }
 
 const version = flag('version');
@@ -154,7 +173,12 @@ const releaseGates=evaluateBaselinePreservationGates({
   stationControlStatus:convergence?.stationControl??null,
   stationPartialDisclosed:convergence?.stationControl!=='STATION_CONTROL_PARTIAL'||(unresolvedControllerCount>0&&controllerCounts.CONTROL_RESIDUAL_AFTER_FINAL_BALANCE===revalidation?.controlResidualCount&&controllerCounts.UNSUPPORTED_DROOP>0&&profileFidelity(settings.powerFlow.profile).fidelity==='PARTIAL'),
   requiredValidationPassed:process.argv.includes('--validation-passed=true'),
+  // Signed diagnostics are mandatory input for this path. They are computed here rather
+  // than trusted from the captured KPI document, so a manifest cannot be produced without
+  // them.
+  signed:signedGateInput(kpi.signedSummary,baseline.signedSummary),
 });
+const signedGateResult=evaluateSignedDiagnosticsGate(signedGateInput(kpi.signedSummary,baseline.signedSummary));
 
 const manifest = {
   schema: 'grid-analyzer-release-manifest-1',
@@ -231,6 +255,9 @@ const manifest = {
       signedSummary: kpi.signedSummary,
       baselineSignedSummary: baseline.signedSummary,
     }),
+    // Mandatory for this path: the release is not merge-ready without complete signed
+    // diagnostics, because the magnitude-only primary KPI cannot see a wrong-sign error.
+    signedGateRequired: signedGateResult,
   },
   convergence: diagnostics.convergence ?? null,
   stationControllers: {
