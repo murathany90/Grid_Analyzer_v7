@@ -135,7 +135,7 @@ export interface ProfileFidelity {
 export function profileFidelity(profile: FullAcProfile | undefined): ProfileFidelity {
   const limits = [
     'Self-cubicle single-unit droop control is modeled; unresolved Q limits and remaining station residuals are reported as partial.',
-    'Reactive-limit release (limited -> PV) is not implemented; the active set is monotonic.',
+    'A generic PV bus released from its reactive limit is retired when the limit re-applies; released and re-limited memberships are reported as provenance rather than silently alternated.',
     'Repeated reactive-limit detection is not applied.',
     'Active-power limits, automatic transformer tap, automatic shunt, load voltage dependency, feeder load scaling, interchange schedule, line temperature correction and Q-limit scaling are not implemented.',
   ];

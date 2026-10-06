@@ -39,6 +39,40 @@ export function isAdmissibleVoltage(vm:number,domain:{minPu:number;maxPu:number}
 const DEFAULT_SOLVER_SETTINGS:FullAcSolverSettings={maxInnerIterations:30,maxOuterIterations:8,nodalToleranceKva:.1,modelEquationTolerancePercent:.01,maxNoImprovementIterations:20,repeatedReactiveLimitDetection:3,reactiveLimitsEnabled:true,qLimitToleranceMvar:.02,maxQLimitRounds:8,...DEFAULT_VOLTAGE_DOMAIN_PU&&{minVoltagePu:DEFAULT_VOLTAGE_DOMAIN_PU.minPu,maxVoltagePu:DEFAULT_VOLTAGE_DOMAIN_PU.maxPu}};
 export function nodalToleranceKvaToPu(toleranceKva:number,baseMva:number):number{return toleranceKva/1000/baseMva;}
 
+/** One generic PV bus held at its own reactive limit. */
+export interface GenericQLimitUnit {
+  bus:number;
+  /** MVAr limit the bus is currently held at. */
+  qLimit:number;
+  /** Q the unconstrained PV solution demanded, MVAr. */
+  qRequired:number;
+  state:'QMIN_LIMITED'|'QMAX_LIMITED';
+  qMin:number;
+  qMax:number;
+  /** Q specification to restore when the bus returns to PV, pu on the model base. */
+  qSpecBeforePu:number;
+}
+interface SolverState {
+  Vm:Float64Array; Va:Float64Array; P:Float64Array; Q:Float64Array;
+  qSpec:Float64Array; busType:Int8Array; controlDq:Float64Array; alphaMw:number;
+}
+
+/**
+ * Complementarity test for releasing a Q-limited PV bus.
+ *
+ * The Q limit of a generic PV bus is a variable bound, so it is active exactly when the
+ * unconstrained PV solution violates it. After a release trial the bus is solved as PV
+ * again, and this test asks whether the resulting operating point sits strictly inside
+ * the bounds. A boundary point means the bound is still active and the release is
+ * rejected. This is a KKT/complementarity decision on the solved solution; it never
+ * looks at the direction of the previous Q dispatch.
+ */
+export function genericQLimitReleaseAccepts(unit:Pick<GenericQLimitUnit,'qMin'|'qMax'>,qSolvedMvar:number,toleranceMvar:number):boolean{
+  if(!Number.isFinite(qSolvedMvar)||!Number.isFinite(unit.qMin)||!Number.isFinite(unit.qMax))return false;
+  if(!(unit.qMax>=unit.qMin))return false;
+  return qSolvedMvar>unit.qMin+toleranceMvar&&qSolvedMvar<unit.qMax-toleranceMvar;
+}
+
 /**
  * Armijo decrease is proportional to the step actually applied after capping.
  *
@@ -75,18 +109,42 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
   weights=activeBalance?model.activeBalanceParticipation:undefined,controlDq=options.initialControlDqPu?.length===controls.length?Float64Array.from(options.initialControlDqPu,v=>finite(v)?v:0):new Float64Array(controls.length),effectiveQ=new Float64Array(n);
  let alphaMw:number=options.initialAlphaMw!=null&&finite(options.initialAlphaMw)?options.initialAlphaMw:0;
  const refreshEffectiveQ=()=>{effectiveQ.set(qSpec);controls.forEach((control,index)=>{for(const actuator of control.actuators)effectiveQ[actuator.bus]+=actuator.participation*controlDq[index];});};
- const seededLimits:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[];
- for(const limited of options.initialLimitedBuses??[]){const bus=limited.bus;if(!Number.isInteger(bus)||bus<0||bus>=n||!finite(limited.qLimit)||!(busType[bus]===1||bus===slack&&busType[bus]===2))continue;
-   busType[bus]=0;qSpec[bus]=limited.qLimit/base;seededLimits.push({...limited});}
+const seededLimits:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=[],pvQSpecBefore=Float64Array.from(qSpec),genericSeeded=new Set<number>(),genericLimited:GenericQLimitUnit[]=[];
+  for(const limited of options.initialLimitedBuses??[]){const bus=limited.bus;if(!Number.isInteger(bus)||bus<0||bus>=n||!finite(limited.qLimit)||!(busType[bus]===1||bus===slack&&busType[bus]===2))continue;
+   busType[bus]=0;qSpec[bus]=limited.qLimit/base;seededLimits.push({...limited});
+   // A seeded limit came from an earlier solve. The pre-limit PV specification is still
+   // recoverable from the incoming model, so the bus stays a release candidate instead
+   // of being permanently monotonic.
+   const seedLo=bus===slack?(model.referenceQMinNet||[])[bus]:(model.qMinNet||[])[bus],seedHi=bus===slack?(model.referenceQMaxNet||[])[bus]:(model.qMaxNet||[])[bus];
+   if(seedLo!=null&&seedHi!=null&&finite(seedLo)&&finite(seedHi)){
+    genericLimited.push({bus,qLimit:limited.qLimit,qRequired:limited.qRequired,state:limited.state??(limited.qLimit<=seedLo?'QMIN_LIMITED':'QMAX_LIMITED'),qMin:seedLo,qMax:seedHi,qSpecBeforePu:pvQSpecBefore[bus]});
+    genericSeeded.add(bus);}}
  if(busType[slack]===2)Vm[slack]=model.slackVm||1;
  for(let i=0;i<n;i++)if(busType[i]===1)Vm[i]=model.vmSet?.[i]||1;
  if(!explicit||!options.initialVm)for(const control of controls)Vm[control.remoteBus]=control.targetVmPu;
  const qMin=model.qMinNet||[],qMax=model.qMaxNet||[],refQMin=model.referenceQMinNet||[],refQMax=model.referenceQMaxNet||[],pvToPq:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>=seededLimits,qLimitRounds:NonNullable<PowerFlowResult['qLimitRounds']>=[],warnings:string[]=[];let totalIter=0,lastLinear:LinearSolution|null=null,maxMismatch=Infinity,round=0;
+// Generic PV <-> PQ active set for buses whose own reactive limit is active.
+//
+// Station actuator and remote buses are excluded: the station-control path nulls their
+// net Q limits and owns the bidirectional station-member logic, so the two mechanisms
+// must not drive the same membership decision.
+let releaseSnapshot:SolverState|null=null;
+  const captureState=():SolverState=>({Vm:Float64Array.from(Vm),Va:Float64Array.from(Va),P:Float64Array.from(P),Q:Float64Array.from(Q),qSpec:Float64Array.from(qSpec),busType:Int8Array.from(busType),controlDq:Float64Array.from(controlDq),alphaMw});
+  const restoreState=(state:SolverState)=>{Vm.set(state.Vm);Va.set(state.Va);P.set(state.P);Q.set(state.Q);qSpec.set(state.qSpec);busType.set(state.busType);controlDq.set(state.controlDq);alphaMw=state.alphaMw;};
+// Release is attempted at most once per bus. A bus whose limit is re-applied after its
+// own release trial has an active complementarity condition; re-testing it would only
+// alternate between the same two active sets, so it is retired by cycle detection
+// rather than by an arbitrary attempt counter.
+const releaseRetired=new Set<number>();let releaseTrialBus=-1,releaseAccepted=0,releaseRejected=0,releasedUnitsTotal=0;
+const genericActiveSet={accepted:0,rejected:0,retiredBusCount:()=>releaseRetired.size};
 // Reactive active-set rounds are independent of station-controller outer rounds.
   // The bound is a typed setting so provenance can report the value actually used.
   const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxQLimitRounds??8));
- for(round=0;round<qLimitRoundLimit;round++){
-  const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack+'|'+Number(activeBalance):'';let L:JacobianLayout;
+  // Fraction to boundary for the distributed-P unknown: the largest alpha that keeps
+  // every participating eligible load at or above zero consumption.
+  const alphaBoundPu=(()=>{if(!activeBalance||!model.activeBalanceEligibleLoadMw)return Infinity;let bound=Infinity;for(let i=0;i<n;i++){const w=weights?.[i]??0;if(w<=0)continue;const headroom=model.activeBalanceEligibleLoadMw[i]??0;bound=Math.min(bound,headroom/w);}return Number.isFinite(bound)?bound:Infinity;})();
+for(round=0;round<qLimitRoundLimit;round++){
+   const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack+'|'+Number(activeBalance):'';let L:JacobianLayout;
   try{L=layoutCache?.get(layoutKey)??(explicit?makeExplicitLayout(Y,busType,slack,controls,activeBalance,weights):makeLayout(Y,busType,slack,controls));if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
   catch(error){const message=error instanceof Error?error.message:String(error),diagnostic=failure('LINEAR_SOLVE',message,null,round+1,null);return{status:'INTEGRATED_LAYOUT_FAILED',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:null,failure:diagnostic,elapsedMs:elapsed()};}
   const Jvals=new Float64Array(L.colIdx.length),rhs=new Float64Array(L.N);let converged=false,nrReason='',nrFailure:NumericalFailureDiagnostic|undefined,lastMinPivot:number|null=null,lastLinearStage:string|undefined,bestMismatch=Infinity,noImprovement=0;
@@ -118,6 +176,9 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    if(!lin&&A.N<512)tryDirect();
    if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),oldAlpha=alphaMw,baseNorm=Math.sqrt(ss);let accepted=false;
    let stepCap=1,boundIndex=-1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
+    // Fraction to boundary for the distributed-P unknown. Without it a Newton step can
+    // push an eligible load past zero consumption, reversing its flow direction.
+    if(activeBalance&&L.alphaIndex!=null&&Number.isFinite(alphaBoundPu)){const delta=dx[L.alphaIndex];if(Math.abs(delta)>1e-15){const toBound=delta>0?(alphaBoundPu-oldAlpha)/delta:(-alphaBoundPu-oldAlpha)/delta;if(toBound>=0&&toBound<stepCap)stepCap=Math.max(0,toBound);}}
    if(explicit)for(let k=0;k<controls.length;k++){const delta=dx[L.controlIndex[k]],limit=delta>0?controls[k].maxDqPu:controls[k].minDqPu;
     if(limit==null||!finite(limit)||Math.abs(delta)<1e-15)continue;const fraction=(limit-oldDq[k])/delta;
     if(fraction>=-1e-9&&fraction<stepCap){stepCap=Math.max(0,fraction);boundIndex=k;}
@@ -149,13 +210,41 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
    if(boundIndex>=0&&acceptedScale===1&&Math.abs(controlDq[boundIndex]-(dx[L.controlIndex[boundIndex]]>0?controls[boundIndex].maxDqPu!:controls[boundIndex].minDqPu!))<1e-7)return boundaryResult(boundIndex);
   }
   if(!converged){nrFailure??=failure('NEWTON_ITERATION',nrReason||'Newton iteration limit reached.',settings.maxInnerIterations,round+1,maxMismatch*base,{minPivot:lastMinPivot,linearStage:lastLinear?.method||lastLinearStage});return {status:nrReason||'NR_MAX_ITERATION',converged:false,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:nrFailure,elapsedMs:elapsed(),Vm:Array.from(Vm),Va:Array.from(Va),controlDqPu:Array.from(controlDq),alphaMw};}
-  calcPQ(Y,Vm,Va,P,Q);let changed=false,limitedThisRound=0;
+  calcPQ(Y,Vm,Va,P,Q);let changed=false,limitedThisRound=0,limitedBuses:number[]=[];
+  const qTolerance=settings.qLimitToleranceMvar??.02;
   if(settings.reactiveLimitsEnabled){
-   const qTolerance=settings.qLimitToleranceMvar??.02;
-   for(let i=0;i<n;i++)if(busType[i]===1||(i===slack&&busType[i]===2)){const lo=i===slack?refQMin[i]:qMin[i],hi=i===slack?refQMax[i]:qMax[i];if(lo==null||hi==null||!finite(lo)||!finite(hi))continue;const q=Q[i]*base;let lim:number|null=null,state:'QMIN_LIMITED'|'QMAX_LIMITED'|undefined;if(q<lo-qTolerance){lim=lo;state='QMIN_LIMITED';}else if(q>hi+qTolerance){lim=hi;state='QMAX_LIMITED';}if(lim!==null){qSpec[i]=lim/base;busType[i]=0;pvToPq.push({bus:i,qRequired:q,qLimit:lim,state});changed=true;limitedThisRound++;progress?.('Q_LIMIT_UPDATE',{bus:i,qRequired:q,qLimit:lim,referenceBus:i===slack?1:0});}}
+   for(let i=0;i<n;i++)if(busType[i]===1||(i===slack&&busType[i]===2)){const lo=i===slack?refQMin[i]:qMin[i],hi=i===slack?refQMax[i]:qMax[i];if(lo==null||hi==null||!finite(lo)||!finite(hi))continue;const q=Q[i]*base;let lim:number|null=null,state:'QMIN_LIMITED'|'QMAX_LIMITED'|undefined;if(q<lo-qTolerance){lim=lo;state='QMIN_LIMITED';}else if(q>hi+qTolerance){lim=hi;state='QMAX_LIMITED';}if(lim!==null){const qSpecBeforePu=genericSeeded.has(i)?pvQSpecBefore[i]:qSpec[i],entry={bus:i,qRequired:q,qLimit:lim,state},existing=pvToPq.findIndex(row=>row.bus===i);if(existing>=0)pvToPq[existing]=entry;else pvToPq.push(entry);qSpec[i]=lim/base;busType[i]=0;if(!genericSeeded.has(i))genericLimited.push({bus:i,qLimit:lim,qRequired:q,state:state!,qMin:lo,qMax:hi,qSpecBeforePu});changed=true;limitedThisRound++;limitedBuses.push(i);progress?.('Q_LIMIT_UPDATE',{bus:i,qRequired:q,qLimit:lim,referenceBus:i===slack?1:0});}}
+  }
+  // Resolve the pending generic release trial on its own converged operating point.
+  // A release is accepted only when the unconstrained PV solution settles strictly
+  // inside the limits: that is the complementarity condition for an inactive Q limit.
+  if(releaseTrialBus>=0){
+   const unit=genericLimited.find(row=>row.bus===releaseTrialBus);
+   if(unit&&!limitedBuses.includes(releaseTrialBus)&&genericQLimitReleaseAccepts(unit,Q[releaseTrialBus]*base,qTolerance)){
+    const index=pvToPq.findIndex(row=>row.bus===releaseTrialBus);
+    if(index>=0)pvToPq.splice(index,1);
+    genericLimited.splice(genericLimited.indexOf(unit),1);
+    releasedUnitsTotal++;releaseAccepted++;
+    warnings.push(`GENERIC_Q_LIMIT_RELEASE_ACCEPTED bus=${options.busIds?.[releaseTrialBus]??releaseTrialBus} qMvar=${(Q[releaseTrialBus]*base).toFixed(6)}`);
+   }else{releaseRejected++;releaseRetired.add(releaseTrialBus);}
+   releaseTrialBus=-1;releaseSnapshot=null;
+  }
+  if(!changed&&settings.reactiveLimitsEnabled&&round<qLimitRoundLimit-1){
+   const candidate=genericLimited.find(unit=>!releaseRetired.has(unit.bus));
+   if(candidate){
+    // Return the bus to its PV specification and re-solve. The next round decides from
+    // the solved operating point whether the limit is still binding; it never uses the
+    // sign of the previous Q dispatch.
+    releaseSnapshot=captureState();
+    busType[candidate.bus]=candidate.bus===slack?2:1;
+    qSpec[candidate.bus]=candidate.qSpecBeforePu;
+    releaseTrialBus=candidate.bus;
+    changed=true;
+    warnings.push(`GENERIC_Q_LIMIT_RELEASE_TRIAL bus=${options.busIds?.[candidate.bus]??candidate.bus} limitMvar=${candidate.qLimit}`);
+   }
   }
   const modelErrorPercent=controls.length?Math.max(...controls.map(control=>Math.abs(Vm[control.remoteBus]-control.targetVmPu)/Math.max(1e-9,Math.abs(control.targetVmPu))*100)):null;
-  qLimitRounds.push({round:round+1,changedUnits:limitedThisRound,limitedUnits:pvToPq.length,releasedUnits:0,maxBusMismatchKva:Number.isFinite(maxMismatch)?maxMismatch*base*1000:null,maxModelEquationErrorPercent:modelErrorPercent});
+  qLimitRounds.push({round:round+1,changedUnits:limitedThisRound,limitedUnits:pvToPq.length,releasedUnits:releasedUnitsTotal,maxBusMismatchKva:Number.isFinite(maxMismatch)?maxMismatch*base*1000:null,maxModelEquationErrorPercent:modelErrorPercent});
   if(!changed)break;
   if(round===qLimitRoundLimit-1){const diagnostic=failure('Q_LIMIT','Reactive power limits continued to change at the control-round limit.',null,qLimitRoundLimit,maxMismatch*base);return {status:'Q_LIMIT_MAX_ROUNDS',converged:false,iterations:totalIter,rounds:qLimitRoundLimit,maxMismatchMW:maxMismatch*base,linear:lastLinear,failure:diagnostic,elapsedMs:elapsed(),warnings};}
  }
@@ -173,5 +262,5 @@ export function solveNR(model: NumericalModel, progress?: ProgressCallback, opti
   return {index:idx,pf,qf,pt,qt};
  });
  const minV=loopMin(Vm),maxV=loopMax(Vm);
- return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
+ return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,genericQLimitActiveSet:{stateModel:'GENERIC_PV_BIDIRECTIONAL',releaseSupport:'GENERIC_PV_AND_STATION_MEMBER',releaseTrialsAccepted:releaseAccepted,releaseTrialsRejected:releaseRejected,releasedUnits:releasedUnitsTotal,retiredAfterReappliedLimit:[...releaseRetired].map(bus=>options.busIds?.[bus]??String(bus)),alphaBoundPu:Number.isFinite(alphaBoundPu)?alphaBoundPu:null},Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
 }
