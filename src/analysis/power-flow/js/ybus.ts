@@ -1,12 +1,17 @@
 import type { AdmittanceMatrix, NumericalModel } from './types';
 import { finite } from './math';
+import { MIN_BRANCH_IMPEDANCE_PU } from '../preparation';
 
 export function buildY(model: NumericalModel): AdmittanceMatrix {
- const n=model.n, rows=Array.from({length:n},():Map<number,[number,number]>=>new Map());
- const put=(i:number,j:number,g:number,b:number)=>{let z=rows[i].get(j);if(z){z[0]+=g;z[1]+=b;}else rows[i].set(j,[g,b]);};
- for(const e of model.branches){
-  const r=+e.r,x=+e.x,bch=+e.bch||0,tap=+e.tap||1,ph=+e.phase||0;
-  const den=r*r+x*x;if(!(den>1e-18&&finite(den)&&tap>0&&finite(tap)))throw Error('INVALID_BRANCH');
+  const n=model.n, rows=Array.from({length:n},():Map<number,[number,number]>=>new Map());
+  const put=(i:number,j:number,g:number,b:number)=>{let z=rows[i].get(j);if(z){z[0]+=g;z[1]+=b;}else rows[i].set(j,[g,b]);};
+  for(const e of model.branches){
+   const r=+e.r,x=+e.x,bch=+e.bch||0,tap=+e.tap||1,ph=+e.phase||0;
+   // One shared near-zero-impedance policy. The previous `den > 1e-18` test was tighter
+   // than the preparation threshold, so a branch that preparation accepted could still be
+   // rejected here as INVALID_BRANCH. The bound is a singularity guard: below it the branch
+   // models an unbounded current.
+   const den=r*r+x*x;if(!(Math.hypot(r,x)>=MIN_BRANCH_IMPEDANCE_PU&&finite(den)&&tap>0&&finite(tap)))throw Error('INVALID_BRANCH');
   const g=r/den, b=-x/den, c=Math.cos(ph),s=Math.sin(ph),t2=tap*tap;
   // y/t* with complex phase: Yft = -y/conj(t), Ytf=-y/t
   // (g+jb)*(c+js)/tap for -y/conj(t)

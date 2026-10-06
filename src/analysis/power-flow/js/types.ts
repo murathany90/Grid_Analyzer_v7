@@ -54,10 +54,37 @@ export interface NumericalFailureDiagnostic {
   maxDxTheta?:number; maxDxThetaBus?:number; maxDxThetaBusId?:string|null;
   maxDxControlDq?:number; maxDxControlIndex?:number; maxDxControlId?:string|null;
   oldMinVm?:number; oldMaxVm?:number;
+  /** Stage at which the KLU direct backend gave up, when it was tried and did not deliver. */
+  kluFailureStage?:string|null; kluFailureMessage?:string|null;
+  /** Numerical voltage-domain safety bound in force for the rejected step. Not a physical limit. */
+  voltageDomainPu?:{minPu:number;maxPu:number};
   firstInvalidCandidate?:{bus:number;busId:string|null;oldVm:number;candidateVm:number;scale:number;stateUpdated:boolean};
 }
 export interface PowerFlowBranchResult { index:number; pf:number; qf:number; pt:number; qt:number; }
 export interface QLimitRoundDiagnostic {round:number;changedUnits:number;limitedUnits:number;releasedUnits:number;maxBusMismatchKva:number|null;maxModelEquationErrorPercent:number|null}
-export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>;qLimitRounds?:QLimitRoundDiagnostic[];Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[];alphaMw?:number;boundControlIndex?:number; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[];activeBalanceIterations?:number;activeBalanceMismatchMw?:number|null;activeBalanceLoadAdjustmentsMw?:number[]; }
+/**
+ * Provenance of the generic PV <-> PQ active set.
+ *
+ * `retiredAfterReappliedLimit` lists buses whose release trial was rejected because the
+ * limit was binding again. These are retired by cycle detection, not by a fixed attempt
+ * count, so the list is the physical statement that the bound is active for that bus.
+ */
+export interface GenericQLimitActiveSetDiagnostic {
+  stateModel:'GENERIC_PV_BIDIRECTIONAL';
+  releaseSupport:'GENERIC_PV_AND_STATION_MEMBER';
+  releaseTrialsAccepted:number;
+  releaseTrialsRejected:number;
+  releasedUnits:number;
+  retiredAfterReappliedLimit:string[];
+  /**
+   * One-sided MW bound on the distributed-P unknown: the largest alpha that keeps every
+   * participating eligible load at or above zero consumption. Load-reducing steps only;
+   * the load-increasing direction is unbounded because no sourced maximum load exists.
+   */
+  alphaBoundPu:number|null;
+  /** Set when the load-reducing boundary actually clipped a Newton step. */
+  alphaBoundApplied:boolean;
+}
+export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>;qLimitRounds?:QLimitRoundDiagnostic[];Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[];alphaMw?:number;boundControlIndex?:number; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[];genericQLimitActiveSet?:GenericQLimitActiveSetDiagnostic;activeBalanceIterations?:number;activeBalanceMismatchMw?:number|null;activeBalanceLoadAdjustmentsMw?:number[]; }
 export type ProgressCallback=(stage:string,data?:Record<string,number>)=>void;
 export interface SelfTestResult { name:string; pass:boolean; status:string; value:number|null; }

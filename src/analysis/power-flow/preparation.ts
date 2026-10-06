@@ -9,17 +9,34 @@ export interface NumericModel {
 }
 export interface BranchMeta { id:string;name:string;sourceClass:string;from:string;to:string;siteIds:string[];vnKv:number;ratingMva:number|null;i:number;j:number }
 export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];externalGrids?:Array<{id:string;name:string;bus:string;index:number;pMw:number;qMvar:number;pMin:number|null;pMax:number|null;qMin:number|null;qMax:number|null;isReference:boolean}>;topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
+
+/**
+ * Admittance formation threshold for near-zero branch impedance.
+ *
+ * `prepareModel` and `buildY` must share one policy. They previously used different
+ * thresholds, so a branch that passed preparation could still be rejected by the
+ * admittance matrix as INVALID_BRANCH purely because of the difference. This bound is a
+ * numerical singularity guard: below it the branch would model a short circuit whose
+ * current is unbounded, so it is excluded explicitly rather than silently altered.
+ */
+export const MIN_BRANCH_IMPEDANCE_PU=1e-6;
+/** Near-zero impedance policy shared by preparation and admittance formation. */
+export function isValidBranchImpedance(r:number,x:number,tap:number):boolean{
+  if(!Number.isFinite(r)||!Number.isFinite(x)||!Number.isFinite(tap))return false;
+  if(!(tap>0))return false;
+  return Math.hypot(r,x)>=MIN_BRANCH_IMPEDANCE_PU;
+}
 export function prepareModel(n:CanonicalNetwork):PreparedModel{
   const topology=buildTopology(n),N=topology.buses.length,bi=topology.terminalToBus,warnings=[...topology.warnings];
   const pSpec=new Float64Array(N),qSpec=new Float64Array(N),busType=new Int8Array(N),vmSet=new Float64Array(N).fill(1),shuntG=new Float64Array(N),shuntB=new Float64Array(N),qMinNet:(number|null)[]=Array(N).fill(null),qMaxNet:(number|null)[]=Array(N).fill(null);
-  const branches:NumericBranch[]=[],metadata:BranchMeta[]=[];
+  const branches:NumericBranch[]=[],metadata:BranchMeta[]=[],droppedBranches:string[]=[];
   const enabled=(e:{id:string;inService:boolean})=>e.inService&&!topology.blockedEquipment.has(e.id);
   const add=(e:{id:string;name:string;sourceClass:string;from:string;to:string;siteIds:readonly string[]},r:number,x:number,bch:number,tap:number,phase:number,ratingMva:number|null,gMagPu=0,bMagPu=0)=>{
     const i=bi.get(e.from),j=bi.get(e.to);if(i==null||j==null||i===j)return;
-    if(!Number.isFinite(r)||!Number.isFinite(x)||Math.abs(r)+Math.abs(x)<=1e-12||!(tap>0)){warnings.push(`Geçersiz dal parametresi: ${e.name}`);return;}
+    if(!isValidBranchImpedance(r,x,tap)){warnings.push(`Geçersiz dal parametresi: ${e.name}`);droppedBranches.push(e.id);return;}
     branches.push({i,j,r,x,bch,tap,phase,gMagPu,bMagPu});metadata.push({...e,siteIds:[...e.siteIds],vnKv:topology.buses[i].vnKv,ratingMva,i,j});
   };
-  for(const e of n.lines.filter(enabled)){const z=(topology.buses[bi.get(e.from)??-1]?.vnKv||0)**2/n.baseMva;if(!(e.xOhm>0&&z>0)){warnings.push(`Hat X/Zbase geçersiz: ${e.name}`);continue;}add(e,e.rOhm/z,e.xOhm/z,e.bSiemens*z,1,0,e.ratingMva);}
+  for(const e of n.lines.filter(enabled)){const z=(topology.buses[bi.get(e.from)??-1]?.vnKv||0)**2/n.baseMva;if(!(e.xOhm>0&&z>0)){warnings.push(`Hat X/Zbase geçersiz: ${e.name}`);droppedBranches.push(e.id);continue;}add(e,e.rOhm/z,e.xOhm/z,e.bSiemens*z,1,0,e.ratingMva);}
   for(const e of n.transformers.filter(enabled)){add(e,e.rPu,e.xPu,0,e.tap,e.phase,e.ratingMva,e.gPu,e.bPu);const i=bi.get(e.from);if(i!=null){shuntG[i]+=e.gPu;shuntB[i]+=e.bPu;}}
   for(const e of n.seriesCompensators.filter(enabled)){const z=(topology.buses[bi.get(e.from)??-1]?.vnKv||0)**2/n.baseMva;add(e,e.rOhm/z,e.xOhm/z,0,1,0,null);}
   for(const e of n.shunts.filter(enabled)){const i=bi.get(e.bus);if(i!=null){shuntG[i]+=e.gPu;shuntB[i]+=e.bPu;}}
@@ -71,7 +88,14 @@ export function prepareModel(n:CanonicalNetwork):PreparedModel{
   const unsupportedReactiveLimitClasses=n.unsupportedReactiveLimitClasses||[];
   const fixedQGenerators=generators.filter(g=>!g.voltageControl&&g.qMin!=null&&g.qMax!=null).map(g=>g.id),reactiveLimitUnsupported=unsupportedReactiveLimitClasses.length>0||fixedQGenerators.length>0;
   const enabledShunts=n.shunts.filter(enabled),shuntSource={resolvedStepTables:enabledShunts.filter(s=>s.stepProvenance==='mTaps').length,fixedNominalFallbacks:enabledShunts.filter(s=>s.stepProvenance==='qrean'||s.stepProvenance==='qcapn').length,invalidRatedVoltages:enabledShunts.filter(s=>s.ratedVoltageKv!==undefined&&!(s.ratedVoltageKv!=null&&s.ratedVoltageKv>0)).length,invalidOrMissingStepEntries:enabledShunts.filter(s=>s.stepProvenance==='INVALID_MTAPS').length};
-  const globalDiagnostics={rawTerminals:n.buses.length,inServiceTerminals:n.buses.filter(b=>b.inService).length,electricalBuses:N,solveBuses:N-unsupplied,islandCount:components.length,unsuppliedBuses:unsupplied,branches:branches.length,lines:metadata.filter(e=>e.sourceClass==='ElmLne').length,transformers:metadata.filter(e=>e.sourceClass==='ElmTr2').length,generators:generators.length,loads:n.loads.filter(enabled).length,shuntSource,closedSwitches:topology.closedSwitches,stationControllers:controls.length,stationControllersTotal:n.stationControllers.length,stationControllerSummary:controlSummary,stationControllerMappings:controlMappings,transformerPhase:'PHASE_SHIFT_SOURCE_UNAVAILABLE',loadFlowOptionsRaw:n.loadFlowOptionsRaw||{},islands:islandDiagnostics,controlFidelity:'CURRENT_PROFILE_PARTIAL',referenceValidation:'NOT_AVAILABLE',reactiveLimitClasses:{supported:['ElmSym/ElmGenStat voltage-controlled machines','ElmXnet reference machine'],unsupportedClasses:unsupportedReactiveLimitClasses,fixedQMachinesWithSourceBounds:fixedQGenerators,fidelity:reactiveLimitUnsupported?'PARTIAL':'MODELED_SUPPORTED_MODES_ONLY'}};
+  // Preparation-level source fidelity: canonical counts plus everything dropped here.
+  const sourceFidelity={...(n.sourceFidelity??{transformerTapFallbackCount:0,transformerTapFallbackIds:[] as string[],droppedBranchCount:0,droppedBranchIds:[] as string[],generatorMissingQLimitCount:0,invalidShuntStepCount:0,fidelity:'SOURCE_EXACT' as const}),
+   droppedBranchCount:(n.sourceFidelity?.droppedBranchCount??0)+droppedBranches.length,
+   droppedBranchIds:[...(n.sourceFidelity?.droppedBranchIds??[]),...droppedBranches],
+   fidelity:((n.sourceFidelity?.fidelity==='PARTIAL'||droppedBranches.length>0||(n.sourceFidelity?.invalidShuntStepCount??0)>0))?'PARTIAL' as const:'SOURCE_EXACT' as const};
+  // One near-zero-impedance policy shared with admittance formation, reported with its bound.
+  const nearZeroImpedance={thresholdPu:MIN_BRANCH_IMPEDANCE_PU,policy:'SINGULARITY_GUARD_SHARED_BY_PREPARATION_AND_ADMITTANCE',excludedBranchCount:droppedBranches.length};
+  const globalDiagnostics={rawTerminals:n.buses.length,inServiceTerminals:n.buses.filter(b=>b.inService).length,electricalBuses:N,solveBuses:N-unsupplied,islandCount:components.length,unsuppliedBuses:unsupplied,branches:branches.length,lines:metadata.filter(e=>e.sourceClass==='ElmLne').length,transformers:metadata.filter(e=>e.sourceClass==='ElmTr2').length,generators:generators.length,loads:n.loads.filter(enabled).length,shuntSource,sourceFidelity,nearZeroImpedance,closedSwitches:topology.closedSwitches,stationControllers:controls.length,stationControllersTotal:n.stationControllers.length,stationControllerSummary:controlSummary,stationControllerMappings:controlMappings,transformerPhase:'PHASE_SHIFT_SOURCE_UNAVAILABLE',loadFlowOptionsRaw:n.loadFlowOptionsRaw||{},islands:islandDiagnostics,controlFidelity:'CURRENT_PROFILE_PARTIAL',referenceValidation:'NOT_AVAILABLE',reactiveLimitClasses:{supported:['ElmSym/ElmGenStat voltage-controlled machines','ElmXnet reference machine'],unsupportedClasses:unsupportedReactiveLimitClasses,fixedQMachinesWithSourceBounds:fixedQGenerators,fidelity:reactiveLimitUnsupported?'PARTIAL':'MODELED_SUPPORTED_MODES_ONLY'}};
   const primary=islands[0]||{model:{n:0,baseMVA:n.baseMva,slack:-1,slackVm:1,pSpec:new Float64Array(),qSpec:new Float64Array(),busType:new Int8Array(),vmSet:new Float64Array(),shuntG:new Float64Array(),shuntB:new Float64Array(),qMinNet:[],qMaxNet:[],branches:[]},buses:[],branches:[],generators:[],topology,warnings:[],diagnostics:{},islandId:'none'};
   return{...primary,warnings,diagnostics:globalDiagnostics,additionalIslands:islands.slice(1)};
 }

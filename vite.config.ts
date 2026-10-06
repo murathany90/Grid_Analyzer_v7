@@ -1,24 +1,39 @@
 import {defineConfig,type Plugin} from 'vite';
 import {readFileSync} from 'node:fs';
 
-const kluLicense=readFileSync(new URL('./licenses/klu-js-LICENSE',import.meta.url),'utf8');
+/** Normalises text to LF so generated artifacts do not inherit the checkout's line endings. */
+const toLf=(text:string):string=>text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+
+// The inlined license text must not vary with the checkout platform either, since it ends
+// up inside the byte-hashed artifact.
+const kluLicense=toLf(readFileSync(new URL('./licenses/klu-js-LICENSE',import.meta.url),'utf8'));
 const licensePlugin:Plugin={
   name:'klu-license-notice',
   transformIndexHtml(html){return html.replace('</head>',`<!-- klu-js 0.1.0, LGPL-2.1-or-later; source: https://github.com/rwl/klu-js\n${kluLicense}\n-->\n</head>`);},
 };
+/**
+ * The portable artifact is hashed byte-for-byte, so its bytes must not depend on the
+ * checkout platform.
+ *
+ * Source files carry the line endings of the machine that checked them out, and those
+ * endings survive into the inlined HTML, JS and CSS. A CRLF checkout therefore produced a
+ * different artifact than an LF one, and the committed hash could never match a CI build.
+ * Normalising to LF here makes the output platform-independent, and `.gitattributes`
+ * (`text eol=lf`) keeps the committed blob in the same form.
+ */
 const portablePlugin:Plugin={
   name:'portable-html',
   enforce:'post',
   generateBundle(_options,bundle){
     const html=bundle['index.html'];
     if(!html||html.type!=='asset')return;
-    let source=String(html.source);
-    for(const [name,item] of Object.entries(bundle)){
+    let source=toLf(String(html.source));
+    for(const [name,item]of Object.entries(bundle)){
       if(item.type==='chunk'&&item.isEntry){
-        source=source.replace(/<script type="module"[^>]*src="[^"]+"[^>]*><\/script>/,()=>`<script type="module">${item.code.replace(/<\/script/gi,'<\\/script')}</script>`);
+        source=source.replace(/<script type="module"[^>]*src="[^"]+"[^>]*><\/script>/,()=>`<script type="module">${toLf(item.code).replace(/<\/script/gi,'<\\/script')}</script>`);
         delete bundle[name];
       }else if(item.type==='asset'&&name.endsWith('.css')){
-        source=source.replace(/<link rel="stylesheet"[^>]*>/,()=>`<style>${String(item.source)}</style>`);
+        source=source.replace(/<link rel="stylesheet"[^>]*>/,()=>`<style>${toLf(String(item.source))}</style>`);
         delete bundle[name];
       }
     }

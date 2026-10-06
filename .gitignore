@@ -6,6 +6,11 @@ playwright-report/
 .tmp/
 # Original user inputs and real models remain local.
 /YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html
+# `kontrol1` holds the real DGS ZIP models and PowerFactory exports used for local
+# acceptance runs. `control1` is the tracked README that documents where they go.
+# Only one of the two names is a model directory; both patterns are ignored so a
+# misplaced model is never committed either way.
 /kontrol1/
+/control1/
 control1/*.json
 control1/**/*.json
