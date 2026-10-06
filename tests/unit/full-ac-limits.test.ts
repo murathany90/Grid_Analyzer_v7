@@ -101,9 +101,14 @@ test('full AC work counters are reported separately from the Newton iteration co
 });
 
 test('Full AC diagnostics distinguish total and final Newton counts and disclose partial controls',()=>{
-  const result={converged:true,status:'CONVERGED',iterations:1,diagnostics:{totalNewtonIterations:61,convergence:{activeBalance:'ACTIVE_BALANCE_CONVERGED',stationControl:'STATION_CONTROL_PARTIAL',pendingControllerStatuses:{CONTROL_RESIDUAL_AFTER_FINAL_BALANCE:101}}}} as never;
+  const result={converged:true,status:'CONVERGED',iterations:1,diagnostics:{totalNewtonIterations:61,resultProvenance:'SENSITIVITY_STATION_CONTROL',convergence:{activeBalance:'ACTIVE_BALANCE_CONVERGED',stationControl:'STATION_CONTROL_PARTIAL',pendingControllerStatuses:{CONTROL_RESIDUAL_AFTER_FINAL_BALANCE:101}}}} as never;
   const work=fullAcDiagnostics(result);
   assert.equal(work.newtonIterations,61);
   assert.equal(work.finalNewtonIterations,1);
-  assert.equal(calculationConvergenceLabel(result),'NR yakınsadı · P dengesi yakınsadı · istasyon kontrolü kısmi (101)');
+  // A converged Newton solve with a partial station requirement is never labelled as a
+  // full solution, and the unresolved controller count is preserved.
+  const label=calculationConvergenceLabel(result);
+  assert.ok(label.includes('tam çözüm değil'),label);
+  assert.ok(label.includes('istasyon kontrolü kısmi'),label);
+  assert.ok(!label.includes('Yakınsadı · P dengesi yakınsadı · istasyon kontrolü yakınsadı'));
 });

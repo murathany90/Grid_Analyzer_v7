@@ -80,6 +80,11 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
     // converged active balance or a converged station-controller operating point, and an
     // unresolved SL1 mismatch or remote-controller residual must not be presented as a
     // fully control-converged operating point.
+    const stationProvenance=provenances.includes('BASELINE_FALLBACK')?'BASELINE_FALLBACK':provenances.includes('SENSITIVITY_STATION_CONTROL')?'SENSITIVITY_STATION_CONTROL':provenances.includes('INTEGRATED_STATION_CONTROL')?'INTEGRATED_STATION_CONTROL':provenances.includes('OWNERSHIP')?'OWNERSHIP':'LOCAL_PV';
+    // A fallback keeps a converged local-PV operating point, so `converged` alone would
+    // present it as a full solution. It is stated explicitly in the convergence block so
+    // UI and API consumers cannot read it as one.
+    first.diagnostics.stationControlFallback=stationProvenance==='BASELINE_FALLBACK'?{occurred:true,reason:(first.diagnostics.integratedFailure as {failureStage?:string;message?:string}|null)?.failureStage??(first.diagnostics.integratedFailure as {message?:string}|null)?.message??'STATION_CONTROL_NOT_APPLIED',islandIds:outputs.filter(o=>o.controlled.resultProvenance==='BASELINE_FALLBACK').map(o=>o.part.islandId??null),interpretation:'Converged local-PV solution; the station voltage requirement is NOT satisfied and the result is not comparable to PowerFactory as a full solution.'}:{occurred:false};
     const activeBalanceConverged=!distributedRequested||activeBalanceDiagnostic===null;
     const pendingControlStatuses=['STAGNATED_TRIAL','MAX_OUTER_ROUNDS','CONTROL_SOLVE_FAILED','CONTROL_RESIDUAL_AFTER_FINAL_BALANCE'];
     const stationControlPending=controllerRows.some(row=>pendingControlStatuses.includes(row.status));

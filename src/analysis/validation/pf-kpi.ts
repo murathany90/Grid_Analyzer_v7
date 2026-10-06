@@ -59,10 +59,33 @@ export interface PfKpiSecondaryDiagnostics {
   maxAbsoluteError: number;
 }
 
+/**
+ * Aggregate signed view of the same population the primary KPI scores.
+ *
+ * The primary magnitude KPI is deliberately unchanged: `abs(|GA| - |PF|)`. A sign flip
+ * between GA and PF contributes only the magnitude of the smaller side to that sum, so a
+ * large wrong-sign flow can still pass the magnitude gate. These diagnostics let a release
+ * gate require that large wrong-sign errors are absent, without changing the historical
+ * number that the README and the merge decision quote.
+ */
+export interface PfKpiSignedSummary {
+  /** Observations where a material GA value has the opposite sign of a material PF value. */
+  signDisagreementCount: number;
+  signComparableCount: number;
+  /** Worst p95 of |GA-PF| across the six metrics. */
+  maxP95AbsoluteError: number;
+  /** Worst single |GA-PF| across the six metrics. */
+  maxAbsoluteError: number;
+  /** Metric and observation of the single worst signed error. */
+  worstObservation: { kpi: PfKpiId; observationId: string; gaValue: number; pfValue: number; signedError: number } | null;
+}
+
 export interface PfKpiReport {
   minimumNominalKv: number;
   kpis: PfKpiResult[];
   secondary: PfKpiSecondaryDiagnostics[];
+  /** Signed diagnostics for the same population; never substituted for the primary KPI. */
+  signedSummary: PfKpiSignedSummary;
   population: {
     lineCount: number;
     lineObservationCount: number;
@@ -398,6 +421,22 @@ export function computePowerFactoryKpis(input: PowerFactoryKpiInput): PfKpiRepor
 
   const kpis = PF_KPI_IDS.map(id => scoreKpi(id, buckets[id]));
   const secondary = PF_KPI_IDS.map(id => scoreKpiSecondary(id, buckets[id]));
+  let worst: PfKpiSignedSummary['worstObservation'] = null;
+  for (const id of PF_KPI_IDS) {
+    for (const observation of buckets[id]) {
+      const signedError = observation.gaValue - observation.pfValue;
+      if (!worst || Math.abs(signedError) > Math.abs(worst.signedError)) {
+        worst = { kpi: id, observationId: observation.observationId, gaValue: observation.gaValue, pfValue: observation.pfValue, signedError };
+      }
+    }
+  }
+  const signedSummary: PfKpiSignedSummary = {
+    signDisagreementCount: secondary.reduce((sum, row) => sum + row.signDisagreementCount, 0),
+    signComparableCount: secondary.reduce((sum, row) => sum + row.signComparableCount, 0),
+    maxP95AbsoluteError: secondary.reduce((max, row) => Math.max(max, row.p95AbsoluteError), 0),
+    maxAbsoluteError: secondary.reduce((max, row) => Math.max(max, row.maxAbsoluteError), 0),
+    worstObservation: worst,
+  };
   const populationSignature = [
     `minKv=${minimumNominalKv}`,
     `lines=${lineCount}`,
@@ -414,6 +453,7 @@ export function computePowerFactoryKpis(input: PowerFactoryKpiInput): PfKpiRepor
     minimumNominalKv,
     kpis,
     secondary,
+    signedSummary,
     population: {
       lineCount,
       lineObservationCount: buckets.lineActivePowerMw.length,

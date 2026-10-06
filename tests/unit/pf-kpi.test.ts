@@ -171,6 +171,40 @@ test('every canonical KPI is produced and the population signature pins comparab
   assert.ok(report.population.populationSignature.includes('minKv=66'));
 });
 
+test('the signed summary exposes what the magnitude-only primary KPI cannot', () => {
+  const rows: PowerFactoryNumericRow[] = [
+    // A pure sign flip: the primary magnitude KPI scores it as perfect.
+    { kind: 'line', fid: 'LFLIP', resultAvailable: '1', fromVoltageKv: 154, pFromMw: 50, qFromMvar: 10, pToMw: -50, qToMvar: -10 },
+    // A small magnitude error on the same metric.
+    { kind: 'line', fid: 'LOK', resultAvailable: '1', fromVoltageKv: 154, pFromMw: 50, pToMw: -50, qFromMvar: 10, qToMvar: -10 },
+  ];
+  const branches = [
+    // GA has the wrong sign on the flipped line.
+    { id: 'LFLIP', name: 'flip', sourceClass: 'ElmLne', from: 'a', to: 'b', siteIds: [], vnKv: 154, pf: -50, qf: 10, pt: 50, qt: -10, ifA: 0, itA: 0, loading: null, pLoss: 0, qLoss: 0 },
+    { id: 'LOK', name: 'ok', sourceClass: 'ElmLne', from: 'a', to: 'b', siteIds: [], vnKv: 154, pf: 50, qf: 10, pt: -50, qt: -10, ifA: 0, itA: 0, loading: null, pLoss: 0, qLoss: 0 },
+  ];
+  const report = computePowerFactoryKpis({ rows, result: result({ branches: branches as CalculationResult['branches'] }) });
+  const lineP = report.kpis.find(kpi => kpi.id === 'lineActivePowerMw')!;
+  // Primary KPI is unchanged: the sign flip contributes 0.
+  assert.equal(lineP.sumAbsoluteError, 0);
+  // Signed diagnostics expose it.
+  assert.ok(report.signedSummary.signDisagreementCount > 0);
+  assert.ok(report.signedSummary.signComparableCount > 0);
+  assert.ok(report.signedSummary.maxAbsoluteError > 0);
+  assert.equal(report.signedSummary.worstObservation?.observationId, 'line:LFLIP:pFrom');
+  assert.ok(Math.abs(report.signedSummary.worstObservation!.signedError) > 0);
+});
+
+test('the signed summary reports p95 and max per KPI alongside the primary KPI', () => {
+  const report = computePowerFactoryKpis({ rows: [], result: result() });
+  assert.equal(report.signedSummary.signDisagreementCount, 0);
+  assert.equal(report.signedSummary.maxAbsoluteError, 0);
+  assert.equal(report.signedSummary.maxP95AbsoluteError, 0);
+  assert.equal(report.signedSummary.worstObservation, null);
+  // The secondary per-KPI rows are present for every canonical metric.
+  assert.deepEqual(report.secondary.map(entry => entry.id), [...PF_KPI_IDS]);
+});
+
 test('the CSV reader handles sep marker, decimal commas and meta rows', () => {
   const csv = ['sep=;', 'kind;fid;nominalKv;voltageKv;resultAvailable;metaKey;metaValue', 'meta;;;;;schemaVersion;PF-GA-BENCHMARK-2.1', 'bus;B1;154,00000000;153,5;1;;', 'line;L1;66,0;;0;;'].join('\n');
   const { rows, meta } = parsePowerFactoryNumericCsv(csv);

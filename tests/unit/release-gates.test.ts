@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateBaselinePreservationGates, evaluateReleaseGates, isFullGitSha, type BaselinePreservationGateInput, type ReleaseGateInput } from '../../tools/release-gates';
+import { evaluateBaselinePreservationGates, evaluateReleaseGates, isFullGitSha, signedDiagnosticsPass, type BaselinePreservationGateInput, type ReleaseGateInput, type ReleaseGateSignedInput } from '../../tools/release-gates';
 
 const ids=['lineActivePowerMw','lineReactivePowerMvar','transformerActivePowerMw','transformerReactivePowerMvar','busVoltageKv','busAlignedAngleDeg'];
 const good=():ReleaseGateInput=>({
@@ -67,6 +67,31 @@ test('release gate truth table requires all numerical, convergence, timing and p
     ['MEASURED_COMMIT_SHA',x=>{x.manifestGitSha='c'.repeat(40);}],
   ];
   for(const [name,mutate] of cases){const input=good();mutate(input);const actual=evaluateReleaseGates(input);assert.equal(actual.mergeReady,false,name);assert.ok(actual.failedGates.includes(name),name);}
+});
+
+test('the signed-diagnostics gate fails on a wrong-sign or large-outlier regression',()=>{
+  const signed=():ReleaseGateSignedInput=>({signDisagreementCount:92,signDisagreementBaselineCount:92,maxP95AbsoluteError:1.494191,maxP95Baseline:1.494191,maxAbsoluteError:261.007199,maxBaseline:261.007199});
+  const base=good();
+  assert.deepEqual(evaluateReleaseGates({...base,signed:signed()}).failedGates,[]);
+  // A run without signed diagnostics is not failed by their absence.
+  assert.deepEqual(evaluateReleaseGates(base).failedGates,[]);
+  const cases:Array<[string,(value:ReleaseGateSignedInput)=>void]>=[
+    ['sign disagreement increased',v=>{v.signDisagreementCount=93;}],
+    ['p95 regression',v=>{v.maxP95AbsoluteError=v.maxP95Baseline!*1.11;}],
+    ['max regression',v=>{v.maxAbsoluteError=v.maxBaseline!*1.11;}],
+    ['non-finite max',v=>{v.maxAbsoluteError=Number.NaN;}],
+  ];
+  for(const [name,mutate] of cases){const value=signed();mutate(value);const actual=evaluateReleaseGates({...base,signed:value});assert.equal(actual.mergeReady,false,name);assert.ok(actual.failedGates.includes('SIGNED_DIAGNOSTICS'),name);}
+  // A candidate that improves is never failed by this gate.
+  const improved=signed();improved.signDisagreementCount=0;improved.maxAbsoluteError=10;
+  assert.deepEqual(evaluateReleaseGates({...base,signed:improved}).failedGates,[]);
+});
+
+test('signedDiagnosticsPass requires finite measurements',()=>{
+  const finite={signDisagreementCount:0,signDisagreementBaselineCount:0,maxP95AbsoluteError:1,maxP95Baseline:1,maxAbsoluteError:1,maxBaseline:1};
+  assert.equal(signedDiagnosticsPass(finite),true);
+  assert.equal(signedDiagnosticsPass({...finite,maxP95AbsoluteError:Number.POSITIVE_INFINITY}),false);
+  assert.equal(signedDiagnosticsPass({...finite,maxAbsoluteError:Number.NaN}),false);
 });
 
 test('measured SHA requires all forty hex characters and an existing matching commit',()=>{

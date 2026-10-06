@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 import { analysisSettingsHash, defaultAnalysisSettings, effectiveFullAcLimits, profileFidelity, unsupportedFullAcSettings, unsupportedSharedSettings } from '../src/domain/calculation/analysis-settings';
 import type { CalculationResult } from '../src/domain/results/types';
 import type { PfKpiReport } from '../src/analysis/validation/pf-kpi';
-import { evaluateBaselinePreservationGates, isFullGitSha } from './release-gates';
+import { evaluateBaselinePreservationGates, evaluateSignedKpiGates, isFullGitSha } from './release-gates';
 
 function flag(name: string): string {
   const prefix = `--${name}=`;
@@ -225,6 +225,12 @@ const manifest = {
     signDisagreement: Object.fromEntries(
       [...secondaryById].map(([id, entry]) => [id, { count: entry.signDisagreementCount, comparable: entry.signComparableCount }]),
     ),
+    // Signed diagnostics are additional gate input, never a replacement for the primary
+    // magnitude KPI: a wrong-sign error contributes only the smaller magnitude to that KPI.
+    signedGate: evaluateSignedKpiGates({
+      signedSummary: kpi.signedSummary,
+      baselineSignedSummary: baseline.signedSummary,
+    }),
   },
   convergence: diagnostics.convergence ?? null,
   stationControllers: {

@@ -100,6 +100,7 @@ async function main(): Promise<void> {
     minimumNominalKv: report.minimumNominalKv,
     kpis: report.kpis,
     secondary: report.secondary,
+    signedSummary: report.signedSummary,
     population: report.population,
     populationSignature: report.population.populationSignature,
     alignment: report.alignment,
@@ -120,8 +121,9 @@ async function main(): Promise<void> {
       ),
       ...report.secondary.map(
         entry =>
-          `  secondary ${entry.id.padEnd(24)} signedMean=${entry.signedMeanError.toFixed(6)}  signMismatch=${entry.signDisagreementCount}/${entry.signComparableCount}`,
+          `  secondary ${entry.id.padEnd(24)} signedMean=${entry.signedMeanError.toFixed(6)}  signMismatch=${entry.signDisagreementCount}/${entry.signComparableCount}  p95=${entry.p95AbsoluteError.toFixed(6)}  max=${entry.maxAbsoluteError.toFixed(6)}`,
       ),
+      `  signed     signMismatch=${report.signedSummary.signDisagreementCount}/${report.signedSummary.signComparableCount}  maxP95=${report.signedSummary.maxP95AbsoluteError.toFixed(6)}  max=${report.signedSummary.maxAbsoluteError.toFixed(6)}  worst=${report.signedSummary.worstObservation ? `${report.signedSummary.worstObservation.observationId} ${report.signedSummary.worstObservation.signedError.toFixed(6)}` : 'none'}`,
       comparison ? JSON.stringify(comparison, null, 2) : '',
     ]
       .filter(Boolean)

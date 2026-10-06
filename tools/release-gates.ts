@@ -14,11 +14,83 @@ export interface ReleaseGateInput {
   commitExists: boolean;
   measuredSourceMatchesCurrent: boolean;
   measuredInputsMatch: boolean;
+  /** Signed diagnostics for the same population; evaluated as its own gate. */
+  signed?: ReleaseGateSignedInput;
 }
 
 export const isFullGitSha=(value:string):boolean=>/^[0-9a-f]{40}$/i.test(value);
 
+/**
+ * Signed-diagnostic gates that run alongside the primary magnitude KPI.
+ *
+ * The primary KPI is `abs(|GA| - |PF|)`, which is unchanged. A sign flip between GA and PF
+ * contributes only the magnitude of the smaller side to that sum, so a large wrong-sign
+ * flow can pass it. These gates exist so such an error cannot be hidden behind a
+ * magnitude-only gate. They never alter the historical KPI numbers.
+ */
+export interface SignedKpiGateInput {
+  signedSummary: {
+    signDisagreementCount:number; signComparableCount:number;
+    maxP95AbsoluteError:number; maxAbsoluteError:number;
+  };
+  /** Baseline of the same model; when absent only absolute limits apply. */
+  baselineSignedSummary?: { signDisagreementCount:number; maxP95AbsoluteError:number; maxAbsoluteError:number } | null;
+  /**
+   * Relative tolerance on p95 and max |GA-PF| against the baseline. These are wide because
+   * the population is large; their purpose is to catch a new large-scale outlier, not to
+   * gate small movements.
+   */
+  p95TolerancePercent?: number;
+  maxTolerancePercent?: number;
+}
+export interface SignedKpiGateResult {
+  signDisagreementNotIncreased:boolean;
+  p95NotRegressed:boolean;
+  maxNotRegressed:boolean;
+  worstP95AbsoluteError:number;
+  worstMaxAbsoluteError:number;
+  tolerances:{p95Percent:number;maxPercent:number};
+}
+export function evaluateSignedKpiGates(input:SignedKpiGateInput):SignedKpiGateResult{
+  const p95TolerancePercent=input.p95TolerancePercent??10,maxTolerancePercent=input.maxTolerancePercent??10;
+  const {signedSummary,baselineSignedSummary}=input;
+  const p95Limit=baselineSignedSummary?baselineSignedSummary.maxP95AbsoluteError*(1+p95TolerancePercent/100):Infinity;
+  const maxLimit=baselineSignedSummary?baselineSignedSummary.maxAbsoluteError*(1+maxTolerancePercent/100):Infinity;
+  return{
+    signDisagreementNotIncreased:baselineSignedSummary?input.signedSummary.signDisagreementCount<=baselineSignedSummary.signDisagreementCount:input.signedSummary.signDisagreementCount>=0,
+    p95NotRegressed:input.signedSummary.maxP95AbsoluteError<=p95Limit,
+    maxNotRegressed:input.signedSummary.maxAbsoluteError<=maxLimit,
+    worstP95AbsoluteError:input.signedSummary.maxP95AbsoluteError,
+    worstMaxAbsoluteError:input.signedSummary.maxAbsoluteError,
+    tolerances:{p95Percent:p95TolerancePercent,maxPercent:maxTolerancePercent},
+  };
+}
+
 /** Every release requirement is a separate gate so a failed measurement cannot be hidden. */
+/**
+ * Signed-diagnostic gate input, evaluated alongside the primary magnitude gates.
+ *
+ * A sign flip contributes only the magnitude of the smaller side to the primary
+ * `abs(|GA| - |PF|)` KPI, so a large wrong-sign flow can pass that gate. These values let
+ * a release fail on such an error without changing the historical KPI definition.
+ */
+export interface ReleaseGateSignedInput {
+  signDisagreementCount:number;
+  signDisagreementBaselineCount:number|null;
+  maxP95AbsoluteError:number;
+  maxP95Baseline:number|null;
+  maxAbsoluteError:number;
+  maxBaseline:number|null;
+}
+/** Fails only on a measured regression, so an existing baseline is never blocked retroactively. */
+export function signedDiagnosticsPass(input:ReleaseGateSignedInput):boolean{
+  if(!Number.isFinite(input.maxAbsoluteError)||!Number.isFinite(input.maxP95AbsoluteError))return false;
+  if(input.signDisagreementBaselineCount!=null&&input.signDisagreementCount>input.signDisagreementBaselineCount)return false;
+  if(input.maxP95Baseline!=null&&input.maxP95Baseline>0&&input.maxP95AbsoluteError>input.maxP95Baseline*1.1)return false;
+  if(input.maxBaseline!=null&&input.maxBaseline>0&&input.maxAbsoluteError>input.maxBaseline*1.1)return false;
+  return true;
+}
+
 export function evaluateReleaseGates(input:ReleaseGateInput):{mergeReady:boolean;failedGates:string[];improvedCount:number} {
   const kpis=new Map(input.kpis.map(row=>[row.id,row]));
   const canonical=['lineActivePowerMw','lineReactivePowerMvar','transformerActivePowerMw','transformerReactivePowerMvar','busVoltageKv','busAlignedAngleDeg'];
@@ -31,7 +103,7 @@ export function evaluateReleaseGates(input:ReleaseGateInput):{mergeReady:boolean
   const qImproved=lineQ!=null&&transformerQ!=null&&(lineQ<=-2||transformerQ<=-2);
   const validCommit=isFullGitSha(input.measuredGitSha)&&isFullGitSha(input.manifestGitSha)&&input.commitExists&&input.measuredGitSha.toLowerCase()===input.manifestGitSha.toLowerCase();
   const portableBytesMatch=/^[0-9a-f]{64}$/i.test(input.portableSha256)&&input.portableSha256===input.committedPortableSha256&&input.portableSha256===input.measuredPortableSha256;
-  const gates:readonly [string,boolean][]=[
+  const gates:[string,boolean][]=[
     ['POPULATION_SIGNATURE',input.populationMatches],
     ['CANONICAL_KPI_POPULATION',complete],
     ['FIVE_OF_SIX_KPI_IMPROVEMENT',improvedCount>=5],
@@ -46,6 +118,8 @@ export function evaluateReleaseGates(input:ReleaseGateInput):{mergeReady:boolean
     ['MEASURED_SOURCE_TREE',input.measuredSourceMatchesCurrent],
     ['MEASURED_INPUT_BYTES',input.measuredInputsMatch],
   ];
+  // Optional: a run without signed diagnostics is not failed by the absence of them.
+  if(input.signed)gates.push(['SIGNED_DIAGNOSTICS',signedDiagnosticsPass(input.signed)]);
   const failedGates=gates.filter(([,passed])=>!passed).map(([name])=>name);
   return{mergeReady:failedGates.length===0,failedGates,improvedCount};
 }
