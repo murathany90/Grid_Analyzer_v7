@@ -69,10 +69,14 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
       else valid = false;
     }
     let tap = valid ? (hv / vnKv) / (lv / lvKv) * (side === 0 ? rel : side === 1 ? 1 / rel : 1) : 1;
-    if (!valid || !(tap > .5 && tap < 1.6)) { tap = 1; warnings.push(`Trafo kademe oranı çözülemedi; 1.0: ${str(r.FID)}`); }
+    // A tap that cannot be resolved from the source is replaced by 1.0, which changes the
+    // branch. The substitution is recorded as a source-fidelity diagnostic so the strict
+    // path can report PARTIAL rather than presenting the result as source-exact.
+    let tapResolution:'SOURCE_RESOLVED'|'FALLBACK_UNRESOLVED_RATIO'|'FALLBACK_OUT_OF_RANGE'='SOURCE_RESOLVED';
+    if (!valid || !(tap > .5 && tap < 1.6)) { tap = 1; tapResolution=valid?'FALLBACK_OUT_OF_RANGE':'FALLBACK_UNRESOLVED_RATIO'; warnings.push(`Trafo kademe oranı çözülemedi; 1.0: ${str(r.FID)}`); }
     const g = sn > 0 ? num(t.pfe) / (1000 * sn) : 0, b = -Math.sqrt(Math.max(0, (num(t.curmg) / 100) ** 2 - g * g)), scale = sn / BASE;
     return { ...branchBase('ElmTr2', r, from, to), vnKv, lvKv, rPu: rp * BASE / sn, xPu: Math.sqrt(Math.max(0, zp*zp-rp*rp)) * BASE / sn,
-      tap, phase: 0, ratingMva: sn, tapPosition: pos, gPu: g * scale, bPu: b * scale,typeHvKv:hv,typeLvKv:lv,tapSide:side,relativeTapVoltage:rel,tapSource,
+      tap, phase: 0, ratingMva: sn, tapPosition: pos, gPu: g * scale, bPu: b * scale,typeHvKv:hv,typeLvKv:lv,tapSide:side,relativeTapVoltage:rel,tapSource,tapResolution,
       sourceRefs: { ...base('ElmTr2', r).sourceRefs, impedance: [ref('TypTr2', r.typ_id, 'strn/uktr/pcutr')], tap: [ref('ElmTr2', r.FID, 'nntap/mTaps'), ref('TypTr2', r.typ_id, 'dutap/nntap0/tap_side/utrn_h/utrn_l')], phase: [ref('TypTr2', r.typ_id, 'PHASE_SHIFT_SOURCE_UNAVAILABLE')] } };
   });
   const generators: Generator[] = ['ElmSym', 'ElmGenStat'].flatMap(cls => rows(cls).map(r => {
@@ -139,6 +143,17 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const loadFlowSettings=comLdf?Object.fromEntries(comLdfFields.map(key=>[key,rawNumber(comLdf[key])])):{};
   const loadFlowOptionsRaw=loadFlowSettings;
   const diagnostics=loads.some(load=>load.activeBalanceEligibility===undefined)?[{code:'ACTIVE_BALANCE_ELIGIBILITY_MISSING',message:'Active balancing eligibility is absent from ElmLod source attributes; adjustable-load balancing parity cannot be established.',severity:'WARNING' as const,sourceClass:'ElmLod'}]:[];
+  // Every source value that is substituted or excluded instead of solved is counted here.
+  const tapFallbacks=transformers.filter(tr=>tr.tapResolution!=='SOURCE_RESOLVED');
+  const invalidShuntSteps=shunts.filter(s=>s.stepProvenance==='INVALID_MTAPS'||s.stepProvenance==='INVALID_RATING');
+  const generatorsMissingQLimit=generators.filter(g=>g.qMin==null||g.qMax==null);
+  const sourceFidelity={
+    transformerTapFallbackCount:tapFallbacks.length,transformerTapFallbackIds:tapFallbacks.map(tr=>tr.id),
+    droppedBranchCount:0,droppedBranchIds:[] as string[],
+    generatorMissingQLimitCount:generatorsMissingQLimit.length,
+    invalidShuntStepCount:invalidShuntSteps.length,
+    fidelity:(tapFallbacks.length>0||invalidShuntSteps.length>0)?'PARTIAL' as const:'SOURCE_EXACT' as const};
+  if(tapFallbacks.length)diagnostics.push({code:'TRANSFORMER_TAP_FALLBACK',message:`${tapFallbacks.length} transformer(s) have an unresolvable tap ratio; tap was set to 1.0 for those branches.`,severity:'WARNING' as const,sourceClass:'ElmTr2'});
   const unsupportedReactiveLimitClasses=['ElmAsm','ElmVsc','ElmSvs'].map(sourceClass=>({sourceClass,sourceIds:rows(sourceClass).filter(row=>num(row.outserv)!==1).map(row=>str(row.FID))})).filter(row=>row.sourceIds.length).map(row=>({...row,count:row.sourceIds.length}));
   // A closed-switch electrical bus may include physical terminals with different
   // nominal voltages. All equipment bases use the canonical electrical-bus base.
@@ -155,7 +170,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     tr.tap=(ht/hb)/(lt/lb)*(tr.tapSide===0?rho:tr.tapSide===1?1/rho:1);
   }
   shunts=shunts.map(shunt=>{const kv=canonicalKv(shunt.bus),rated=shunt.ratedVoltageKv;return rated!=null&&rated>0&&kv>0?{...shunt,bPu:(shunt.nominalQMvar??0)/BASE*(kv/rated)**2}:shunt;});
-  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,
+  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,sourceFidelity,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,
     capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'BLOCKED',reasons:['Bu sürümde uygulanmadı; sekans/reaktans kapsamı doğrulanmalı.']}, shortCircuitGround:{state:'BLOCKED',reasons:['Sıfır sekans ve vektör grubu kapsamı doğrulanmadı.']}, n1:{state:'PARTIAL',scope:'REDUCED_GE66_DC_P_ONLY',reasons:['Reduced DC screening of in-service lines and two-winding transformers in the >=66 kV network.','Active-power islanding and estimated loading only; reactive power, voltage and Full AC contingency verification are not covered.','SCREENED_NO_VIOLATION does not mean AC security is verified.']} } };

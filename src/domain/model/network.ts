@@ -21,6 +21,11 @@ export interface Transformer2W extends Entity {
   readonly ratingMva: number; readonly tapPosition: number; readonly gPu: number; readonly bPu: number;
   readonly typeHvKv?:number;readonly typeLvKv?:number;readonly tapSide?:number;readonly relativeTapVoltage?:number;
   readonly tapSource?:'mTaps'|'dutap'|'none';
+  /**
+   * Whether the tap ratio came from the source. A fallback substitutes tap=1, which is a
+   * physical change, so it is never silent.
+   */
+  readonly tapResolution?:'SOURCE_RESOLVED'|'FALLBACK_UNRESOLVED_RATIO'|'FALLBACK_OUT_OF_RANGE';
 }
 export interface Generator extends Entity {
   readonly bus: string; readonly pMw: number; readonly qMvar: number;
@@ -50,6 +55,25 @@ export interface StationController extends Entity {
   readonly measurementSelfCubicle?:boolean;
   readonly modeSemantics?:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'|'UNSUPPORTED';
 }
+/**
+ * Occurrences of source data that was substituted or excluded rather than solved.
+ *
+ * `PARTIAL` fidelity is the honest report when any count is non-zero: the corresponding
+ * equipment does not carry source-exact physics.
+ */
+export interface SourceFidelity {
+  /** Transformers whose tap ratio could not be resolved and was replaced by 1.0. */
+  readonly transformerTapFallbackCount:number;
+  readonly transformerTapFallbackIds:readonly string[];
+  /** Branches dropped because a parameter was invalid or missing. */
+  readonly droppedBranchCount:number;
+  readonly droppedBranchIds:readonly string[];
+  /** Generators that supply no reactive limit, so no bound is enforced for them. */
+  readonly generatorMissingQLimitCount:number;
+  /** Active shunts whose selected step is not resolvable from the source. */
+  readonly invalidShuntStepCount:number;
+  readonly fidelity:'SOURCE_EXACT'|'PARTIAL';
+}
 export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
 export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
 export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[]; /** Machine-readable scope of what the capability actually covers. */ scope?: string }
@@ -66,6 +90,11 @@ export interface CanonicalNetwork {
   readonly loadFlowOptionsRaw?: Readonly<Record<string,number|string|null>>;
   readonly loadFlowSettings?: Readonly<Record<string,number|string|null>>;
   readonly diagnostics?: readonly { readonly code:string; readonly message:string; readonly severity:'INFO'|'WARNING'|'ERROR'; readonly sourceClass?:string; readonly sourceId?:string }[];
+  /**
+   * Counts of values the source did not supply and that were not guessed. Every entry is a
+   * physical substitution or exclusion, reported so a strict path can present PARTIAL.
+   */
+  readonly sourceFidelity?: SourceFidelity;
   readonly boundaries: readonly Entity[]; readonly sites: readonly Site[];
   readonly classCounts: Readonly<Record<string, number>>; readonly records: number;
   readonly warnings: readonly string[]; readonly capabilities: ModelCapabilities;
