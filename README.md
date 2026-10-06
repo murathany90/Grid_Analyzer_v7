@@ -1,4 +1,4 @@
-# Grid Analyzer
+﻿# Grid Analyzer
 
 Grid Analyzer, DIgSILENT PowerFactory DGS JSON/ZIP şebekelerini tarayıcıda açan ve envanter, harita, tek hat, senaryo, Full AC, Fast AC, DC ve N-1 analizleri sunan istemci uygulamasıdır. Hesaplanan değerler ölçüm değildir; kaynak model, çalışma durumu ve ayarlara bağlıdır. Sürüm **8.2.5**; Full AC motoru sparse KLU/WASM destekli `BrowserJsEngine`dir. `dist-portable/GridAnalyzer_v7.html` çevrimdışı kullanılabilen tek dosyalık derlemedir.
 
@@ -21,20 +21,21 @@ Her elektrik barasında `I = YV`, `Sᵢ = Vᵢ conj(Iᵢ) = Pᵢ + jQᵢ`. `Pᵢ
 
 - Hat: `R = TypLne.rline × dline`, `X = TypLne.xline × dline`, `B = TypLne.bline × 10⁻⁶ × dline`; bölümlü hatlarda `ElmLnesec` değerleri toplanır. `ElmScap` seri kolu `R=0, X=−1/bcap` olarak kullanılır.
 - İki sargılı trafo: `rₒ = pcutr/(1000·strn)`, `|zₒ|=uktr/100`, `xₒ=√max(0,|zₒ|²−rₒ²)`; seri değerler 100 MVA ve fiziksel bara gerilim tabanına dönüştürülür. Tap için geçerli `mTaps` kV değeri, yoksa `dutap` seçilir. HV tarafı no-load `pfe/curmg` admitansı uç P/Q raporunda da bulunur. LV tap seri eşdeğerinde `ρ²` uygulanır: SN4 frozen-state trafo P/Q %0,05529/%0,38859 ile bunu doğrular. Önceki Formula Set'teki `1/ρ²` ifadesi aynı denetimde %4,12/%5,87 verdiği için uygulanmadı.
-- `ElmShnt`: reaktör negatif, kapasitör pozitif Q taşır. Değişken şöntte `ncapa` ile seçilen `mTaps` MVAr kullanılır; sabitte `qrean/qcapn`. `ushnm` ve bağlı baranın nominal kV değeri susceptance tabanını belirler. Geçersiz kademe sessizce tahmin edilmez.
+- `ElmShnt`: reaktör negatif, kapasitör pozitif Q taşır. Değişken şöntte `ncapa` ile seçilen `mTaps` MVAr kullanılır; sabitte `qrean/qcapn`. `ushnm` ve bağlı baranın nominal kV değeri susceptance tabanını belirler.
+- Kaynaktan çözülemeyen değerler tahmin edilmez; ikame edilir veya çıkarılırsa bu görünür olur. İki sargılı trafo tap oranı çözülemezse veya `0,5–1,6` aralığı dışına düşerse `tap=1,0` ikamesi yapılır ve trafo `tapResolution=FALLBACK_*` ile işaretlenir; iki sargılı trafo dışındaki bir dalın parametresi geçersizse dal uyarıyla çıkarılır. Sayımlar `diagnostics.sourceFidelity` altında, kanıt düzeyi `SOURCE_EXACT` veya `PARTIAL` olarak raporlanır. Değişken şöntün etkin kademesi geçersizse `stepProvenance=INVALID_MTAPS` olarak işaretlenir ve sayım `diagnostics.shuntSource.invalidOrMissingStepEntries` altında verilir.
 - Yükler sabit P/Q'dur. Dağıtılmış aktif dengelemede uygun yüklerin P'si değişir, Q'su kaynak dispatch'ında sabit kalır. Station dışı generator Q da kaynak `qgini` dispatch'ını korur.
 
 ## Integrated station control ve Q sınırları
 
 Zero-droop controller üyelerinde `Qᵢ = qginiᵢ + Kᵢ·ΔQₛ꜀ₒ`; kaynak `cvqq` varsa `Kᵢ=cvqqᵢ/100`, uygun `imode=0` durumda fallback immutable `pgini` payıdır. Dengelemeden sonraki generator P katılım için kullanılmaz. Signed droop için `Qdroop=Srated·100/ddroop` ve `Vtarget=usetp+Qmeas/Qdroop`; SN4/SN7 desteklenen profilde `pQmeas` ilgili generator cubicle'ıdır. Paylaşılan uzak baralı controllerlar aynı sparse Newton sistemine girer. Çözülen değişkenler arasında `Vm`, `Va`, controller `ΔQ` ve etkin P-dengeleme değişkeni bulunur.
 
-`ElmSym.pQlimType` geçerli `IntQlim` eğrisine işaret ederse `cap_P/cap_Qmn/cap_Qmx` noktaları immutable `pgini` üzerinde doğrusal enterpolasyonla değerlendirilir; uçların dışında uç değer korunur. Eğri geçersiz veya yoksa geçerli doğrudan `cQ_min/cQ_max` kullanılır. Station üyesi Qmin/Qmax'a ulaşınca kalan değişim hareketli üyelere dağıtılır; yön tersine dönerse sınırdaki üye yeniden girebilir. Genel PV→PQ bus limit geçişi monotondur ve genel PV'ye geri dönüş desteklenmez.
+`ElmSym.pQlimType` geçerli `IntQlim` eğrisine işaret ederse `cap_P/cap_Qmn/cap_Qmx` noktaları immutable `pgini` üzerinde doğrusal enterpolasyonla değerlendirilir; uçların dışında uç değer korunur. Eğri geçersiz veya yoksa geçerli doğrudan `cQ_min/cQ_max` kullanılır. Station üyesi Qmin/Qmax'a ulaşınca kalan değişim hareketli üyelere dağıtılır. Sınırdaki üyenin yeniden girmesi denklem artığı yönüyle belirlenir: hedef gerilim daha fazla Q gerektiriyorsa QMIN'deki üye, daha az Q gerektiriyorsa QMAX'daki üye serbest bırakılır. Geçmiş Q-dispatch sapmasının işareti yön kararı olarak kullanılmaz. Genel PV→PQ bus limit geçişi de tek yönlü değildir: sınır kendi Newton çözümünde hâlâ bağlıysa üye emekli edilir, içeride kalıyorsa PV'ye döner; karar tamamlayıcılık koşuludur, histerezis değil. Kaynağın Q limiti vermediği üye sınırsız reaktif kaynak sayılmaz: bandı bilinmeyen bir yetenektir, denklemden çözülür ve sınır uygulanmış gibi raporlanmaz.
 
-Hareketli controller residual'ı, hâlâ Q hareket alanı varken `|Vtarget−Vremote|>0,002 pu` kalmasıdır. Doymuş controllerın aynı residual'ı fiziksel Q sınırının sonucu olabilir; ayrı sayılır. Çözüm sonunda sınırsız/movable residual SN4 ve SN7'de **0**'dır.
+Etkin station aktif-set sınırları (`maxStationActiveSetRestarts`, `maxStationUnitReleases`) ve controller denklem toleransı gizli sabitler değil, tip ayarlarıdır; `diagnostics.stationControllerSummary.effectiveActiveSetLimits` fiilen kullanılan değerleri raporlar. Doğrulanmış yeniden başlatma bütçesi korunur (SN4 90, SN7 63). Hareketli controller residual'ı, hâlâ Q hareket alanı varken `|Vtarget−Vremote|>0,002 pu` kalmasıdır. Doymuş controllerın aynı residual'ı fiziksel Q sınırının sonucu olabilir; ayrı sayılır. Çözüm sonunda sınırsız/movable residual SN4 ve SN7'de **0**'dır.
 
 ## Son PowerFactory karşılaştırması
 
-Normalize ortalama mutlak hata, %. “Önce” validated `2a163ef8fa2dc6c5d098fe5058eca65569bbb468`; “Sonra” kabul edilen `IntQlim` davranışıdır.
+Normalize ortalama mutlak hata, %. Birincil KPI `abs(|GA|−|PF|)` olarak tanımlıdır ve değiştirilmemiştir. İşaret hatası bu toplama yalnızca küçük tarafın büyüklüğünü kattığı için büyük ters-işaret hataları birincil kapıdan geçebilir; bu nedenle imzalı tanı (signed MAE, p95 ve max `|GA−PF|`, `signDisagreementCount`) ayrı bir `SIGNED_DIAGNOSTICS` kapısıyla değerlendirilir. “Önce” validated `2a163ef8fa2dc6c5d098fe5058eca65569bbb468`; “Sonra” kabul edilen `IntQlim` davranışıdır.
 
 | KPI | SN4 önce | SN4 sonra | SN7 önce | SN7 sonra |
 | --- | ---: | ---: | ---: | ---: |
@@ -78,7 +79,7 @@ SN7 için aynı komutlara yukarıdaki ZIP, ControlContext ve Downloads içindeki
 
 ## Bilinen sınırlar ve geçmiş
 
-Kaynak `IntQlim` için voltage-dependent varyantlar, `inputmod` ve parallel-unit ölçekleri tam modellenmemiştir. Generator dışındaki genel Q-limit release yoktur. Kaynakta olmayan trafo phase shift varsayılarak eklenmez. Full AC N-1 yerine mevcut ≥66 kV DC aktif güç taraması kullanılır. PowerFactory ile kalan SN7 Q outlierları nedeniyle tek tek santral Q sonuçları genel KPI'larla aynı doğrulukta kabul edilmemelidir.
+Kaynak `IntQlim` için voltage-dependent varyantlar, `inputmod` ve parallel-unit ölçekleri tam modellenmemiştir. Kaynağın Q limiti sağlamadığı generator'lar (SN4'te 7, SN7'de 8 istasyon üyesi) sınırsız kabul edilmez; bunlar `MISSING` olarak sınıflandırılır, denklemden çözülür ve hiçbir sınır uygulanmış gibi raporlanmaz. Genel PV'den Q-limit'a ve geri dönüş artık iki yönlüdür; limit yeniden bağlanan üyeler emekli edilir ve `diagnostics.qLimitActiveSet.generic` altında listelenir. Kaynakta olmayan trafo phase shift varsayılarak eklenmez. Full AC N-1 yerine mevcut ≥66 kV DC aktif güç taraması kullanılır. PowerFactory ile kalan SN7 Q outlierları nedeniyle tek tek santral Q sonuçları genel KPI'larla aynı doğrulukta kabul edilmemelidir.
 
 | Tarihsel aşama | Durum |
 | --- | --- |
