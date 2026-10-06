@@ -166,15 +166,18 @@ for(round=0;round<qLimitRoundLimit;round++){
    if(noImprovement>=settings.maxNoImprovementIterations){nrReason='NR_STAGNATION';break;}
    fillJacobian(Y,L,Vm,Va,P,Q,Jvals,controls,base,weights);const A={N:L.N,rowPtr:L.rowPtr,colIdx:L.colIdx,values:Jvals,pos:L.pos,diagPos:L.diagPos};let lin:LinearSolution|null=null;
    const linearDiagnostics={minPivot:null as number|null,stage:'START',pivotSource:undefined as NumericalFailureDiagnostic['pivotSource']};
-   const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
-    try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=directResidualLimitPu){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}}
-    catch{/* Preserve the other method's failure diagnostic. */}
-    finally{direct.dispose();}};
+    // The direct backend is allowed to fail over to the iterative solver, but the stage at
+    // which it gave up must reach the failure diagnostic instead of being swallowed.
+    let directFailureStage:string|null=null,directFailureMessage:string|null=null;
+const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
+     try{direct.factorize(A);if(options.workCounters)options.workCounters.kluNewtonFactorizations++;const solved=direct.solve(rhs);if(solved.success&&solved.x&&solved.trueResidual!=null&&solved.trueResidual<=directResidualLimitPu){lin={x:solved.x,iterations:0,residual:solved.trueResidual,method:'KLU_DIRECT'};linearDiagnostics.stage='KLU_DIRECT';}else directFailureStage=direct.diagnostics.failureStage!=='NONE'?direct.diagnostics.failureStage:'REJECTED_RESIDUAL';}
+     catch(e){directFailureStage=direct.diagnostics.failureStage!=='NONE'?direct.diagnostics.failureStage:'FACTORIZE_THREW';directFailureMessage=e instanceof Error?e.message:String(e);}
+     finally{direct.dispose();}};
    // ILU is inexpensive on small matrices; direct factorization avoids long Krylov tails on large grids.
    if(A.N>=512)tryDirect();
    if(!lin)try{lin=(options.linearFill===1?solveLinearFill1:solveLinear)(A,rhs,linearDiagnostics);}catch(e){nrReason='LINEAR_SOLVER_FAILED';nrFailure=failure('LINEAR_SOLVE',e instanceof Error?e.message:String(e),it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});}lastMinPivot=linearDiagnostics.minPivot;lastLinearStage=linearDiagnostics.stage;
    if(!lin&&A.N<512)tryDirect();
-   if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),oldAlpha=alphaMw,baseNorm=Math.sqrt(ss);let accepted=false;
+   if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource,kluFailureStage:directFailureStage,kluFailureMessage:directFailureMessage});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),oldAlpha=alphaMw,baseNorm=Math.sqrt(ss);let accepted=false;
    let stepCap=1,boundIndex=-1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
     // Fraction to boundary for the distributed-P unknown. Without it a Newton step can
     // push an eligible load past zero consumption, reversing its flow direction.

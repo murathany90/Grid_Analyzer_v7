@@ -17,6 +17,21 @@ test('KLU adapter solves a nonsymmetric sparse system with checked true residual
     assert.equal(factor.diagnostics.factorizations,1);assert.equal(factor.diagnostics.rhsCount,1);
   }finally{factor.dispose();}
 });
+test('a KLU failure records its stage instead of being swallowed',()=>{
+  // A CSR matrix whose column index is out of range makes the CSC conversion throw. The
+  // solver falls back to an iterative method, so the stage must survive for diagnostics.
+  const broken:SparseMatrix={N:2,rowPtr:Int32Array.from([0,1,2]),colIdx:Int32Array.from([0,7]),values:Float64Array.from([1,1]),pos:[new Map([[0,0]]),new Map([[1,1]])],diagPos:Int32Array.from([0,1])};
+  const factor=new KluSparseDirectFactorization();
+  try{factor.factorize(broken);assert.fail('expected the invalid column index to throw');}
+  catch(error){assert.match(String((error as Error).message),/INVALID_COLUMN/);}
+  finally{factor.dispose();}
+  // A successful solve leaves no failure recorded.
+  const clean=new KluSparseDirectFactorization();
+  try{clean.factorize(matrix);assert.equal(clean.diagnostics.failureStage,'NONE');assert.equal(clean.diagnostics.failureMessage,null);
+    const result=clean.solve(Float64Array.from([6,15,24]));assert.equal(result.success,true);assert.equal(clean.diagnostics.failureStage,'NONE');
+  }finally{clean.dispose();}
+});
+
 test('one KLU factorization solves multiple RHS without changing the matrix',()=>{
   const factor=new KluSparseDirectFactorization();
   try{factor.factorize(matrix);const rows=factor.solveMany([Float64Array.from([6,15,24]),Float64Array.from([11,3,9])]);

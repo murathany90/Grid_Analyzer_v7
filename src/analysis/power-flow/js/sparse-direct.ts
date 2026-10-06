@@ -19,6 +19,12 @@ export interface SparseDirectDiagnostics {
   backend:'KLU_WASM'; dimension:number;nnz:number;ordering:'KLU_AMD';
   cscConversionMs:number;symbolicFactorMs:number;numericFactorMs:number;factorMs:number;
   solveMs:number;rhsCount:number;factorizations:number;
+  /**
+   * Where the direct backend stopped. The solver falls back to an iterative method when
+   * this is not `NONE`, so the reason must survive rather than being swallowed.
+   */
+  failureStage:'NONE'|'FACTORIZE_THREW'|'SOLVE_THREW'|'SOLVE_STATUS_NONZERO';
+  failureMessage:string|null;
 }
 export interface SparseDirectSolution {x:Float64Array|null;trueResidual:number|null;solveMs:number;success:boolean}
 export interface SparseDirectFactorization {
@@ -53,7 +59,7 @@ function relativeResidual(matrix:SparseMatrix,rhs:Float64Array,x:Float64Array):n
 }
 
 export class KluSparseDirectFactorization implements SparseDirectFactorization {
-  readonly diagnostics:SparseDirectDiagnostics={backend:'KLU_WASM',dimension:0,nnz:0,ordering:'KLU_AMD',cscConversionMs:0,symbolicFactorMs:0,numericFactorMs:0,factorMs:0,solveMs:0,rhsCount:0,factorizations:0};
+  readonly diagnostics:SparseDirectDiagnostics={backend:'KLU_WASM',dimension:0,nnz:0,ordering:'KLU_AMD',cscConversionMs:0,symbolicFactorMs:0,numericFactorMs:0,factorMs:0,solveMs:0,rhsCount:0,factorizations:0,failureStage:'NONE',failureMessage:null};
   private matrix:SparseMatrix|null=null;
   private common:KluCommon|null=null;
   private symbolic:object|null=null;
@@ -70,7 +76,12 @@ export class KluSparseDirectFactorization implements SparseDirectFactorization {
       this.diagnostics.numericFactorMs=performance.now()-afterSymbolic;
       this.diagnostics.factorMs=this.diagnostics.symbolicFactorMs+this.diagnostics.numericFactorMs;
       this.diagnostics.factorizations=1;this.matrix=matrix;
-    }catch(error){this.dispose();throw error;}
+    }catch(error){
+      // The caller falls back to an iterative solve, so the stage is recorded rather than
+      // discarded: a silently swallowed failure would be indistinguishable from success.
+      this.diagnostics.failureStage='FACTORIZE_THREW';
+      this.diagnostics.failureMessage=error instanceof Error?error.message:String(error);
+      this.dispose();throw error;}
   }
   solve(rhs:Float64Array):SparseDirectSolution {return this.solveMany([rhs])[0];}
   solveMany(rhsList:readonly Float64Array[]):SparseDirectSolution[] {
@@ -79,7 +90,9 @@ export class KluSparseDirectFactorization implements SparseDirectFactorization {
     const n=matrix.N,packed=new Float64Array(n*rhsList.length);
     rhsList.forEach((rhs,index)=>{if(rhs.length!==n)throw Error('SPARSE_DIRECT_RHS_SIZE');packed.set(rhs,index*n);});
     const started=performance.now();let status=0;
-    try{status=binding.klu_solve(this.symbolic,this.numeric,n,rhsList.length,packed,this.common);}catch{status=0;}
+    try{status=binding.klu_solve(this.symbolic,this.numeric,n,rhsList.length,packed,this.common);}
+    catch(error){status=0;this.diagnostics.failureStage='SOLVE_THREW';this.diagnostics.failureMessage=error instanceof Error?error.message:String(error);}
+    if(status!==1&&this.diagnostics.failureStage==='NONE'){this.diagnostics.failureStage='SOLVE_STATUS_NONZERO';this.diagnostics.failureMessage=`klu_solve returned status ${status}`;}
     const solveMs=performance.now()-started;this.diagnostics.solveMs+=solveMs;this.diagnostics.rhsCount+=rhsList.length;
     return rhsList.map((rhs,index)=>{
       const x=status===1?Float64Array.from(packed.subarray(index*n,(index+1)*n)):null;

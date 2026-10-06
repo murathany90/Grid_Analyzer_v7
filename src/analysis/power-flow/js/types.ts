@@ -54,6 +54,8 @@ export interface NumericalFailureDiagnostic {
   maxDxTheta?:number; maxDxThetaBus?:number; maxDxThetaBusId?:string|null;
   maxDxControlDq?:number; maxDxControlIndex?:number; maxDxControlId?:string|null;
   oldMinVm?:number; oldMaxVm?:number;
+  /** Stage at which the KLU direct backend gave up, when it was tried and did not deliver. */
+  kluFailureStage?:string|null; kluFailureMessage?:string|null;
   /** Numerical voltage-domain safety bound in force for the rejected step. Not a physical limit. */
   voltageDomainPu?:{minPu:number;maxPu:number};
   firstInvalidCandidate?:{bus:number;busId:string|null;oldVm:number;candidateVm:number;scale:number;stateUpdated:boolean};
