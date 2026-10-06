@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { defaultAnalysisSettings } from '../../src/domain/calculation/analysis-settings';
 import { finalizeActiveBalanceAfterControls, solveNRWithActiveBalance, type ActiveBalanceCapture } from '../../src/analysis/power-flow/station-controls-v73';
-import { solveNR } from '../../src/analysis/power-flow/js/newton';
+import { alphaLoadReductionBound, solveNR } from '../../src/analysis/power-flow/js/newton';
 import { Q_LIMITS_MISSING_CODE, stationSourceFidelityOf } from '../../src/analysis/power-flow/station-participation';
 import { prepareModel } from '../../src/analysis/power-flow/preparation';
 import { runStationControlledIslandV73 } from '../../src/analysis/power-flow/station-controls-v73';
@@ -67,16 +67,26 @@ test('distributed active balancing never reduces sourced adjustable load below z
  assert.ok((result.activeBalanceMismatchMw??0)>settings.nodalToleranceKva/1000,'remaining mismatch is reported after the adjustable load saturates');
 });
 
+/**
+ * Two-bus model with a single eligible load, so the alpha unknown is directly observable.
+ *
+ * `generatorMw` is the reference-bus dispatch: negative alpha raises load, positive alpha
+ * sheds it, and the reference P target stays at 0, so an export surplus forces one or the
+ * other depending on the surplus.
+ */
+const singleEligibleLoad=(eligibleLoadMw:number,generatorMw=0):NumericModel=>({n:2,baseMVA:100,slack:0,slackVm:1,referencePMw:0,
+ pSpec:Float64Array.from([generatorMw,-eligibleLoadMw]),qSpec:Float64Array.from([0,0]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),
+ shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],
+ activeBalanceParticipation:Float64Array.from([0,1]),activeBalanceEligibleLoadMw:Float64Array.from([0,eligibleLoadMw]),activeBalanceEligibilityComplete:true,
+ branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]});
+const integratedOptions={integratedEquations:true,integratedActiveBalance:true,settings:{maxInnerIterations:300,maxOuterIterations:8,nodalToleranceKva:5}};
+
 test('the integrated alpha Newton unknown cannot drive an eligible load below zero',()=>{
  // A single eligible 10 MW load. The distributed-P unknown alpha scales load injection,
- // so an unbounded Newton step could reverse its flow direction. The fraction-to-boundary
- // on alpha keeps every participating eligible load at or above its initial consumption.
- const model=(eligibleLoadMw:number):NumericModel=>({n:2,baseMVA:100,slack:0,slackVm:1,referencePMw:0,
-  pSpec:Float64Array.from([0,-eligibleLoadMw]),qSpec:Float64Array.from([0,0]),busType:Int8Array.from([2,0]),vmSet:Float64Array.from([1,1]),
-  shuntG:new Float64Array(2),shuntB:new Float64Array(2),qMinNet:[null,null],qMaxNet:[null,null],
-  activeBalanceParticipation:Float64Array.from([0,1]),activeBalanceEligibleLoadMw:Float64Array.from([0,eligibleLoadMw]),activeBalanceEligibilityComplete:true,
-  branches:[{i:0,j:1,r:.01,x:.1,bch:0,tap:1,phase:0}]});
- const options={integratedEquations:true,integratedActiveBalance:true,settings:{maxInnerIterations:200,maxOuterIterations:8,nodalToleranceKva:5}};
+ // so an unbounded Newton step could reverse its flow direction. The one-sided
+ // fraction-to-boundary on alpha keeps every participating eligible load at or above zero.
+ const model=singleEligibleLoad;
+ const options=integratedOptions;
  const result=solveNR(model(10),undefined,options);
  assert.equal(result.status,'CONVERGED_FULL_NR');
  assert.equal(result.activeBalanceLoadAdjustmentsMw?.length,2);
@@ -140,6 +150,38 @@ test('a missing source Q limit is reported as PARTIAL_SOURCE_FIDELITY, not as fu
  assert.equal(boundedConvergence.sourceFidelity,'SOURCE_BOUNDED');
  assert.equal(((bounded.diagnostics as Record<string,any>).stationControllerSummary).stationSourceFidelity,'SOURCE_BOUNDED');
  assert.notEqual(boundedConvergence.powerFactoryComparability,'PARTIAL_SOURCE_FIDELITY');
+});
+
+test('the alpha bound is one-sided: load reduction is bounded, load increase is not',()=>{
+ // Bound arithmetic: min(L_i / w_i) over participating buses, in MW.
+ assert.equal(alphaLoadReductionBound(Float64Array.from([0,1]),Float64Array.from([0,10]),2),10);
+ assert.equal(alphaLoadReductionBound(Float64Array.from([0,.5,.5]),Float64Array.from([0,30,60]),3),60);
+ // A bus with no eligible load must not produce a zero bound, and a zero weight is skipped.
+ assert.equal(alphaLoadReductionBound(Float64Array.from([0,1,0]),Float64Array.from([0,10,0]),3),10);
+ assert.equal(alphaLoadReductionBound(undefined,Float64Array.from([0,10]),2),Infinity);
+ assert.equal(alphaLoadReductionBound(Float64Array.from([0,1]),undefined,2),Infinity);
+
+ // A positive alpha (load reduction) cannot reverse load direction.
+ const reduced=solveNR(singleEligibleLoad(10),undefined,{...integratedOptions,initialAlphaMw:200});
+ assert.equal(reduced.status,'CONVERGED_FULL_NR');
+ assert.ok((reduced.P![1]>=-1e-6),`load reversed into generation: ${reduced.P![1]} MW`);
+ assert.ok((reduced.alphaMw??0)<=10+1e-6);
+ assert.equal(reduced.genericQLimitActiveSet?.alphaBoundPu,10);
+
+ // A negative alpha raises load. No sourced maximum load exists, so this direction must
+ // not be bounded by the reduction bound. A 50 MW export surplus against a 10 MW load must
+ // reach roughly -40 MW; a symmetric bound would have stopped it at -10.
+ const increased=solveNR(singleEligibleLoad(10,50),undefined,integratedOptions);
+ assert.equal(increased.status,'CONVERGED_FULL_NR');
+ assert.ok((increased.alphaMw??0)<-30,`negative alpha was artificially bounded at ${increased.alphaMw}`);
+ assert.ok(increased.P![1]<-40,`load did not increase: ${increased.P![1]} MW`);
+ // The reduction bound is still reported, and it was never applied in this direction.
+ assert.equal(increased.genericQLimitActiveSet?.alphaBoundPu,10);
+ assert.equal(increased.genericQLimitActiveSet?.alphaBoundApplied,false);
+ // Q is untouched by a P-only balance in either direction: the reactive specification is
+ // never scaled with the load, so the solved Q stays at the sourced value plus line loss.
+ assert.ok(Math.abs(increased.Q![1])<1,`Q was scaled with the P balance: ${increased.Q![1]} MVAr`);
+ assert.ok(Math.abs(reduced.Q![1])<1,`Q was scaled with the P balance: ${reduced.Q![1]} MVAr`);
 });
 
 test('the alpha bound is unbounded when no eligible load headroom is declared',()=>{

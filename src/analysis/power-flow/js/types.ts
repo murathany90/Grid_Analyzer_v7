@@ -76,8 +76,14 @@ export interface GenericQLimitActiveSetDiagnostic {
   releaseTrialsRejected:number;
   releasedUnits:number;
   retiredAfterReappliedLimit:string[];
-  /** MW bound that keeps every participating eligible load at or above zero consumption. */
+  /**
+   * One-sided MW bound on the distributed-P unknown: the largest alpha that keeps every
+   * participating eligible load at or above zero consumption. Load-reducing steps only;
+   * the load-increasing direction is unbounded because no sourced maximum load exists.
+   */
   alphaBoundPu:number|null;
+  /** Set when the load-reducing boundary actually clipped a Newton step. */
+  alphaBoundApplied:boolean;
 }
 export interface PowerFlowResult { status:string; converged:boolean; iterations:number; rounds:number; maxMismatchMW:number|null; linear?:LinearSolution|null; failure?:NumericalFailureDiagnostic; elapsedMs:number; pvToPq?:Array<{bus:number;qRequired:number;qLimit:number;state?:'QMIN_LIMITED'|'QMAX_LIMITED'}>;qLimitRounds?:QLimitRoundDiagnostic[];Vm?:number[]; Va?:number[]; P?:number[]; Q?:number[]; controlDqPu?:number[];alphaMw?:number;boundControlIndex?:number; branches?:PowerFlowBranchResult[]; minV?:number; maxV?:number; warnings?:string[];genericQLimitActiveSet?:GenericQLimitActiveSetDiagnostic;activeBalanceIterations?:number;activeBalanceMismatchMw?:number|null;activeBalanceLoadAdjustmentsMw?:number[]; }
 export type ProgressCallback=(stage:string,data?:Record<string,number>)=>void;

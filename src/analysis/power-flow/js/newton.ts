@@ -86,6 +86,27 @@ export function acceptsNewtonStep(baseNorm:number,nextNorm:number,stepFraction:n
   return nextNorm<baseNorm*(1-1e-5*stepFraction)||maxMismatch<convergenceTolerancePu;
 }
 
+/**
+ * One-sided fraction to boundary for the distributed-P unknown.
+ *
+ * A positive alpha reduces participating load (`Pload_new = Pload - alpha*w_i/base`), so it
+ * may push an eligible load past zero consumption, where it would behave as a generator.
+ * The physical boundary in that direction is `min(L_i / w_i)` over participating buses.
+ * `L_i` and `alphaMw` are both MW and the injection change is `alphaMw*w_i/base`, so the
+ * base cancels against the pu load and the bound carries no base factor.
+ *
+ * The bound is deliberately NOT symmetric. A negative alpha raises load, and the only limit
+ * in that direction would be a sourced maximum load, which this model does not carry. An
+ * artificial `-alphaBound` would invent a capability the source does not state, so the
+ * load-increasing direction stays unbounded.
+ */
+export function alphaLoadReductionBound(weights:ArrayLike<number>|undefined,eligibleLoadMw:ArrayLike<number>|undefined,busCount:number):number{
+  if(!weights||!eligibleLoadMw)return Infinity;
+  let bound=Infinity;
+  for(let i=0;i<busCount;i++){const w=weights[i]??0;if(!(w>0))continue;const headroom=eligibleLoadMw[i]??0;if(!(headroom>0))continue;bound=Math.min(bound,headroom/w);}
+  return Number.isFinite(bound)?bound:Infinity;
+}
+
 /** Array min/max by loop: `Math.min(...values)` overflows the argument limit on large islands. */
 export function loopMin(values:ArrayLike<number>):number{let result=Infinity;for(let i=0;i<values.length;i++)if(values[i]<result)result=values[i];return result;}
 export function loopMax(values:ArrayLike<number>):number{let result=-Infinity;for(let i=0;i<values.length;i++)if(values[i]>result)result=values[i];return result;}
@@ -135,14 +156,12 @@ let releaseSnapshot:SolverState|null=null;
 // own release trial has an active complementarity condition; re-testing it would only
 // alternate between the same two active sets, so it is retired by cycle detection
 // rather than by an arbitrary attempt counter.
-const releaseRetired=new Set<number>();let releaseTrialBus=-1,releaseAccepted=0,releaseRejected=0,releasedUnitsTotal=0;
+const releaseRetired=new Set<number>();let releaseTrialBus=-1,releaseAccepted=0,releaseRejected=0,releasedUnitsTotal=0,alphaBoundApplied=false;
 const genericActiveSet={accepted:0,rejected:0,retiredBusCount:()=>releaseRetired.size};
 // Reactive active-set rounds are independent of station-controller outer rounds.
   // The bound is a typed setting so provenance can report the value actually used.
   const qLimitRoundLimit=Math.max(1,Math.floor(options.maxQLimitRounds??settings.maxQLimitRounds??8));
-  // Fraction to boundary for the distributed-P unknown: the largest alpha that keeps
-  // every participating eligible load at or above zero consumption.
-  const alphaBoundPu=(()=>{if(!activeBalance||!model.activeBalanceEligibleLoadMw)return Infinity;let bound=Infinity;for(let i=0;i<n;i++){const w=weights?.[i]??0;if(w<=0)continue;const headroom=model.activeBalanceEligibleLoadMw[i]??0;bound=Math.min(bound,headroom/w);}return Number.isFinite(bound)?bound:Infinity;})();
+  const alphaBoundPu=alphaLoadReductionBound(activeBalance?weights:undefined,model.activeBalanceEligibleLoadMw,n);
 for(round=0;round<qLimitRoundLimit;round++){
    const layoutCache=controls.length?undefined:options.layoutCache,layoutKey=layoutCache?Array.from(busType).join('')+'|'+slack+'|'+Number(activeBalance):'';let L:JacobianLayout;
   try{L=layoutCache?.get(layoutKey)??(explicit?makeExplicitLayout(Y,busType,slack,controls,activeBalance,weights):makeLayout(Y,busType,slack,controls));if(layoutCache&&!layoutCache.has(layoutKey))layoutCache.set(layoutKey,L);}
@@ -179,9 +198,11 @@ const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
    if(!lin&&A.N<512)tryDirect();
    if(!lin){nrReason='LINEAR_SOLVER_FAILED';nrFailure??=failure('LINEAR_SOLVE',`Lineer çözücü yakınsamadı (${linearDiagnostics.stage}).`,it+1,round+1,mx*base,{minPivot:linearDiagnostics.minPivot,linearStage:linearDiagnostics.stage,pivotSource:linearDiagnostics.pivotSource,kluFailureStage:directFailureStage,kluFailureMessage:directFailureMessage});break;}lastLinear=lin;const dx=lin.x,oldVm=Float64Array.from(Vm),oldVa=Float64Array.from(Va),oldDq=Float64Array.from(controlDq),oldAlpha=alphaMw,baseNorm=Math.sqrt(ss);let accepted=false;
    let stepCap=1,boundIndex=-1;for(let k=0;k<L.nang;k++)stepCap=Math.min(stepCap,.35/Math.max(Math.abs(dx[k]),1e-15));for(const bus of L.vm)stepCap=Math.min(stepCap,.16/Math.max(Math.abs(dx[L.vIndex[bus]]),1e-15));
-    // Fraction to boundary for the distributed-P unknown. Without it a Newton step can
-    // push an eligible load past zero consumption, reversing its flow direction.
-    if(activeBalance&&L.alphaIndex!=null&&Number.isFinite(alphaBoundPu)){const delta=dx[L.alphaIndex];if(Math.abs(delta)>1e-15){const toBound=delta>0?(alphaBoundPu-oldAlpha)/delta:(-alphaBoundPu-oldAlpha)/delta;if(toBound>=0&&toBound<stepCap)stepCap=Math.max(0,toBound);}}
+    // One-sided fraction to boundary for the distributed-P unknown. Without it a Newton step
+    // can push an eligible load past zero consumption, reversing its flow direction.
+    // Only a load-reducing step (delta > 0) is clipped: raising load has no sourced upper
+    // limit, and an artificial symmetric bound would invent one.
+    if(activeBalance&&L.alphaIndex!=null&&Number.isFinite(alphaBoundPu)){const delta=dx[L.alphaIndex];if(delta>1e-15&&oldAlpha<alphaBoundPu){const toBound=(alphaBoundPu-oldAlpha)/delta;if(toBound>=0&&toBound<stepCap){stepCap=Math.max(0,toBound);alphaBoundApplied=true;}}}
    if(explicit)for(let k=0;k<controls.length;k++){const delta=dx[L.controlIndex[k]],limit=delta>0?controls[k].maxDqPu:controls[k].minDqPu;
     if(limit==null||!finite(limit)||Math.abs(delta)<1e-15)continue;const fraction=(limit-oldDq[k])/delta;
     if(fraction>=-1e-9&&fraction<stepCap){stepCap=Math.max(0,fraction);boundIndex=k;}
@@ -265,5 +286,5 @@ const tryDirect=()=>{const direct=new KluSparseDirectFactorization();
   return {index:idx,pf,qf,pt,qt};
  });
  const minV=loopMin(Vm),maxV=loopMax(Vm);
- return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,genericQLimitActiveSet:{stateModel:'GENERIC_PV_BIDIRECTIONAL',releaseSupport:'GENERIC_PV_AND_STATION_MEMBER',releaseTrialsAccepted:releaseAccepted,releaseTrialsRejected:releaseRejected,releasedUnits:releasedUnitsTotal,retiredAfterReappliedLimit:[...releaseRetired].map(bus=>options.busIds?.[bus]??String(bus)),alphaBoundPu:Number.isFinite(alphaBoundPu)?alphaBoundPu:null},Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
+ return {status:'CONVERGED_FULL_NR',converged:true,iterations:totalIter,rounds:round+1,maxMismatchMW:maxMismatch*base,linear:lastLinear,pvToPq,qLimitRounds,genericQLimitActiveSet:{stateModel:'GENERIC_PV_BIDIRECTIONAL',releaseSupport:'GENERIC_PV_AND_STATION_MEMBER',releaseTrialsAccepted:releaseAccepted,releaseTrialsRejected:releaseRejected,releasedUnits:releasedUnitsTotal,retiredAfterReappliedLimit:[...releaseRetired].map(bus=>options.busIds?.[bus]??String(bus)),alphaBoundPu:Number.isFinite(alphaBoundPu)?alphaBoundPu:null,alphaBoundApplied:alphaBoundApplied},Vm:Array.from(Vm),Va:Array.from(Va),P:Array.from(P,v=>v*base),Q:Array.from(Q,v=>v*base),controlDqPu:Array.from(controlDq),alphaMw,activeBalanceIterations:activeBalance?1:undefined,activeBalanceMismatchMw:activeBalance?(P[slack]-pSpec[slack]-alphaMw*(weights?.[slack]??0)/base)*base:undefined,activeBalanceLoadAdjustmentsMw:activeBalance?Array.from({length:n},(_,i)=>-alphaMw*(weights?.[i]??0)):undefined,branches:branchResults,minV,maxV,elapsedMs:elapsed(),warnings};
 }
