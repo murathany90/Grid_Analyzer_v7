@@ -11,6 +11,7 @@
 .ga-benchmark-coverage{font-size:12px;padding:8px 0;display:grid;gap:8px}
 .ga-benchmark-coverage meter{width:150px;margin-left:10px}
 .ga-benchmark .ga-notice{white-space:pre-wrap;overflow-wrap:anywhere}
-.ga-benchmark details{padding:10px 0}
+.ga-benchmark details{padding:10px 0;overflow-wrap:anywhere;min-width:0}
+.ga-nav button{flex-shrink:0}
 .ga-benchmark-map-controls{flex-wrap:wrap}
 @media(max-width:700px){.ga-benchmark .ga-field{min-width:0;width:100%}.ga-benchmark input,.ga-benchmark select{max-width:100%}.ga-benchmark .ga-toolbar>select,.ga-benchmark .ga-toolbar>input{flex:1;min-width:130px}}

@@ -47,6 +47,10 @@ Phase commits: `dd7ebb8` setup, `5c560e6` importer, `f96284b` gates,
 `dcbd5b3` map/offline flows, `0023dd3` exclusions/portable provenance,
 `47c3209` exporter-version checks. The final documentation commit is identified
 by `git rev-parse HEAD`; no merge, branch deletion or force push is authorized.
+The final real-source check confirmed that LF/N1/SC exporter versions differ
+legitimately. `ed0983f` verifies each against its own manifest and `f6cca66`
+exercises distinct synthetic versions. Mobile visual QA also checks viewport
+overflow, scrollable navigation and analysis-specific status labels.
 
 ## Actual local source acceptance
 

@@ -25,6 +25,7 @@ try{
   await view.getByRole('button',{name:'Seçili vaka: GA Full AC doğrula',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('N-1 AC'));
   await view.getByText(/GA_AC_POST_CONTINGENCY · ISLAND_UNSUPPLIED/).waitFor();
   await view.getByRole('button',{name:'Kısa Devre',exact:true}).click();await view.getByLabel('Karşılaştırma metriği').selectOption('ikssKa');
+  if(!(await view.locator('.ga-notice').first().textContent())?.includes('PF_REFERENCE_ONLY'))throw Error('SC inherited unrelated LF comparison status');
   if(!(await view.locator('tbody').textContent())?.includes('RECORDED_NUMERIC_ZERO'))throw Error('SC numeric zero lost');
   await view.getByLabel('Karşılaştırma metriği').selectOption('ipKa');if(!(await view.locator('tbody').textContent())?.includes('NOT_RECORDED'))throw Error('SC missing value became zero');
   await view.locator('summary').filter({hasText:'GA IEC 60909 kaynak hazırlığı'}).click();await view.getByText(/NOT_COMPUTABLE · IEC edisyonu/).waitFor();
@@ -33,6 +34,7 @@ try{
   if(!await page.getByLabel('Benchmark harita kaynağı').locator('option[value="GA"]').isDisabled())throw Error('GA SC map incorrectly enabled');
   if(!await page.getByLabel('Benchmark harita kaynağı').locator('option[value="DELTA"]').isDisabled())throw Error('SC delta map incorrectly enabled');
   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'KARŞILAŞTIRMA',exact:true}).click();await view.locator('tbody tr').first().waitFor();
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Benchmark mobile page overflows the viewport');
   if(portable){await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/portable-benchmark-mobile.png',fullPage:true});}
   if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: two ZIP / PF-only / LF / N1 AC island / SC zero-null / export / map gates / mobile');
 }finally{await browser.close();if('kill' in server)server.kill();else server.close();}
