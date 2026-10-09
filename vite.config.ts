@@ -7,9 +7,10 @@ const toLf=(text:string):string=>text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
 // The inlined license text must not vary with the checkout platform either, since it ends
 // up inside the byte-hashed artifact.
 const kluLicense=toLf(readFileSync(new URL('./licenses/klu-js-LICENSE',import.meta.url),'utf8'));
+const benchmarkLicenses=['saxes','xmlchars','noble-hashes'].map(name=>`${name}\n${toLf(readFileSync(new URL(`./licenses/${name}-LICENSE`,import.meta.url),'utf8'))}`).join('\n');
 const licensePlugin:Plugin={
   name:'klu-license-notice',
-  transformIndexHtml(html){return html.replace('</head>',`<!-- klu-js 0.1.0, LGPL-2.1-or-later; source: https://github.com/rwl/klu-js\n${kluLicense}\n-->\n</head>`);},
+  transformIndexHtml(html){return html.replace('</head>',`<!-- klu-js 0.1.0, LGPL-2.1-or-later; source: https://github.com/rwl/klu-js\n${kluLicense}\n${benchmarkLicenses}\n-->\n</head>`);},
 };
 /**
  * The portable artifact is hashed byte-for-byte, so its bytes must not depend on the

@@ -7,6 +7,7 @@ import { identity, stableJson } from '../../domain/calculation/identity';
 import { BrowserJsPowerFlowEngine } from '../api/browser-js-engine';
 import { prepareModel } from '../power-flow/preparation';
 import { buildTopology } from '../../topology/electrical-topology';
+import { sha256 } from '@noble/hashes/sha2.js';
 
 export type AcContingencyStatus='CONVERGED'|'DIVERGED'|'ISLAND_UNSUPPLIED'|'UNSUPPORTED_CONTROL_CONFIGURATION'|'CANCELLED'|'NOT_COMPUTABLE';
 export interface AcOutage {caseId:string;sourceClass:'ElmLne'|'ElmTr2';fid:string}
@@ -36,7 +37,7 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     const overlay:ScenarioOverlay=outage.sourceClass==='ElmLne'?{...copy,lineStatus:{...copy.lineStatus,[target.id]:false}}:{...copy,transformerStatus:{...copy.transformerStatus,[target.id]:false}};
     row.identity.scenarioHash=scenarioSignature(overlay);
     const post=effectiveNetwork(network,overlay),prepared=prepareModel(post),postTopology=prepared.topology;
-    row.identity.topologyIdentity=stableJson({buses:postTopology.buses.map(b=>[b.id,...b.terms]),branches:prepared.branches.map(b=>[b.id,b.i,b.j])});
+    row.identity.topologyIdentity=Array.from(sha256(new TextEncoder().encode(stableJson({buses:postTopology.buses.map(b=>[b.id,...b.terms]),branches:prepared.branches.map(b=>[b.id,b.i,b.j])}))),v=>v.toString(16).padStart(2,'0')).join('');
     if(postTopology.buses.length>(options.maxBuses??20000)){row.reason='MEMORY_BUS_BUDGET';finish();continue;}
     const islands=prepared.diagnostics.islands as {status:string}[]|undefined;
     if(topology.buses.some(bus=>bus.terms.some(fid=>!postTopology.terminalToBus.has(fid)))){row.status='ISLAND_UNSUPPLIED';row.reason='POST_OUTAGE_TERMINAL_DISCONNECTED_NO_RESULT';finish();continue;}

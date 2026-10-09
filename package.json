@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "node tools/lint.mjs",
     "test": "node --import tsx --test tests/unit/*.test.ts tests/regression/*.test.ts",
-    "test:e2e": "node tools/browser-smoke.mjs",
+    "test:e2e": "node tools/browser-smoke.mjs && node --import tsx tools/pf-benchmark-browser-smoke.ts",
     "test:full": "node --import tsx tools/full-model.ts",
     "build": "vite build",
     "build:portable": "vite build --mode portable"
