@@ -20,6 +20,9 @@ import type {AcContingency} from '../src/analysis/contingency-ac';
 import {postResultAssembler} from '../src/analysis/contingency-ac/post-results';
 const [modelPath,benchmarkPath,tag]=process.argv.slice(2);
 if(!modelPath||!benchmarkPath||!/^SN[34]$/i.test(tag))throw Error('Usage: model.zip benchmark.zip SN3|SN4');
+// The current acceptance path uses identical canonical GUI settings for base/outages.
+// Historical scope/LF audits remain explicitly isolated from N1 acceptance.
+if(!process.argv.includes('--lf-audit')&&!process.argv.includes('--scope-supplement')){await import('./ytm-parity-fix-acceptance');process.exit(0);}
 const file=async(path:string)=>new File([await readFile(path)],path.split(/[\\/]/).at(-1)!);
 const start=performance.now();
 console.log(tag,'LOAD');

@@ -21,7 +21,8 @@ import type { N1CandidateCatalog } from '../domain/n1/catalog';
 import { applyPowerFactoryControlContext, importPowerFactoryControlContext } from '../analysis/validation/powerfactory-control-context';
 import { calculationConvergenceLabel,fullAcDiagnostics } from '../domain/results/diagnostics';
 import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../domain/benchmark/comparison';
-import {runHybridN1} from '../analysis/contingency-hybrid';
+import {hybridStudySettings} from '../analysis/contingency-hybrid/profile';
+import {runHybridN1,hybridIsCurrent} from '../analysis/contingency-hybrid';
 
 export class Application implements AppContext {
   hybridResult:AppContext['hybridResult']=null;scContext:AppContext['scContext']=null;scResult:AppContext['scResult']=null;
@@ -68,7 +69,7 @@ export class Application implements AppContext {
   }
   async runHybrid(options:import('../analysis/contingency-hybrid').HybridOptions,resume=false):Promise<void>{
     if(!this.network||this.busy)return;
-    const network=this.network,scenario=structuredClone(this.scenario.current),settings=structuredClone(this.analysisSettings.value),job=++this.job,signature=scenarioSignature(scenario),settingsSignature=stableJson(settings),abort=new AbortController();
+    const network=this.network,scenario=structuredClone(this.scenario.current),settings=hybridStudySettings(this.analysisSettings.value,options.studyProfile??'CURRENT_SETTINGS'),job=++this.job,signature=scenarioSignature(scenario),settingsSignature=stableJson(this.analysisSettings.value),abort=new AbortController();
     this.hybridAbort=abort;this.busy=true;
     const current=()=>job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature&&stableJson(this.analysisSettings.value)===settingsSignature;
     const work=async<T>(request:()=>Promise<T>,budget:number)=>this.boundedWorker(async()=>{if(!current())throw Error('HYBRID_STALE');if(!await this.prepareCalculationWorker(network,job))throw Error('HYBRID_STALE');return request();},budget);
@@ -77,6 +78,7 @@ export class Application implements AppContext {
       const result=await runHybridN1(network,scenario,{...options,analysisSettings:settings,signal:abort.signal,resume:resume?this.hybridResult??undefined:undefined,
         onProgress:(stage,detail)=>{if(current())this.progress(stage,detail);},
         onCheckpoint:r=>{if(current()){this.hybridResult=r;this.notify();}},
+        onCaseDetail:async(caseId,detail)=>{if(current()&&this.hybridResult)await this.database.put('hybrid-detail:'+stableJson({identity:this.hybridResult.identity,caseId}),detail);},
         solveBase:budget=>work(async()=>unpackResult(await this.calculation.request<PackedResult>({type:'RUN_AC',scenario,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:settings}),analysisSettings:settings})),budget),
         screen:(opts,budget)=>work(()=>this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options:opts}),budget),
         solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings});return rows[0];},budget),
@@ -84,6 +86,13 @@ export class Application implements AppContext {
       if(current()){this.hybridResult=result;this.status=`N-1 hibrit · ${result.status} · ${JSON.stringify(result.counts)} · ${result.reason}`;}
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(current()){this.hybridAbort=null;this.busy=false;this.notify();}}
+  }
+  async loadHybridCaseDetail(caseId:string):Promise<boolean>{
+    const h=this.hybridResult;if(!h||this.busy||!this.network||!hybridIsCurrent(h,this.network,this.scenario.current,this.analysisSettings.value))return false;
+    const c=h.cases.find(c=>c.outage.caseId===caseId);if(!c)return false;if(c.mapResults)return true;
+    const detail=await this.database.get<{post:import('../analysis/contingency-ac/post-results').PostMapResults;changes:import('../analysis/contingency-hybrid/constraints').ConstraintChange[]}>('hybrid-detail:'+stableJson({identity:h.identity,caseId}));
+    if(this.hybridResult!==h||!detail){this.setMessage('Vaka ayrıntısı yerel cache içinde yok veya sonuç stale');return false;}
+    const cases=h.cases.map(row=>({...row})),target=cases.find(row=>row.outage.caseId===caseId)!;for(const old of cases.filter(row=>row!==target&&row.mapResults).slice(0,-1)){delete old.mapResults;delete old.constraintChanges;delete old.constraints;}target.mapResults=detail.post;target.constraintChanges=detail.changes;this.hybridResult={...h,cases};this.notify();return true;
   }
   async runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile,adapterOptions?:import('../analysis/short-circuit/source-adapter').ScAdapterOptions):Promise<void>{
     if(!this.network||!this.scContext||this.busy)return;

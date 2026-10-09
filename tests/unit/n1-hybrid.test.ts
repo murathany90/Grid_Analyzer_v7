@@ -59,7 +59,7 @@ test('33 kV candidates go directly to Full AC and resume never repeats solved ca
  const solve=async(outage:import('../../src/analysis/contingency-ac').AcOutage)=>{calls++;return (await validateAcOutages(n,emptyScenario(),[outage]))[0];};
  const opts={solveAllSelected:true,policy:{acBudgetCases:1},screen:async()=>{throw Error('DC must not solve 33kV-only scope');},solveOutage:solve};
  const r=await runHybridN1(n,emptyScenario(),opts);assert.equal(r.cases.length,3);assert.equal(calls,1);assert.ok(r.cases.every(c=>c.dcStatus==='UNSCREENABLE'));
- const resumed=await runHybridN1(n,emptyScenario(),{...opts,resume:r,policy:{acBudgetCases:10}});assert.equal(calls,3);assert.equal(resumed.counts.AC_CALCULATED,3);assert.ok(resumed.cases.every(c=>c.mapResults?.buses.length));
+ const resumed=await runHybridN1(n,emptyScenario(),{...opts,resume:r,policy:{acBudgetCases:10}});assert.equal(calls,3);assert.equal(resumed.counts.AC_CALCULATED,3);assert.equal(resumed.cases.filter(c=>c.mapResults?.buses.length).length,2);
  const again=await runHybridN1(n,emptyScenario(),{...opts,resume:resumed});assert.equal(calls,3);assert.equal(again.counts.NOT_RUN,0);
 });
 test('actual DC-clear sample is Full AC checked for voltage false negatives',async()=>{

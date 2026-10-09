@@ -2,6 +2,9 @@ import type {CanonicalNetwork} from '../../domain/model/network';
 import type {ScenarioOverlay} from '../../domain/scenario/overlay';
 import {effectiveNetwork,scenarioSignature} from '../../domain/scenario/overlay';
 import {identity,stableJson} from '../../domain/calculation/identity';
+import {comparePostConstraints,constraintCounts,type ConstraintChange} from './constraints';
+import {hybridStudyIsCurrent,type HybridStudyProfile} from './profile';
+import {lfSnapshotIsCurrent} from '../../domain/benchmark/post-result-source';
 import type {AnalysisSettings} from '../../domain/calculation/analysis-settings';
 import type {CalculationResult} from '../../domain/results/types';
 import {buildN1CandidateCatalog,filterN1CatalogCandidates,type N1CatalogFilter} from '../../domain/n1/catalog';
@@ -25,7 +28,7 @@ export interface HybridCase {
   iterations:number|null;maxMismatchMw:number|null;minVpu:number|null;maxVpu:number|null;maxLoadingPercent:number|null;unknownRatings:number;
   voltageViolations:number;thermalViolations:number;components:AcContingency['components'];elapsedMs:number;
   // Requested extrema observations plus compact map snapshots; full solver diagnostics are not retained.
-  mapResults?:PostMapResults;
+  mapResults?:PostMapResults;constraintChanges?:ConstraintChange[];constraintCounts?:Record<string,number>;violationKeys?:string[];acSolved?:boolean;
   metadata?:{name:string;voltageKv:number;fromYtmIds:readonly string[];toYtmIds:readonly string[];topology:string};
   unsuppliedLoadMw?:number;constraints?:{sourceClass:string;fid:string;metric:string;value:number;limit:number}[];
   observations:{sourceClass:string;fid:string;metric:string;side?:string;caseId?:string;value:number|null;loading?:import('../contingency-ac/post-results').PostLoading}[];
@@ -33,10 +36,12 @@ export interface HybridCase {
 export interface HybridResult {
   method:'GA_DC_TO_FULL_AC';identity:{modelHash:string;scenarioHash:string;settingsHash:string;optionsHash:string};
   policy:HybridPolicy;filter:N1CatalogFilter;season:CapacitySeason;phase:string;status:'COMPLETE'|'PARTIAL'|'BLOCKED'|'CANCELLED';reason:string;
-  base:{status:string;converged:boolean;iterations:number;maxMismatchMw:number|null}|null;catalogCount:number;excludedCatalogCount:number;
+  studyProfile?:HybridStudyProfile;basePost?:PostMapResults;baseConstraintCounts?:Record<string,number>;
+  base:{status:string;converged:boolean;iterations:number;maxMismatchMw:number|null;settingsHash?:string;stationControlMode?:string;activeBalancingMode?:string;controlSupport?:unknown;fidelity?:string}|null;catalogCount:number;excludedCatalogCount:number;
   cases:HybridCase[];counts:Record<string,number>;dcDiagnostics:N1ScreenResult['dcDiagnostics']|null;elapsedMs:number;
 }
 export interface HybridOptions {
+  studyProfile?:HybridStudyProfile;maxRetainedCaseDetails?:number;onCaseDetail?:(caseId:string,detail:{post:PostMapResults;changes:ConstraintChange[]})=>void|Promise<void>;
   policy?:Partial<HybridPolicy>;filter?:N1CatalogFilter;season?:CapacitySeason;analysisSettings?:AnalysisSettings;
   selectedCandidateIds?:string[];catalogCandidateIds?:string[];resume?:HybridResult;signal?:AbortSignal;
   solveAllSelected?:boolean;dcClearValidationCases?:number;
@@ -61,8 +66,8 @@ export function promotionReasons(c:N1ScreenCandidate,p:HybridPolicy,explicit=fal
   if(p.includeExplicitUserSelection&&explicit)r.push('EXPLICIT_SELECTION');
   return r;
 }
-const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:{...p,acBudgetCases:undefined,perCaseTimeLimitMs:undefined,globalTimeLimitMs:undefined},filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[],solveAllSelected:o.solveAllSelected??false,dcClearValidationCases:o.dcClearValidationCases??1})});
-export function hybridIsCurrent(r:HybridResult,n:CanonicalNetwork,s:ScenarioOverlay,settings:AnalysisSettings):boolean{return r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&r.identity.settingsHash===stableJson(settings);}
+const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:{...p,acBudgetCases:undefined,perCaseTimeLimitMs:undefined,globalTimeLimitMs:undefined},filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[],solveAllSelected:o.solveAllSelected??false,dcClearValidationCases:o.dcClearValidationCases??1,studyProfile:o.studyProfile??'CURRENT_SETTINGS'})});
+export function hybridIsCurrent(r:HybridResult,n:CanonicalNetwork,s:ScenarioOverlay,settings:AnalysisSettings):boolean{return r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&hybridStudyIsCurrent(r.identity.settingsHash,settings,r.studyProfile);}
 /** Sequential budgeted orchestration; the original >=66kV DC algorithm is untouched. */
 export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOverlay,options:HybridOptions={}):Promise<HybridResult>{
   const start=performance.now(),policy={...DEFAULT_HYBRID_POLICY,...options.policy},filter=options.filter??{},season=options.season??'nominal';
@@ -72,8 +77,9 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
   if(options.resume&&stableJson(options.resume.identity)!==stableJson(id))throw Error('HYBRID_STALE_RESUME');
   const resume=options.resume?.cases.length?options.resume:undefined;
   const result:HybridResult=resume?structuredClone(resume):{method:'GA_DC_TO_FULL_AC',identity:id,policy,filter,season,phase:'MODEL_SCENARIO_OPTIONS_SNAPSHOT',status:'PARTIAL',reason:'',base:null,catalogCount:0,excludedCatalogCount:0,cases:[],counts:{},dcDiagnostics:null,elapsedMs:0};
-  result.policy=policy;
-  const checkpoint=()=>{result.elapsedMs=performance.now()-start;result.counts={total:result.cases.length,catalog:result.catalogCount,excludedCatalog:result.excludedCatalogCount,promoted:result.cases.filter(c=>c.promotionReasons.length).length,AC_CALCULATED:result.cases.filter(c=>c.iterations!==null).length,NOT_RUN:result.cases.filter(c=>c.status==='NOT_RUN_BUDGET'||c.status==='CANCELLED').length,UNKNOWN:result.cases.filter(c=>c.unknownRatings>0||['PARTIAL_SOLUTION','BLOCKED','ISLAND_UNSUPPLIED'].includes(c.status)).length,dcRiskConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length,dcViolationsNotConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_WITHIN_LIMIT').length,dcClearAcVerified:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.iterations!==null).length,dcClearVoltageRisk:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.voltageViolations>0).length,dcClearViolatedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length};for(const c of result.cases)result.counts[c.status]=(result.counts[c.status]??0)+1;options.onCheckpoint?.(structuredClone(result));};
+  result.policy=policy;result.studyProfile=options.studyProfile??'CURRENT_SETTINGS';
+  const retain=options.maxRetainedCaseDetails??2;if(!Number.isInteger(retain)||retain<1||retain>5)throw Error('HYBRID_DETAIL_MEMORY_BUDGET');
+  const checkpoint=()=>{result.elapsedMs=performance.now()-start;result.counts={total:result.cases.length,catalog:result.catalogCount,excludedCatalog:result.excludedCatalogCount,promoted:result.cases.filter(c=>c.promotionReasons.length).length,AC_CALCULATED:result.cases.filter(c=>c.acSolved===true).length,NOT_RUN:result.cases.filter(c=>c.status==='NOT_RUN_BUDGET'||c.status==='CANCELLED').length,UNKNOWN:result.cases.filter(c=>c.unknownRatings>0||['PARTIAL_SOLUTION','BLOCKED','ISLAND_UNSUPPLIED'].includes(c.status)).length,dcRiskConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length,dcViolationsNotConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_WITHIN_LIMIT').length,dcClearAcVerified:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.acSolved===true).length,dcClearVoltageRisk:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.voltageViolations>0).length,dcClearViolatedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length};for(const c of result.cases)result.counts[c.status]=(result.counts[c.status]??0)+1;result.counts.uniqueViolatedElements=new Set(result.cases.flatMap(c=>c.violationKeys??[])).size;for(const c of result.cases)for(const [state,count]of Object.entries(c.constraintCounts??{}))result.counts[state]=(result.counts[state]??0)+count;options.onCheckpoint?.({...result,base:result.base?{...result.base}:null,cases:result.cases.map(c=>({...c})),counts:{...result.counts}});};
   const phase=(value:string)=>{result.phase=value;options.onProgress?.('HYBRID_PHASE',{message:value});checkpoint();};
   const remaining=()=>Math.max(0,policy.globalTimeLimitMs-(performance.now()-start));
   const aborted=()=>options.signal?.aborted===true;
@@ -85,9 +91,11 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
     if(!islands?.length||islands.some(i=>i.status!=='READY')){result.status='BLOCKED';result.reason='BASE_UNSUPPLIED_OR_MULTIPLE_REFERENCE';checkpoint();return result;}
     try{
       const base=options.solveBase?await options.solveBase(Math.min(remaining(),policy.perCaseTimeLimitMs)):await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario,analysisSettings:options.analysisSettings,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:options.analysisSettings})},options.onProgress);
-      result.base={status:base.status,converged:base.converged,iterations:base.iterations,maxMismatchMw:base.maxMismatchMw};
+      if(options.analysisSettings&&!lfSnapshotIsCurrent(base,network,scenario,options.analysisSettings))throw Error('HYBRID_BASE_SETTINGS_IDENTITY_MISMATCH');
+      result.base={status:base.status,converged:base.converged,iterations:base.iterations,maxMismatchMw:base.maxMismatchMw,settingsHash:id.settingsHash,stationControlMode:options.analysisSettings?.powerFlow.stationControlMode??'off',activeBalancingMode:options.analysisSettings?.powerFlow.activeBalancingMode??'LEGACY_ENGINE_DEFAULT',controlSupport:base.diagnostics.stationControllerSummary,fidelity:(options.analysisSettings?.powerFlow.stationControlMode??'off')==='off'?'CONTROL_FIDELITY_PARTIAL / NOT_PF_PARITY':'CONTROL_SUPPORT_REQUIRES_VERIFICATION'};
       const controls=base.diagnostics.stationControllerSummary as {unsupported?:number;unsupportedProfile?:number}|undefined;
-      if(!base.converged||base.maxMismatchMw===null||!Number.isFinite(base.maxMismatchMw)||(options.analysisSettings?.powerFlow.stationControlMode??'off')!=='off'&&((controls?.unsupported??0)>0||(controls?.unsupportedProfile??0)>0)){result.status='BLOCKED';result.reason='BASE_FULL_AC_NOT_VERIFIED';checkpoint();return result;}
+      if(!base.buses.length||!base.converged||base.maxMismatchMw===null||!Number.isFinite(base.maxMismatchMw)||(options.analysisSettings?.powerFlow.stationControlMode??'off')!=='off'&&((controls?.unsupported??0)>0||(controls?.unsupportedProfile??0)>0)){result.status='BLOCKED';result.reason=`BASE_FULL_AC_NOT_VERIFIED; stationControlMode=${result.base.stationControlMode}; activeBalancing=${result.base.activeBalancingMode}; support=${stableJson(controls??{})}; ${base.status}`;checkpoint();return result;}
+      result.basePost=postResultAssembler(network,base,season);result.baseConstraintCounts=constraintCounts(comparePostConstraints(result.basePost,result.basePost,policy).map(r=>({...r,state:r.state==='PERSISTENT'?'BASE_VIOLATION':r.state})));
       if((options.analysisSettings?.powerFlow.stationControlMode??'off')==='off'&&network.stationControllers.some(c=>c.inService))result.reason='STATION_CONTROL_OFF_LOCAL_PV_PROFILE; CONTROL_FIDELITY_PARTIAL; NOT_PF_METHOD_PARITY';
     }catch(e){result.status=aborted()?'CANCELLED':'BLOCKED';result.reason=String(e);checkpoint();return result;}
     if(aborted()||remaining()<=0){result.status=aborted()?'CANCELLED':'PARTIAL';result.reason='BASE_CANCELLED_OR_GLOBAL_BUDGET';checkpoint();return result;}
@@ -121,9 +129,14 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
       const budget=Math.min(remaining(),policy.perCaseTimeLimitMs);
       const ac=options.solveOutage?await options.solveOutage(c.outage,budget):(await validateAcOutages(network,scenario,[c.outage],{analysisSettings:options.analysisSettings,maxCases:1,timeBudgetMs:budget,signal:options.signal}))[0];
       c.reason=ac.reason;c.components=ac.components;c.elapsedMs=ac.elapsedMs;c.unsuppliedLoadMw=ac.unsuppliedLoadMw;
-      const solved=ac.result;
+      if(options.analysisSettings&&ac.identity.settingsHash!==id.settingsHash)throw Error('HYBRID_CASE_SETTINGS_IDENTITY_MISMATCH');
+      const solved=ac.result;c.acSolved=['CONVERGED','PARTIAL_SOLUTION'].includes(ac.status)&&!!solved&&solved.converged&&solved.buses.length>0&&Number.isFinite(solved.maxMismatchMw);
+      if(solved&&!solved.buses.length){c.status='BLOCKED';c.reason='EMPTY_POST_SOLUTION';checkpoint();continue;}
       if(solved){c.iterations=solved.iterations;c.maxMismatchMw=solved.maxMismatchMw;c.minVpu=Math.min(...solved.buses.map(b=>b.vmPu));c.maxVpu=Math.max(...solved.buses.map(b=>b.vmPu));c.voltageViolations=solved.buses.filter(b=>b.vmPu<policy.voltageMinPu||b.vmPu>policy.voltageMaxPu).length;
         const post=postResultAssembler(network,solved,season);c.mapResults=post;
+        const changes=result.basePost?comparePostConstraints(result.basePost,post,policy,c.outage):[];c.constraintChanges=changes;c.constraintCounts=constraintCounts(changes);c.violationKeys=changes.filter(r=>r.postSeverity!==null&&r.postSeverity>0).map(r=>`${r.sourceClass}:${r.fid}:${r.metric}`);
+        try{await options.onCaseDetail?.(c.outage.caseId,{post,changes});}catch{c.reason+='; DETAIL_STORAGE_UNAVAILABLE';}
+        const detailed=result.cases.filter(row=>row.mapResults&&row!==c);for(const old of detailed.slice(0,Math.max(0,detailed.length-retain+1))){delete old.mapResults;delete old.constraintChanges;delete old.constraints;}
         c.constraints=[...post.buses.filter(b=>b.vmPu<policy.voltageMinPu||b.vmPu>policy.voltageMaxPu).map(b=>({sourceClass:'ElmTerm',fid:b.terms[0],metric:'voltagePu',value:b.vmPu,limit:b.vmPu<policy.voltageMinPu?policy.voltageMinPu:policy.voltageMaxPu})),...post.branches.filter(b=>b.loading.operationalPercent!==null&&b.loading.operationalPercent>policy.operationalLoadingLimitPercent).map(b=>({sourceClass:b.sourceClass,fid:b.fid,metric:'postLoadingPercent',value:b.loading.operationalPercent!,limit:policy.operationalLoadingLimitPercent}))];
         const rated=post.branches.map(b=>b.loading.operationalPercent).filter((v):v is number=>v!==null&&Number.isFinite(v));c.unknownRatings=post.branches.length-rated.length;c.maxLoadingPercent=rated.length?Math.max(...rated):null;c.thermalViolations=rated.filter(v=>v>policy.operationalLoadingLimitPercent).length;
         const byKey=new Map(post.branches.map(b=>[`${b.sourceClass}:${b.fid}`,b]));const observed=new Map((options.observations??[]).filter(o=>!o.caseId||o.caseId===c.outage.caseId).map(o=>[stableJson(o),o]));

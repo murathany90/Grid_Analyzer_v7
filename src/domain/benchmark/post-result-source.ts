@@ -4,6 +4,7 @@ import {activeAnalysisSettings,analysisSettingsHash,defaultAnalysisSettings,type
 import type {CalculationResult} from '../results/types';
 import type {CanonicalNetwork} from '../model/network';
 import type {ScenarioOverlay} from '../scenario/overlay';
+import {hybridStudyIsCurrent} from '../../analysis/contingency-hybrid/profile';
 import {stableJson} from '../calculation/identity';
 import {postResultAssembler,type PostMapResults} from '../../analysis/contingency-ac/post-results';
 /** Manual result takes priority only for the identical snapshot/case. */
@@ -11,7 +12,7 @@ export function resolveN1Post(o:MetricOptions,caseId:string):{post:PostMapResult
   const n=o.network,s=o.scenario;if(!n||!s)return null;
   const ac=o.ac?.find(c=>c.outage.caseId===caseId&&['CONVERGED','PARTIAL_SOLUTION'].includes(c.status)&&c.identity.modelHash===n.modelHash&&c.identity.baseScenarioHash===scenarioSignature(s)&&(!o.settings||c.identity.settingsHash===stableJson(o.settings)));
   if(ac?.result)return {post:postResultAssembler(n,ac.result,'nominal'),status:ac.status,source:'MANUAL_FULL_AC',outage:ac.outage};
-  const h=o.hybrid;if(!h||h.identity.modelHash!==n.modelHash||h.identity.scenarioHash!==scenarioSignature(s)||o.settings&&h.identity.settingsHash!==stableJson(o.settings))return null;
+  const h=o.hybrid;if(!h||h.identity.modelHash!==n.modelHash||h.identity.scenarioHash!==scenarioSignature(s)||o.settings&&!hybridStudyIsCurrent(h.identity.settingsHash,o.settings,h.studyProfile))return null;
   const c=h.cases.find(c=>c.outage.caseId===caseId&&['AC_CONVERGED_WITHIN_LIMIT','AC_CONVERGED_VIOLATION','PARTIAL_SOLUTION'].includes(c.status));
   return c?.mapResults?{post:c.mapResults,status:c.status,source:'HYBRID_FULL_AC',outage:c.outage}:null;
 }

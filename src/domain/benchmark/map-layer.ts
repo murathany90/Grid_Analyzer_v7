@@ -5,8 +5,9 @@ import { rowObject } from './types';
 import { scenarioSignature,emptyScenario } from '../scenario/overlay';
 import {resolveN1Post,lfSnapshotIsCurrent} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
+import {hybridIsCurrent} from '../../analysis/contingency-hybrid';
 import { stableJson } from '../calculation/identity';
-export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA';metric:string;table:string;caseId?:string;diagnostic?:boolean;side?:string;voltageKv?:number}
+export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
 export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
 export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;scale?:{p95:number;min:number;max:number;unit:string}}
 const gateCache=new WeakMap<AppContext,{benchmark:unknown;network:unknown;result:unknown;control:unknown;gate:ReturnType<typeof preflightBenchmark>}>();
@@ -44,6 +45,7 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     if(gate?.status!=='COMPARABLE_PARTIAL')return {enabled:false,reason:gate?.reasons.join('; ')||'METHOD_MISMATCH'};
   }
   if(s.analysis==='N1'&&s.source==='GA'){
+    if(s.n1Layer&&s.n1Layer!=='POST'&&(!ctx.hybridResult?.basePost||!hybridIsCurrent(ctx.hybridResult,ctx.network,ctx.scenario.current,ctx.analysisSettings.value)))return {enabled:false,reason:'GA_N1_BASE_IDENTITY_NOT_VERIFIED'};
     const post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},s.caseId??'');
     const dc=ctx.n1Result,validDc=!!dc&&dc.identity.modelHash===ctx.network.modelHash&&dc.identity.scenarioHash===scenarioSignature(ctx.scenario.current)&&dc.candidates.some(c=>{const e=[...ctx.network!.lines,...ctx.network!.transformers].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return s.caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;});
     if(!post&&!validDc)return {enabled:false,reason:'GA_N1_NOT_CALCULATED_OR_STALE'};
@@ -59,12 +61,12 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   const putSite=(id:string,value:BenchmarkMapValue,fid:string,kv:number|null)=>{
     let previous=data.sites.get(id);if(!previous){previous={...value,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
     if(value.value===null)return;
-    if(value.unit==='pu'&&!['DELTA','EXPLORATORY_DELTA'].includes(s.source)){
+    if(value.unit==='pu'&&s.n1Layer!=='CHANGE'&&!['DELTA','EXPLORATORY_DELTA'].includes(s.source)){
       const v=value.value,deviation=Math.abs(v-1),level=String(kv??'UNKNOWN');previous.voltageLevels??={};const old=previous.voltageLevels[level];
       previous.voltageLevels[level]=old?{minVpu:Math.min(old.minVpu,v),maxVpu:Math.max(old.maxVpu,v),maxDeviationPu:Math.max(old.maxDeviationPu,deviation),representativeFid:deviation>old.maxDeviationPu?fid:old.representativeFid}:{minVpu:v,maxVpu:v,maxDeviationPu:deviation,representativeFid:fid};
       previous.minVpu=Math.min(previous.minVpu??v,v);previous.maxVpu=Math.max(previous.maxVpu??v,v);
       if(previous.maxDeviationPu===undefined||deviation>previous.maxDeviationPu){previous.value=v;previous.maxDeviationPu=deviation;previous.representativeFid=fid;}
-    }else {if(['DELTA','EXPLORATORY_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
+    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
   };
   const put=(sourceClass:string,fid:string,value:BenchmarkMapValue)=>{
     const line=lineByKey.get(`${sourceClass}:${fid}`),bus=sourceClass==='ElmTerm'?busById.get(fid):undefined,siteIds=line?.siteIds||bus?.siteIds||[];if(s.voltageKv&&(bus?.vnKv??line?.vnKv)!==s.voltageKv)return;
@@ -88,8 +90,15 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
       const resolved=resolveN1Post({network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},s.caseId??'');
       if(resolved){
         data.outage={fid:resolved.outage.fid,sourceClass:resolved.outage.sourceClass};
-        for(const b of resolved.post.buses){const value=['voltagePu','postVoltagePu'].includes(s.metric)?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:null;if(value!==null)for(const fid of b.terms)put('ElmTerm',fid,{value,unit:s.metric==='voltageKv'?'kV':'pu',status:resolved.status,details:[`${fid} · ${s.caseId} · ${resolved.source} · ${resolved.status}`]});}
-        for(const b of resolved.post.branches)put(b.sourceClass,b.fid,{value:postBranchMetric(b,s.metric,s.side),unit:s.metric.includes('Loading')?'%':s.metric==='postMva'?'MVA':s.metric==='postQmvar'?'Mvar':s.metric==='postCurrentA'?'A':'MW',status:b.loading.reason||resolved.status,details:[`${b.sourceClass}:${b.fid} · ${s.caseId} · ${s.side??'FROM'} · ${resolved.source} · ${resolved.status}`,`Rating: ${JSON.stringify(b.loading)}`]});
+        const base=ctx.hybridResult?.basePost,layer=s.n1Layer??'POST',post=layer==='BASE'?base!:resolved.post;
+        const changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges??[];
+        for(const b of post.buses){const before=base?.buses.find(v=>v.vnKv===b.vnKv&&stableJson([...v.terms].sort())===stableJson([...b.terms].sort())),metric=['voltagePu','postVoltagePu'].includes(s.metric)?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:null;
+          const value=metric===null?null:layer==='CHANGE'?(before?metric-(s.metric==='voltageKv'?before.vmPu*before.vnKv:before.vmPu):null):layer==='NEW_CONSTRAINTS'&&!changes.some(c=>c.state==='NEW'&&c.metric==='voltagePu'&&c.physicalTerminalFids?.some(fid=>b.terms.includes(fid)))?null:metric;
+          if(metric!==null)for(const fid of b.terms)put('ElmTerm',fid,{value,unit:s.metric==='voltageKv'?'kV':'pu',status:layer,details:[`${fid} / ${s.caseId} / ${layer} / BASE ${before?.vmPu??'null'} / POST ${b.vmPu} / model ${network.modelHash} / settings ${ctx.hybridResult?.identity.settingsHash??'manual AC'}`]});}
+        for(const b of post.branches){const before=base?.branches.find(v=>v.sourceClass===b.sourceClass&&v.fid===b.fid),metric=postBranchMetric(b,s.metric,s.side),previous=before?postBranchMetric(before,s.metric,s.side):null,ratingMatches=before&&before.loading.basis===b.loading.basis&&before.loading.season===b.loading.season&&before.loading.fromLimitA===b.loading.fromLimitA&&before.loading.toLimitA===b.loading.toLimitA&&before.loading.ratingMva===b.loading.ratingMva;
+          const value=layer==='CHANGE'?(metric!==null&&previous!==null&&(!s.metric.includes('Loading')||ratingMatches)?metric-previous:null):layer==='NEW_CONSTRAINTS'&&!changes.some(c=>c.state==='NEW'&&c.sourceClass===b.sourceClass&&c.fid===b.fid&&c.metric==='postLoadingPercent')?null:metric;
+          put(b.sourceClass,b.fid,{value,unit:s.metric.includes('Loading')?'%':s.metric==='postMva'?'MVA':s.metric==='postQmvar'?'Mvar':s.metric==='postCurrentA'?'A':'MW',status:b.loading.reason||layer,details:[`${b.sourceClass}:${b.fid} / ${s.caseId} / ${layer} / BASE ${previous} / POST ${metric} / CHANGE ${value} / ${s.side??'FROM'}`,`Rating: ${JSON.stringify(b.loading)}`]});}
+        if(layer==='CHANGE'){const values=[...data.branches.values(),...data.sites.values()].flatMap(v=>v.value===null?[]:[v.value]),abs=values.map(Math.abs).sort((a,b)=>a-b);data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:data.sites.values().next().value?.unit??''};}
       }else{const equipment=[...network.lines,...network.transformers].find(e=>e.sourceId===data.outage?.fid&&e.sourceClass===data.outage.sourceClass),c=ctx.n1Result?.candidates.find(c=>c.equipmentId===equipment?.id&&c.sourceClass===data.outage?.sourceClass);for(const b of c?.topImpacts||[]){const e=[...network.lines,...network.transformers].find(e=>e.id===b.equipmentId&&e.sourceClass===b.sourceClass);put(b.sourceClass,e?.sourceId??b.equipmentId,{value:s.metric==='postPmw'?b.postFlowMw:b.postEstimatedLoadingPct,unit:s.metric==='postPmw'?'MW':'%',status:'GA_DC_SCREEN',details:[`${b.sourceClass}:${b.equipmentId} · GA_DC_SCREEN · ${s.caseId} · P-only`]});}}
       return data;
     }

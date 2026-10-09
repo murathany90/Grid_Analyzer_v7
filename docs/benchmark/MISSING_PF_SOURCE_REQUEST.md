@@ -100,3 +100,23 @@ configuration, converter current phase/basis and parallel-unit semantics,
 verified correction factors/edition and native MAX/MIN command settings.
 Complete physical-to-electrical fault partitions and full N-1 post-case
 matrices/rating bases remain necessary for PF differences.
+
+## Exact partition and post-case export request (2026-10-10)
+
+Export the **complete** physical-terminal member list for each native
+calculationBusKey/electricalBusKey, including auxiliary/junction terminals,
+terminal role/iUsage, native nominal kV and closed coupler/switch identities.
+The physical bus-result rows and a representative terminal plus count do not
+prove membership of all terminals in the GA electrical bus. Include an explicit
+conflict flag, per-member result status, fault type, MAX/MIN, Rf/Xf and command
+settings. The three real SN3 faults presently have PF/GA member counts 2/28,
+1/16 and 1/16. Do not substitute nearest terminal or a name match.
+
+For N-1 export caseId, outageFid/class, solved/status, AC_promoted, native scope
+YTM IDs/boundary policy and canonical LF settings; post-case bus V/angle with
+calculation/electrical bus IDs and complete terminal members; both branch ends
+P/Q/S/I, loading definition, native limits, season and denominator provenance.
+Recorded worst-case extrema alone do not establish full post-case coverage.
+For missing machine inputs provide saturated subtransient xdss on its documented
+machine base with rstr, sgn/ugn/ngnum; a 99999 sentinel or xdsat saturation factor
+does not replace this impedance.

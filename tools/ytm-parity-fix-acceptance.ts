@@ -1,0 +1,74 @@
+/** Real private fixtures are ingested once into an ignored, input-byte-verified local cache. */
+import {readFile,writeFile,mkdir,stat} from 'node:fs/promises';
+import {serialize,deserialize} from 'node:v8';
+import {createHash} from 'node:crypto';
+import {loadBenchmark} from '../src/importers/powerfactory-benchmark';
+import {loadBenchmarkModel} from '../src/importers/powerfactory-benchmark/model';
+import {benchmarkControlContext} from '../src/domain/benchmark/reference';
+import {applyPowerFactoryControlContext} from '../src/analysis/validation/powerfactory-control-context';
+const [modelPath,benchmarkPath,tag='sn3']=process.argv.slice(2),cache=`local-benchmark-results/parity-fix-${tag}.cache`;
+if(!modelPath||!benchmarkPath)throw Error('Usage: model ZIP benchmark ZIP tag [--prepare]');
+await mkdir('local-benchmark-results',{recursive:true});
+const bytes=await Promise.all([readFile(modelPath),readFile(benchmarkPath)]),hashes=bytes.map(b=>createHash('sha256').update(b).digest('hex'));
+let loaded:any;
+try{loaded=deserialize(await readFile(cache));if(JSON.stringify(loaded.inputHashes)!==JSON.stringify(hashes))loaded=null;}catch{loaded=null;}
+if(!loaded){const started=performance.now(),model=await loadBenchmarkModel(new File([bytes[0]],modelPath.split(/[\\/]/).at(-1)!)),benchmark=await loadBenchmark(new File([bytes[1]],benchmarkPath.split(/[\\/]/).at(-1)!));
+  loaded={inputHashes:hashes,raw:model.raw,network:applyPowerFactoryControlContext(model.network,benchmarkControlContext(benchmark)),benchmark,ingestSeconds:(performance.now()-started)/1000};
+  await writeFile(cache,serialize(loaded));console.log('INGEST',tag,loaded.ingestSeconds);
+}
+if(process.argv.includes('--prepare')){
+  console.log(JSON.stringify({tag,cacheBytes:(await stat(cache)).size,tables:Object.fromEntries(Object.entries(loaded.benchmark.groups).map(([k,v]:[string,any])=>[k,Object.fromEntries(Object.entries(v.tables).map(([n,t]:[string,any])=>[n,t.rows.length]))]))}));
+  process.exit(0);
+}
+import {emptyScenario} from '../src/domain/scenario/overlay';
+import {defaultAnalysisSettings} from '../src/domain/calculation/analysis-settings';
+import {hybridStudySettings} from '../src/analysis/contingency-hybrid/profile';
+import {runHybridN1,type HybridOptions} from '../src/analysis/contingency-hybrid';
+import {buildN1CandidateCatalog,filterN1CatalogCandidates,voltageBandMatches} from '../src/domain/n1/catalog';
+import {boundedBenchmarkCalculation} from './bounded-benchmark-calculation';
+import type {CalculationResult} from '../src/domain/results/types';
+import type {AcContingency} from '../src/analysis/contingency-ac';
+import {adaptShortCircuitSources} from '../src/importers/powerfactory-benchmark/short-circuit-source';
+import {calculateThreePhase,type ScProfile} from '../src/analysis/short-circuit';
+import {auditScPartition} from '../src/domain/benchmark/sc-partition';
+import {rowObject} from '../src/domain/benchmark/types';
+import {metricRows,preflightBenchmark,METRICS} from '../src/domain/benchmark/comparison';
+import {stableJson} from '../src/domain/calculation/identity';
+import type {CanonicalNetwork} from '../src/domain/model/network';
+import type {BenchmarkPackage} from '../src/domain/benchmark/types';
+const network:CanonicalNetwork=loaded.network,benchmark:BenchmarkPackage=loaded.benchmark,scenario=emptyScenario(),start=performance.now(),timings:Record<string,number>={};
+const time=async<T>(name:string,fn:()=>Promise<T>)=>{const t=performance.now();const value=await fn();timings[name]=(performance.now()-t)/1000;console.log(tag,name,timings[name]);return value;};
+const base=await time('legacyBase',()=>boundedBenchmarkCalculation<CalculationResult>({kind:'BASE',network,scenario},120000));
+const stable=(v:unknown):unknown=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).filter(([k,x])=>typeof x==='object'||!/(?:Ms|Seconds)$|elapsed|duration|timestamp/i.test(k)).map(([k,x])=>[k,stable(x)])):v;
+const digest=createHash('sha256').update(JSON.stringify(stable({buses:base.buses,branches:base.branches,generators:base.generators,status:base.status,converged:base.converged,iterations:base.iterations,rounds:base.rounds,diagnostics:base.diagnostics}))).digest('hex');
+const old=JSON.parse(await readFile(`local-benchmark-results/fix-final-lf-${tag.toLowerCase()}.json`,'utf8'));if(digest!==old.digest)throw Error('LEGACY_FULL_AC_DIGEST_CHANGED');
+const catalog=buildN1CandidateCatalog(network,scenario,{includeAllVoltages:true}),area=network.sites.find(s=>s.areaName==='Orta Anadolu YTM')?.areaId;
+if(!area)throw Error('NATIVE_AREA_NOT_FOUND');const filter={ytmIds:[area],endpointScope:'BOTH' as const},scoped=filterN1CatalogCandidates(catalog.candidates,filter);
+const selected:string[]=[];const take=(id?:string)=>{if(id&&!selected.includes(id))selected.push(id);};
+for(const band of [400,154,33])take(scoped.find(c=>(c.voltageLevelsKv??[c.vnKv]).some(kv=>voltageBandMatches(kv,band))&&c.topology==='NON_ISLANDING')?.candidateId);
+take(scoped.find(c=>c.sourceClass==='ElmTr2'&&c.topology==='NON_ISLANDING')?.candidateId);take(scoped.find(c=>c.topology==='ISLANDING')?.candidateId);
+const defaults=defaultAnalysisSettings(),settings=hybridStudySettings(defaults,'GA_APPROX_STATION_OFF');let calls=0;
+const defaultHybrid=await time('defaultHybrid',()=>runHybridN1(network,scenario,{analysisSettings:defaults,policy:{acBudgetCases:1},solveBase:b=>boundedBenchmarkCalculation({kind:'BASE',network,scenario,options:{analysisSettings:defaults}},b)}));
+const detailCounts={buses:0,branches:0};const opts:HybridOptions={studyProfile:'GA_APPROX_STATION_OFF',analysisSettings:settings,filter,catalogCandidateIds:selected,selectedCandidateIds:selected,solveAllSelected:true,policy:{acBudgetCases:2,globalTimeLimitMs:900000},solveBase:b=>boundedBenchmarkCalculation({kind:'BASE',network,scenario,options:{analysisSettings:settings}},b),screen:(options,b)=>boundedBenchmarkCalculation({kind:'DC',network,scenario,options},b),solveOutage:(outage,b)=>{calls++;return boundedBenchmarkCalculation<AcContingency>({kind:'AC',network,scenario,outage,options:{analysisSettings:settings}},b);},onCaseDetail:async(caseId,detail)=>{detailCounts.buses+=detail.post.buses.length;detailCounts.branches+=detail.post.branches.length;await writeFile(`local-benchmark-results/${tag}-${caseId.replaceAll(':','-')}-detail.json`,JSON.stringify(detail));}};
+let hybrid=await time('explicitOffBatch1',()=>runHybridN1(network,scenario,opts));
+if(hybrid.cases.length)hybrid=await time('explicitOffResume',()=>runHybridN1(network,scenario,{...opts,resume:hybrid,policy:{...opts.policy,acBudgetCases:5}}));
+const before=calls;if(hybrid.cases.length)await runHybridN1(network,scenario,{...opts,resume:hybrid});if(calls!==before)throw Error('RESUME_REPEATED_SOLVED_CASE');
+const pfCases=benchmark.groups.N1.tables.N1_Cases_Raw,gaSet=new Set(scoped.map(c=>{const e=[...network.lines,...network.transformers].find(e=>`${e.sourceClass}:${e.id}`===c.candidateId)!;return `${e.sourceClass}:${e.sourceId}`;})),pfSet=new Set(pfCases.rows.map(v=>{const r=rowObject(pfCases,v);return `${r.outageClass}:${r.outageFid}`;}));
+const gate=preflightBenchmark(benchmark,network,base),lfRows=Object.values(benchmark.groups.LF.tables).filter(t=>METRICS[t.name]).flatMap(t=>metricRows(t,gate,undefined,{network,scenario,lfResult:base,diagnostic:true}));
+const anomalies=lfRows.filter(r=>r.diagnosticDelta!==null).sort((a,b)=>Math.abs(b.diagnosticDelta!)-Math.abs(a.diagnosticDelta!)).filter((r,i,a)=>a.findIndex(x=>x.sourceClass===r.sourceClass&&x.fid===r.fid)===i).slice(0,5);
+const rows=(cls:string):Record<string,unknown>[]=>{const t=loaded.raw[cls];return t?.Values.map((v:unknown[])=>Object.fromEntries(t.Attributes.map((a:string,i:number)=>[a,v[i]])))??[];};
+const native=(cls:string,fid:string)=>rows(cls).find(r=>r.FID===fid);
+const anomalyAudit=anomalies.map(r=>({row:r,native:native(r.sourceClass,r.fid),options:network.loadFlowOptionsRaw,controllers:network.stationControllers.filter(c=>c.unitIds.includes(r.fid))}));
+const scTable=benchmark.groups.SC.tables.SC_BusResults_Raw,pfRows=scTable.rows.map(v=>rowObject(scTable,v)),faults:string[]=[];
+for(const band of [400,154,33]){const r=pfRows.find(r=>typeof r.nominalKv==='number'&&voltageBandMatches(r.nominalKv,band)&&network.buses.some(b=>b.sourceId===r.physicalTerminalFid&&b.inService));if(r)faults.push(String(r.physicalTerminalFid));}
+const profile:ScProfile={faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'EXPLICIT_ACCEPTANCE_APPROXIMATION; NOT_IEC',edition:null,rfOhm:0,xfOhm:0,maxFaults:10,timeBudgetMs:120000},nativeContext=adaptShortCircuitSources(loaded.raw,network);
+const nativeSc=await time('scNative10',()=>calculateThreePhase(network,scenario,nativeContext,pfRows.slice(0,10).map(r=>String(r.physicalTerminalFid)),profile));
+const assumptions={externalGridFactor:{value:1.1,provenance:'EXPLICIT_ACCEPTANCE_SOURCE_C'},converterAngleDeg:-90,converterTerminalBasis:true,allowMixedNominalKv:true,missingMachineXdssPu:.2,missingMachineRPu:.01,provenance:'EXPLICIT_ACCEPTANCE_ASSUMPTIONS; NOT_IEC_PROOF'},context=adaptShortCircuitSources(loaded.raw,network,undefined,assumptions);
+const sc=await time('scApprox3',()=>calculateThreePhase(network,scenario,context,faults,profile)),partition=sc.faults.map(f=>auditScPartition(benchmark,f,profile)),partitionCounts:Record<string,number>={};for(const p of partition)for(const reason of p.reasons)partitionCounts[reason]=(partitionCounts[reason]??0)+1;
+const min=await time('scMin3',()=>calculateThreePhase(network,scenario,adaptShortCircuitSources(loaded.raw,network,undefined,{...assumptions,externalGridFactor:{value:1,provenance:'EXPLICIT_MIN_C'},mode:'MIN'}),faults,{...profile,calculateMode:'MIN',voltageFactor:1}));
+const scRows=metricRows(scTable,gate,undefined,{network,scenario,sc,benchmark,diagnostic:true}),minRows=metricRows(scTable,gate,undefined,{network,scenario,sc:min,benchmark,diagnostic:true});
+const machines=rows('ElmSym').filter(r=>r.outserv===0),missing=machines.filter(r=>!(Number(native('TypSym',String(r.typ_id))?.xdss)>0));
+const fields=['xdss','xdsss','xds','xd','xstr','xdsat','isat','model_inp','rstr'],missingFields=Object.fromEntries(fields.map(field=>[field,missing.reduce<Record<string,number>>((a,r)=>{const k=String(native('TypSym',String(r.typ_id))?.[field]);a[k]=(a[k]??0)+1;return a;},{})]));
+const safe={test_source:tag.toLowerCase()==='sn3'?'SN3_REAL_UPLOADED':'SN4_REAL_LOCAL',inputHashes:hashes,zip_manifest:'PASS (loader verifies all three workbook hashes before returning)',counts:Object.fromEntries(Object.entries(benchmark.groups).map(([k,v])=>[k,Object.fromEntries(Object.entries(v.tables).map(([n,t])=>[n,t.rows.length]))])),LF_base:{unchanged:true,buses:base.buses.length,iterations:base.iterations,digest,diagnosticCells:lfRows.filter(r=>r.diagnosticDelta!==null).length,certifiedCells:lfRows.filter(r=>r.delta!==null).length,anomaliesAudited:anomalies.length},N1_scope:{catalog:catalog.candidates.length,scope:scoped.length,internal:filterN1CatalogCandidates(catalog.candidates,{...filter,endpointScope:'INTERNAL'}).length,boundary:filterN1CatalogCandidates(catalog.candidates,{...filter,endpointScope:'CONNECTED'}).length,unknown:filterN1CatalogCandidates(catalog.candidates,{...filter,endpointScope:'UNKNOWN_SCOPE'}).length,intersection:[...pfSet].filter(x=>gaSet.has(x)).length,onlyPF:[...pfSet].filter(x=>!gaSet.has(x)).length,onlyGA:[...gaSet].filter(x=>!pfSet.has(x)).length},defaultProfile:{status:defaultHybrid.status,reason:defaultHybrid.reason,base:defaultHybrid.base},N1_selected_ac:{selected:selected.length,calls,counts:hybrid.counts,baseConstraintCounts:hybrid.baseConstraintCounts,status:hybrid.status,reason:hybrid.reason,profile:hybrid.studyProfile,hashEqual:hybrid.base?.settingsHash===hybrid.identity.settingsHash&&hybrid.identity.settingsHash===stableJson(settings),retainedDetails:hybrid.cases.filter(c=>c.mapResults).length,detailCounts},SC_native:{counts:nativeSc.counts,factors:nativeSc.factorizations,rhs:nativeSc.rhsCount,sources:nativeSc.sourceCounts,missingNativeMachines:missing.length,missingFields},SC_approx:{counts:sc.counts,MIN:min.counts,factors:sc.factorizations,rhs:sc.rhsCount,sources:sc.sourceCounts},PF_SC_partition_identity_coverage:{selected:partition.length,matched:partition.filter(p=>p.matched).length,reasons:partitionCounts,details:partition.map(({calculationBusKey,...p})=>p),diagnosticCells:scRows.filter(r=>r.diagnosticDelta!==null).length,MINdiagnosticCells:minRows.filter(r=>r.diagnosticDelta!==null).length},PF_N1_post_case_coverage:0,IEC_method_verified:false,performance:{timings,elapsedSeconds:(performance.now()-start)/1000,memory:process.memoryUsage()}};
+await writeFile(`local-benchmark-results/parity-fix-${tag}-safe.json`,JSON.stringify(safe,null,2));await writeFile(`local-benchmark-results/parity-fix-${tag}-private.json`,JSON.stringify({area,selected,hybrid,sc,min,partition,anomalyAudit},null,2));
+console.log(JSON.stringify(safe));

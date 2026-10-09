@@ -6,7 +6,7 @@ try {
   if(kind==='BASE'){
     const {BrowserJsPowerFlowEngine}=await tsImport('../src/analysis/api/browser-js-engine.ts',import.meta.url);
     const {identity}=await tsImport('../src/domain/calculation/identity.ts',import.meta.url);
-    value=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow'),analysisSettings:options?.analysisSettings});
+    value=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow',options?.analysisSettings?{analysisSettings:options.analysisSettings}:undefined),analysisSettings:options?.analysisSettings});
   } else if(kind==='DC'){
     const {runN1Screen}=await tsImport('../src/domain/n1/index.ts',import.meta.url);
     value=await runN1Screen(network,scenario,options);

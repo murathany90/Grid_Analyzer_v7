@@ -48,7 +48,7 @@ export interface N1CatalogFilter {
   ytmId?: string;
   ytmIds?: readonly string[];
   voltageBands?: readonly number[];
-  endpointScope?: 'INTERNAL'|'CONNECTED'|'BOTH';
+  endpointScope?: 'INTERNAL'|'CONNECTED'|'BOTH'|'SAME_YTM_INTERNAL'|'UNKNOWN_SCOPE';
   tmId?: string;
   sourceClasses?: readonly N1CatalogSourceClass[];
   minVoltageKv?: number;
@@ -158,10 +158,9 @@ export function filterN1CatalogCandidates(candidates: readonly N1CatalogCandidat
     if (filter.screenability === 'UNSCREENABLE' && (candidate.screenable || candidate.topology === 'ISLANDING')) return false;
     if(filter.voltageBands?.length&&!filter.voltageBands.some(v=>(candidate.voltageLevelsKv??[candidate.vnKv]).some(kv=>voltageBandMatches(kv,v))))return false;
     const ytms=filter.ytmIds?.length?filter.ytmIds:filter.ytmId?[filter.ytmId]:[];
-    const from=ytms.length?candidate.fromYtmIds.filter(id=>ytms.includes(id)):candidate.fromYtmIds,to=ytms.length?candidate.toYtmIds.filter(id=>ytms.includes(id)):candidate.toYtmIds;
-    if(ytms.length&&!from.length&&!to.length)return false;
-    const internal=from.some(id=>to.includes(id));
-    if(filter.endpointScope==='INTERNAL'&&!internal||filter.endpointScope==='CONNECTED'&&internal)return false;
+    const scope=classifyN1Scope(candidate,ytms);
+    if(ytms.length&&scope==='OUTSIDE_SELECTED_SET')return false;
+    if(filter.endpointScope==='INTERNAL'&&scope!=='INTERNAL_SELECTED_SET'||filter.endpointScope==='CONNECTED'&&scope!=='BOUNDARY_SELECTED_SET'||filter.endpointScope==='UNKNOWN_SCOPE'&&scope!=='UNKNOWN_SCOPE'||filter.endpointScope==='SAME_YTM_INTERNAL'&&(scope==='UNKNOWN_SCOPE'||candidate.fromYtmIds[0]!==candidate.toYtmIds[0]))return false;
     if (filter.ytmId && filter.tmId) {
       const fromMatches = candidate.fromYtmIds.includes(filter.ytmId) && candidate.fromSiteIds.includes(filter.tmId);
       const toMatches = candidate.toYtmIds.includes(filter.ytmId) && candidate.toSiteIds.includes(filter.tmId);
@@ -175,3 +174,10 @@ export function filterN1CatalogCandidates(candidates: readonly N1CatalogCandidat
 
 /** Native voltage bands: 400 includes 380/420, 33 includes 31.5/34.5. */
 export function voltageBandMatches(kv:number,band:number):boolean{return band===400?kv>=300&&kv<=450:band===154?kv>=110&&kv<=170:band===33?kv>=24&&kv<=36:kv===band;}
+
+export function classifyN1Scope(c:Pick<N1CatalogCandidate,'fromYtmIds'|'toYtmIds'>,selected:readonly string[]=[]):'INTERNAL_SELECTED_SET'|'BOUNDARY_SELECTED_SET'|'OUTSIDE_SELECTED_SET'|'UNKNOWN_SCOPE'{
+  if(c.fromYtmIds.length!==1||c.toYtmIds.length!==1)return 'UNKNOWN_SCOPE';
+  if(!selected.length)return 'INTERNAL_SELECTED_SET';
+  const from=selected.includes(c.fromYtmIds[0]),to=selected.includes(c.toYtmIds[0]);
+  return from&&to?'INTERNAL_SELECTED_SET':from||to?'BOUNDARY_SELECTED_SET':'OUTSIDE_SELECTED_SET';
+}
