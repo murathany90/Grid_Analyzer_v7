@@ -49,10 +49,12 @@ export async function loadBenchmark(file:File,onProgress:BenchmarkProgress=()=>{
     const manifest=tables.Analysis_Manifest_Raw;if(manifest.rows.length!==1)fail('SOURCE_SCHEMA_MISMATCH','analysis manifest cardinality');
     const manifestRow=rowObject(manifest,manifest.rows[0]);
     for(const k of [...fields,'requestedMethod','effectiveMethod','methodVerificationStatus'])if(typeof identity[k]!=='string'||!identity[k]||String(manifestRow[k]??'')!==identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`workbook ${analysis}.${k}`);
+    for(const k of ['addonVersion','scopeType','schemaVersion'])if(identity[k]!==undefined&&String(manifestRow[k]??'')!==identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`workbook ${analysis}.${k}`);
     const manifestAnalysis=({LOAD_FLOW:'LF',N1_CONTINGENCY:'N1',SHORT_CIRCUIT:'SC'} as Record<string,string>)[String(manifestRow.analysisType)]??manifestRow.analysisType;
     if(manifestAnalysis!==analysis)fail('BENCHMARK_IDENTITY_MISMATCH','workbook analysis');
     groups[analysis]={analysis,identity,workbook:{...workbook,sha256:actual},tables,log:{file:log.file.name,text:log.text,sha256:await hashBlob(log.file,signal)},sidecarSha256:await hashBlob(sidecar,signal)};
   }
   stage('VERIFY');for(const analysis of analyses)for(const k of fields)if(groups[analysis].identity[k]!==groups.LF.identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`mixed model/case ${analysis}.${k}`);
+  for(const analysis of analyses)if(groups[analysis].identity.addonVersion!==groups.LF.identity.addonVersion)fail('BENCHMARK_IDENTITY_MISMATCH','mixed exporter versions');
   stage('INDEX');checkCancel(signal);stage('READY');return {groups,archiveSha256,elapsedMs:performance.now()-started,stages};
 }
