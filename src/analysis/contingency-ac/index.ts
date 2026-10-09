@@ -15,7 +15,7 @@ export interface AcContingency {
   outage:AcOutage;method:'GA_AC_POST_CONTINGENCY';status:AcContingencyStatus;reason:string;
   identity:{modelHash:string;baseScenarioHash:string;scenarioHash:string;settingsHash:string;topologyIdentity:string;key:string};
   components?:{islandId:string;status:'SUPPLIED_COMPONENT'|'UNSUPPLIED_COMPONENT'|'UNSUPPORTED_COMPONENT';busCount:number}[];
-  result:CalculationResult|null;elapsedMs:number;branchApparentPower:{sourceClass:string;fid:string;sfMva:number;stMva:number;loadingPercent:number|null}[];
+  result:CalculationResult|null;unsuppliedLoadMw?:number;elapsedMs:number;branchApparentPower:{sourceClass:string;fid:string;sfMva:number;stMva:number;loadingPercent:number|null}[];
 }
 export interface AcValidationOptions {maxCases?:number;timeBudgetMs?:number;maxBuses?:number;analysisSettings?:AnalysisSettings;signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void}
 /** Opt-in service only. A copied overlay is the sole solver input change. */
@@ -45,6 +45,8 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     const missing=topology.buses.filter(bus=>bus.terms.some(fid=>!postTopology.terminalToBus.has(fid))).length;
     row.components=(islands??[]).map(i=>({islandId:i.islandId,busCount:i.busCount,status:i.status==='NO_REFERENCE'?'UNSUPPLIED_COMPONENT':i.status==='MULTIPLE_REFERENCE_PARTIAL'?'UNSUPPORTED_COMPONENT':'SUPPLIED_COMPONENT'}));
     if(missing)row.components.push({islandId:'detached-terminal-groups',busCount:missing,status:'UNSUPPLIED_COMPONENT'});
+    const suppliedTerminals=new Set([prepared,...prepared.additionalIslands??[]].flatMap(m=>m.buses.flatMap(b=>b.terms)));
+    row.unsuppliedLoadMw=post.loads.filter(l=>l.inService&&!suppliedTerminals.has(l.bus)).reduce((sum,l)=>sum+Math.max(0,l.pMw),0);
     const partial=row.components.some(i=>i.status==='UNSUPPLIED_COMPONENT');
     if(islands?.some(i=>i.status==='MULTIPLE_REFERENCE_PARTIAL')){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason='MULTIPLE_REFERENCE_PARTIAL';finish();continue;}
     if(!row.components.some(i=>i.status==='SUPPLIED_COMPONENT')){row.status='ISLAND_UNSUPPLIED';row.reason='NO_SOURCE_SLACK_IN_POST_OUTAGE_ISLAND';finish();continue;}

@@ -136,3 +136,21 @@ supports native kA/MVA and R/X inputs. This proves the physical conversion only;
 it does not establish normative c, source corrections or the dataset IEC edition.
 See [the measured correction report](PF_GA_DIAGNOSTIC_MAP_AND_METHOD_REPORT.md)
 for actual coverage, diagnostic errors and browser performance limitations.
+
+## YTM/full-catalog and native-source extension (2026-10-09)
+
+Full-voltage callers select native two-endpoint YTM scope and voltage levels of
+both transformer windings, preserving the full connected numerical network.
+Low-voltage cases outside the legacy >=66 kV DC engine go directly to Full AC.
+Selected-all AC, deterministic DC-clear validation, checkpoint/resume, seasonal
+post metrics and nullable unknowns are documented in
+[YTM N-1/SC measured results](YTM_N1_SC_IMPLEMENTATION_RESULTS.md).
+
+Native capital ElmVac R1/X1, section impedances and machine bases are supported.
+Explicit converter phase/terminal basis, missing-machine pu or per-FID ohm
+overrides and mixed-nominal normalization remain NETWORK_APPROXIMATION.
+MAX/MIN contexts are separate and comparison requires matching mode. Native
+parameters can produce independent Ikss/Skss with explicit assumptions; the
+initial all-blocked snapshot in the earlier report is historical. IEC edition
+and certified errors remain null. Full Size Converter current injection uses
+native Ikss3PF kA, not PF solved fault results; ngnum must be one.

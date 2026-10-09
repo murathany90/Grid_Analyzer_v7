@@ -26,7 +26,7 @@ export interface AppContext {
   scContext:import('../analysis/short-circuit/source-adapter').ScSourceContext|null;
   scResult:import('../analysis/short-circuit').ScResult|null;
   runHybrid(options:import('../analysis/contingency-hybrid').HybridOptions,resume?:boolean):Promise<void>;
-  runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile):Promise<void>;
+  runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile,adapterOptions?:import('../analysis/short-circuit/source-adapter').ScAdapterOptions):Promise<void>;
   benchmarkMap:BenchmarkMapSelection|null;
   loadBenchmarkPair(model:File,benchmark:File):Promise<void>;
   runN1AcValidation(outages:AcOutage[]):Promise<void>;
@@ -40,7 +40,7 @@ export interface AppContext {
   n1Detail: N1SelectedDetail | null;
   n1DetailLoading: boolean;
   n1CatalogResult: N1CandidateCatalog | null;
-  n1CatalogIdentity: { modelHash:string; scenarioHash:string; analysisScope:'base'|'scenario'; capacitySeason:CapacitySeason } | null;
+  n1CatalogIdentity: { modelHash:string; scenarioHash:string; analysisScope:'base'|'scenario'; capacitySeason:CapacitySeason;includeAllVoltages?:boolean } | null;
   resultStore: ResultStore; scenario: ScenarioStore; settings: SettingsStore; analysisSettings: AnalysisSettingsStore;
   powerFactoryControlContextHash: string | null;
   powerFactoryControlContextNumericFile: string | null;
@@ -53,7 +53,7 @@ export interface AppContext {
   loadPowerFactoryControlContext(file: File): Promise<void>;
   run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
   runModelQuality(scope:'base'|'scenario'): Promise<void>;
-  loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason):Promise<void>;
+  loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason,includeAllVoltages?:boolean):Promise<void>;
   runN1Screen(options:N1ScreenOptions):Promise<void>;
   selectN1Candidate(candidateId:string|null):Promise<void>;
   selectN1Island(islandId:string|null):void;

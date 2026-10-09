@@ -40,6 +40,9 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       send({type:'RESULT',value:{network,benchmark,readiness,scContext:adaptShortCircuitSources(loaded.raw,network),controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file,benchmarkPreflight:preflightBenchmark(benchmark,network,null,benchmark.groups.LF.workbook.file)}});
     }else if(data.type==='BENCHMARK_PREFLIGHT'){
       send({type:'RESULT',value:preflightBenchmark(data.benchmark,data.network,data.result,data.controlFile)});
+    }else if(data.type==='ADAPT_SC_CONTEXT'){
+      if(!source)throw Error('SC_NATIVE_SOURCE_CONTEXT_UNAVAILABLE');
+      send({type:'RESULT',value:adaptShortCircuitSources(source.raw,data.network,undefined,data.options)});
     }else if(data.type==='RUN_SC_3PH'){
       if(!network)throw Error('Model yüklenmedi.');
       send({type:'RESULT',value:await calculateThreePhase(network,data.scenario,data.context,data.terminals,data.profile,{onProgress:progress})});
@@ -69,7 +72,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       if(!network)throw Error('Model yüklenmedi.');
       progress('N1_CATALOG',{message:'N-1 aday kataloğu hazırlanıyor'});
       const effective=effectiveNetwork(network,data.scenario),reduced=prepareReduced(effective);
-      const catalog=buildN1CandidateCatalog(network,data.scenario,{capacitySeason:data.capacitySeason,reduced});
+      const catalog=buildN1CandidateCatalog(network,data.scenario,{capacitySeason:data.capacitySeason,reduced,includeAllVoltages:data.includeAllVoltages});
       send({type:'RESULT',value:catalog});
     }
     else if(data.type==='RUN_N1_SCREEN'){

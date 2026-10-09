@@ -91,3 +91,12 @@ cannot be isolated without evidence. There is no source-location global blocker
 that can legitimately be removed to create real computed faults. The current
 minimum source/element gaps keep computed real Ikss/Skss at zero coverage;
 values stay null, and no normative edition is inferred.
+
+## Native-source extension follow-up
+
+For replacing explicit NETWORK_APPROXIMATION assumptions, supply missing
+TypSym saturated subtransient reactance/resistance and machine unit-transformer
+configuration, converter current phase/basis and parallel-unit semantics,
+verified correction factors/edition and native MAX/MIN command settings.
+Complete physical-to-electrical fault partitions and full N-1 post-case
+matrices/rating bases remain necessary for PF differences.

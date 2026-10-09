@@ -75,6 +75,8 @@ export function solutionCompleteness(result: CalculationResult | null | undefine
 export function calculationConvergenceLabel(result: CalculationResult | null | undefined): string {
   if (!result) return 'Hesap bekleniyor';
   if (!result.converged) return result.status;
+  if(result.identity.analysisType==='dc')return 'DC doğrusal çözüm tamamlandı · P-only';
+  if(result.identity.analysisType==='fastAc')return `Hızlı yaklaşık AC · ${result.status}`;
   const completeness=solutionCompleteness(result);
   // A converged Newton solve that fell back to local PV is never presented as a full
   // solution: the station requirement is stated explicitly in the label.

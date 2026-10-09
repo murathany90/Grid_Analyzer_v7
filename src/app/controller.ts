@@ -85,11 +85,11 @@ export class Application implements AppContext {
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(current()){this.hybridAbort=null;this.busy=false;this.notify();}}
   }
-  async runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile):Promise<void>{
+  async runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile,adapterOptions?:import('../analysis/short-circuit/source-adapter').ScAdapterOptions):Promise<void>{
     if(!this.network||!this.scContext||this.busy)return;
-    const network=this.network,context=this.scContext,scenario=structuredClone(this.scenario.current),signature=scenarioSignature(scenario),job=++this.job;this.busy=true;this.scResult=null;this.setMessage('GA bağımsız 3PH MAX hesaplanıyor');
-    try{const result=await this.boundedWorker(async()=>{if(!await this.prepareCalculationWorker(network,job))throw Error('SC_STALE');return this.calculation.request<NonNullable<AppContext['scResult']>>({type:'RUN_SC_3PH',context,scenario,terminals,profile});},profile.timeBudgetMs);
-      if(job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature){this.scResult=result;this.status=`GA 3PH MAX · ${JSON.stringify(result.counts)} · IEC paritesi doğrulanmadı`;}
+    const network=this.network,scenario=structuredClone(this.scenario.current),signature=scenarioSignature(scenario),job=++this.job;this.busy=true;this.scResult=null;this.setMessage(`GA bağımsız 3PH ${profile.calculateMode} hesaplanıyor`);
+    try{const context=adapterOptions?await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network,options:{...adapterOptions,mode:profile.calculateMode}}):this.scContext!;if(job!==this.job)return;const result=await this.boundedWorker(async()=>{if(!await this.prepareCalculationWorker(network,job))throw Error('SC_STALE');return this.calculation.request<NonNullable<AppContext['scResult']>>({type:'RUN_SC_3PH',context,scenario,terminals,profile});},profile.timeBudgetMs);
+      if(job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature){this.scContext=context;this.scResult=result;this.status=`GA 3PH ${profile.calculateMode} · ${JSON.stringify(result.counts)} · IEC paritesi doğrulanmadı`;}
     }catch(e){if(job===this.job)this.status=`GA SC: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -123,7 +123,7 @@ export class Application implements AppContext {
       if(!this.resultStore.accept(role,result)){this.status='Senaryo/model değişti; eski hesap reddedildi.';return;}
       const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
     const work=fullAcDiagnostics(result),workDetail=work.fullNrSolves==null?'':` · ${work.fullNrSolves} NR çözümü`;
-    this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${calculationConvergenceLabel(result)} · ${work.newtonIterations??0} toplam Newton iterasyonu · ${work.finalNewtonIterations??0} son NR Newton iterasyonu${workDetail} · ${(result.elapsedMs/1000).toFixed(2)} s`;
+    this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${calculationConvergenceLabel(result)}${type==='powerFlow'?` · ${work.newtonIterations??0} toplam Newton iterasyonu · ${work.finalNewtonIterations??0} son NR Newton iterasyonu${workDetail}`:` · ${result.iterations} ${type==='dc'?'doğrusal çözüm':'yaklaşık AC adımı'}`} · ${(result.elapsedMs/1000).toFixed(2)} s`;
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'Hesap iptal edildi.':`Hesap hatası: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','analysis',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -134,8 +134,8 @@ export class Application implements AppContext {
     }catch(e){if(job===this.job){this.status=`Model kalite denetimi başarısız: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','quality',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
-  async loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason){if(!this.network||this.busy)return;const network=this.network,scenario=this.scenarioForScope(scope),scenarioHash=scenarioSignature(scenario),identity={modelHash:network.modelHash,scenarioHash,analysisScope:scope,capacitySeason:season};if(this.n1CatalogResult&&this.n1CatalogIdentity&&JSON.stringify(this.n1CatalogIdentity)===JSON.stringify(identity))return;const job=++this.job;this.busy=true;this.n1Progress=null;this.setMessage('N-1 aday kataloğu hazırlanıyor');
-    try{if(this.calcLoadedHash!==network.modelHash){await this.calculation.request({type:'PREPARE',network});if(job!==this.job)return;this.calcLoadedHash=network.modelHash;}const result=await this.calculation.request<N1CandidateCatalog>({type:'BUILD_N1_CATALOG',scenario,capacitySeason:season});if(job!==this.job||this.network?.modelHash!==network.modelHash||scenarioSignature(this.scenarioForScope(scope))!==scenarioHash)return;this.n1CatalogResult=result;this.n1CatalogIdentity=identity;this.status=`N-1 kataloğu · ${result.counts.total} aday`;
+  async loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason,includeAllVoltages=false){if(!this.network||this.busy)return;const network=this.network,scenario=this.scenarioForScope(scope),scenarioHash=scenarioSignature(scenario),identity={modelHash:network.modelHash,scenarioHash,analysisScope:scope,capacitySeason:season,includeAllVoltages};if(this.n1CatalogResult&&this.n1CatalogIdentity&&JSON.stringify(this.n1CatalogIdentity)===JSON.stringify(identity))return;const job=++this.job;this.busy=true;this.n1Progress=null;this.setMessage('N-1 aday kataloğu hazırlanıyor');
+    try{if(this.calcLoadedHash!==network.modelHash){await this.calculation.request({type:'PREPARE',network});if(job!==this.job)return;this.calcLoadedHash=network.modelHash;}const result=await this.calculation.request<N1CandidateCatalog>({type:'BUILD_N1_CATALOG',scenario,capacitySeason:season,includeAllVoltages});if(job!==this.job||this.network?.modelHash!==network.modelHash||scenarioSignature(this.scenarioForScope(scope))!==scenarioHash)return;this.n1CatalogResult=result;this.n1CatalogIdentity=identity;this.status=`N-1 kataloğu · ${result.counts.total} aday`;
     }catch(e){if(job===this.job){this.status=`N-1 aday kataloğu hazırlanamadı: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','n1-catalog',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }

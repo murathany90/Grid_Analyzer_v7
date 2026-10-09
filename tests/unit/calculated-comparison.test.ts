@@ -18,6 +18,7 @@ test('LF opt-in diagnostic delta uses native cell identity; certified statistics
 test('SC fault/nominal-kV/partition identity allows approximation diagnostics, never IEC parity',async()=>{
   const pair=syntheticBenchmarkPair(true),b=await loadBenchmark(pair.benchmark),n=(await loadBenchmarkModel(pair.model)).network,s=emptyScenario(),context=adaptShortCircuitSources(pair.raw,n),sc=await calculateThreePhase(n,s,context,['SYN-B1'],{faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'EXPLICIT_TEST',edition:null,rfOhm:0,xfOhm:0,maxFaults:1,timeBudgetMs:30000}),table=b.groups.SC.tables.SC_BusResults_Raw,gate=preflightBenchmark(b,n,null);
   const options={network:n,scenario:s,benchmark:b,sc,diagnostic:true},rows=metricRows(table,gate,'ikssKa',options);assert.equal(rows[1].ga,sc.faults[0].ikssKa);assert.ok(rows[1].diagnosticDelta!==null);assert.equal(rows[1].delta,null);assert.equal(metricStatistics(rows)[0].nIECSubset,0);assert.equal(metricStatistics(rows)[0].mae,null);
+  const min=await calculateThreePhase(n,s,adaptShortCircuitSources(pair.raw,n,undefined,{mode:'MIN'}),['SYN-B1'],{...sc.profile,calculateMode:'MIN'});assert.equal(metricRows(table,gate,'ikssKa',{...options,sc:min})[1].ga,null);
   table.rows[1][table.headers.indexOf('nominalKv')]=200;assert.equal(metricRows(table,gate,'ikssKa',options)[1].ga,null);
   table.rows[1][table.headers.indexOf('nominalKv')]=100;assert.equal(metricRows(table,gate,'ikssKa',{...options,sc:{...sc,identity:{...sc.identity,modelHash:'wrong'}}})[1].ga,null);
 });

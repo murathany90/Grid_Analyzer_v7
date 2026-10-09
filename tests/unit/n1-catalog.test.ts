@@ -28,3 +28,15 @@ test('N-1 catalog maps endpoint sites and applies explicit at-least-one-endpoint
   assert.deepEqual(filterN1CatalogCandidates(catalog.candidates, { ytmId: 'ytm-2', tmId: 'tm-a' }), []);
   assert.deepEqual(filterN1CatalogCandidates(catalog.candidates, { ytmId: 'ytm-1', tmId: 'tm-a' }).map((candidate) => candidate.equipmentId), ['ab', 'ca']);
 });
+
+test('multi-YTM internal/boundary and native voltage bands preserve full network scope',()=>{
+  const n=sampleNetwork(),all=buildN1CandidateCatalog(n,emptyScenario()).candidates;
+  assert.deepEqual(filterN1CatalogCandidates(all,{ytmIds:['ytm-1'],endpointScope:'INTERNAL'}).map(c=>c.equipmentId),['ab']);
+  assert.deepEqual(filterN1CatalogCandidates(all,{ytmIds:['ytm-1'],endpointScope:'CONNECTED'}).map(c=>c.equipmentId),['bc','ca']);
+  assert.equal(filterN1CatalogCandidates(all,{ytmIds:['ytm-1','ytm-2'],endpointScope:'BOTH'}).length,3);
+  const low={...n,buses:n.buses.map(b=>({...b,vnKv:34.5})),lines:n.lines.map(l=>({...l,vnKv:34.5}))};
+  assert.equal(buildN1CandidateCatalog(low,emptyScenario()).candidates.length,0);
+  const catalog=buildN1CandidateCatalog(low,emptyScenario(),{includeAllVoltages:true});assert.equal(catalog.candidates.length,3);assert.ok(catalog.candidates.every(c=>!c.screenable&&c.topology==='NON_ISLANDING'));assert.equal(catalog.counts.screenable,0);assert.equal(catalog.counts.unscreenable,3);
+  const tr={...n,transformers:[{...n.lines[0],id:'TR',sourceId:'TR',sourceClass:'ElmTr2',lvKv:34.5,ratingMva:10,rPu:.01,xPu:.1,tap:1,phase:0,tapPosition:0,gPu:0,bPu:0}] } as CanonicalNetwork;assert.equal(filterN1CatalogCandidates(buildN1CandidateCatalog(tr,emptyScenario(),{includeAllVoltages:true}).candidates,{voltageBands:[33]}).length,1);
+  assert.equal(filterN1CatalogCandidates(catalog.candidates,{voltageBands:[33]}).length,3);assert.equal(filterN1CatalogCandidates(catalog.candidates,{voltageBands:[154]}).length,0);assert.equal(n.externalGrids.length,1);
+});

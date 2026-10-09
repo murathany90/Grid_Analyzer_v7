@@ -35,7 +35,7 @@ test('scope mismatch, wrong FID, zero budget, cancellation and PF case parsing',
 });
 test('voltage limits run only after AC; safe DC is explicitly not AC verified',async()=>{
   const n=acNetwork(),scenario=emptyScenario();
-  const clear=await runHybridN1(n,scenario,{screen:async options=>{const r=await runN1Screen(n,scenario,options);return {...r,candidates:r.candidates.map(c=>({...c,status:'SCREENED_NO_VIOLATION',outageRatingAvailable:true,maxEstimatedLoadingPct:10,ratingCoverage:{...c.ratingCoverage,percent:100}}))};},solveOutage:async()=>{throw Error('should not run');}});
+  const clear=await runHybridN1(n,scenario,{dcClearValidationCases:0,screen:async options=>{const r=await runN1Screen(n,scenario,options);return {...r,candidates:r.candidates.map(c=>({...c,status:'SCREENED_NO_VIOLATION',outageRatingAvailable:true,maxEstimatedLoadingPct:10,ratingCoverage:{...c.ratingCoverage,percent:100}}))};},solveOutage:async()=>{throw Error('should not run');}});
   assert.equal(clear.counts.DC_CLEAR_NOT_AC_VERIFIED,3);assert.ok(clear.cases.every(c=>c.minVpu===null));
   const promoted=await runHybridN1(n,scenario,{catalogCandidateIds:['ElmLne:BYPASS'],selectedCandidateIds:['ElmLne:BYPASS'],policy:{voltageMinPu:.999,voltageMaxPu:1.001,acBudgetCases:1}});
   assert.equal(promoted.cases[0].status,'AC_CONVERGED_VIOLATION');assert.ok(promoted.cases[0].voltageViolations>0);
@@ -51,5 +51,19 @@ test('global budget, cancellation after checkpoint and disabled uncertainty cann
   const n=acNetwork(),abort=new AbortController();
   const r=await runHybridN1(n,emptyScenario(),{policy:{acBudgetCases:1},onCheckpoint:r=>{if(r.phase==='BUDGETED_AC_QUEUE')abort.abort();},signal:abort.signal});assert.equal(r.status,'CANCELLED');assert.equal(r.counts.CANCELLED,3);
   const excluded=await runHybridN1(n,emptyScenario(),{policy:{includeCapacityUnavailable:false,includeUnscreenable:false,classifyIslanding:false}});assert.equal(excluded.counts.BLOCKED,3);assert.equal(excluded.counts.DC_CLEAR_NOT_AC_VERIFIED,undefined);
-  const timed=await runHybridN1(n,emptyScenario(),{policy:{globalTimeLimitMs:1}});assert.ok(timed.status==='PARTIAL'||timed.status==='BLOCKED');assert.ok(timed.cases.every(c=>c.iterations===null));
+  const timed=await runHybridN1(n,emptyScenario(),{policy:{globalTimeLimitMs:1},solveBase:async()=>{const base=(await validateAcOutages(n,emptyScenario(),[{caseId:'BASE_DELAY',sourceClass:'ElmLne',fid:'BYPASS'}]))[0].result!;await new Promise(resolve=>setTimeout(resolve,10));return base;}});assert.ok(timed.status==='PARTIAL'||timed.status==='BLOCKED');assert.ok(timed.cases.every(c=>c.iterations===null));
+});
+
+test('33 kV candidates go directly to Full AC and resume never repeats solved cases',async()=>{
+ const base=acNetwork(),n={...base,buses:base.buses.map(b=>({...b,vnKv:33})),lines:base.lines.map(l=>({...l,vnKv:33,xOhm:l.xOhm*(33/100)**2}))};let calls=0;
+ const solve=async(outage:import('../../src/analysis/contingency-ac').AcOutage)=>{calls++;return (await validateAcOutages(n,emptyScenario(),[outage]))[0];};
+ const opts={solveAllSelected:true,policy:{acBudgetCases:1},screen:async()=>{throw Error('DC must not solve 33kV-only scope');},solveOutage:solve};
+ const r=await runHybridN1(n,emptyScenario(),opts);assert.equal(r.cases.length,3);assert.equal(calls,1);assert.ok(r.cases.every(c=>c.dcStatus==='UNSCREENABLE'));
+ const resumed=await runHybridN1(n,emptyScenario(),{...opts,resume:r,policy:{acBudgetCases:10}});assert.equal(calls,3);assert.equal(resumed.counts.AC_CALCULATED,3);assert.ok(resumed.cases.every(c=>c.mapResults?.buses.length));
+ const again=await runHybridN1(n,emptyScenario(),{...opts,resume:resumed});assert.equal(calls,3);assert.equal(again.counts.NOT_RUN,0);
+});
+test('actual DC-clear sample is Full AC checked for voltage false negatives',async()=>{
+ const base=acNetwork(),n={...base,lines:base.lines.map(l=>({...l,capacity:{quality:'DGS_MAIN_TYPE' as const,typeId:'T',typeName:'T',nominalCurrentKA:10,nominalMVA:1732,limitingSectionId:null,sections:[],seasonalReference:null}}))};
+ const r=await runHybridN1(n,emptyScenario(),{dcClearValidationCases:1,policy:{acBudgetCases:1,voltageMinPu:.999,voltageMaxPu:1.001}});
+ assert.equal(r.counts.dcClearAcVerified,1);assert.equal(r.counts.dcClearVoltageRisk,1);assert.ok(r.cases.some(c=>c.promotionReasons.includes('DC_CLEAR_VALIDATION')&&c.voltageViolations>0));
 });
