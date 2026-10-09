@@ -8,7 +8,7 @@ export const syntheticCase='20261009_1200_SYNTHETIC';
 export function syntheticBenchmark(caseName=syntheticCase,change?:(files:Record<string,Uint8Array>)=>void,overrides?:Partial<Record<BenchmarkAnalysis,Record<string,Record<string,Cell>[]>>>):File{
   const files:Record<string,Uint8Array>={};
   for(const analysis of ['LF','N1','SC'] as BenchmarkAnalysis[]){
-    const id={studyCase:caseName,studyTime:'2026-10-09 12:00:00',project:'SYNTHETIC',modelHash:'sha256:synthetic-model',scenarioHash:'sha256:synthetic-scenario',topologyHash:'sha256:synthetic-topology',pfVersion:'SYNTHETIC',requestedMethod:analysis==='LF'?'AC_BALANCED':analysis==='N1'?'SCREENING_AC':'IEC 60909',effectiveMethod:analysis==='LF'?'AC_BALANCED':analysis==='N1'?'SCREENING_AC':'IEC 60909',methodVerificationStatus:'VERIFIED_EXACT'};
+    const id={addonVersion:'SYNTHETIC_'+analysis,studyCase:caseName,studyTime:'2026-10-09 12:00:00',project:'SYNTHETIC',modelHash:'sha256:synthetic-model',scenarioHash:'sha256:synthetic-scenario',topologyHash:'sha256:synthetic-topology',pfVersion:'SYNTHETIC',requestedMethod:analysis==='LF'?'AC_BALANCED':analysis==='N1'?'SCREENING_AC':'IEC 60909',effectiveMethod:analysis==='LF'?'AC_BALANCED':analysis==='N1'?'SCREENING_AC':'IEC 60909',methodVerificationStatus:'VERIFIED_EXACT'};
     const sheets=Object.entries(RAW_SCHEMA[analysis]).map(([name,headers])=>{
       const records:Record<string,Cell>[]=[];
       if(name==='Analysis_Manifest_Raw')records.push({...id,analysisType:({LF:'LOAD_FLOW',N1:'N1_CONTINGENCY',SC:'SHORT_CIRCUIT'})[analysis]});
