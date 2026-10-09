@@ -111,4 +111,6 @@ test('Full AC diagnostics distinguish total and final Newton counts and disclose
   assert.ok(label.includes('tam çözüm değil'),label);
   assert.ok(label.includes('istasyon kontrolü kısmi'),label);
   assert.ok(!label.includes('Yakınsadı · P dengesi yakınsadı · istasyon kontrolü yakınsadı'));
+  assert.equal(calculationConvergenceLabel({converged:true,status:'CONVERGED',identity:{analysisType:'dc'}} as never),'DC doğrusal çözüm tamamlandı · P-only');
+  assert.equal(calculationConvergenceLabel({converged:true,status:'CONVERGED',identity:{analysisType:'fastAc'}} as never),'Hızlı yaklaşık AC · CONVERGED');
 });

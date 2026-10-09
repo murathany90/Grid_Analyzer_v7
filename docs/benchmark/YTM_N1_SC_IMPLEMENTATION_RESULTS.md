@@ -61,7 +61,11 @@ Düşük PF gerilim, >1.400 yüzde puan trafo yüklenme farkı ve büyük trafo/
 
 ## Doğrulama ve teslim
 
-Yedi yeni hedefli test; mevcut katalog, hibrit, SC karşılaştırma ve browser smoke genişletildi. Son kontrol sonucu teslim commit'inde güncellenir. Standalone portable HTML: `dist-portable/GridAnalyzer_v7.html`.
+Yedi yeni hedefli test; mevcut katalog, hibrit, SC karşılaştırma ve browser smoke genişletildi. Typecheck ve mimari lint geçti. Tek yerel tam unit/regresyon koşusu 320/321 geçti; legacy sentetik fixture'da identity bulunmayan etiketleme hatası düzeltildi, ilgili dosyanın 8/8 testi geçti. İlgisiz testler yeniden çalıştırılmadı. Standart ve benchmark Chromium smoke, yeni kapsam/resume/MAX-MIN kontrolleri, iptal/toparlanma ve mobil harita testi geçti. Portable benchmark smoke harici ağ engellenmiş halde geçti. Son portable etiket düzeltmesinin ham byte doğrulaması ayrıca çalıştırılır; tam suite ve browser smoke GitHub CI'da tekrar denetlenir.
+
+SN3/SN4 LF anomali kaynak audit'i 10/9 kayıtla tamamlandı. Implementasyon commit'i `66651b3`; teslimde etiket uyumluluğu düzeltmesi ayrıca bulunur. Standalone portable HTML: `dist-portable/GridAnalyzer_v7.html`. SHA-256: `ebaddc5dca5a4e1d3bcbfcecd0af4c4bad2c8daa2607e54081673ec8b17a9a28`.
+
+[Dalın CI koşuları](https://github.com/murathany90/Grid_Analyzer_v7/actions?query=branch%3Afeat%2Fytm-n1-full-ac-iec60909-parity-improvements). Son teslim SHA ve kesin CI durumu kullanıcıya ayrıca iletilir.
 
 ## Kalan kritik engeller
 
