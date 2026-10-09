@@ -130,6 +130,14 @@ e2e PASS; standard build PASS; portable build PASS. The rebuilt portable browser
 smoke also passes with non-loopback requests blocked, including hybrid, SC,
 worker timeout/recovery, diagnostic gates, exports and mobile layout.
 
-Remote / CI: recorded after normal push. The repository commit containing this
-report identifies the final delivery revision; no CI success is claimed until
-the actual run completes.
+Validated remote revision: `4c9b62146db292f6c8e444bc5265e5c76766f40c`;
+`git ls-remote` matched local HEAD after normal push.
+[CI run 37966237782](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/37966237782)
+completed **success**, including Linux unit/regression tests, browser smoke,
+both builds and committed portable raw-byte equality. Portable SHA-256:
+`c0d810d005a3cf7e7f33cb0559975e9d2636aacfbabe382dc6261d6b9994c48f`.
+
+This final evidence entry is a documentation-only follow-up to that validated
+revision. The commit containing this report identifies the delivery revision
+(`git rev-parse HEAD` on the branch); source and portable bytes remain identical.
+The latest delivery CI status/link is reported separately in the task response.
