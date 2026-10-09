@@ -5,8 +5,11 @@ import type { CatalogQuery } from '../app/contracts';
 import type { N1ScreenOptions } from '../domain/n1';
 import type { CapacitySeason } from '../domain/model/capacity';
 import type { AnalysisSettings } from '../domain/calculation/analysis-settings';
+import type { AcOutage } from '../analysis/contingency-ac';
 export type WorkerRequest = {id:number}&(
   {type:'LOAD_MODEL';file:File} | {type:'PREPARE';network:CanonicalNetwork} |
+  {type:'LOAD_BENCHMARK_PAIR';model:File;benchmark:File} |
+  {type:'RUN_N1_AC_VALIDATE';scenario:ScenarioOverlay;outages:AcOutage[];analysisSettings:AnalysisSettings} |
   {type:'RUN_AC'|'RUN_DC'|'RUN_FAST';scenario:ScenarioOverlay;identity:CalculationIdentity;analysisSettings?:AnalysisSettings} |
   {type:'CATALOG';query:CatalogQuery} | {type:'RUN_MODEL_QUALITY';scenario:ScenarioOverlay} |
   {type:'BUILD_N1_CATALOG';scenario:ScenarioOverlay;capacitySeason:CapacitySeason} |

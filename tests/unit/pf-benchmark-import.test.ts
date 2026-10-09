@@ -18,6 +18,7 @@ test('workbook integrity and mixed identities fail atomically',async()=>{
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>f['LF.xlsx'][70]^=1)),/CRC|HASH/);
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>{const raw=JSON.parse(strFromU8(f['N1.json']));raw.identity.studyCase='WRONG';f['N1.json']=strToU8(JSON.stringify(raw));})),/IDENTITY/);
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>delete f['SC.log'])),/exactly/);
+  await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>{const raw=JSON.parse(strFromU8(f['LF.json']));raw.identity.effectiveMethod='DC';f['LF.json']=strToU8(JSON.stringify(raw));})),/IDENTITY.*effectiveMethod/);
 });
 test('archive rejects traversal, case aliases, malformed ZIP and CRC corruption',async()=>{
   for(const names of [['../a.json'],['A.json','a.json'],['C:/a.json']])await assert.rejects(inspectArchive(new Blob([zipSync(Object.fromEntries(names.map(n=>[n,strToU8('{}')])))])),/UNSAFE_ARCHIVE/);

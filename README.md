@@ -4,6 +4,8 @@ Grid Analyzer, DIgSILENT PowerFactory DGS JSON/ZIP şebekelerini tarayıcıda a�
 
 ## Üretim durumu ve kaynaklar
 
+`KARŞILAŞTIRMA` ekranı Model ZIP ve dokuz PowerFactory çıktısından oluşan Benchmark ZIP ile LF/N-1/SC referanslarını açar. Workbook SHA, Study Case, terminal topolojisi ve yöntem kapıları doğrulanmadan sayısal fark üretilmez. N-1 vaka satırından isteğe bağlı GA Full AC doğrulaması çalıştırılır; mevcut DC screening ayrı kalır. SC ekranı PF referansı ve kaynak hazırlığı gösterir; bağımsız IEC motoru henüz hesap üretmez. Benchmark ve gerçek FID içeren exportlar oturumda/yerel dosyada tutulur. Kapsam ve kabul kanıtı: [benchmark raporu](docs/benchmark/IMPLEMENTATION_REPORT.md).
+
 Full AC, DGS + doğrulanmış ControlContext ile çözülür. PowerFactory sayısal sonuçları yalnızca çözümden sonra frozen-state denetimi ve parity ölçümü için okunur. Üretim çözümünde FID düzeltmesi, PF sonucu araması veya ampirik R/X/B/Q katsayısı yoktur. Doğrulanan son aday `pf-parity-v2-validated` annotated tag'idir. Çalışılan `main` SHA'sı `git rev-parse main` ile okunur; SHA dosyanın kendi commit'ine gömülmez.
 
 Doğrulama girdileri:

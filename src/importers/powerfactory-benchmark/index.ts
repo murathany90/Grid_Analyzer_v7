@@ -48,7 +48,7 @@ export async function loadBenchmark(file:File,onProgress:BenchmarkProgress=()=>{
     stage(`READ_${analysis}`);const tables=await readWorkbook(source,analysis,actual,RAW_SCHEMA[analysis],signal);
     const manifest=tables.Analysis_Manifest_Raw;if(manifest.rows.length!==1)fail('SOURCE_SCHEMA_MISMATCH','analysis manifest cardinality');
     const manifestRow=rowObject(manifest,manifest.rows[0]);
-    for(const k of fields)if(String(manifestRow[k]??'')!==identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`workbook ${analysis}.${k}`);
+    for(const k of [...fields,'requestedMethod','effectiveMethod','methodVerificationStatus'])if(typeof identity[k]!=='string'||!identity[k]||String(manifestRow[k]??'')!==identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`workbook ${analysis}.${k}`);
     const manifestAnalysis=({LOAD_FLOW:'LF',N1_CONTINGENCY:'N1',SHORT_CIRCUIT:'SC'} as Record<string,string>)[String(manifestRow.analysisType)]??manifestRow.analysisType;
     if(manifestAnalysis!==analysis)fail('BENCHMARK_IDENTITY_MISMATCH','workbook analysis');
     groups[analysis]={analysis,identity,workbook:{...workbook,sha256:actual},tables,log:{file:log.file.name,text:log.text,sha256:await hashBlob(log.file,signal)},sidecarSha256:await hashBlob(sidecar,signal)};

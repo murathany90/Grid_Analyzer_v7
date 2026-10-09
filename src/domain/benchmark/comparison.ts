@@ -15,7 +15,11 @@ export function preflightBenchmark(b:BenchmarkPackage,n:CanonicalNetwork|null,re
   if(id.effectiveMethod!=='AC_BALANCED'||id.methodVerificationStatus!=='VERIFIED_EXACT')return {status:'NOT_COMPARABLE',reasons:['LF_METHOD_UNVERIFIED'],lf:null,comparison:null};
   const lf=preflightPowerFactoryReference(benchmarkLfReference(b),n,result,controlFile);
   if(!result)return {status:'NOT_COMPARABLE',reasons:['GA_NOT_CALCULATED',...lf.reasons],lf,comparison:null};
-  const report=comparePowerFactoryReference(lf.reference,result,lf.context);
+  // Exporter structural hashes and GA byte/scenario hashes have different algorithms.
+  // Only the independently verified full terminal partition and branch endpoint gate
+  // can issue GA comparison identities. Original exporter hashes stay in b.identity.
+  const verifiedReference=lf.status==='COMPATIBLE'?{...lf.reference,metadata:{...lf.reference.metadata,modelHash:lf.context.modelHash,scenarioHash:lf.context.scenarioHash}}:lf.reference;
+  const report=comparePowerFactoryReference(verifiedReference,result,lf.context);
   const permitted=lf.status==='COMPATIBLE'&&['COMPATIBLE','COMPARABLE_PARTIAL'].includes(report.compatibility.status)&&result.identity.analysisType==='powerFlow'&&result.converged;
   if(!permitted){
     for(const row of report.rows)for(const pair of Object.values(row.metrics))if(pair){pair.comparable=false;pair.delta=null;pair.absoluteDelta=null;pair.deltaPercent=null;}
@@ -26,14 +30,14 @@ export function preflightBenchmark(b:BenchmarkPackage,n:CanonicalNetwork|null,re
 }
 export interface BenchmarkMetricRow {analysis:'LF'|'N1'|'SC';table:string;sourceClass:string;fid:string;name:string;caseId:string;side:string;metric:string;pf:BenchmarkCell;ga:number|null;delta:number|null;absoluteDelta:number|null;deltaPercent:number|null;status:string;reason:string;method:string;ytm:string;tm:string;nominalKv:number|null}
 export const METRICS:Record<string,Record<string,string>>={
-  GA_Reference_Raw:{voltagePu:'pu',voltageKv:'kV',angleDeg:'deg',pFromMw:'MW',qFromMvar:'Mvar',pToMw:'MW',qToMvar:'Mvar',pHvMw:'MW',qHvMvar:'Mvar',pLvMw:'MW',qLvMvar:'Mvar',iFromA:'A',iToA:'A',loadingPercent:'%',pLossMw:'MW',qLossMvar:'Mvar',pResultMw:'MW',qResultMvar:'Mvar'},
+  GA_Reference_Raw:{voltagePu:'pu',voltageKv:'kV',angleDeg:'deg',pFromMw:'MW',qFromMvar:'Mvar',sFromMva:'MVA',pToMw:'MW',qToMvar:'Mvar',sToMva:'MVA',pHvMw:'MW',qHvMvar:'Mvar',sHvMva:'MVA',pLvMw:'MW',qLvMvar:'Mvar',sLvMva:'MVA',iFromA:'A',iToA:'A',loadingPercent:'%',pLossMw:'MW',qLossMvar:'Mvar',pResultMw:'MW',qResultMvar:'Mvar'},
   N1_Cases_Raw:{casePostMaxLoadingPercent:'%',casePostMinVoltagePu:'pu',casePostMaxVoltagePu:'pu'},
   N1_RecordedExtrema_Raw:{postLoadingPercent:'%',postPmw:'MW',postQmvar:'Mvar',postMva:'MVA'},
   SC_BusResults_Raw:{ikssKa:'kA',skssMva:'MVA',ipKa:'kA',ibKa:'kA',ithKa:'kA'},
   SC_CalculationBus_Raw:{ikssKa:'kA',skssMva:'MVA',ipKa:'kA',ibKa:'kA',ithKa:'kA'},
   SC_DeviceResults_Raw:{ikssKa:'kA',ipKa:'kA',ibKa:'kA',ithKa:'kA'},
 };
-export const lfMetricAlias:Record<string,string>={iFromA:'currentFromA',iToA:'currentToA',pResultMw:'pMw',qResultMvar:'qMvar'};
+export const lfMetricAlias:Record<string,string>={iFromA:'currentFromA',iToA:'currentToA',pResultMw:'pMw',qResultMvar:'qMvar',angleDeg:'alignedAngleDeg'};
 export function metricRows(table:RawTable,gate:BenchmarkPreflight,selectedMetric?:string):BenchmarkMetricRow[]{
   const units=METRICS[table.name]||{},matched=new Map<string,NonNullable<BenchmarkPreflight['comparison']>['rows'][number][]>();
   for(const row of gate.comparison?.rows||[]){const key=`${row.kind}|${row.powerFactoryFid}`,rows=matched.get(key)||[];rows.push(row);matched.set(key,rows);}
@@ -44,7 +48,14 @@ export function metricRows(table:RawTable,gate:BenchmarkPreflight,selectedMetric
     const metrics=Object.entries(units).filter(([field])=>!selectedMetric||field===selectedMetric).filter(([field])=>table.analysis!=='LF'||kind==='bus'?table.analysis!=='LF'||['voltagePu','voltageKv','angleDeg'].includes(field):kind==='generator'?['pResultMw','qResultMvar'].includes(field):kind==='line'||kind==='transformer'? !['voltagePu','voltageKv','angleDeg','pResultMw','qResultMvar'].includes(field):false);
     const possible=matched.get(`${kind}|${fid}`),match=possible?.length===1?possible[0]:undefined;
     for(const [metric,unit] of metrics){
-      const pf=readCell(table,i,metric,unit),pair=match?.metrics[(lfMetricAlias[metric]||metric) as keyof typeof match.metrics] as MetricPair|undefined;
+      let pf=readCell(table,i,metric,unit),pair=match?.metrics[(lfMetricAlias[metric]||metric) as keyof typeof match.metrics] as MetricPair|undefined;
+      const apparent=/^s(From|To|Hv|Lv)Mva$/.exec(metric);
+      if(table.analysis==='LF'&&apparent){
+        const pName=`p${apparent[1]}Mw`,qName=`q${apparent[1]}Mvar`,p=readCell(table,i,pName,'MW'),q=readCell(table,i,qName,'Mvar'),pm=match?.metrics[pName as keyof typeof match.metrics] as MetricPair|undefined,qm=match?.metrics[qName as keyof typeof match.metrics] as MetricPair|undefined;
+        const value=p.value!==null&&q.value!==null?Math.hypot(p.value,q.value):null;
+        pf={...p,value,unit:'MVA',rawText:value===null?'':`hypot(${p.rawText}, ${q.rawText})`,availability:value===null?'NOT_RECORDED':value===0?'RECORDED_NUMERIC_ZERO':'RECORDED',qualityFlags:[...p.qualityFlags,...q.qualityFlags,`DERIVED_FROM_P_Q:${p.source.column},${q.source.column}`]};
+        if(pm&&qm&&pm.gridAnalyzer!==null&&qm.gridAnalyzer!==null&&value!==null){const ga=Math.hypot(pm.gridAnalyzer,qm.gridAnalyzer),delta=ga-value;pair={...pm,powerFactory:value,gridAnalyzer:ga,comparable:pm.comparable&&qm.comparable,delta,absoluteDelta:Math.abs(delta),deltaPercent:value===0?null:100*delta/Math.abs(value)};}
+      }
       const available=row.resultAvailable==null||![0,'0',false].includes(row.resultAvailable as never);
       const allowed=table.analysis==='LF'&&gate.status==='COMPARABLE_PARTIAL'&&match?.status==='MATCHED'&&match.matchMethod!=='EXACT_NAME'&&!!pair?.comparable&&available&&pf.value!==null&&pair.powerFactory===pf.value;
       const reason=table.analysis==='N1'?'NOT_COMPARABLE_PF_MISSING: PF case method/status/post-results unverified':table.analysis==='SC'?'PF_REFERENCE_ONLY: independent IEC method parity unavailable':!available?'NOT_RECORDED':!match?'UNMATCHED_OR_AMBIGUOUS':!allowed?pair?.semantics||gate.reasons.join('; ')||'METHOD_MISMATCH':'';

@@ -7,5 +7,6 @@ import '../styles/components.css';
 import '../styles/map.css';
 import '../styles/analysis.css';
 import '../styles/responsive.css';
+import '../styles/benchmark.css';
 const app=new Application();
 mountShell(app,document.getElementById('app')!);

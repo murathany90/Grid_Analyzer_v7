@@ -46,7 +46,7 @@ export async function readWorkbook(file:File,analysis:BenchmarkAnalysis,fileSha2
   const tables:Record<string,RawTable>=Object.create(null);let cellCount=0,rowCount=0;
   for(const {name,part} of sheets){
     const required=expected[name];if(!required)schemaError(`unknown Raw sheet ${name}`);
-    const table:RawTable={name,headers:[],rows:[],rowNumbers:[],metadata:Object.create(null),analysis,fileSha256,headerRow:0};let row:(string|number|null)[]=[],r=0,lastRow=0,column=-1,type='',style=-1,value='',capture=false,hasCache=false,hasFormula=false,flags:string[]=[];
+    const table:RawTable={name,headers:[],rows:[],rowNumbers:[],metadata:Object.create(null),analysis,fileSha256,headerRow:0,cellFlags:Object.create(null)};let row:(string|number|null)[]=[],r=0,lastRow=0,column=-1,type='',style=-1,value='',capture=false,hasCache=false,hasFormula=false,flags:string[]=[];
     await xml(archive,need(part),p=>{
       p.on('opentag',t=>{
         if(t.uri!==SPREADSHEET)schemaError(`namespace in ${name}`);
@@ -67,7 +67,7 @@ export async function readWorkbook(file:File,analysis:BenchmarkAnalysis,fileSha2
           else if(type==='e'){parsed=value;flags.push('EXCEL_ERROR');}
           else if(type==='b'){if(!['0','1'].includes(value))schemaError('boolean encoding');parsed=Number(value);}
           else if((!type||type==='n')&&value!==''){const n=Number(value);if(!Number.isFinite(n))schemaError('invalid numeric value');parsed=n;if(dateStyles.has(style))parsed=new Date((n-(date1904?24107:25569))*86400000).toISOString();}
-          if(hasFormula&&!hasCache)flags.push('FORMULA_CACHE_MISSING');row[column]=parsed;
+          if(hasFormula&&!hasCache)flags.push('FORMULA_CACHE_MISSING');row[column]=parsed;if(flags.length)table.cellFlags![`${r}:${column}`]=flags;
         }
         if(t.local==='row'){
           if(!row.some(v=>v!=null&&v!==''))return;

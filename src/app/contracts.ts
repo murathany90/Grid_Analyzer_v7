@@ -10,11 +10,21 @@ import type { N1Progress, N1ScreenOptions, N1ScreenResult, N1SelectedDetail } fr
 import type { N1CandidateCatalog } from '../domain/n1/catalog';
 import type { CapacitySeason } from '../domain/model/capacity';
 import type { AnalysisSettingsStore } from '../domain/calculation/analysis-settings';
+import type { BenchmarkPackage } from '../domain/benchmark/types';
+import type { ShortCircuitReadiness } from '../domain/benchmark/readiness';
+import type { AcContingency,AcOutage } from '../analysis/contingency-ac';
+import type { BenchmarkMapSelection } from '../domain/benchmark/map-layer';
 export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean }
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
   network: CanonicalNetwork | null;
+  benchmark:BenchmarkPackage|null;
+  benchmarkReadiness:ShortCircuitReadiness|null;
+  n1AcResults:AcContingency[];
+  benchmarkMap:BenchmarkMapSelection|null;
+  loadBenchmarkPair(model:File,benchmark:File):Promise<void>;
+  runN1AcValidation(outages:AcOutage[]):Promise<void>;
   modelQualityResult: ModelQualityAuditResult | null;
   modelQualityScenarioHash: string | null;
   modelQualityAnalysisScope: 'base'|'scenario'|null;

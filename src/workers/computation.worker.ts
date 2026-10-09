@@ -13,6 +13,13 @@ import { effectiveNetwork } from '../domain/scenario/overlay';
 import { prepareModel } from '../analysis/power-flow/preparation';
 import { prepareReduced } from '../analysis/fast-ac/reduced-model';
 import { buildN1CandidateCatalog } from '../domain/n1/catalog';
+import { loadBenchmark } from '../importers/powerfactory-benchmark';
+import { loadBenchmarkModel } from '../importers/powerfactory-benchmark/model';
+import { auditShortCircuitReadiness } from '../importers/powerfactory-benchmark/readiness';
+import { benchmarkControlContext,benchmarkLfReference } from '../domain/benchmark/reference';
+import { applyPowerFactoryControlContext } from '../analysis/validation/powerfactory-control-context';
+import { preflightPowerFactoryReference } from '../analysis/validation/powerfactory-preflight';
+import { validateAcOutages } from '../analysis/contingency-ac';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -21,7 +28,17 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
   const send=(response:Omit<WorkerResponse,'id'>,transfer:Transferable[]=[])=>scope.postMessage({...response,id:data.id},transfer);
   const progress=(stage:string,detail?:Record<string,unknown>)=>send({type:'PROGRESS',stage,detail});
   try{
-    if(data.type==='LOAD_MODEL'){
+    if(data.type==='LOAD_BENCHMARK_PAIR'){
+      const benchmark=await loadBenchmark(data.benchmark,progress),loaded=await loadBenchmarkModel(data.model,progress);
+      if(loaded.network.studyCase!==benchmark.groups.LF.identity.studyCase)throw Error('BENCHMARK_IDENTITY_MISMATCH: model Study Case');
+      const context=benchmarkControlContext(benchmark),updated=applyPowerFactoryControlContext(loaded.network,context),preflight=preflightPowerFactoryReference(benchmarkLfReference(benchmark),updated,null);
+      if(preflight.reasons.some(r=>!r.includes('Yakınsamış Tam AC')))throw Error(`BENCHMARK_TOPOLOGY_MISMATCH: ${preflight.reasons.join('; ')}`);
+      const readiness=auditShortCircuitReadiness(loaded.raw);source=loaded.source;network=updated;
+      send({type:'RESULT',value:{network,benchmark,readiness,controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file}});
+    }else if(data.type==='RUN_N1_AC_VALIDATE'){
+      if(!network)throw Error('Model yüklenmedi.');
+      send({type:'RESULT',value:await validateAcOutages(network,data.scenario,data.outages,{maxCases:3,timeBudgetMs:120000,analysisSettings:data.analysisSettings,onProgress:progress})});
+    }else if(data.type==='LOAD_MODEL'){
       progress('MODEL',{message:'Dosya okunuyor'});const started=performance.now(),buffer=await data.file.arrayBuffer();
       const digest=await crypto.subtle.digest('SHA-256',buffer),modelHash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
       const text=new TextDecoder().decode(buffer),parseStart=performance.now(),raw=JSON.parse(text.replace(/^\uFEFF/,'')),parseMs=performance.now()-parseStart;

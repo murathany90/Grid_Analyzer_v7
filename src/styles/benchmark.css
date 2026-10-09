@@ -1,0 +1,16 @@
+.ga-benchmark .ga-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ga-benchmark .ga-field{display:flex;flex-direction:column;gap:5px;min-width:240px}
+.ga-benchmark input,.ga-benchmark select{max-width:290px;padding:7px;border:1px solid var(--edge);border-radius:5px;background:var(--panel2);color:var(--text)}
+.ga-benchmark nav button[aria-pressed=true]{background:#116b78;border-color:#259aab}
+.ga-benchmark .ga-table-wrap{max-height:58vh;overflow:auto;border:1px solid var(--edge);border-radius:7px}
+.ga-benchmark .ga-table{width:100%;font-size:11px;white-space:nowrap}
+.ga-benchmark .ga-table th{position:sticky;top:0;background:var(--panel2);z-index:1;text-align:left}
+.ga-benchmark .ga-table td,.ga-benchmark .ga-table th{padding:8px;max-width:310px;overflow:hidden;text-overflow:ellipsis}
+.ga-benchmark .ga-table tr[tabindex]{cursor:pointer}
+.ga-benchmark .ga-table tr[tabindex]:focus{outline:2px solid #63bdcf;outline-offset:-2px}
+.ga-benchmark-coverage{font-size:12px;padding:8px 0;display:grid;gap:8px}
+.ga-benchmark-coverage meter{width:150px;margin-left:10px}
+.ga-benchmark .ga-notice{white-space:pre-wrap;overflow-wrap:anywhere}
+.ga-benchmark details{padding:10px 0}
+.ga-benchmark-map-controls{flex-wrap:wrap}
+@media(max-width:700px){.ga-benchmark .ga-field{min-width:0;width:100%}.ga-benchmark input,.ga-benchmark select{max-width:100%}.ga-benchmark .ga-toolbar>select,.ga-benchmark .ga-toolbar>input{flex:1;min-width:130px}}
