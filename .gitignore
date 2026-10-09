@@ -14,3 +14,5 @@ playwright-report/
 /control1/
 control1/*.json
 control1/**/*.json
+/.local-fixtures/
+/local-benchmark-results/
