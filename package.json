@@ -22,7 +22,9 @@
     "vite": "^8.3.1"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "fflate": "0.8.3",
-    "klu-js": "0.1.0"
+    "klu-js": "0.1.0",
+    "saxes": "6.0.0"
   }
 }

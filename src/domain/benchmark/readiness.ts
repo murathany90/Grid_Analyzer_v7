@@ -1,0 +1,3 @@
+export type ReadinessStatus='SUPPORTED'|'PARTIAL_SOURCE'|'INVALID_SOURCE'|'MISSING_ZERO_SEQUENCE'|'MISSING_SOURCE_MODEL'|'UNSUPPORTED_CLASS'|'METHOD_UNVERIFIED';
+export interface SourceReadiness {sourceClass:string;fid:string;status:ReadinessStatus;reasons:string[];availableFields:string[];missingFields:string[];subset:'3PH_POSITIVE_SEQUENCE'|'GROUND_SEQUENCE'|'UNSUPPORTED';inService:boolean|null}
+export interface ShortCircuitReadiness {method:'GA_IEC60909_READINESS';edition:string|null;status:'NOT_COMPUTABLE';reasons:string[];rows:SourceReadiness[];counts:Partial<Record<ReadinessStatus,number>>}
