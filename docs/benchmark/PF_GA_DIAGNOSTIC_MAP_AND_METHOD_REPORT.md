@@ -192,23 +192,32 @@ null and Ip/Ib/Ith/unbalanced results null are retained. Blocked is never 0 kA.
 
 ## Real portable browser measurements
 
-Windows, installed Chrome 154.0.8037.99, portable HTML served from
-http://127.0.0.1:5182, Core Ultra 7 155U, 14 logical CPUs, 15.5 GiB system RAM.
-Pre-delivery measurement: SN3 loaded 47.777 s; SN4 45.691 s, both independent
-Full AC CONVERGED and EXPLORATORY_DELTA map displayed without page errors.
-Checkpoints at 5/30 seconds show honest elapsed time, compressed bytes and worker
-stage. Both loads completed before 60 s; 60/120/180 s checkpoints therefore were
-not needed, rather than counted as passed. Final artifact measurements are
-recorded below after the release checks.
+Windows, installed Chrome 154.0.8037.99, portable HTML at localhost
+(http://127.0.0.1:5182), Core Ultra 7 155U, 14 logical CPUs, 15.5 GiB RAM.
+Final artifact SHA-256: 63b46270d5e97b42ecd96d5d7a49bd1106ba9e5fcf0facd59a43fbf1d8685b5f. Both private browser profiles
+record exactly this committed artifact hash.
 
-Main-thread comparison/clone/render stalls remain 10–14 s in measured runs.
-Parser/provenance workers and hidden-view render suppression improve placement
-of work but do not establish continuous UI responsiveness. CDP main-isolate
-heap is measured, not total browser/worker peak heap or browser RSS. Node profiler
-RSS is a separate process metric; complete browser OOM/peak memory budget and
-reliable interaction during every long stall remain NOT_VERIFIED. Reduced
-synthetic native-JSON/OOXML stress, actual worker termination and successful
-reload run in CI; they cannot substitute for full-size responsiveness.
+| Measurement | SN3 | SN4 |
+|---|---:|---:|
+| Benchmark ready (s) | 34.353 | 30.744 |
+| Final main-isolate heap used (MiB) | 509.84 | 437.14 |
+| Final main-isolate heap total (MiB) | 582.53 | 498.04 |
+| Maximum measured event-loop stall (s) | 8.792 | 5.606 |
+| Independent LF / diagnostic map | CONVERGED / displayed | CONVERGED / displayed |
+| Page errors | 0 | 0 |
+
+Checkpoints at 5/30 seconds show elapsed time, compressed input bytes and worker
+stages. Both loads completed before 60 s; 60/120/180 s checkpoints were not
+needed and are not counted as passes. Earlier measurements loaded in 40–52 s
+and stalled for 10–14 s, illustrating run/concurrency variability.
+Source/provenance workers and hidden-view render suppression improve placement
+of work but continuous UI responsiveness remains unverified: final measured
+stalls of 8.792/5.606 s leave performance acceptance PARTIAL.
+CDP heap is the main isolate at a sample, not total browser/worker peak or RSS.
+The profiler's Node RSS is a separate process measurement. Full browser OOM/peak
+memory budget and reliable interaction during every long stall are NOT_VERIFIED.
+Reduced synthetic native-JSON/OOXML stress, actual worker termination and
+successful reload run in CI; they do not establish full-size responsiveness.
 
 ## Regression and delivery evidence
 
@@ -216,5 +225,24 @@ Baseline: npm ci, typecheck, lint, 308/308 tests, browser E2E and portable build
 Correction: typecheck/lint, dev E2E and offline portable E2E PASS. Both real LF
 CLI runs and both 20-case hybrid/SC acceptance runs completed. Protected NR/KLU
 Full AC, old DC screening and DGS importer source paths are unchanged.
-Final full regression/committed portable raw-byte equality and remote CI are
-recorded after the implementation commit; no pending check is counted as PASS.
+Implementation commit: 163646491ca250660e632ad2b2d4335e03ed2fe7.
+Final typecheck, lint, **314/314 tests (0 skipped)**, dev E2E, offline portable E2E,
+standard and portable builds PASS. The 308 baseline tests are retained, with
+six added tests. Committed artifact raw-byte equality, LF-only and repeated
+build determinism PASS. npm run test:full is **SKIPPED / SOURCE_UNAVAILABLE**,
+not a passing full-model test. Both real fixtures use the separate local CLI
+acceptance path instead.
+
+[Implementation CI #68](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/37979089638)
+completed **success**, including Ubuntu portable raw-byte equality and browser
+smoke. This is code/release evidence, not PF parity. This report's delivery-only
+follow-up commit changes documentation; its final remote SHA and CI are
+verified separately at delivery.
+
+Normal push targets only the new fix branch. Remote protected references
+remain main=f13567add3a0d4b16d4dc164b6a9cd645d5fa2b5,
+feat/pf-sn3-sn4-benchmark-20261009=b85ca2fe35b154cf9f8c5204716ddf2219bf7cb2,
+feat/ga-n1-hybrid-iec60909-20261009=0cf28d030c06316488515eeb275407d896fc7f68.
+No merge/force push or private input/output upload occurred.
+Real IEC/PF certification and continuous large-data responsiveness remain
+explicitly unverified; the delivered diagnostics do not claim those results.
