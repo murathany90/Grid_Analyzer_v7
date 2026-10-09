@@ -17,7 +17,7 @@ function index(b:BenchmarkPackage){
 export function auditScPartition(b:BenchmarkPackage,f:ScFaultResult,p:ScProfile,raw?:Row){
   const i=index(b),reasons=new Set<ScPartitionReason>(),members=f.physicalTerminalFids,rows=members.flatMap(fid=>i.physical.get(fid)??[]),keys=new Set(rows.map(nativeKey).filter(Boolean));
   const key=keys.size===1?[...keys][0]:'',pf=i.groups.get(key)??[],calc=i.electrical.get(key)??[],pfMembers=new Set(pf.map(r=>String(r.physicalTerminalFid??''))),gaMembers=new Set(members);
-  if(keys.size!==1||raw&&nativeKey(raw)!==key)reasons.add('SOURCE_PARTITION_MISMATCH');
+  if(members.length!==gaMembers.size||keys.size!==1||raw&&nativeKey(raw)!==key)reasons.add('SOURCE_PARTITION_MISMATCH');
   if(!members.length||members.some(fid=>!i.physical.has(fid))||[...pfMembers].some(fid=>!gaMembers.has(fid))||pfMembers.size!==gaMembers.size)reasons.add('MISSING_MEMBERS');
   if(members.some(fid=>(i.physical.get(fid)?.length??0)>1)||pf.length!==pfMembers.size||calc.length>1)reasons.add('DUPLICATE_PF_MEMBERS');
   for(const c of calc){if(c.physicalTerminalCount!==pfMembers.size)reasons.add('MISSING_MEMBERS');if(!pfMembers.has(String(c.representativePhysicalTerminalFid??'')))reasons.add('SOURCE_PARTITION_MISMATCH');}

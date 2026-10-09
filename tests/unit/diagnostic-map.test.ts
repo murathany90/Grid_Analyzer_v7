@@ -34,6 +34,7 @@ test('hybrid map resolves exact case, keeps partial island absence and invalidat
   const hybrid=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}}),ctx={network:n,hybridResult:hybrid,n1AcResults:[],n1Result:null,resultStore:{get:()=>null},analysisSettings:settings,scenario};
   const s:BenchmarkMapSelection={analysis:'N1',source:'GA',metric:'postVoltagePu',table:'N1_RecordedExtrema_Raw',caseId:'N1:ElmLne:BYPASS'};
   const map=buildBenchmarkMapData(ctx as never,s);assert.ok(map.enabled);assert.equal(map.sites.size,3);assert.match(map.sites.get('B2')!.details.join(),/HYBRID_FULL_AC/);
+  const baseMap=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'BASE'}),change=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'CHANGE'});assert.equal(baseMap.sites.get('B2')?.value,hybrid.basePost?.buses.find(b=>b.terms.includes('B2'))?.vmPu);assert.ok(Math.abs(change.sites.get('B2')!.value!-(map.sites.get('B2')!.value!-baseMap.sites.get('B2')!.value!))<1e-12);assert.ok(change.scale);
   assert.ok(!buildBenchmarkMapData(ctx as never,{...s,caseId:'N1:ElmLne:L0'}).enabled);
   assert.ok(!buildBenchmarkMapData({...ctx,hybridResult:{...hybrid,identity:{...hybrid.identity,settingsHash:'WRONG'}}} as never,s).enabled);
   const resumed=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:5},resume:hybrid});assert.equal(resumed.counts.AC_CALCULATED,3);
