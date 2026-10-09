@@ -29,7 +29,8 @@ export function createCalculationActions(ctx:AppContext,analysis:()=>string,sele
   scPanel.append(element('h3','','GA bağımsız 3PH MAX'),element('p','ga-muted','CALCULATED_NETWORK_APPROXIMATION: fiziksel kaynak R/X gerekir; IEC edisyonu ve düzeltmeleri doğrulanmış değildir. Ip/Ib/Ith null. 1LG/LL/2LG kapalıdır. Kaynak veya converter katkısı eksikse ilgili fault BLOCKED.'),factor.w,faultBudget.w,scTime.w,terminals,scRun,button('SC durdur',()=>ctx.cancel()),button('SC JSON',()=>downloadText(JSON.stringify(ctx.scResult,null,2),'GA_SC.local.json','application/json')),button('SC CSV',()=>downloadText(csvDocument(scRows()),'GA_SC.local.csv','text/csv;charset=utf-8')),button('SC XLSX',()=>downloadComparisonWorkbook([{name:'SC',rows:scRows()}])),button('SC alan audit JSON',()=>downloadText(JSON.stringify(ctx.scContext?.audit??[],null,2),'GA_SC_Field_Audit.local.json','application/json')),scSummary,scDetails);
   let network=ctx.network,loaded=false,limitsFromManifest=false;
   const invalidateHybrid=()=>{if(ctx.busy)ctx.cancel();ctx.hybridResult=null;ctx.notify();};
-  for(const i of [threshold.input,budget.input,perCase.input,global.input,loading.input,vmin.input,vmax.input,scope,season,...riskInputs.values()])i.onchange=invalidateHybrid;
+  for(const i of [threshold.input,loading.input,vmin.input,vmax.input,scope,season,...riskInputs.values()])i.onchange=invalidateHybrid;
+  for(const i of [budget.input,perCase.input,global.input])i.onchange=()=>{if(ctx.busy)ctx.cancel();ctx.notify();};
   const invalidateSc=()=>{if(ctx.busy)ctx.cancel();ctx.scResult=null;ctx.notify();};
   for(const i of [factor.input,faultBudget.input,scTime.input,terminals])i.onchange=invalidateSc;
   function render(){

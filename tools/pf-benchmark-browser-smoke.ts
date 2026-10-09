@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
+import {zipSync,strToU8} from 'fflate';
+import {syntheticCase} from '../tests/helpers/benchmark';
 import { syntheticBenchmarkPair } from '../tests/helpers/benchmark-model';
 import { createServer } from 'node:http';
 import { readFile,mkdir } from 'node:fs/promises';
@@ -56,11 +58,34 @@ try{
   if(!(await view.textContent())?.includes('CALCULATED_NETWORK_APPROXIMATION'))throw Error('Independent browser SC engine did not compute');
   await view.getByLabel('Karşılaştırma metriği').selectOption('ikssKa');await view.getByLabel('Tanısal farkları göster').check();
   if(!(await view.locator('tbody').textContent())?.includes('EXPLORATORY_DELTA_METHOD_UNVERIFIED'))throw Error('SC diagnostic identity/delta gate failed');
+  await view.locator('summary').filter({hasText:'Tanısal dağılım: PF–GA ve |Δ|'}).click();
+  const plots=view.locator('summary').filter({hasText:'Tanısal dağılım: PF–GA ve |Δ|'}).locator('..');await plots.getByText(/EXPLORATORY_DELTA_METHOD_UNVERIFIED/).waitFor();
+  if(!await plots.getByLabel('Tanısal PF GA scatter').isVisible()||!await plots.getByLabel('Tanısal mutlak fark histogramı').isVisible()||!(await plots.locator('pre').textContent())?.includes('En büyük 20'))throw Error('Diagnostic plots or private worst-cell list missing');
   await page.getByRole('button',{name:'Harita',exact:true}).click();await page.getByLabel('Benchmark harita analizi').selectOption('SC');
   if(await page.getByLabel('Benchmark harita kaynağı').locator('option[value="GA"]').isDisabled())throw Error('Calculated GA SC map stayed disabled');
   await page.getByLabel('Benchmark harita kaynağı').selectOption('GA');
+  // Exercise actual production canvas pixels, not the color helper.
+  const loadPair=async(p:ReturnType<typeof syntheticBenchmarkPair>)=>{await page.getByRole('button',{name:'KARŞILAŞTIRMA',exact:true}).click();for(const [label,file]of [['Model ZIP',p.model],['Benchmark ZIP',p.benchmark]] as const)await view.getByLabel(label,{exact:true}).setInputFiles({name:file.name,mimeType:'application/zip',buffer:Buffer.from(await file.arrayBuffer())});await view.getByRole('button',{name:'İki ZIP’i aç',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('Benchmark hazır'));};
+  const pixels=async()=>{await page.waitForTimeout(250);return page.locator('#networkCanvas').evaluate((c:HTMLCanvasElement)=>{const r=c.getBoundingClientRect(),d=devicePixelRatio||1,scale=Math.min(r.width/21,r.height/10);return [0,1].map(i=>[...c.getContext('2d')!.getImageData(Math.round((r.width/2+i*scale)*d),Math.round(r.height/2*d),1,1).data].slice(0,3));});};
+  const expectPixel=async(index:number,rgb:number[])=>{const got=(await pixels())[index];if(got.some((v,i)=>Math.abs(v-rgb[i])>1))throw Error(`Canvas pixel ${index}: ${got} != ${rgb}`);};
+  await loadPair(syntheticBenchmarkPair(false,true));await view.getByRole('button',{name:'GA Tam AC baz hesabı',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('NR yakınsadı'));
+  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.getByLabel('Benchmark harita analizi').selectOption('LF');await page.getByLabel('Benchmark harita metriği').selectOption('voltagePu');await page.getByLabel('Benchmark harita kaynağı').selectOption('PF');await expectPixel(0,[119,187,172]);
+  await page.getByLabel('Benchmark harita kaynağı').selectOption('GA');await expectPixel(0,[119,187,172]);await page.getByLabel('Tanısal harita farklarını onayla').check();await page.getByLabel('Benchmark harita kaynağı').selectOption('EXPLORATORY_DELTA');await expectPixel(0,[235,118,91]);await expectPixel(1,[126,187,201]);
+  if(!(await page.locator('.ga-map-legend').textContent())?.includes('EXPLORATORY_DELTA_METHOD_UNVERIFIED'))throw Error('Diagnostic legend missing');if(!await page.getByLabel('Benchmark harita kaynağı').locator('option[value="DELTA"]').isDisabled())throw Error('Certified delta opened during diagnostic rendering');
+  await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/diagnostic-canvas-synthetic.png'});
+  await page.getByRole('button',{name:'KARŞILAŞTIRMA',exact:true}).click();await view.getByRole('button',{name:'N-1',exact:true}).click();await view.getByRole('button',{name:'Otomatik hibrit (DC → Full AC)',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('N-1 hibrit ·'));
+  await page.getByRole('button',{name:'Harita',exact:true}).click();await page.getByLabel('Benchmark harita analizi').selectOption('N1');await page.getByLabel('Benchmark harita metriği').selectOption('postVoltagePu');await page.getByLabel('Benchmark harita kaynağı').selectOption('GA');await expectPixel(0,[119,187,172]);await expectPixel(1,[112,133,150]);
+  await loadPair(syntheticBenchmarkPair(false,true,[1,null]));await view.getByRole('button',{name:'GA Tam AC baz hesabı',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('NR yakınsadı'));await page.getByRole('button',{name:'Harita',exact:true}).click();await page.getByLabel('Benchmark harita analizi').selectOption('LF');await page.getByLabel('Benchmark harita metriği').selectOption('voltagePu');await page.getByLabel('Tanısal harita farklarını onayla').check();await page.getByLabel('Benchmark harita kaynağı').selectOption('EXPLORATORY_DELTA');await expectPixel(0,[166,183,192]);await expectPixel(1,[112,133,150]);
+  // Reduced CI stress: multi-MiB native JSON plus 2,000 OOXML device records.
+  const stress=syntheticBenchmarkPair(false,false,[1,1],2000),largeRaw={...stress.raw,IntDocument:{Attributes:['FID','loc_name','body'],Values:Array.from({length:2000},(_,i)=>[`DOC-${i}`,'Synthetic stress','x'.repeat(1024)])}};
+  const stressModel=new File([zipSync({[syntheticCase+'.json']:strToU8(JSON.stringify(largeRaw))})],syntheticCase+'.zip'),stressBenchmark=stress.benchmark;
+  await page.getByRole('button',{name:'KARŞILAŞTIRMA',exact:true}).click();for(const [label,file]of [['Model ZIP',stressModel],['Benchmark ZIP',stressBenchmark]] as const)await view.getByLabel(label,{exact:true}).setInputFiles({name:file.name,mimeType:'application/zip',buffer:Buffer.from(await file.arrayBuffer())});
+  await page.evaluate(()=>{const w=window as typeof window&{loadNativeWorker:typeof Worker;loadTerminated:number};w.loadNativeWorker=Worker;w.loadTerminated=0;const Native=Worker;window.Worker=class extends Native{constructor(){super(URL.createObjectURL(new Blob(['onmessage=()=>{while(true){}}'],{type:'text/javascript'})));}terminate(){w.loadTerminated++;super.terminate();}} as typeof Worker;});
+  await view.getByRole('button',{name:'İki ZIP’i aç',exact:true}).click();await page.waitForTimeout(1100);if(!(await page.locator('footer [role="status"]').textContent())?.includes('süre'))throw Error('Loading elapsed/bytes heartbeat missing');
+  await view.getByRole('button',{name:'İptal',exact:true}).click();if(!await page.evaluate(()=>(window as typeof window&{loadTerminated:number}).loadTerminated))throw Error('Load cancel did not terminate source worker');await page.evaluate(()=>{window.Worker=(window as typeof window&{loadNativeWorker:typeof Worker}).loadNativeWorker;});
+  await view.getByRole('button',{name:'İki ZIP’i aç',exact:true}).click();await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.startsWith('Benchmark hazır'));if(!await view.locator('tbody tr').count())throw Error('Stress import has no ready reference view');
   await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'KARŞILAŞTIRMA',exact:true}).click();await view.locator('tbody tr').first().waitFor();
   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Benchmark mobile page overflows the viewport');
   if(portable){await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/portable-benchmark-mobile.png',fullPage:true});}
-  if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: two ZIP / PF-only / LF / N1 partial + hybrid / CPU worker timeout + recovery / independent SC + diagnostic / export / map gates / mobile');
+  if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: two ZIP / PF-only / LF / N1 partial + hybrid / CPU worker timeout + recovery / independent SC + diagnostic / export / signed canvas pixels + hybrid case / reduced JSON+OOXML stress / load cancellation+recovery / mobile');
 }finally{await browser.close();if('kill' in server)server.kill();else server.close();}

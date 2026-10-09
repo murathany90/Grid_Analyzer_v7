@@ -4,13 +4,17 @@ import { comparePowerFactoryReference, type PowerFactoryComparison, type MetricP
 import { preflightPowerFactoryReference, type ReferencePreflight } from '../../analysis/validation/powerfactory-preflight';
 import { benchmarkLfReference } from './reference';
 import { readCell, rowObject, type BenchmarkPackage, type RawTable, type BenchmarkCell } from './types';
+import {lfSnapshotIsCurrent} from './post-result-source';
 import {augmentCalculatedRow,type MetricOptions} from './calculated-comparison';
 export type {MetricOptions} from './calculated-comparison';
 
 export type ComparisonStatus='COMPARABLE_FULL'|'COMPARABLE_PARTIAL'|'EXPLORATORY_ONLY'|'NOT_COMPARABLE'|'BLOCKED';
 export interface BenchmarkPreflight {status:ComparisonStatus;reasons:string[];lf:ReferencePreflight|null;comparison:PowerFactoryComparison|null}
+const preparedPreflights=new WeakMap<BenchmarkPackage,{network:CanonicalNetwork;result:CalculationResult|null;controlFile:string|null|undefined;gate:BenchmarkPreflight}>();
+export function seedBenchmarkPreflight(b:BenchmarkPackage,n:CanonicalNetwork,r:CalculationResult|null,controlFile:string|null|undefined,gate:BenchmarkPreflight){preparedPreflights.set(b,{network:n,result:r,controlFile,gate});}
 /** Identity + topology + method gates. A different hash algorithm never proves equality. */
 export function preflightBenchmark(b:BenchmarkPackage,n:CanonicalNetwork|null,result:CalculationResult|null,controlFile?:string|null):BenchmarkPreflight{
+  const prepared=preparedPreflights.get(b);if(prepared&&prepared.network===n&&prepared.result===result&&prepared.controlFile===controlFile)return prepared.gate;
   if(!n)return {status:'NOT_COMPARABLE',reasons:['MODEL_NOT_LOADED'],lf:null,comparison:null};
   const id=b.groups.LF.identity;
   if((n.studyCase||n.name.replace(/\.(json|zip)$/i,''))!==id.studyCase)return {status:'BLOCKED',reasons:['MODEL_STUDY_CASE_MISMATCH'],lf:null,comparison:null};
@@ -30,7 +34,7 @@ export function preflightBenchmark(b:BenchmarkPackage,n:CanonicalNetwork|null,re
   const status:ComparisonStatus=permitted?'COMPARABLE_PARTIAL':lf.status==='BLOCKED'?'BLOCKED':'EXPLORATORY_ONLY';
   return {status,reasons:[...lf.reasons,...report.compatibility.reasons],lf,comparison:report};
 }
-export interface BenchmarkMetricRow {analysis:'LF'|'N1'|'SC';table:string;sourceClass:string;fid:string;name:string;caseId:string;side:string;metric:string;pf:BenchmarkCell;ga:number|null;delta:number|null;absoluteDelta:number|null;deltaPercent:number|null;diagnosticDelta?:number|null;identityMatched?:boolean;sourceCellKey?:string;status:string;reason:string;method:string;ytm:string;tm:string;nominalKv:number|null}
+export interface BenchmarkMetricRow {analysis:'LF'|'N1'|'SC';table:string;sourceClass:string;fid:string;name:string;caseId:string;side:string;metric:string;pf:BenchmarkCell;ga:number|null;delta:number|null;absoluteDelta:number|null;deltaPercent:number|null;diagnosticDelta?:number|null;identityMatched?:boolean;sourceCellKey?:string;status:string;reason:string;method:string;ytm:string;tm:string;nominalKv:number|null;kind?:string}
 export const METRICS:Record<string,Record<string,string>>={
   GA_Reference_Raw:{voltagePu:'pu',voltageKv:'kV',angleDeg:'deg',pFromMw:'MW',qFromMvar:'Mvar',sFromMva:'MVA',pToMw:'MW',qToMvar:'Mvar',sToMva:'MVA',pHvMw:'MW',qHvMvar:'Mvar',sHvMva:'MVA',pLvMw:'MW',qLvMvar:'Mvar',sLvMva:'MVA',iFromA:'A',iToA:'A',loadingPercent:'%',pLossMw:'MW',qLossMvar:'Mvar',pResultMw:'MW',qResultMvar:'Mvar'},
   N1_Cases_Raw:{casePostMaxLoadingPercent:'%',casePostMinVoltagePu:'pu',casePostMaxVoltagePu:'pu'},
@@ -41,6 +45,7 @@ export const METRICS:Record<string,Record<string,string>>={
 };
 export const lfMetricAlias:Record<string,string>={iFromA:'currentFromA',iToA:'currentToA',pResultMw:'pMw',qResultMvar:'qMvar',angleDeg:'alignedAngleDeg'};
 export function metricRows(table:RawTable,gate:BenchmarkPreflight,selectedMetric?:string,options:MetricOptions={}):BenchmarkMetricRow[]{
+  const nativeIds=options.network?new Set([...options.network.buses,...options.network.lines,...options.network.transformers,...options.network.generators].map(e=>`${e.sourceClass}:${e.sourceId}`)):null;
   const units=METRICS[table.name]||{},matched=new Map<string,NonNullable<BenchmarkPreflight['comparison']>['rows'][number][]>();
   const referenceByKey=new Map<string,NonNullable<BenchmarkPreflight['lf']>['reference']['records']>();
   for(const r of gate.lf?.reference.records??[])for(const fid of new Set([r.fid,...r.fids??[],...r.physicalTerminalFids??[]].filter(Boolean))){const key=`${r.kind}|${fid}`,group=referenceByKey.get(key)??[];group.push(r);referenceByKey.set(key,group);}
@@ -65,10 +70,13 @@ export function metricRows(table:RawTable,gate:BenchmarkPreflight,selectedMetric
       // Native field provenance + full partition/endpoint preflight issue this mapping.
       // Numeric coincidence never establishes source-cell identity.
       const refs=referenceByKey.get(`${kind}|${fid}`)??[];
-      const provenance=refs.length===1&&!refs[0].conflictedMetrics?.includes((lfMetricAlias[metric]||metric) as never)&&!!pair&&pair.powerFactory!==null&&match?.status==='MATCHED'&&match.matchMethod!=='EXACT_NAME'&&gate.lf?.status==='COMPATIBLE'&&pair.unit.toLowerCase()===unit.toLowerCase();
+      const nativeUnitValid=!row.unit||String(row.unit).toLowerCase()===unit.toLowerCase(),phaseValid=!row.phase||['ABC','3PH','BALANCED'].includes(String(row.phase).toUpperCase()),qualityValid=pf.qualityFlags.every(f=>f.startsWith('DERIVED_FROM_P_Q:'));
+      const snapshotValid=options.lfResult===undefined||!!options.scenario&&lfSnapshotIsCurrent(options.lfResult,options.network??null,options.scenario,options.settings);
+      const nativeIdentityValid=!nativeIds||nativeIds.has(`${row.sourceClass}:${fid}`);
+      const provenance=nativeIdentityValid&&snapshotValid&&nativeUnitValid&&phaseValid&&qualityValid&&refs.length===1&&!refs[0].conflictedMetrics?.includes((lfMetricAlias[metric]||metric) as never)&&!!pair&&pair.powerFactory!==null&&match?.status==='MATCHED'&&match.matchMethod!=='EXACT_NAME'&&gate.lf?.status==='COMPATIBLE'&&pair.unit.toLowerCase()===unit.toLowerCase();
       const allowed=table.analysis==='LF'&&gate.status==='COMPARABLE_PARTIAL'&&provenance&&!!pair?.comparable&&available&&!sentinel&&pf.value!==null;
       const reason=table.analysis==='N1'?'NOT_COMPARABLE_PF_MISSING: PF case method/status/post-results unverified':table.analysis==='SC'?'PF_REFERENCE_ONLY: independent IEC method parity unavailable':!available?'NOT_RECORDED':sentinel?'SENTINEL_SEMANTICS_UNVERIFIED':!match?possible&&possible.length>1?'AMBIGUOUS':'UNMATCHED_OR_AMBIGUOUS':!allowed?[...(gate.status!=='COMPARABLE_PARTIAL'?gate.reasons:[]),pair?.semantics||'METRIC_OR_METHOD_UNVERIFIED'].join('; '):'';
-      const r:BenchmarkMetricRow={analysis:table.analysis,table:table.name,sourceClass:String(row.sourceClass??row.affectedClass??row.elementClass??row.outageClass??(table.analysis==='SC'?'ElmTerm':'')),fid,name:String(row.name??row.physicalTerminalName??row.elementName??row.outageName??row.caseName??''),caseId:String(row.caseId??''),side:String(row.side??row.postPowerEndpoint??''),metric,pf,ga:available?pair?.gridAnalyzer??null:null,delta:allowed?pair!.delta:null,absoluteDelta:allowed?pair!.absoluteDelta:null,deltaPercent:allowed?pair!.deltaPercent:null,status:allowed?'COMPARABLE_PARTIAL':pf.availability==='NOT_RECORDED'?'NOT_RECORDED':table.analysis==='SC'?'PF_REFERENCE_ONLY':table.analysis==='N1'?'PF_RECORDED_EXTREMA':'NOT_COMPARABLE',reason,method:table.analysis==='LF'?'AC_BALANCED':table.analysis==='N1'?'PF_RECORDED_EXTREMA':'PF_IEC60909_3PH_MAX',ytm:String(row.ytmName??row.outageYtm??''),tm:String(row.substationName??row.siteName??''),nominalKv:typeof row.nominalKv==='number'?row.nominalKv:typeof row.voltageLevelKv==='number'?row.voltageLevelKv:null,diagnosticDelta:null,identityMatched:table.analysis==='LF'&&!!provenance,sourceCellKey:`${pf.source.fileSha256}|${pf.source.sheet}|${pf.source.row}|${pf.source.column}|${kind}|${fid}`};
+      const r:BenchmarkMetricRow={analysis:table.analysis,table:table.name,sourceClass:String(row.sourceClass??row.affectedClass??row.elementClass??row.outageClass??(table.analysis==='SC'?'ElmTerm':'')),fid,name:String(row.name??row.physicalTerminalName??row.elementName??row.outageName??row.caseName??''),caseId:String(row.caseId??''),side:String(row.side??row.postPowerEndpoint??''),metric,pf,ga:available?pair?.gridAnalyzer??null:null,delta:allowed?pair!.delta:null,absoluteDelta:allowed?pair!.absoluteDelta:null,deltaPercent:allowed?pair!.deltaPercent:null,status:allowed?'COMPARABLE_PARTIAL':pf.availability==='NOT_RECORDED'?'NOT_RECORDED':table.analysis==='SC'?'PF_REFERENCE_ONLY':table.analysis==='N1'?'PF_RECORDED_EXTREMA':'NOT_COMPARABLE',reason,method:table.analysis==='LF'?'AC_BALANCED':table.analysis==='N1'?'PF_RECORDED_EXTREMA':'PF_IEC60909_3PH_MAX',ytm:String(row.ytmName??row.outageYtm??''),tm:String(row.substationName??row.siteName??''),nominalKv:typeof row.nominalKv==='number'?row.nominalKv:typeof row.voltageLevelKv==='number'?row.voltageLevelKv:null,kind,diagnosticDelta:null,identityMatched:table.analysis==='LF'&&!!provenance,sourceCellKey:`${pf.source.fileSha256}|${pf.source.sheet}|${pf.source.row}|${pf.source.column}|${kind}|${fid}`};
       if(table.analysis==='LF'&&options.diagnostic&&provenance&&gate.status==='EXPLORATORY_ONLY'&&available&&!sentinel&&pf.value!==null&&r.ga!==null&&!/^excluded:/.test(pair?.semantics??'')){r.diagnosticDelta=r.ga-pf.value;r.status='EXPLORATORY_DELTA_METHOD_UNVERIFIED';}
       augmentCalculatedRow(r,row,options);out.push(r);
     }

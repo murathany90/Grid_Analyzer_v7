@@ -66,3 +66,28 @@ Real field/fault blockers and identities are recorded only in the ignored local
 acceptance reports. The present implementation does not change the external PF
 exporter and does not claim that supplying coefficients without normative
 validation will automatically enable IEC certification.
+
+## Correction-specific minimum fields
+
+- LF and N1 loading: explicit CURRENT_A versus APPARENT_MVA basis, season,
+  ratedCurrentFromA, ratedCurrentToA or ratingMva, and endpoint/side applicability.
+  The native LF preflight must prove a metric-specific denominator; a shared
+  percent unit or coincident value cannot establish it. N1 currently lacks that
+  proof and its matched loading extrema have null diagnostic differences.
+- ElmXnet: native MAX/MIN input selection and mode, ikss/ikssmin (kA) or
+  snss/snssmin (MVA), rntxn/rntxnmin (dimensionless), nominal kV, and independently
+  documented c_source with model/option provenance. Export the native input
+  fields distinctly from solved SC_BusResults Ikss. Fault c is a separate field.
+- ElmSym/TypSym: xdss, resistance, rated sgn/ugn, bases, operating state and
+  generator-transformer group plus independently justified KG/KT/KKW rules.
+  ElmGenStat needs its actual contribution mode and current-limit parameters.
+- ElmLnesec needs section type/length and unit convention; TypTr2 needs winding
+  bases, actual tap position/side/ratio and vector/phase provenance. Field
+  presence is insufficient while the adapter/correction remains unsupported.
+
+Real source locations resolve in both study cases. All selected physical faults
+are in the same connected component, so a connected unsupported contribution
+cannot be isolated without evidence. There is no source-location global blocker
+that can legitimately be removed to create real computed faults. The current
+minimum source/element gaps keep computed real Ikss/Skss at zero coverage;
+values stay null, and no normative edition is inferred.

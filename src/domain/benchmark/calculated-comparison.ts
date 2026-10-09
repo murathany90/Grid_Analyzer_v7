@@ -1,3 +1,5 @@
+import {resolveN1Post} from './post-result-source';
+import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import type {HybridResult} from '../../analysis/contingency-hybrid';
 import type {ScResult} from '../../analysis/short-circuit';
 import {scenarioSignature,emptyScenario,type ScenarioOverlay} from '../scenario/overlay';
@@ -7,7 +9,7 @@ import type {CanonicalNetwork} from '../model/network';
 import type {BenchmarkPackage,RawTable} from './types';
 import {rowObject} from './types';
 import type {BenchmarkMetricRow} from './comparison';
-export interface MetricOptions {diagnostic?:boolean;network?:CanonicalNetwork|null;scenario?:ScenarioOverlay;settings?:AnalysisSettings;hybrid?:HybridResult|null;sc?:ScResult|null;benchmark?:BenchmarkPackage|null}
+export interface MetricOptions {lfResult?:import('../results/types').CalculationResult|null;diagnostic?:boolean;network?:CanonicalNetwork|null;scenario?:ScenarioOverlay;settings?:AnalysisSettings;hybrid?:HybridResult|null;sc?:ScResult|null;benchmark?:BenchmarkPackage|null;ac?:import('../../analysis/contingency-ac').AcContingency[]}
 const partitionCache=new WeakMap<BenchmarkPackage,{table:RawTable;byTerminal:Map<string,Record<string,string|number|null>[]>;members:Map<string,Set<string>>}>();
 function pfPartition(benchmark:BenchmarkPackage){
   const table=benchmark.groups.SC.tables.SC_BusResults_Raw,cached=partitionCache.get(benchmark);if(cached?.table===table)return cached;
@@ -22,10 +24,20 @@ export function augmentCalculatedRow(r:BenchmarkMetricRow,raw:Record<string,stri
   // equivalence has been supplied for an arbitrary edited overlay.
   if(scenarioSignature(s)!==scenarioSignature(emptyScenario()))return;
   if(r.analysis==='N1'&&r.table==='N1_RecordedExtrema_Raw'){
-    const h=o.hybrid;if(!h||h.identity.modelHash!==n.modelHash||h.identity.scenarioHash!==scenarioSignature(s)||o.settings&&h.identity.settingsHash!==stableJson(o.settings))return;
-    const c=h.cases.find(c=>c.outage.caseId===r.caseId&&c.outage.fid===raw.outageFid&&c.outage.sourceClass===raw.outageClass),v=c?.observations.filter(v=>v.fid===r.fid&&v.sourceClass===r.sourceClass&&v.metric===r.metric&&((v.side??'')===r.side));
-    if(c&&!['AC_CONVERGED_WITHIN_LIMIT','AC_CONVERGED_VIOLATION','PARTIAL_SOLUTION'].includes(c.status))return;
-    if(v?.length===1&&v[0].value!==null){r.ga=v[0].value;r.identityMatched=true;r.method='PF_RECORDED_EXTREMA_ONLY; VERIFIED_FAMILY_ONLY / GA_FULL_AC';r.reason='PF case solved status and complete matrices unavailable';if(o.diagnostic){r.diagnosticDelta=r.ga-r.pf.value!;r.status='EXPLORATORY_DELTA_METHOD_UNVERIFIED';}}
+    const resolved=resolveN1Post(o,r.caseId),h=o.hybrid,c=h?.cases.find(c=>c.outage.caseId===r.caseId&&c.outage.fid===raw.outageFid&&c.outage.sourceClass===raw.outageClass);
+    const parsed=/^N1:(ElmLne|ElmTr2):(.+)$/.exec(r.caseId);if(parsed&&(parsed[1]!==raw.outageClass||parsed[2]!==raw.outageFid))return;
+    if(!resolved&&!c)return;if(resolved&&(resolved.outage.fid!==raw.outageFid||resolved.outage.sourceClass!==raw.outageClass))return;
+    const branch=resolved?.post.branches.find(b=>b.sourceClass===r.sourceClass&&b.fid===r.fid);
+    const v=c?.observations.filter(v=>v.fid===r.fid&&v.sourceClass===r.sourceClass&&v.metric===r.metric&&((v.side??'')===r.side));
+    if(c&&(!h||h.identity.modelHash!==n.modelHash||h.identity.scenarioHash!==scenarioSignature(s)||o.settings&&h.identity.settingsHash!==stableJson(o.settings)||!['AC_CONVERGED_WITHIN_LIMIT','AC_CONVERGED_VIOLATION','PARTIAL_SOLUTION'].includes(c.status)))return;
+    const value=r.metric==='postVoltagePu'?resolved?.post.buses.find(b=>b.terms.includes(r.fid))?.vmPu??null:branch?postBranchMetric(branch,r.metric,r.side):v?.length===1?v[0].value:null;
+    if(value!==null){r.ga=value;r.identityMatched=true;r.method='PF_RECORDED_EXTREMA_ONLY; VERIFIED_FAMILY_ONLY / GA_FULL_AC';r.reason='PF case solved status and complete matrices unavailable';
+      if(r.metric==='postLoadingPercent'){
+        const l=branch?.loading??v?.[0]?.loading,basis=raw.loadingDenominatorBasis,proof=!!l&&basis===l.basis&&raw.loadingSeason===l.season&&(basis==='CURRENT_A'?raw.ratedCurrentFromA===l.fromLimitA&&raw.ratedCurrentToA===l.toLimitA:raw.ratingMva===l.ratingMva);
+        r.method+=`; GA_${l?.basis??'UNKNOWN'}_LOADING_${l?.season??'UNKNOWN'}`;if(!proof){r.reason='LOADING_DENOMINATOR_UNVERIFIED';return;}
+      }
+      if(o.diagnostic){r.diagnosticDelta=value-r.pf.value!;r.status='EXPLORATORY_DELTA_METHOD_UNVERIFIED';}
+    }
   }
   if(r.analysis==='SC'&&['SC_BusResults_Raw','SC_CalculationBus_Raw'].includes(r.table)){
     const sc=o.sc;if(!sc||sc.identity.modelHash!==n.modelHash||sc.identity.scenarioHash!==scenarioSignature(s))return;

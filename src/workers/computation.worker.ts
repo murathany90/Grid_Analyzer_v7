@@ -6,6 +6,7 @@ import type { CanonicalNetwork } from '../domain/model/network';
 import { BrowserJsPowerFlowEngine } from '../analysis/api/browser-js-engine';
 import { selfTests } from '../analysis/power-flow/js/index';
 import type { WorkerRequest,WorkerResponse } from './protocol';
+import {preflightBenchmark} from '../domain/benchmark/comparison';
 import { packResult } from './result-codec';
 import { auditModelQuality } from '../domain/model-quality';
 import { getN1SelectedDetail, runN1Screen } from '../domain/n1';
@@ -36,7 +37,9 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       const context=benchmarkControlContext(benchmark),updated=applyPowerFactoryControlContext(loaded.network,context),preflight=preflightPowerFactoryReference(benchmarkLfReference(benchmark),updated,null);
       if(preflight.reasons.some(r=>!r.includes('Yakınsamış Tam AC')))throw Error(`BENCHMARK_TOPOLOGY_MISMATCH: ${preflight.reasons.join('; ')}`);
       const readiness=auditShortCircuitReadiness(loaded.raw);source=loaded.source;network=updated;
-      send({type:'RESULT',value:{network,benchmark,readiness,scContext:adaptShortCircuitSources(loaded.raw,network),controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file}});
+      send({type:'RESULT',value:{network,benchmark,readiness,scContext:adaptShortCircuitSources(loaded.raw,network),controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file,benchmarkPreflight:preflightBenchmark(benchmark,network,null,benchmark.groups.LF.workbook.file)}});
+    }else if(data.type==='BENCHMARK_PREFLIGHT'){
+      send({type:'RESULT',value:preflightBenchmark(data.benchmark,data.network,data.result,data.controlFile)});
     }else if(data.type==='RUN_SC_3PH'){
       if(!network)throw Error('Model yüklenmedi.');
       send({type:'RESULT',value:await calculateThreePhase(network,data.scenario,data.context,data.terminals,data.profile,{onProgress:progress})});

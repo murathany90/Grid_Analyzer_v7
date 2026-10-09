@@ -1,7 +1,8 @@
 # Method scope and evidence
 
-This development starts at `b85ca2fe35b154cf9f8c5204716ddf2219bf7cb2` on
-`feat/ga-n1-hybrid-iec60909-20261009`. No PF solved number is a solver input.
+The hybrid/SC implementation started at `b85ca2fe35b154cf9f8c5204716ddf2219bf7cb2`.
+The diagnostic-map correction starts at sealed `0cf28d030c06316488515eeb275407d896fc7f68`
+on `fix/pf-ga-diagnostic-map-n1-sc-20261009`. No PF solved number is a solver input.
 Private model, workbook, field audit and fault/case records remain ignored.
 
 | Evidence | Meaning in this implementation |
@@ -24,16 +25,22 @@ reasons, then runs sequential budgeted Full AC. Defaults: promotion 90% is a use
 policy; operational loading 100% and Vpu 0.90–1.10 are separate limits. The UI
 records when the operational profile is read from the PF N1 manifest. Voltage
 limits apply only to AC. AC line loading uses the selected seasonal current limit;
-absent capacity stays UNKNOWN. No incomplete coverage can imply an all-clear.
+absent capacity stays UNKNOWN. One post-result assembler supplies queue
+classification, observations and maps: lines use 100 max(|Ifrom|/Ilimit_from,
+|Ito|/Ilimit_to); transformers use native MVA and max endpoint apparent power.
+Current-based and apparent-MVA percentages remain separate. PF loading deltas
+require explicit matching denominator, season and endpoint ratings; absent proof
+keeps even diagnostic differences null (LOADING_DENOMINATOR_UNVERIFIED). No incomplete coverage can imply an all-clear.
 
 Snapshots bind model, scenario, effective settings, scope, season, candidate and
 native case identity. Settings/options tokens use the existing deterministic
-stable-JSON serializer. PF `N1:class:FID` is checked against the outage. Only
-explicitly requested observations and compact case summaries survive a queue run.
-Case detail can be recomputed separately. Resume continues pending AC cases with
+stable-JSON serializer. PF `N1:class:FID` is checked against the outage. Requested extrema observations and compact per-case bus/branch map snapshots
+survive the queue run; full solver diagnostics do not. A shared resolver prefers
+a current manual Full AC case, then the identical hybrid case. Missing partial
+components stay gray. Manual Full AC uses the nominal rating profile. Resume continues pending AC cases with
 the identical snapshot and a new invocation budget; cancellation before a queue
-exists restarts preflight/DC. A changed model, scenario, settings or policy cannot
-reuse the old queue. Browser and CLI hard limits terminate actual workers,
+exists restarts preflight/DC. A changed model, scenario, settings or physical/promotion policy cannot
+reuse the old queue. Case/time execution budgets may change on resume. Browser and CLI hard limits terminate actual workers,
 including synchronous calculation. Direct library calls can check abort/budgets
 between operations; use the provided worker integration for hard interruption.
 
@@ -59,6 +66,12 @@ as a linear algebra backend; the AC LF equations and solved LF Vm are not reused
 The supported DGS physical source is an active, energizing ElmVac with explicit
 finite nonnegative `r1` and positive `x1` in ohms. Native TypLne R/X per km and length are checked;
 line sections currently require additional adapter support and are rejected.
+Native ElmXnet MAX inputs ikss (kA) or snss (MVA), R/X and connected nominal kV
+now support a physical equivalent only when an independently proven source
+voltage factor is supplied to the adapter. Both input modes, when present, must
+agree. This is native model input, never a solved SC workbook result. The
+default browser adapter supplies no unverified source factor. The source factor
+is separate from the explicitly assumed fault-profile c.
 Transformer source bases, impedance and resolved ratio are checked. Connected
 external grids, machines or converters lacking supported source equivalents block
 their fault component. Unknown/unresolved active source locations cannot vanish.
@@ -103,7 +116,23 @@ and device tables separate; certified MAE/RMSE/quantiles require certified delta
 
 Site Vpu retains min, max, maximum |V−1| and representative FID for each nominal
 voltage level. Its displayed color follows the largest deviation from 1 pu.
-SC GA colors use computed faults only; uncertified SC difference colors remain
-disabled. Unknown values remain gray. CSV/XLSX/JSON preserve null, numeric zero,
+SC GA colors use computed faults only; certified DELTA remains disabled
+without IEC method/edition proof. EXPLORATORY_DELTA is a separate explicit
+opt-in source using the table metric-row assembler and all native identity,
+endpoint, unit, quality, model/scenario/settings and fault-profile gates.
+Signed GA−PF uses a per-metric/unit robust absolute P95 scale (zero-safe):
+positive orange, negative blue, zero neutral, missing gray. Site diagnostic
+representatives maximize |GA−PF| per kV; ordinary voltage still maximizes |V−1|.
+LF preflight runs in a separate worker and caches bind actual snapshot references.
+Unknown values remain gray. CSV/XLSX/JSON preserve null, numeric zero,
 source identity, method/scope/edition and diagnostic-vs-certified fields. Existing
 spreadsheet formula-injection protection is retained.
+
+Native ElmXnet equation evidence: PowerFactory 2024 External Grid Technical
+Reference §3.1 (printed page 6), equations 4–5, independently inspected locally:
+X = c_source Un² / (S_input sqrt(1+(R/X)²)), R=(R/X)X. The official
+[external-grid input FAQ](https://www.digsilent.de/en/faq-reader-powerfactory/how-to-set-up-a-model-of-hv-grid-as-an-external-grid-for-short-circuit-calculation.html)
+supports native kA/MVA and R/X inputs. This proves the physical conversion only;
+it does not establish normative c, source corrections or the dataset IEC edition.
+See [the measured correction report](PF_GA_DIAGNOSTIC_MAP_AND_METHOD_REPORT.md)
+for actual coverage, diagnostic errors and browser performance limitations.

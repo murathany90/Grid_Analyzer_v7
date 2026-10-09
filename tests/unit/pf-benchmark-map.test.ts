@@ -1,3 +1,5 @@
+import {identity} from '../../src/domain/calculation/identity';
+import {emptyScenario} from '../../src/domain/scenario/overlay';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { syntheticBenchmark } from '../helpers/benchmark';
@@ -19,7 +21,7 @@ test('null and missing map values are gray; recorded zero has its own color',()=
 });
 test('site Vpu preserves undervoltage, extrema, representative and nominal-voltage groups',()=>{
   const base=acNetwork(),n={...base,buses:base.buses.map((b,i)=>({...b,siteIds:['S'],vnKv:i===2?10:100})),sites:[{...base.buses[0],id:'S',sourceId:'S',sourceClass:'ElmSubstat',areaId:'A',areaName:'A',lat:39,lon:32,voltages:[100,10]}]};
-  const result={converged:true,buses:n.buses.map((b,i)=>({...b,terms:[b.id],vmPu:[.9,1.05,1.02][i],angleRad:0})),branches:[]},ctx={network:n,resultStore:{get:()=>result},n1AcResults:[],scenario:new ScenarioStore()} as never;
+  const result={identity:identity(n.modelHash,emptyScenario(),'powerFlow'),converged:true,buses:n.buses.map((b,i)=>({...b,terms:[b.id],vmPu:[.9,1.05,1.02][i],angleRad:0})),branches:[]},ctx={network:n,resultStore:{get:()=>result},n1AcResults:[],scenario:new ScenarioStore()} as never;
   const site=buildBenchmarkMapData(ctx,{analysis:'LF',source:'GA',metric:'voltagePu',table:'GA_Reference_Raw'}).sites.get('S')!;
   assert.equal(site.value,.9);assert.equal(site.minVpu,.9);assert.equal(site.maxVpu,1.05);assert.equal(site.representativeFid,'B0');assert.equal(site.voltageLevels!['100'].minVpu,.9);assert.equal(site.voltageLevels!['10'].minVpu,1.02);
 });

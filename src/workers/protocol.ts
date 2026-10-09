@@ -11,6 +11,7 @@ import type {ScProfile} from '../analysis/short-circuit';
 export type WorkerRequest = {id:number}&(
   {type:'LOAD_MODEL';file:File} | {type:'PREPARE';network:CanonicalNetwork} |
   {type:'LOAD_BENCHMARK_PAIR';model:File;benchmark:File} |
+  {type:'BENCHMARK_PREFLIGHT';network:CanonicalNetwork;benchmark:import('../domain/benchmark/types').BenchmarkPackage;result:import('../domain/results/types').CalculationResult|null;controlFile?:string|null} |
   {type:'RUN_N1_AC_VALIDATE';scenario:ScenarioOverlay;outages:AcOutage[];analysisSettings:AnalysisSettings} |
   {type:'RUN_SC_3PH';scenario:ScenarioOverlay;context:ScSourceContext;terminals:string[];profile:ScProfile} |
   {type:'RUN_AC'|'RUN_DC'|'RUN_FAST';scenario:ScenarioOverlay;identity:CalculationIdentity;analysisSettings?:AnalysisSettings} |

@@ -10,7 +10,7 @@ import {BrowserJsPowerFlowEngine} from '../api/browser-js-engine';
 import {prepareModel} from '../power-flow/preparation';
 import {validateAcOutages,type AcOutage,type AcContingency} from '../contingency-ac';
 import type {CapacitySeason} from '../../domain/model/capacity';
-import {capacityLimit} from '../../domain/model/capacity';
+import {postResultAssembler,postBranchMetric,type PostMapResults} from '../contingency-ac/post-results';
 
 export interface HybridPolicy {
   operationalLoadingLimitPercent:number;voltageMinPu:number;voltageMaxPu:number;dcPromotionLoadingPercent:number;
@@ -24,8 +24,9 @@ export interface HybridCase {
   outage:AcOutage;candidateId:string;promotionReasons:string[];dcStatus:string;status:HybridStatus;reason:string;
   iterations:number|null;maxMismatchMw:number|null;minVpu:number|null;maxVpu:number|null;maxLoadingPercent:number|null;unknownRatings:number;
   voltageViolations:number;thermalViolations:number;components:AcContingency['components'];elapsedMs:number;
-  // Only requested affected elements; complete result arrays are not retained by default.
-  observations:{sourceClass:string;fid:string;metric:string;side?:string;caseId?:string;value:number|null}[];
+  // Requested extrema observations plus compact map snapshots; full solver diagnostics are not retained.
+  mapResults?:PostMapResults;
+  observations:{sourceClass:string;fid:string;metric:string;side?:string;caseId?:string;value:number|null;loading?:import('../contingency-ac/post-results').PostLoading}[];
 }
 export interface HybridResult {
   method:'GA_DC_TO_FULL_AC';identity:{modelHash:string;scenarioHash:string;settingsHash:string;optionsHash:string};
@@ -57,7 +58,7 @@ export function promotionReasons(c:N1ScreenCandidate,p:HybridPolicy,explicit=fal
   if(p.includeExplicitUserSelection&&explicit)r.push('EXPLICIT_SELECTION');
   return r;
 }
-const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:p,filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[]})});
+const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:{...p,acBudgetCases:undefined,perCaseTimeLimitMs:undefined,globalTimeLimitMs:undefined},filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[]})});
 export function hybridIsCurrent(r:HybridResult,n:CanonicalNetwork,s:ScenarioOverlay,settings:AnalysisSettings):boolean{return r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&r.identity.settingsHash===stableJson(settings);}
 /** Sequential budgeted orchestration; the original >=66kV DC algorithm is untouched. */
 export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOverlay,options:HybridOptions={}):Promise<HybridResult>{
@@ -67,6 +68,7 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
   if(options.resume&&stableJson(options.resume.identity)!==stableJson(id))throw Error('HYBRID_STALE_RESUME');
   const resume=options.resume?.cases.length?options.resume:undefined;
   const result:HybridResult=resume?structuredClone(resume):{method:'GA_DC_TO_FULL_AC',identity:id,policy,filter,season,phase:'MODEL_SCENARIO_OPTIONS_SNAPSHOT',status:'PARTIAL',reason:'',base:null,catalogCount:0,excludedCatalogCount:0,cases:[],counts:{},dcDiagnostics:null,elapsedMs:0};
+  result.policy=policy;
   const checkpoint=()=>{result.elapsedMs=performance.now()-start;result.counts={total:result.cases.length,catalog:result.catalogCount,excludedCatalog:result.excludedCatalogCount,promoted:result.cases.filter(c=>c.promotionReasons.length).length,AC_CALCULATED:result.cases.filter(c=>c.iterations!==null).length,NOT_RUN:result.cases.filter(c=>c.status==='NOT_RUN_BUDGET'||c.status==='CANCELLED').length,UNKNOWN:result.cases.filter(c=>c.unknownRatings>0||['PARTIAL_SOLUTION','BLOCKED','ISLAND_UNSUPPLIED'].includes(c.status)).length,dcRiskConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length,dcViolationsNotConfirmedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_VIOLATION'&&c.status==='AC_CONVERGED_WITHIN_LIMIT').length,dcClearViolatedAc:result.cases.filter(c=>c.dcStatus==='SCREENED_NO_VIOLATION'&&c.status==='AC_CONVERGED_VIOLATION').length};for(const c of result.cases)result.counts[c.status]=(result.counts[c.status]??0)+1;options.onCheckpoint?.(structuredClone(result));};
   const phase=(value:string)=>{result.phase=value;options.onProgress?.('HYBRID_PHASE',{message:value});checkpoint();};
   const remaining=()=>Math.max(0,policy.globalTimeLimitMs-(performance.now()-start));
@@ -113,9 +115,10 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
       c.reason=ac.reason;c.components=ac.components;c.elapsedMs=ac.elapsedMs;
       const solved=ac.result;
       if(solved){c.iterations=solved.iterations;c.maxMismatchMw=solved.maxMismatchMw;c.minVpu=Math.min(...solved.buses.map(b=>b.vmPu));c.maxVpu=Math.max(...solved.buses.map(b=>b.vmPu));c.voltageViolations=solved.buses.filter(b=>b.vmPu<policy.voltageMinPu||b.vmPu>policy.voltageMaxPu).length;
-        const lineById=new Map(network.lines.map(l=>[l.id,l])),transformerById=new Map(network.transformers.map(t=>[t.id,t])),postLoading=new Map(solved.branches.map(b=>{const line=lineById.get(b.id),limit=line?.capacity?capacityLimit(line.capacity,line.vnKv,season):null;const loading=b.sourceClass==='ElmLne'?limit&&Number.isFinite(limit.currentKA)&&limit.currentKA>0?100*Math.max(b.ifA,b.itA)/(1000*limit.currentKA):null:b.sourceClass==='ElmTr2'&&(!(transformerById.get(b.id)?.ratingMva!>0)||!Number.isFinite(transformerById.get(b.id)?.ratingMva)||transformerById.get(b.id)!.ratingMva>=99999)?null:b.loading;return [b.id,loading] as const;}));
-        const rated=[...postLoading.values()].filter((v):v is number=>v!==null&&Number.isFinite(v));c.unknownRatings=solved.branches.length-rated.length;c.maxLoadingPercent=rated.length?Math.max(...rated):null;c.thermalViolations=rated.filter(v=>v>policy.operationalLoadingLimitPercent).length;
-        const nativeIds=new Map([...network.lines,...network.transformers].map(e=>[`${e.sourceClass}:${e.sourceId}`,e.id]));const observed=new Map((options.observations??[]).filter(o=>!o.caseId||o.caseId===c.outage.caseId).map(o=>[stableJson(o),o]));c.observations=[...observed.values()].map(o=>{const b=solved.branches.find(b=>b.sourceClass===o.sourceClass&&b.id===nativeIds.get(`${o.sourceClass}:${o.fid}`));const side=o.side?.toUpperCase(),to=side==='TO'||side==='BUS2',known=!side||['FROM','BUS1','TO','BUS2'].includes(side);const values=b&&known?{postLoadingPercent:b.loading,postPmw:to?b.pt:b.pf,postQmvar:to?b.qt:b.qf,postMva:to?Math.hypot(b.pt,b.qt):Math.hypot(b.pf,b.qf)} as Record<string,number|null>:{};const voltage=o.metric==='postVoltagePu'?solved.buses.find(b=>b.terms.includes(o.fid))?.vmPu:null;const value=o.metric==='postVoltagePu'?voltage??null:values[o.metric]??null;return {...o,value:value!==null&&Number.isFinite(value)?value:null};});
+        const post=postResultAssembler(network,solved,season);c.mapResults=post;
+        const rated=post.branches.map(b=>b.loading.operationalPercent).filter((v):v is number=>v!==null&&Number.isFinite(v));c.unknownRatings=post.branches.length-rated.length;c.maxLoadingPercent=rated.length?Math.max(...rated):null;c.thermalViolations=rated.filter(v=>v>policy.operationalLoadingLimitPercent).length;
+        const byKey=new Map(post.branches.map(b=>[`${b.sourceClass}:${b.fid}`,b]));const observed=new Map((options.observations??[]).filter(o=>!o.caseId||o.caseId===c.outage.caseId).map(o=>[stableJson(o),o]));
+        c.observations=[...observed.values()].map(o=>{const b=byKey.get(`${o.sourceClass}:${o.fid}`),voltage=o.metric==='postVoltagePu'?post.buses.find(b=>b.terms.includes(o.fid))?.vmPu:null;return {...o,value:o.metric==='postVoltagePu'?voltage??null:b?postBranchMetric(b,o.metric,o.side):null,...(b&&o.metric.includes('Loading')?{loading:b.loading}:{})};});
       }
       c.status=ac.status==='CONVERGED'?(c.thermalViolations||c.voltageViolations?'AC_CONVERGED_VIOLATION':'AC_CONVERGED_WITHIN_LIMIT'):ac.status==='PARTIAL_SOLUTION'?'PARTIAL_SOLUTION':ac.status==='DIVERGED'?'AC_DIVERGED':ac.status==='ISLAND_UNSUPPLIED'?'ISLAND_UNSUPPLIED':ac.status==='CANCELLED'?'CANCELLED':'BLOCKED';
       if(c.unknownRatings)c.reason+='; UNKNOWN_RATINGS; NO_ALL_CLEAR';
