@@ -3,8 +3,9 @@
 Branch: `feat/ga-n1-hybrid-iec60909-20261009`.
 Development base: `b85ca2fe35b154cf9f8c5204716ddf2219bf7cb2`.
 Original numerical baseline: `f13567add3a0d4b16d4dc164b6a9cd645d5fa2b5`.
-Implementation commit and final validation are recorded below after the committed
-portable artifact is verified. Private source hashes, native FIDs, case outputs,
+Implementation / portable commit: `88cf616a23c67c390377aff4c23ac0e51b29499c`.
+The subsequent documentation-only delivery commit does not change tested code.
+Private source hashes, native FIDs, case outputs,
 workbooks and field audits remain in ignored local storage.
 
 ## Phase assessment
@@ -123,5 +124,12 @@ portable builds passed. `npm run test:full` reported SKIPPED/SOURCE_UNAVAILABLE
 because its expected `control1` path is absent; it is not counted as a pass.
 The separate real-fixture acceptance runner supplies the checks above.
 
-Final validation: pending committed-artifact unit/regression byte check.
-Final remote SHA and CI run: pending push; no success is claimed before completion.
+Final local validation: typecheck PASS; architecture lint PASS (212 source files);
+unit/regression tests **308/308 PASS** including committed portable byte parity;
+e2e PASS; standard build PASS; portable build PASS. The rebuilt portable browser
+smoke also passes with non-loopback requests blocked, including hybrid, SC,
+worker timeout/recovery, diagnostic gates, exports and mobile layout.
+
+Remote / CI: recorded after normal push. The repository commit containing this
+report identifies the final delivery revision; no CI success is claimed until
+the actual run completes.
