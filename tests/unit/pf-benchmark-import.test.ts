@@ -11,6 +11,7 @@ import { readCell } from '../../src/domain/benchmark/types';
 test('manifest classified LF/N1/SC with title rows, sparse cells and numeric zero',async()=>{
   const result=await loadBenchmark(syntheticBenchmark()),table=result.groups.LF.tables.GA_Reference_Raw;
   assert.deepEqual(Object.keys(result.groups),['LF','N1','SC']);assert.equal(table.rows.length,1);assert.equal(table.headerRow,3);
+  assert.notEqual(result.groups.LF.identity.addonVersion,result.groups.N1.identity.addonVersion);
   const zero=readCell(table,0,'voltagePu','pu'),missing=readCell(table,0,'angleDeg','deg');
   assert.equal(zero.value,0);assert.equal(zero.availability,'RECORDED_NUMERIC_ZERO');assert.equal(missing.value,null);assert.equal(missing.availability,'NOT_RECORDED');assert.equal(zero.source.row,4);assert.equal(zero.source.column,'U');
 });
@@ -19,6 +20,7 @@ test('workbook integrity and mixed identities fail atomically',async()=>{
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>{const raw=JSON.parse(strFromU8(f['N1.json']));raw.identity.studyCase='WRONG';f['N1.json']=strToU8(JSON.stringify(raw));})),/IDENTITY/);
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>delete f['SC.log'])),/exactly/);
   await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>{const raw=JSON.parse(strFromU8(f['LF.json']));raw.identity.effectiveMethod='DC';f['LF.json']=strToU8(JSON.stringify(raw));})),/IDENTITY.*effectiveMethod/);
+  await assert.rejects(loadBenchmark(syntheticBenchmark(undefined,f=>{const raw=JSON.parse(strFromU8(f['SC.json']));raw.identity.addonVersion='WRONG';f['SC.json']=strToU8(JSON.stringify(raw));})),/IDENTITY.*addonVersion/);
 });
 test('archive rejects traversal, case aliases, malformed ZIP and CRC corruption',async()=>{
   for(const names of [['../a.json'],['A.json','a.json'],['C:/a.json']])await assert.rejects(inspectArchive(new Blob([zipSync(Object.fromEntries(names.map(n=>[n,strToU8('{}')])))])),/UNSAFE_ARCHIVE/);

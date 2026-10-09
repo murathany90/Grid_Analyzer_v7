@@ -55,6 +55,7 @@ export async function loadBenchmark(file:File,onProgress:BenchmarkProgress=()=>{
     groups[analysis]={analysis,identity,workbook:{...workbook,sha256:actual},tables,log:{file:log.file.name,text:log.text,sha256:await hashBlob(log.file,signal)},sidecarSha256:await hashBlob(sidecar,signal)};
   }
   stage('VERIFY');for(const analysis of analyses)for(const k of fields)if(groups[analysis].identity[k]!==groups.LF.identity[k])fail('BENCHMARK_IDENTITY_MISMATCH',`mixed model/case ${analysis}.${k}`);
-  for(const analysis of analyses)if(groups[analysis].identity.addonVersion!==groups.LF.identity.addonVersion)fail('BENCHMARK_IDENTITY_MISMATCH','mixed exporter versions');
+  // LF/N1/SC exporters have independent versions; each is verified against its
+  // own workbook manifest above, not assumed identical across analysis families.
   stage('INDEX');checkCancel(signal);stage('READY');return {groups,archiveSha256,elapsedMs:performance.now()-started,stages};
 }
