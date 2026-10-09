@@ -9,11 +9,12 @@ import { prepareModel } from '../power-flow/preparation';
 import { buildTopology } from '../../topology/electrical-topology';
 import { sha256 } from '@noble/hashes/sha2.js';
 
-export type AcContingencyStatus='CONVERGED'|'DIVERGED'|'ISLAND_UNSUPPLIED'|'UNSUPPORTED_CONTROL_CONFIGURATION'|'CANCELLED'|'NOT_COMPUTABLE';
+export type AcContingencyStatus='CONVERGED'|'PARTIAL_SOLUTION'|'DIVERGED'|'ISLAND_UNSUPPLIED'|'UNSUPPORTED_CONTROL_CONFIGURATION'|'CANCELLED'|'NOT_COMPUTABLE';
 export interface AcOutage {caseId:string;sourceClass:'ElmLne'|'ElmTr2';fid:string}
 export interface AcContingency {
   outage:AcOutage;method:'GA_AC_POST_CONTINGENCY';status:AcContingencyStatus;reason:string;
   identity:{modelHash:string;baseScenarioHash:string;scenarioHash:string;settingsHash:string;topologyIdentity:string;key:string};
+  components?:{islandId:string;status:'SUPPLIED_COMPONENT'|'UNSUPPLIED_COMPONENT'|'UNSUPPORTED_COMPONENT';busCount:number}[];
   result:CalculationResult|null;elapsedMs:number;branchApparentPower:{sourceClass:string;fid:string;sfMva:number;stMva:number;loadingPercent:number|null}[];
 }
 export interface AcValidationOptions {maxCases?:number;timeBudgetMs?:number;maxBuses?:number;analysisSettings?:AnalysisSettings;signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void}
@@ -28,6 +29,7 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     if(seen.has(key))throw Error('N1_AC_DUPLICATE_CASE');seen.add(key);
     const row:AcContingency={outage:{...outage},method:'GA_AC_POST_CONTINGENCY',status:'NOT_COMPUTABLE',reason:'',identity:{modelHash:network.modelHash,baseScenarioHash,scenarioHash:'',settingsHash,topologyIdentity:'',key},result:null,elapsedMs:0,branchApparentPower:[]};
     const finish=()=>{row.elapsedMs=performance.now()-started;results.push(row);};
+    if(outage.caseId.startsWith('N1:')&&outage.caseId!==`N1:${outage.sourceClass}:${outage.fid}`){row.reason='N1_CASE_ID_OUTAGE_IDENTITY_MISMATCH';finish();continue;}
     if(options.signal?.aborted||performance.now()-start>budget){row.status='CANCELLED';row.reason=options.signal?.aborted?'CANCELLED':'TIME_BUDGET';finish();continue;}
     const collection=outage.sourceClass==='ElmLne'?network.lines:network.transformers,candidates=collection.filter(e=>e.sourceId===outage.fid&&e.sourceClass===outage.sourceClass);
     if(candidates.length!==1){row.reason='UNMATCHED_OR_AMBIGUOUS_FID';finish();continue;}
@@ -39,17 +41,21 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     const post=effectiveNetwork(network,overlay),prepared=prepareModel(post),postTopology=prepared.topology;
     row.identity.topologyIdentity=Array.from(sha256(new TextEncoder().encode(stableJson({buses:postTopology.buses.map(b=>[b.id,...b.terms]),branches:prepared.branches.map(b=>[b.id,b.i,b.j])}))),v=>v.toString(16).padStart(2,'0')).join('');
     if(postTopology.buses.length>(options.maxBuses??20000)){row.reason='MEMORY_BUS_BUDGET';finish();continue;}
-    const islands=prepared.diagnostics.islands as {status:string}[]|undefined;
-    if(topology.buses.some(bus=>bus.terms.some(fid=>!postTopology.terminalToBus.has(fid)))){row.status='ISLAND_UNSUPPLIED';row.reason='POST_OUTAGE_TERMINAL_DISCONNECTED_NO_RESULT';finish();continue;}
-    if(islands?.some(i=>i.status==='NO_REFERENCE')){row.status='ISLAND_UNSUPPLIED';row.reason='NO_SOURCE_SLACK_IN_POST_OUTAGE_ISLAND';finish();continue;}
+    const islands=prepared.diagnostics.islands as {status:string;islandId:string;busCount:number}[]|undefined;
+    const missing=topology.buses.filter(bus=>bus.terms.some(fid=>!postTopology.terminalToBus.has(fid))).length;
+    row.components=(islands??[]).map(i=>({islandId:i.islandId,busCount:i.busCount,status:i.status==='NO_REFERENCE'?'UNSUPPLIED_COMPONENT':i.status==='MULTIPLE_REFERENCE_PARTIAL'?'UNSUPPORTED_COMPONENT':'SUPPLIED_COMPONENT'}));
+    if(missing)row.components.push({islandId:'detached-terminal-groups',busCount:missing,status:'UNSUPPLIED_COMPONENT'});
+    const partial=row.components.some(i=>i.status==='UNSUPPLIED_COMPONENT');
     if(islands?.some(i=>i.status==='MULTIPLE_REFERENCE_PARTIAL')){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason='MULTIPLE_REFERENCE_PARTIAL';finish();continue;}
+    if(!row.components.some(i=>i.status==='SUPPLIED_COMPONENT')){row.status='ISLAND_UNSUPPLIED';row.reason='NO_SOURCE_SLACK_IN_POST_OUTAGE_ISLAND';finish();continue;}
     options.onProgress?.('N1_AC_VALIDATE',{message:`AC kesinti doğrulaması: ${outage.caseId}`});
     const result=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario:overlay,identity:identity(network.modelHash,overlay,'powerFlow',{analysisSettings:options.analysisSettings,contingency:key}),analysisSettings:options.analysisSettings},options.onProgress);
     if(options.signal?.aborted||performance.now()-start>budget){row.status='CANCELLED';row.reason='CANCELLED_OR_TIME_BUDGET';finish();continue;}
     const controls=result.diagnostics.stationControllerSummary as {unsupported?:number;unsupportedProfile?:number}|undefined;
-    if((controls?.unsupported??0)>0||(controls?.unsupportedProfile??0)>0){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason='UNSUPPORTED_STATION_CONTROL';}
+    if((options.analysisSettings?.powerFlow.stationControlMode??'off')!=='off'&&((controls?.unsupported??0)>0||(controls?.unsupportedProfile??0)>0)){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason='UNSUPPORTED_STATION_CONTROL';}
     else if(!result.converged){row.status='DIVERGED';row.reason=result.status;}
-    else{row.status='CONVERGED';row.result=result;row.branchApparentPower=result.branches.map(b=>({sourceClass:b.sourceClass,fid:b.id,sfMva:Math.hypot(b.pf,b.qf),stMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading}));}
+    else if(result.maxMismatchMw===null||!Number.isFinite(result.maxMismatchMw)){row.status='NOT_COMPUTABLE';row.reason='MISSING_PHYSICAL_RESIDUAL';}
+    else{row.status=partial?'PARTIAL_SOLUTION':'CONVERGED';row.reason=partial?'UNSUPPLIED_COMPONENTS_EXCLUDED_FROM_NUMERICAL_SOLUTION':'';if((options.analysisSettings?.powerFlow.stationControlMode??'off')==='off'&&post.stationControllers.some(c=>c.inService))row.reason+='; STATION_CONTROL_OFF_LOCAL_PV_PROFILE; CONTROL_FIDELITY_PARTIAL';row.result=result;row.branchApparentPower=result.branches.map(b=>({sourceClass:b.sourceClass,fid:b.id,sfMva:Math.hypot(b.pf,b.qf),stMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading}));}
     finish();
   }
   return results;

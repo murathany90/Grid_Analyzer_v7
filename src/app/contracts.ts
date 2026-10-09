@@ -22,6 +22,11 @@ export interface AppContext {
   benchmark:BenchmarkPackage|null;
   benchmarkReadiness:ShortCircuitReadiness|null;
   n1AcResults:AcContingency[];
+  hybridResult:import('../analysis/contingency-hybrid').HybridResult|null;
+  scContext:import('../analysis/short-circuit/source-adapter').ScSourceContext|null;
+  scResult:import('../analysis/short-circuit').ScResult|null;
+  runHybrid(options:import('../analysis/contingency-hybrid').HybridOptions,resume?:boolean):Promise<void>;
+  runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile):Promise<void>;
   benchmarkMap:BenchmarkMapSelection|null;
   loadBenchmarkPair(model:File,benchmark:File):Promise<void>;
   runN1AcValidation(outages:AcOutage[]):Promise<void>;

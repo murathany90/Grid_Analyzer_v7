@@ -20,6 +20,8 @@ import { benchmarkControlContext,benchmarkLfReference } from '../domain/benchmar
 import { applyPowerFactoryControlContext } from '../analysis/validation/powerfactory-control-context';
 import { preflightPowerFactoryReference } from '../analysis/validation/powerfactory-preflight';
 import { validateAcOutages } from '../analysis/contingency-ac';
+import {adaptShortCircuitSources} from '../importers/powerfactory-benchmark/short-circuit-source';
+import {calculateThreePhase} from '../analysis/short-circuit';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -34,7 +36,10 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       const context=benchmarkControlContext(benchmark),updated=applyPowerFactoryControlContext(loaded.network,context),preflight=preflightPowerFactoryReference(benchmarkLfReference(benchmark),updated,null);
       if(preflight.reasons.some(r=>!r.includes('Yakınsamış Tam AC')))throw Error(`BENCHMARK_TOPOLOGY_MISMATCH: ${preflight.reasons.join('; ')}`);
       const readiness=auditShortCircuitReadiness(loaded.raw);source=loaded.source;network=updated;
-      send({type:'RESULT',value:{network,benchmark,readiness,controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file}});
+      send({type:'RESULT',value:{network,benchmark,readiness,scContext:adaptShortCircuitSources(loaded.raw,network),controlContextHash:context.sourceHash,numericFile:benchmark.groups.LF.workbook.file}});
+    }else if(data.type==='RUN_SC_3PH'){
+      if(!network)throw Error('Model yüklenmedi.');
+      send({type:'RESULT',value:await calculateThreePhase(network,data.scenario,data.context,data.terminals,data.profile,{onProgress:progress})});
     }else if(data.type==='RUN_N1_AC_VALIDATE'){
       if(!network)throw Error('Model yüklenmedi.');
       send({type:'RESULT',value:await validateAcOutages(network,data.scenario,data.outages,{maxCases:3,timeBudgetMs:120000,analysisSettings:data.analysisSettings,onProgress:progress})});
@@ -44,7 +49,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       const text=new TextDecoder().decode(buffer),parseStart=performance.now(),raw=JSON.parse(text.replace(/^\uFEFF/,'')),parseMs=performance.now()-parseStart;
       source=new DgsModel(raw,data.file.name,data.file.size);await source.build(message=>progress('MODEL',{message}));
       const mapStart=performance.now();network=mapCanonical(source,modelHash);const canonicalMs=performance.now()-mapStart;
-      send({type:'RESULT',value:{network,timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
+      send({type:'RESULT',value:{network,scContext:adaptShortCircuitSources(raw,network),timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
     }else if(data.type==='PREPARE'){network=data.network;send({type:'RESULT',value:true});}
     else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');send({type:'RESULT',value:catalogPage(source,data.query)});}
     else if(data.type==='SELF_TEST'){send({type:'RESULT',value:selfTests()});}

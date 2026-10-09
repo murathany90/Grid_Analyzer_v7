@@ -10,7 +10,8 @@ workbook to its model/scenario/topology identity, method, run ID and SHA manifes
    provenance. Method-family equality alone must not enable numeric deltas.
 2. **N1 case status and complete post-case results:** fill case execution status,
    convergence, solver/method, island supply/reference status and exclusions.
-   Populate `N1_PostBranchResults_Raw` and `N1_PostVoltageResults_Raw` with
+   Populate the supplied schema's `N1_CaseBranchResults_Raw` and
+   `N1_CaseVoltageResults_Raw` (or declare an explicit versioned mapping) with
    class+FID, endpoints, signed P/Q/S, currents, loading denominator, V/angle,
    physical/electrical mapping, units and result availability. Preserve extrema
    by run/case/affected-FID/metric/side; do not collapse multiple extrema rows.
@@ -32,6 +33,36 @@ workbook to its model/scenario/topology identity, method, run ID and SHA manifes
 The current files have no verified N1 case-by-case status or detailed post-case
 rows, and each SC contribution/run matrix has zero rows. PF 2024 technical
 manuals do not establish all IEC factors for this dataset. Until the above is
-available, LF method parity can remain EXPLORATORY_ONLY, N1 differences are null,
-and GA IEC computation remains NOT_COMPUTABLE. SC catalog edition information
-alone is insufficient to implement an IEC engine.
+available, LF method parity remains EXPLORATORY_ONLY, full N1 certified differences
+are null, and GA IEC certification is blocked. The independent network
+approximation engine now computes Ikss/Skss when physical inputs are supported;
+opt-in diagnostic differences never establish parity. See METHOD_SCOPE.md.
+
+## Minimum additional evidence for this engine
+
+- Versioned model attributes for each active external-grid source: nominal kV,
+  positive-sequence Thevenin R/X, units, MAX/MIN/c basis, native source field
+  references and independent correction provenance. PF solved Ikss is not an
+  acceptable substitute for these inputs.
+- For synchronous machines and attached generator transformers: rated MVA/kV,
+  resistance/subtransient reactance and bases, cos phi, KG/KT or KKW applicability,
+  unit detection option and independently checked normative clause/edition.
+- For converters: native model/mode, current limits and contribution specification;
+  omission is not zero contribution. Supply source service/cubicle identity too.
+- Explicit DGS internal/displayed unit convention, line-section lengths/types,
+  transformer winding bases/tap and actual phase/vector relationship. Source
+  attribute availability alone cannot bypass an unsupported adapter.
+- PF N1 promotion eligibility/reason/threshold (if automatic promotion is to be
+  compared), base and per-case solve status, executed AC cases, exact effective AC
+  algorithm/options, time/case exclusions, YTM TOUCHING endpoints and seasonal
+  capacity denominator. The exported 100% operating limit does not prove a 90%
+  DC promotion threshold.
+- Per electrical SC calculation bus: complete physical-terminal membership,
+  actual IEC edition, effective c and element correction provenance, fault/Zf
+  identity and numerical result/conflict status. Keep unattributed device rows
+  separate until fault×device/run/source matrices are populated.
+
+Real field/fault blockers and identities are recorded only in the ignored local
+acceptance reports. The present implementation does not change the external PF
+exporter and does not claim that supplying coefficients without normative
+validation will automatically enable IEC certification.

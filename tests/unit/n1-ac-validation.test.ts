@@ -13,7 +13,7 @@ for(const count of [3,5])test(`${count}-bus AC outage agrees with independent lo
   assert.equal(result.branchApparentPower.find(b=>b.fid==='L0')!.loadingPercent,null);assert.ok(Math.abs(result.branchApparentPower.find(b=>b.fid==='L0')!.sfMva-Math.hypot(30,qSource))<1e-4);
 });
 test('unsupplied island is explicit; no synthetic slack is inserted',async()=>{
-  const n=acNetwork();const [r]=await validateAcOutages(n,{...emptyScenario(),lineStatus:{BYPASS:false}},[{caseId:'SYN-CUT',sourceClass:'ElmLne',fid:'L0'}]);assert.equal(r.status,'ISLAND_UNSUPPLIED');assert.equal(r.result,null);
+  const n=acNetwork();const [r]=await validateAcOutages(n,{...emptyScenario(),lineStatus:{BYPASS:false}},[{caseId:'SYN-CUT',sourceClass:'ElmLne',fid:'L0'}]);assert.equal(r.status,'PARTIAL_SOLUTION');assert.ok(r.result?.converged);assert.ok(r.components?.some(c=>c.status==='UNSUPPLIED_COMPONENT'));assert.equal(r.result!.buses.some(b=>b.terms.includes('B2')),false);
 });
 test('cancel, offline outage, class/FID mismatch and case budget cannot yield success',async()=>{
   const n=acNetwork(),outage={caseId:'SYN-C',sourceClass:'ElmLne' as const,fid:'BYPASS'};
@@ -21,4 +21,5 @@ test('cancel, offline outage, class/FID mismatch and case budget cannot yield su
   assert.equal((await validateAcOutages(n,{...emptyScenario(),lineStatus:{BYPASS:false}},[outage]))[0].status,'NOT_COMPUTABLE');
   assert.equal((await validateAcOutages(n,emptyScenario(),[{...outage,sourceClass:'ElmTr2'}]))[0].status,'NOT_COMPUTABLE');
   await assert.rejects(validateAcOutages(n,emptyScenario(),Array(6).fill(outage)),/CASE_BUDGET/);
+  assert.equal((await validateAcOutages(n,emptyScenario(),[{...outage,caseId:'N1:ElmTr2:BYPASS'}]))[0].reason,'N1_CASE_ID_OUTAGE_IDENTITY_MISMATCH');
 });
