@@ -36,13 +36,30 @@ export function effectiveNetwork(n: CanonicalNetwork, s: ScenarioOverlay): Canon
   };
 }
 export type StatusKey = 'lineStatus' | 'transformerStatus' | 'busOrTerminalStatus' | 'switchState';
+export interface ManeuverEvent { readonly id:string; readonly order:number; readonly source:string; readonly action:string; readonly equipmentId:string; readonly before:unknown; readonly after:unknown; readonly timestamp:string }
+export interface ScenarioSnapshot { readonly id:string; readonly name:string; readonly parentId:string|null; readonly modelHash:string; readonly studyCase:string; readonly createdAt:string; readonly scenarioHash:string; readonly overlay:ScenarioOverlay; readonly events:readonly ManeuverEvent[] }
+function freezeOverlay(value:ScenarioOverlay):ScenarioOverlay { const copy=structuredClone(value);const freeze=(v:unknown):void=>{if(v&&typeof v==='object'){Object.values(v).forEach(freeze);Object.freeze(v);}};freeze(copy);return copy; }
 export class ScenarioStore {
-  private value: ScenarioOverlay = emptyScenario();
+  private value: ScenarioOverlay = freezeOverlay(emptyScenario());
+  private records=new Map<string,ScenarioSnapshot>();
+  private serial=0;
+  selectedId='B0';
+  commandSource='OPERATING';
+  constructor(readonly modelHash='',readonly studyCase=''){this.records.set('B0',Object.freeze({id:'B0',name:'Baz B0',parentId:null,modelHash,studyCase,createdAt:new Date().toISOString(),scenarioHash:scenarioSignature(this.value),overlay:this.value,events:[]}));}
+  get snapshots():readonly ScenarioSnapshot[]{return [...this.records.values()];}
+  get selected():ScenarioSnapshot{return this.records.get(this.selectedId)!;}
+  select(id:string):boolean{const record=this.records.get(id);if(!record)return false;this.selectedId=id;this.value=record.overlay;this.history=[];this.revision++;return true;}
+  rename(id:string,name:string):void{const record=this.records.get(id);if(record&&name.trim())this.records.set(id,Object.freeze({...record,name:name.trim().slice(0,100)}));}
+  branch(name?:string):ScenarioSnapshot{return this.record(this.value,name);}
+  private record(value:ScenarioOverlay,name?:string):ScenarioSnapshot{const parent=this.selected,id='S'+(++this.serial),timestamp=new Date().toISOString(),events:ManeuverEvent[]=[...parent.events];
+    for(const key of ['lineStatus','transformerStatus','switchState','busOrTerminalStatus','generatorDispatch','loadAdjustments'] as const){for(const equipmentId of new Set([...Object.keys(parent.overlay[key]),...Object.keys(value[key])])){const before=parent.overlay[key][equipmentId],after=value[key][equipmentId];if(JSON.stringify(before)!==JSON.stringify(after))events.push(Object.freeze({id:id+':'+events.length,order:events.length+1,source:this.commandSource,action:key,equipmentId,before,after,timestamp}));}}
+    const snapshot=Object.freeze({id,name:name||'Senaryo '+id,parentId:parent.id,modelHash:this.modelHash,studyCase:this.studyCase,createdAt:timestamp,scenarioHash:scenarioSignature(value),overlay:freezeOverlay(value),events:Object.freeze(events)});this.records.set(id,snapshot);this.selectedId=id;this.value=snapshot.overlay;return snapshot;}
+
   private history: ScenarioOverlay[] = [];
   revision = 0;
   get historyLength(): number { return this.history.length; }
   get current(): ScenarioOverlay { return this.value; }
-  replace(value: ScenarioOverlay): void { this.history.push(this.value); this.value = structuredClone(value); this.revision++; }
+  replace(value: ScenarioOverlay): void { this.history.push(this.value); this.record(value); this.revision++; }
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean): void {
     if(key==='lineStatus' && value===source && this.value.energizations?.[id]) { this.rollbackEnergization(id); return; }
     const energizations=this.releaseOwnership(key,id);
@@ -78,6 +95,6 @@ export class ScenarioStore {
     const ids=new Set(terminals.map(terminal=>terminal.id));
     this.replace({ ...this.value, energizations, busOrTerminalStatus: values,restoredTerminals:this.value.restoredTerminals.filter(id=>!ids.has(id)) });
   }
-  undo(): void { const previous = this.history.pop(); if (previous) { this.value = previous; this.revision++; } }
+  undo(): void { const previous = this.history.pop(); if (previous) { this.record(previous,'Geri alınmış senaryo'); this.revision++; } }
   reset(): void { this.replace(emptyScenario()); }
 }

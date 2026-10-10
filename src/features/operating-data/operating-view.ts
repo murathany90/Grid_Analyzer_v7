@@ -1,3 +1,4 @@
+import {activeResultId} from '../../domain/results/workspace';
 import {voltageMatches} from '../../domain/model/voltage-band';
 import {createVoltageFilter} from '../../ui/components/voltage-filter';
 import {engineeringColumns,semanticTable,semanticDetail,catalogCsv,exportSelect} from '../../ui/components/semantic-catalog';
@@ -72,13 +73,17 @@ export function createOperatingView(ctx: AppContext): Feature {
     const jump = element('button', 'ga-button', 'Haritada göster'); jump.type = 'button';
     const sourceClass = row.className || kind.classes.find(c => ctx.network?.classCounts[c] !== undefined) || kind.classes[0];
     jump.addEventListener('click', () => ctx.select(row.id, sourceClass, 'map')); detail.append(jump);
+    const cls=sourceClass,collection=cls==='ElmLne'?ctx.network?.lines:cls==='ElmTr2'?ctx.network?.transformers:['ElmCoup','StaSwitch'].includes(cls)?ctx.network?.switches:null,entity=collection?.find(e=>e.id===row.id||e.sourceId===row.id);
+    if(entity){const key=cls==='ElmLne'?'lineStatus':cls==='ElmTr2'?'transformerStatus':'switchState',source='closed' in entity?entity.closed:entity.inService,active=ctx.scenario.current[key][entity.id]??source;
+      for(const [label,calculate] of [[active?'Aç / servis dışı':'Kapat / servise al',false],['Değiştir + Senaryo Full AC hesapla',true]] as const){const action=element('button','ga-button',label);action.disabled=ctx.busy;action.onclick=()=>void ctx.setStatus(key,entity.id,!active,source,calculate);detail.append(action);}}
+
   }
   function drawRows(rows: readonly TaggedCatalogRow[], attributes: readonly string[]): void {
     if (!rows.length) { tableWrap.replaceChildren(element('p', 'ga-empty', 'Filtreye uygun kayıt bulunamadı.')); return; }
     tableWrap.replaceChildren(semanticTable(rows,kind.classes[0],engineeringColumns(kind.classes[0],attributes,true),row=>showDetail({...row,className:row.className||kind.classes[0]})));
   }
 
-  async function render(): Promise<void> {
+  async function render(): Promise<void> {root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';
     if (ctx.view !== 'operating') { requestId++; return; }
     const network = ctx.network; fillFilters(network);
     if (kindDrawn !== kind.id) { renderKinds(); kindDrawn = kind.id; }

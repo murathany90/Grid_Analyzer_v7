@@ -12,7 +12,7 @@ export class ResultTable {
   kind:Kind='line';tab:Tab='results';search='';page=0;pageSize=14;sort:string|null=null;descending=false;expanded='';
   constructor(private ctx:AppContext,readonly element:HTMLElement,private mapScope=true){}
   private rows(kind:Kind=this.kind):Row[]{
-    const n=this.ctx.network;if(!n)return[];const role=this.ctx.resultStore.role==='base'?'base':'scenario',s=this.ctx.scenario.current,result=this.ctx.resultStore.get(role),base=this.ctx.resultStore.get('base'),scenario=this.ctx.resultStore.get('scenario');
+    const n=this.ctx.network;if(!n)return[];const role=this.ctx.resultStore.role==='base'?'base':'scenario',s=this.ctx.scenario.current,result=this.ctx.resultStore.get(role),base=this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType),scenario=this.ctx.resultStore.get('scenario');
     const branches=displayBranches(n,this.tab==='delta'?scenario:result),baseBranches=displayBranches(n,base),term=new Map(n.buses.map(b=>[b.id,b]));
     let rows:Row[]=[];
     if(kind==='bus'){

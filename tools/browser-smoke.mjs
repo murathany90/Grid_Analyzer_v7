@@ -56,9 +56,9 @@ try{
  const n1Download=page.waitForEvent('download');await view.locator('summary[aria-label="N-1 sonuçlarını dışa aktar"]').click();await view.getByRole('button',{name:'Senaryolar CSV'}).click();
  if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-senaryolar.csv')throw new Error('N-1 CSV export missing.');
  await page.getByRole('button',{name:'Harita',exact:true}).click();
- await page.locator('select[aria-label="Harita renk modu"]').selectOption('n1-risk');
+ await page.getByLabel('Benchmark harita analizi',{exact:true}).selectOption('N1');await page.getByLabel('Benchmark harita metriği',{exact:true}).selectOption('thermalRisk');
  await page.waitForFunction(()=>/N-1 termik risk/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
- await page.locator('select[aria-label="Harita renk modu"]').selectOption('n1-island');
+ await page.getByLabel('Benchmark harita metriği',{exact:true}).selectOption('islands');
  await page.waitForFunction(()=>/N-1 adaları/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
  await page.getByRole('button',{name:'Analizler',exact:true}).click();
  await page.getByRole('button',{name:'N-1 SONUÇLARI',exact:true}).click();
@@ -67,7 +67,7 @@ try{
  await page.getByRole('button',{name:'Analizler',exact:true}).click();
  await page.getByRole('button',{name:'Yük Akışı Analizi',exact:true}).click();await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
  await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('NR yakınsadı'));
- if(await page.locator('#ga-analysis-LF input[type="file"]').count())throw Error('LF still owns reference imports');const engineHelp=page.getByLabel('Gösterilen hesap türü',{exact:true}).locator('..').locator('.ga-context-help');await engineHelp.locator('summary').focus();await engineHelp.locator('summary').press('Enter');await engineHelp.getByRole('button',{name:'Yardımda aç',exact:true}).click();await page.locator('[data-help-entry="lf.fullAc"][open]').waitFor();await page.getByRole('button',{name:'Analizler',exact:true}).click();
+ if(await page.locator('#ga-analysis-LF input[type="file"]').count())throw Error('LF still owns reference imports');const engineHelp=page.getByLabel('Gösterilen hesap türü',{exact:true}).locator('..').locator('.ga-context-help');await engineHelp.getByRole('button').focus();await engineHelp.getByRole('button').press('Enter');if(await engineHelp.locator('details[open]').count())throw Error('Tooltip click opens a card');await engineHelp.getByRole('button').press('Escape');await page.getByRole('button',{name:'Yardım',exact:true}).click();await page.getByLabel('Yardımda ara',{exact:true}).fill('Yük akışı yöntemi');await page.locator('[data-help-entry="lf.fullAc"]').waitFor();await page.getByRole('button',{name:'Analizler',exact:true}).click();
  const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'XLSX sonuç indir'}).click();const workbook=await downloadEvent;
  if(workbook.suggestedFilename()!=='GridAnalyzer_FullNR_Results.xlsx')throw new Error('XLSX result download missing.');
  await page.getByRole('button',{name:'Karşılaştırma',exact:true}).click();await page.getByText('Diğer referanslar / ControlContext',{exact:true}).click();const analysis=page.locator('section[data-view="comparison"] .ga-analysis-view');
@@ -79,7 +79,7 @@ try{
  const comparisonCsv=page.waitForEvent('download');await analysis.getByRole('button',{name:'Karşılaştırma CSV'}).click();if((await comparisonCsv).suggestedFilename()!=='GridAnalyzer_PowerFactory_Comparison.csv')throw new Error('Comparison CSV export missing.');
  await page.getByRole('button',{name:'Analizler',exact:true}).click();const lf=page.locator('section[data-view="analysis"]');await lf.getByRole('button',{name:'Topoloji',exact:true}).click();await lf.getByRole('button',{name:'154 kV Ayrık Bara / Yarı Ada'}).waitFor();
  await page.getByRole('button',{name:'Harita',exact:true}).click();
- await page.locator('select[aria-label="Harita renk modu"]').selectOption('angle');
+ await page.locator('.ga-map-advanced>summary').click();await page.locator('select[aria-label="Harita renk modu"]').selectOption('angle');
  await page.waitForFunction(()=>/açısı/i.test(document.querySelector('.ga-map-legend b')?.textContent||''));
  await page.locator('select[aria-label="Harita renk modu"]').selectOption('island');
  await page.waitForFunction(()=>/Elektrik adası/i.test(document.querySelector('.ga-map-legend b')?.textContent||'')&&/elektrik adası/i.test(document.querySelector('.ga-map-legend')?.textContent||''));

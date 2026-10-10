@@ -1,3 +1,4 @@
+import {workspaceMapSelection} from '../domain/results/workspace';
 import type { AppContext,CatalogQuery,CatalogPage } from './contracts';
 import type { CanonicalNetwork } from '../domain/model/network';
 import { ScenarioStore,calculationScenario,scenarioChanged,emptyScenario,type StatusKey } from '../domain/scenario/overlay';
@@ -26,7 +27,10 @@ import {runHybridN1,hybridIsCurrent} from '../analysis/contingency-hybrid';
 import {benchmarkControlContext} from '../domain/benchmark/reference';
 import {hasReference} from '../domain/benchmark/reference-slots';
 
+import {initialResultView,WorkspaceResultCache,workspaceKey,type ScenarioResults} from '../domain/results/workspace';
+
 export class Application implements AppContext {
+  resultView=initialResultView();private workspaceResults=new WorkspaceResultCache();private lastWorkspaceKey='';private lastScenarioId='B0';
   analysisTab:AppContext['analysisTab']='LF';helpId:string|null=null;comparisonOutage:AppContext['comparisonOutage']=null;powerFactoryReference:AppContext['powerFactoryReference']=null;
   hybridResult:AppContext['hybridResult']=null;scContext:AppContext['scContext']=null;scResult:AppContext['scResult']=null;
   private hybridAbort:AbortController|null=null;
@@ -41,8 +45,14 @@ export class Application implements AppContext {
   private comparison=new WorkerTransport();
   private calculation=new WorkerTransport((stage,detail)=>this.progress(stage,detail));
   subscribe(fn:()=>void){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
-  notify(){for(const f of this.listeners){try{f();}catch(e){logger.log('ERROR','render','Görünüm yenilenemedi',e);}}}
-  setView(view:string){if(view==='quality-n1'||view==='analysis:N1'){this.analysisTab='N1';view='analysis';}else if(view==='analysis:SC'||view==='analysis:LF'){this.analysisTab=view.endsWith('SC')?'SC':'LF';view='analysis';}else if(view==='model:quality')view='model';this.view=view;this.notify();}
+  private saveWorkspace(){if(!this.lastWorkspaceKey)return;const results:ScenarioResults={n1:this.n1Result,ac:this.n1AcResults,hybrid:this.hybridResult,sc:this.scResult,scContext:this.scContext};this.workspaceResults.set(this.lastWorkspaceKey,results);for(const type of ['powerFlow','fastAc','dc'] as const){const lf=this.resultStore.getSnapshot(this.lastScenarioId,type);if(lf)void this.database.put('lf:'+this.lastWorkspaceKey+':'+type,lf).catch(()=>{});}void this.database.put('workspace:'+this.lastWorkspaceKey,results).catch(()=>{});}
+  private syncWorkspace(){if(!this.network){this.workspaceResults.clear();this.lastWorkspaceKey='';return;}const key=workspaceKey(this);if(this.lastWorkspaceKey&&key!==this.lastWorkspaceKey){this.saveWorkspace();const saved=this.workspaceResults.get(key);this.n1Result=saved?.n1??null;this.n1AcResults=saved?.ac??[];this.hybridResult=saved?.hybrid??null;this.scResult=saved?.sc??null;if(saved?.scContext)this.scContext=saved.scContext;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.n1Detail=null;this.selectedN1CandidateId=null;}this.lastWorkspaceKey=key;this.lastScenarioId=this.scenario.selectedId;this.resultView.scenarioId=this.scenario.selectedId;this.resultStore.selectScenario(this.scenario.selectedId);
+    for(const role of ['base','scenario'] as const)for(const type of ['powerFlow','fastAc','dc'] as const){const snapshot=this.analysisSettings.value;this.resultStore.expect(role,identity(this.network.modelHash,calculationScenario(this.scenario.current,role),type,{analysisSettings:activeAnalysisSettings(snapshot,type),analysisSettingsHash:analysisSettingsHash(snapshot,type),controlContextHash:this.powerFactoryControlContextHash}));if(role==='scenario'&&!this.resultStore.get(role,type)){for(const record of this.scenario.snapshots){if(record.id===this.scenario.selectedId||record.scenarioHash!==this.scenario.selected.scenarioHash)continue;const shared=this.resultStore.getSnapshot(record.id,type);if(shared&&this.resultStore.accept(role,shared))break;}}}
+  }
+  async selectScenario(id:string){if(!this.network||!this.scenario.snapshots.some(s=>s.id===id))return;this.saveWorkspace();this.cancel(true);this.scenario.select(id);this.resultStore.role=id==='B0'?'base':'scenario';this.benchmarkMap=null;this.syncWorkspace();const key=this.lastWorkspaceKey;if(!this.workspaceResults.get(key)){const saved=await this.database.get<ScenarioResults>('workspace:'+key).catch(()=>undefined);if(saved&&key===workspaceKey(this)){this.workspaceResults.set(key,saved);this.n1Result=saved.n1;this.n1AcResults=saved.ac;this.hybridResult=saved.hybrid;this.scResult=saved.sc;if(saved.scContext)this.scContext=saved.scContext;}}for(const type of ['powerFlow','fastAc','dc'] as const){if(!this.resultStore.get(this.scenario.selectedId==='B0'?'base':'scenario',type)){const lf=await this.database.get<import('../domain/results/types').CalculationResult>('lf:'+key+':'+type).catch(()=>undefined);if(lf&&key===workspaceKey(this))this.resultStore.accept(this.scenario.selectedId==='B0'?'base':'scenario',lf);}}this.status=`${this.scenario.selected.name} · ${this.resultStore.active?'Sonuç hazır':'NOT_RUN / STALE'}`;this.notify();}
+  branchScenario(name?:string){this.saveWorkspace();this.scenario.branch(name);this.scenarioUpdated();}
+  notify(){this.syncWorkspace();for(const f of this.listeners){try{f();}catch(e){logger.log('ERROR','render','Görünüm yenilenemedi',e);}}}
+  setView(view:string){if(view==='quality-n1'||view==='analysis:N1'){this.analysisTab='N1';this.resultView.analysis='N1';view='analysis';}else if(view==='analysis:SC'||view==='analysis:LF'){this.analysisTab=view.endsWith('SC')?'SC':'LF';this.resultView.analysis=this.analysisTab;view='analysis';}else if(view==='model:quality')view='model';this.view=view;this.notify();}
   setMessage(message:string){this.status=message;this.notify();}
   applyBenchmarkControlContext(){if(!this.network||this.busy||!hasReference(this.benchmark,'LF'))return;const parsed=benchmarkControlContext(this.benchmark!),updated=applyPowerFactoryControlContext(this.network,parsed);this.cancel(true);this.network=updated;this.powerFactoryControlContextHash=parsed.sourceHash;this.powerFactoryControlContextNumericFile=this.benchmark!.groups.LF.workbook.file;this.resultStore.clear();this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.n1Result=null;this.n1Detail=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.benchmarkMap=null;this.status='Referans ControlContext açıkça uygulandı · hesaplar geçersiz · yeniden hesaplayın';this.notify();}
   async loadBenchmarkReferences(file:File):Promise<void>{
@@ -54,7 +64,7 @@ export class Application implements AppContext {
     try{
       const loaded=await this.source.request<{network:CanonicalNetwork;benchmark:NonNullable<AppContext['benchmark']>;readiness:NonNullable<AppContext['benchmarkReadiness']>;scContext:AppContext['scContext'];controlContextHash:string;numericFile:string;benchmarkPreflight:BenchmarkPreflight}>({type:'LOAD_BENCHMARK_PAIR',model,benchmark});if(job!==this.job)return;
       this.hybridResult=null;this.scResult=null;this.scContext=loaded.scContext;
-      this.network=loaded.network;this.benchmark=loaded.benchmark;this.benchmarkReadiness=loaded.readiness;this.powerFactoryControlContextHash=loaded.controlContextHash;this.powerFactoryControlContextNumericFile=loaded.numericFile;this.modelQualityResult=null;this.n1Result=null;this.n1CatalogResult=null;this.n1Detail=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;
+      this.network=loaded.network;this.scenario=new ScenarioStore(loaded.network.modelHash,loaded.network.studyCase??'');this.lastWorkspaceKey='';this.workspaceResults.clear();this.resultStore.selectScenario('B0');this.benchmark=loaded.benchmark;this.benchmarkReadiness=loaded.readiness;this.powerFactoryControlContextHash=loaded.controlContextHash;this.powerFactoryControlContextNumericFile=loaded.numericFile;this.modelQualityResult=null;this.n1Result=null;this.n1CatalogResult=null;this.n1Detail=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;
       seedBenchmarkPreflight(this.benchmark,this.network,null,this.powerFactoryControlContextNumericFile,loaded.benchmarkPreflight);
       this.status=`Benchmark hazır · ${loaded.benchmark.groups.LF.identity.studyCase} · LF / N-1 / SC · sayısal PF referansı`;
     }catch(error){if(job===this.job)this.status=`Benchmark yüklenemedi: ${error instanceof Error?error.message:String(error)}`;}
@@ -66,7 +76,7 @@ export class Application implements AppContext {
     try{if(!await this.prepareCalculationWorker(network,job))return;
       const results=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages,analysisSettings:settings});
       if(job!==this.job||this.network!==network||scenarioSignature(this.scenario.current)!==signature||stableJson(this.analysisSettings.value)!==settingsSignature)return;
-      this.n1AcResults=results;this.status=`N-1 AC · ${results.filter(r=>r.status==='CONVERGED').length}/${results.length} yakınsamış · PF ayrıntılı paritesi yok`;
+      this.n1AcResults=results;this.resultView.analysis=this.analysisTab='N1';this.resultView.caseId=results[0]?.outage.caseId;this.resultView.phase='POST';this.resultView.source='GA';this.resultView.metric='postLoadingPercent';this.benchmarkMap=workspaceMapSelection(this);this.status=`N-1 AC · ${results.filter(r=>r.status==='CONVERGED').length}/${results.length} yakınsamış · PF ayrıntılı paritesi yok`;
     }catch(error){if(job===this.job)this.status=`N-1 AC: ${error instanceof Error?error.message:String(error)}`;}
     finally{clearTimeout(timeout);if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -91,7 +101,7 @@ export class Application implements AppContext {
         screen:(opts,budget)=>work(()=>this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options:opts}),budget),
         solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings});return rows[0];},budget),
       });
-      if(current()){this.hybridResult=result;this.status=`N-1 hibrit · ${result.status} · ${JSON.stringify(result.counts)} · ${result.reason}`;}
+      if(current()){this.hybridResult=result;this.resultView.analysis=this.analysisTab='N1';this.resultView.caseId=result.cases[0]?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);this.status=`N-1 hibrit · ${result.status} · ${JSON.stringify(result.counts)} · ${result.reason}`;}
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(current()){this.hybridAbort=null;this.busy=false;this.notify();}}
   }
@@ -106,7 +116,7 @@ export class Application implements AppContext {
     if(!this.network||!this.scContext||this.busy)return;
     const network=this.network,scenario=structuredClone(this.scenario.current),signature=scenarioSignature(scenario),job=++this.job;this.busy=true;this.scResult=null;this.setMessage(`GA bağımsız 3PH ${profile.calculateMode} hesaplanıyor`);
     try{const context=adapterOptions?await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network,options:{...adapterOptions,mode:profile.calculateMode}}):this.scContext!;if(job!==this.job)return;const result=await this.boundedWorker(async()=>{if(!await this.prepareCalculationWorker(network,job))throw Error('SC_STALE');return this.calculation.request<NonNullable<AppContext['scResult']>>({type:'RUN_SC_3PH',context,scenario,terminals,profile});},profile.timeBudgetMs);
-      if(job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature){this.scContext=context;this.scResult=result;this.status=`GA 3PH ${profile.calculateMode} · ${JSON.stringify(result.counts)} · IEC paritesi doğrulanmadı`;}
+      if(job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature){this.scContext=context;this.scResult=result;this.resultView.analysis=this.analysisTab='SC';this.resultView.faultId=terminals[0];this.resultView.source='GA';this.resultView.metric='ikssKa';this.benchmarkMap=workspaceMapSelection(this);this.status=`GA 3PH ${profile.calculateMode} · ${JSON.stringify(result.counts)} · IEC paritesi doğrulanmadı`;}
     }catch(e){if(job===this.job)this.status=`GA SC: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -117,11 +127,11 @@ export class Application implements AppContext {
   async loadFiles(files:FileList|File[]){const file=files[0];if(!file)return;this.powerFactoryReference=null;this.comparisonOutage=null;this.benchmark=null;this.benchmarkReadiness=null;this.benchmarkMap=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.scContext=null;this.cancel();const job=++this.job;this.loadingModel=true;this.busy=true;this.network=null;this.powerFactoryControlContextHash=null;this.powerFactoryControlContextNumericFile=null;this.source.cancel();this.resultStore.clear();this.scenario=new ScenarioStore();this.selection=null;this.setMessage(`${file.name} · Yükleniyor`);this.startLoadHeartbeat(file.size);
     try{const loaded=await this.source.request<{network:CanonicalNetwork;scContext:AppContext['scContext'];readiness:AppContext['benchmarkReadiness'];timing:Record<string,number>}>({type:'LOAD_MODEL',file});if(job!==this.job)return;
       this.hybridResult=null;this.scResult=null;this.scContext=loaded.scContext;
-      this.benchmarkReadiness=loaded.readiness;this.network=loaded.network;this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.modelQualityAnalysisScope=null;this.n1Result=null;this.n1Progress=null;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.n1DetailLoading=false;this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.calcLoadedHash='';
+      this.benchmarkReadiness=loaded.readiness;this.network=loaded.network;this.scenario=new ScenarioStore(loaded.network.modelHash,loaded.network.studyCase??'');this.lastWorkspaceKey='';this.workspaceResults.clear();this.resultStore.selectScenario('B0');this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.modelQualityAnalysisScope=null;this.n1Result=null;this.n1Progress=null;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.n1DetailLoading=false;this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.calcLoadedHash='';
       this.status=`${loaded.network.name} · ${loaded.network.records.toLocaleString('tr-TR')} kayıt · ${(loaded.timing.totalMs/1000).toFixed(2)} s`;
       void this.database.put('model-metadata',{hash:loaded.network.modelHash,name:file.name,size:file.size,timing:loaded.timing}).catch(()=>{});
       const saved=await this.database.get<import('../domain/scenario/overlay').ScenarioOverlay>(`scenario:${loaded.network.modelHash}`).catch(()=>undefined);
-      if(job===this.job&&saved){this.scenario.replace(saved);if(scenarioChanged(saved)){this.resultStore.role='scenario';this.status+=' · Kaydedilmiş senaryo geri yüklendi; hesap bekleniyor';}}
+      if(job===this.job&&saved){this.scenario.replace(saved);this.resultStore.selectScenario(this.scenario.selectedId);if(scenarioChanged(saved)){this.resultStore.role='scenario';this.status+=' · Kaydedilmiş senaryo geri yüklendi; hesap bekleniyor';}}
     }catch(e){if(job===this.job){this.status=`Model yüklenemedi: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','import',this.status,e);}}
     finally{if(job===this.job){this.stopLoadHeartbeat();this.loadingModel=false;this.busy=false;this.notify();}}
   }
@@ -132,13 +142,13 @@ export class Application implements AppContext {
     this.status=`${file.name} · ${parsed.loads.length} etkin yükün i_scale uygunluğu FID ile doğrulandı · hesap bekleniyor`;this.notify();
   }
   async run(type:AnalysisType, requestedRole:'base'|'scenario'=this.resultStore.role==='base'?'base':'scenario'){if(!this.network||this.busy)return;const network=this.network,job=++this.job,role=requestedRole,scenario=calculationScenario(this.scenario.current,role);
-    const snapshot=structuredClone(this.analysisSettings.value),activeSettings=activeAnalysisSettings(snapshot,type),id=identity(network.modelHash,scenario,type,{analysisSettings:activeSettings,analysisSettingsHash:analysisSettingsHash(snapshot,type),controlContextHash:this.powerFactoryControlContextHash});this.resultStore.analysisType=type;this.resultStore.expect(role,id);this.busy=true;this.setMessage('Hesap hazırlanıyor');
+    this.analysisTab='LF';this.resultView.analysis='LF';const snapshot=structuredClone(this.analysisSettings.value),activeSettings=activeAnalysisSettings(snapshot,type),id=identity(network.modelHash,scenario,type,{analysisSettings:activeSettings,analysisSettingsHash:analysisSettingsHash(snapshot,type),controlContextHash:this.powerFactoryControlContextHash});this.resultStore.analysisType=type;this.resultStore.expect(role,id);this.busy=true;this.setMessage('Hesap hazırlanıyor');
     try{if(this.calcLoadedHash!==network.modelHash){await this.calculation.request({type:'PREPARE',network});if(job!==this.job)return;this.calcLoadedHash=network.modelHash;}
       const packed=await this.calculation.request<PackedResult>({type:type==='dc'?'RUN_DC':type==='fastAc'?'RUN_FAST':'RUN_AC',scenario,identity:id,analysisSettings:snapshot});if(job!==this.job)return;
       const result=unpackResult(packed);
       if(type==='powerFlow'&&role==='base'&&this.benchmark){const benchmark=this.benchmark;this.setMessage('Tanısal kimlikler worker içinde karşılaştırılıyor');const timeout=setTimeout(()=>this.comparison.cancel('BENCHMARK_COMPARE_TIME_BUDGET'),120000);try{const gate=await this.comparison.request<BenchmarkPreflight>({type:'BENCHMARK_PREFLIGHT',network,benchmark,result,controlFile:this.powerFactoryControlContextNumericFile});if(job!==this.job||this.network!==network||this.benchmark!==benchmark)return;seedBenchmarkPreflight(benchmark,network,result,this.powerFactoryControlContextNumericFile,gate);}finally{clearTimeout(timeout);}}
       if(!this.resultStore.accept(role,result)){this.status='Senaryo/model değişti; eski hesap reddedildi.';return;}
-      const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
+      this.resultView.source='GA';this.resultView.metric='pFromMw';this.benchmarkMap=workspaceMapSelection(this);const label=type==='powerFlow'?'Tam AC':type==='fastAc'?'Hızlı Yaklaşık AC':'DC';
     const work=fullAcDiagnostics(result),workDetail=work.fullNrSolves==null?'':` · ${work.fullNrSolves} NR çözümü`;
     this.status=`${label} · ${role==='base'?'Baz':'Senaryo'} · ${calculationConvergenceLabel(result)}${type==='powerFlow'?` · ${work.newtonIterations??0} toplam Newton iterasyonu · ${work.finalNewtonIterations??0} son NR Newton iterasyonu${workDetail}`:` · ${result.iterations} ${type==='dc'?'doğrusal çözüm':'yaklaşık AC adımı'}`} · ${(result.elapsedMs/1000).toFixed(2)} s`;
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'Hesap iptal edildi.':`Hesap hatası: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','analysis',this.status,e);}}
@@ -157,7 +167,7 @@ export class Application implements AppContext {
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
   async runN1Screen(options:N1ScreenOptions){if(!this.network||this.busy)return;const network=this.network,scope=options.analysisScope||'scenario',scenario=this.scenarioForScope(scope),job=++this.job,scenarioHash=scenarioSignature(scenario);++this.n1DetailJob;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.n1DetailLoading=false;this.busy=true;this.n1Progress=null;this.setMessage('N-1 taraması başlatılıyor');
-    try{if(!await this.prepareCalculationWorker(network,job)||job!==this.job)return;const result=await this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options});if(job!==this.job||this.network?.modelHash!==network.modelHash||scenarioSignature(this.scenarioForScope(scope))!==scenarioHash)return;this.n1Result=result;this.status=`N-1 taraması · ${result.screenedCount}/${result.candidateCount} tarandı · ${result.islandingCount} ada ayıran · ${(result.elapsedMs/1000).toFixed(2)} sn`;
+    try{if(!await this.prepareCalculationWorker(network,job)||job!==this.job)return;const result=await this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options});if(job!==this.job||this.network?.modelHash!==network.modelHash||scenarioSignature(this.scenarioForScope(scope))!==scenarioHash)return;this.n1Result=result;this.resultView.analysis=this.analysisTab='N1';const candidate=result.candidates[0],entity=candidate?[...network.lines,...network.transformers].find(e=>e.id===candidate.equipmentId):null;this.resultView.caseId=candidate?`N1:${candidate.sourceClass}:${entity?.sourceId??candidate.equipmentId}`:undefined;this.resultView.source='GA';this.resultView.metric='postPmw';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);this.status=`N-1 taraması · ${result.screenedCount}/${result.candidateCount} tarandı · ${result.islandingCount} ada ayıran · ${(result.elapsedMs/1000).toFixed(2)} sn`;
     }catch(e){if(job===this.job){this.status=e instanceof Error&&e.message==='CANCELLED'?'N-1 taraması iptal edildi.':`N-1 taraması başarısız: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','n1',this.status,e);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -180,20 +190,20 @@ export class Application implements AppContext {
   selectN1Island(islandId:string|null):void{this.selectedN1IslandId=islandId&&this.n1Detail?.outageIslands.some(island=>island.islandId===islandId)?islandId:null;this.notify();}
   cancel(silent=false){this.stopLoadHeartbeat();this.hybridAbort?.abort();this.hybridAbort=null;if(this.hybridResult&&this.busy){this.hybridResult.status='CANCELLED';for(const c of this.hybridResult.cases)if(c.status==='NOT_RUN_BUDGET'){c.status='CANCELLED';c.reason='USER_CANCELLED';}}++this.job;++this.n1DetailJob;this.n1DetailLoading=false;if(this.loadingModel){this.source.cancel();this.loadingModel=false;}this.calculation.cancel();this.comparison.cancel();this.calcLoadedHash='';this.busy=false;this.n1Progress=null;this.status='Hesap iptal edildi.';if(!silent)this.notify();}
   catalog(query:CatalogQuery):Promise<CatalogPage>{return this.source.request({type:'CATALOG',query});}
-  select(id:string,sourceClass:string,view?:string){this.selection={id,sourceClass};if(view)this.view=view;this.notify();}
-  private scenarioUpdated(){this.n1AcResults=[];this.cancel(true);this.hybridResult=null;this.scResult=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.resultStore.invalidateScenario();this.resultStore.role=scenarioChanged(this.scenario.current)?'scenario':'base';this.status=scenarioChanged(this.scenario.current)?'Senaryo değişti · Güncel hesap bekleniyor':'Baz model etkin';if(this.network&&!this.benchmark)void this.database.put(`scenario:${this.network.modelHash}`,this.scenario.current).catch(()=>{});this.notify();}
+  select(id:string,sourceClass:string,view?:string){this.selection={id,sourceClass};this.resultView.fid=id;if(view)this.view=view;this.notify();}
+  private scenarioUpdated(){this.cancel(true);this.benchmarkMap=null;this.resultStore.selectScenario(this.scenario.selectedId);this.resultStore.role=this.scenario.selectedId==='B0'?'base':'scenario';this.status=`${this.scenario.selected.name} · Güncel hesap bekleniyor`;if(this.network&&!this.benchmark)void this.database.put(`scenario:${this.network.modelHash}`,this.scenario.current).catch(()=>{});this.notify();}
   async setBusStatus(termIds: readonly string[], value: boolean | 'source', calculate=false){
     if(!this.network)return;
     const requested=new Set(termIds),members=this.network.buses.filter(b=>requested.has(b.id)).map(b=>({id:b.id,source:b.inService}));
     if(!members.length)return;
-    this.scenario.setBusStatus(members,value);this.scenarioUpdated();
-    if(calculate)await this.run(this.resultStore.analysisType,'scenario');
+    this.scenario.commandSource=this.view.toUpperCase();this.scenario.setBusStatus(members,value);this.scenarioUpdated();
+    if(calculate)await this.run('powerFlow','scenario');
   }
   async setStatus(key:StatusKey,id:string,value:boolean,source:boolean,calculate=false){
     if(!this.network)return;
-    if(key==='lineStatus'&&value&&!source){const effective=effectiveNetwork(this.network,this.scenario.current),plan=planEnergization(effective,id);if(!plan.ready){this.setMessage(`Devreye alma engeli: ${plan.blockers.join(' ')}`);return;}this.scenario.replace(applyEnergization(this.scenario.current,plan));}
+    this.scenario.commandSource=this.view.toUpperCase();if(key==='lineStatus'&&value&&!source){const effective=effectiveNetwork(this.network,this.scenario.current),plan=planEnergization(effective,id);if(!plan.ready){this.setMessage(`Devreye alma engeli: ${plan.blockers.join(' ')}`);return;}this.scenario.replace(applyEnergization(this.scenario.current,plan));}
     else this.scenario.setStatus(key,id,value,source);
-    this.scenarioUpdated();if(calculate)await this.run(this.resultStore.analysisType,'scenario');
+    this.scenarioUpdated();if(calculate)await this.run('powerFlow','scenario');
   }
   clearModel(){this.powerFactoryReference=null;this.comparisonOutage=null;this.benchmark=null;this.benchmarkReadiness=null;this.benchmarkMap=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.scContext=null;this.cancel();this.source.cancel();this.network=null;this.powerFactoryControlContextHash=null;this.powerFactoryControlContextNumericFile=null;this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.modelQualityAnalysisScope=null;this.n1Result=null;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.selection=null;this.scenario=new ScenarioStore();this.resultStore.clear();this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.status='Model bellekten temizlendi.';this.notify();}
   resetScenario(){this.scenario.reset();this.scenarioUpdated();}

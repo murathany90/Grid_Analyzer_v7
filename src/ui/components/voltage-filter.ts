@@ -7,7 +7,7 @@ export function createVoltageFilter(ctx: AppContext, name = 'Gerilim grupları')
   root.setAttribute('role', 'group'); root.setAttribute('aria-label', name);
   const inputs = new Map<VoltageBand, HTMLInputElement>();
   for (const band of VOLTAGE_BANDS) {
-    const label = element('label', 'ga-check'), input = element('input'); input.type = 'checkbox';
+    const label = element('label', 'ga-check'), input = element('input'); input.type = 'checkbox'; input.dataset.helpId='map.voltage.'+(band.id==='low'?'low':band.id);
     input.onchange = () => {
       if (input.checked) ctx.filters.voltages.add(band.id); else ctx.filters.voltages.delete(band.id);
       ctx.filters.siteId = ''; ctx.selection = null; ctx.notify();

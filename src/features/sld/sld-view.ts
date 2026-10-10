@@ -1,3 +1,4 @@
+import {activeResultId} from '../../domain/results/workspace';
 import {buildStationTopologyGraph,type StationTopologyGraph,type Feeder} from '../../domain/model/station-topology';
 import {voltageMatches} from '../../domain/model/voltage-band';
 import {createVoltageFilter} from '../../ui/components/voltage-filter';
@@ -241,7 +242,7 @@ export function createSldView(ctx: AppContext): Feature {
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
       const engine=calculationEngineLabel(ctx);
-      actions.append(actionButton(key==='switchState'?'Kapat / servise al':'Servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Aç / servis dışı':'Servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + ${engine} Senaryo Hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
+      actions.append(actionButton(key==='switchState'?'Kapat / servise al':'Servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Aç / servis dışı':'Servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + Senaryo Full AC hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
       }
       actions.append(actionButton('Haritada göster',()=>ctx.select(entity.id,entity.sourceClass,'map')));
     }
