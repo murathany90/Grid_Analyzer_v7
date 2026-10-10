@@ -17,7 +17,7 @@ import type {CanonicalNetwork} from '../domain/model/network';
 import type {CalculationResult} from '../domain/results/types';
 import {type BenchmarkMapData} from '../domain/benchmark/map-layer';
 import {lfSnapshotIsCurrent} from '../domain/benchmark/post-result-source';
-import {mapFlowMetric,resultLayerColor,mapMetricLabel,buildMapPresentationData,lfMapTarget,LF_MAP_METRICS} from './layer-policy';
+import {mapFlowMetric,resultLayerColor,mapMetricLabel,buildMapPresentationData,lfMapTarget,LF_MAP_METRICS,currentMapLf,matchedVoltageKv,angleHasReference} from './layer-policy';
 import {equipmentCard,renderEquipmentCard,tooltipPosition,type TooltipEquipment} from './equipment-tooltip';
 export interface MapRenderer {render():void;focus(id:string,sourceClass:string):void;reset():void;dispose():void}
 export class CanvasMapRenderer implements MapRenderer {
@@ -73,6 +73,9 @@ export class CanvasMapRenderer implements MapRenderer {
   }
   private splitSideColor(station:SplitBusStation,busId:string):string {
     const side=station.bus1.electricalBusId===busId?station.bus1:station.bus2,islandId=side.islandIds[0],island=this.splitTopology?.islands.find(row=>row.islandId===islandId);
+    const s=this.ctx.benchmarkMap;if(s){const r=currentMapLf(this.ctx),bus=r?.buses.find(b=>b.vnKv===station.voltageKv&&[...b.terms].sort().join('|')===[...side.terminalIds].sort().join('|'));
+      const value=s.analysis==='LF'&&s.source==='GA'&&this.benchmarkData?.enabled?s.metric==='voltageKv'?matchedVoltageKv(bus?.vmPu,bus?.vnKv,station.voltageKv):s.metric==='angleDeg'&&angleHasReference(r,bus??null)?bus!.angleRad*180/Math.PI:null:null;
+      return resultLayerColor('#b8e1e3','site',s,{value,unit:s.metric==='voltageKv'?'kV':'deg',status:'PARTITION_MATCHED',details:[],nominalKv:station.voltageKv} as import('../domain/benchmark/map-layer').BenchmarkMapValue,value!==null);}
     if(this.ctx.settings.value.displayMode==='n1-island'){
       const n1=this.n1Detail()?.outageIslands.find(component=>side.terminalIds.some(id=>component.busIds.includes(id)));
       return n1?.hasReference?islandColor(n1.componentId):this.ctx.settings.value.colorNoResult;
