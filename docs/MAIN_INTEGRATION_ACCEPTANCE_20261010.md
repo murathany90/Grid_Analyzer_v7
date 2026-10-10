@@ -1,6 +1,6 @@
 # Main bütünleştirme kabulü — 2026-10-10
 
-Eski main: `f13567add3a0d4b16d4dc164b6a9cd645d5fa2b5`. Başlangıç final dalı: `431e6c8f3a2b283223b777814d3312f038aa7141`. Kabul edilen uygulama commit'i: `3bfa536dc203876c3779f90ba6a260e9b0a4a4a4`. Yerel staging: `integration/ga-431e6c8-main-20261010`; origin/main atasıdır, yöntem **tek fast-forward**. Main CI ve dal temizliği kapanış kaydı aşağıda tamamlanır. [Main CI çalışmaları](https://github.com/murathany90/Grid_Analyzer_v7/actions?query=branch%3Amain).
+Eski main: `f13567add3a0d4b16d4dc164b6a9cd645d5fa2b5`. Başlangıç final dalı: `431e6c8f3a2b283223b777814d3312f038aa7141`. Kabul edilen uygulama commit'i: `3bfa536dc203876c3779f90ba6a260e9b0a4a4a4`. Main'e kabul edilen integration HEAD: `eb53c267529226a2e25ebb23196b3dd85395b9f5`. Yerel staging: `integration/ga-431e6c8-main-20261010`; main'in atasıdır, yöntem **tek fast-forward**. [Main kabul CI'sı: success](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38070305007).
 
 Portable SHA256: `d9428222d8b7313a14360dcbca91030b47f2b2a5e13e6fa1a84cdac7168da186`. Gerçek mini-kabul bu **commitlenmiş HTML'nin aynı ham baytları** üzerinde, localhost secure context / gerçek Worker / IndexedDB ile yapıldı. Eski aday `0ef407…` ve önceki final `9c1068…` bu kabulün binary'si değildir. Kapanıştaki yalnız belge commitleri portable'ı değiştirmez; main/CI eşitliği ayrıca doğrulanır.
 
@@ -49,7 +49,7 @@ Tolerans GA-ENGINEERING-1.0: MW/MVAr/MVA 1 birim + %1×|PF|; kV 0.5 + %0.5×|PF|
 
 ## Silme öncesi dal kaydı
 
-Aşağıdaki son SHA'lar **silmeden önce** kaydedildi. Silme yalnız main CI success + aynı portable + gerçek mini-kabul sonrasında yapılır. Yedi uygulama dalı main'in atası olmalı, açık PR/benzersiz iş bulunmamalı. Üç investigation dalı, kullanıcının açık kesin talimatıyla **kodları taşınmadan atılacak**; ancestry koşulunun investigation'a uygulanmaması bu talimattan kaynaklanır. Uzak main, tag/release ve aktif PR korunur.
+Aşağıdaki son SHA'lar **silmeden önce** `eb53c267529226a2e25ebb23196b3dd85395b9f5` rapor commit'inde kaydedildi. Silme main CI success + aynı portable + gerçek mini-kabul sonrasında yapıldı. Yedi uygulama dalının ayrı ayrı main'in atası olduğu, son SHA'larının değişmediği ve açık PR bulunmadığı tekrar doğrulandı. Üç investigation dalı, kullanıcının açık kesin talimatıyla **kodları taşınmadan atıldı**; ancestry koşulunun investigation'a uygulanmaması bu talimattan kaynaklanır. Uzak main ve tag/release korundu.
 
 | Dal | Silme öncesi son SHA | Sınıf |
 |---|---|---|
@@ -66,7 +66,13 @@ Aşağıdaki son SHA'lar **silmeden önce** kaydedildi. Silme yalnız main CI su
 
 ## Kapanış durumu
 
-MAIN_PUSH_PENDING / CI_PENDING / NO_BRANCH_DELETED. Başarılı main kabulünden sonra gerçek main SHA/CI ve silme sonucu bu bölüme eklenecek.
+**MAIN_ACCEPTED / CI_SUCCESS / REMOTE_CLEANUP_PASS.** Eski main → `eb53c267529226a2e25ebb23196b3dd85395b9f5` tek fast-forward ile push edildi. CI `38070305007`, validate job `114266168843`: **success**, 352 pass / 0 fail / 0 skip; typecheck, lint, iki browser smoke ve build'ler başarılı. CI built ve committed portable ham SHA256'sı yukarıdaki `d9428222…` ile aynı; `COMMITTED_PORTABLE_BYTES OK` logu doğrulandı.
+
+Main'e geçişten sonra aynı gerçek SN3 tarayıcısı ve aynı portable üzerinde SC S2→B0 geçişinde NOT_RUN temizliği, S2'ye dönüşte SC kimliğinin geri gelmesi, kaydı olmayan başka N1 case'inde NOT_RUN ve DC Q metriğinde NOT_RUN doğrulandı. LF'ye dönüşte önceki S2 kimliği korundu. **Yeni import/hesap yok.**
+
+Tablodaki **10 uzak dalın tamamı silindi**. Öncesi/sonrası `ls-remote`, fetch/prune ve ancestry kontrolü yapıldı; kalan uzak dal **yalnız main**, temizlik sonrası SHA `eb53c267529226a2e25ebb23196b3dd85395b9f5`. Üç benzersiz araştırma commit'i silme sonrasında da main'in atası değil. Hiçbir araştırma hesap motoru değişikliği yeniden denenmedi veya taşınmadı. Açık PR yoktu; tag ref'leri birebir korundu, release değiştirilmedi.
+
+Yerel integration staging kabul kaydı olarak korunuyor; uzakta yayınlanmadı. Bu kapanış kaydının sonraki commit'i yalnız raporu değiştirir; kaynak ve portable aynı kalır. Teslim anındaki güncel main SHA ve bu belge commit'inin CI sonucu kullanıcı özetinde ayrıca verilir. [Güncel main CI çalışmaları](https://github.com/murathany90/Grid_Analyzer_v7/actions?query=branch%3Amain).
 
 ## Kalan en çok 5 konu
 
