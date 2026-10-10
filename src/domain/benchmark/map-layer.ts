@@ -10,7 +10,7 @@ import { stableJson } from '../calculation/identity';
 import {hasReference} from './reference-slots';
 export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
 export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
-export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;scale?:{p95:number;min:number;max:number;unit:string}}
+export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;numericValues?:number;scale?:{p95:number;min:number;max:number;unit:string}}
 const gateCache=new WeakMap<AppContext,{benchmark:unknown;network:unknown;result:unknown;control:unknown;gate:ReturnType<typeof preflightBenchmark>}>();
 function cachedPreflight(ctx:AppContext){const result=ctx.resultStore.get('base','powerFlow'),old=gateCache.get(ctx);if(old&&old.benchmark===ctx.benchmark&&old.network===ctx.network&&old.result===result&&old.control===ctx.powerFactoryControlContextNumericFile)return old.gate;const gate=preflightBenchmark(ctx.benchmark!,ctx.network,result,ctx.powerFactoryControlContextNumericFile);gateCache.set(ctx,{benchmark:ctx.benchmark,network:ctx.network,result,control:ctx.powerFactoryControlContextNumericFile,gate});return gate;}
 const rowCache=new WeakMap<AppContext,{key:string;benchmark:AppContext['benchmark'];result:unknown;ac:unknown;dc:unknown;hybrid:unknown;sc:unknown;rows:BenchmarkMetricRow[]}>();
@@ -59,7 +59,7 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
 }
 /** Source identity and metric gates govern colors. Missing numbers remain null. */
 export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMapData{
-  const gate=benchmarkMapGate(ctx,s),data:BenchmarkMapData={...gate,branches:new Map(),sites:new Map(),outage:null,noGeometry:0},network=ctx.network;if(!network||!gate.enabled)return data;
+  const gate=benchmarkMapGate(ctx,s),data:BenchmarkMapData={...gate,branches:new Map(),sites:new Map(),outage:null,noGeometry:0,numericValues:0},network=ctx.network;if(!network||!gate.enabled)return data;
   const busById=new Map(network.buses.map(b=>[b.id,b])),lineByKey=new Map([...network.lines,...network.transformers].map(e=>[`${e.sourceClass}:${e.sourceId}`,e]));
   const siteById=new Map(network.sites.map(site=>[site.id,site]));
   const putSite=(id:string,value:BenchmarkMapValue,fid:string,kv:number|null)=>{
@@ -74,6 +74,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   };
   const put=(sourceClass:string,fid:string,value:BenchmarkMapValue)=>{
     const line=lineByKey.get(`${sourceClass}:${fid}`),bus=sourceClass==='ElmTerm'?busById.get(fid):undefined,siteIds=line?.siteIds||bus?.siteIds||[];if(s.voltageKv&&(bus?.vnKv??line?.vnKv)!==s.voltageKv)return;
+    if(value.value!==null&&Number.isFinite(value.value))data.numericValues!++;
     if(line)data.branches.set(`${sourceClass}:${line.id}`,value);
     let hasGeometry=!!(sourceClass==='ElmLne'&&line&&'coordinates' in line&&line.coordinates.length);
     for(const id of siteIds){putSite(id,value,fid,bus?.vnKv??null);const site=siteById.get(id);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
