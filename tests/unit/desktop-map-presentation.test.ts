@@ -9,7 +9,8 @@ import {ResultStore} from '../../src/domain/results/store';
 import {AnalysisSettingsStore} from '../../src/domain/calculation/analysis-settings';
 import {initialResultView} from '../../src/domain/results/workspace';
 import {METRICS} from '../../src/domain/benchmark/comparison';
-import {LF_MAP_METRICS,matchedVoltageKv,representativeStationBus,buildMapPresentationData,mapFlowMetric,mapPresentationGate,selectedN1Presentation,selectedScPresentation,mapStatusText} from '../../src/map/layer-policy';
+import {LF_MAP_METRICS,matchedVoltageKv,representativeStationBus,buildMapPresentationData,mapFlowMetric,mapPresentationGate,selectedN1Presentation,selectedScPresentation,mapStatusText,syncMapCase} from '../../src/map/layer-policy';
+import {runHybridN1} from '../../src/analysis/contingency-hybrid';
 import {equipmentCard,tooltipPosition} from '../../src/map/equipment-tooltip';
 import {HELP_HOVER_DELAY_MS} from '../../src/help/context-help';
 function context(){
@@ -42,11 +43,16 @@ test('a nonbase PF/delta context is blocked and never borrows current GA values'
   const {ctx}=context();ctx.scenario.setStatus('lineStatus','L0',false,true);for(const source of ['PF','DELTA','EXPLORATORY_DELTA'] as const)assert.equal(mapPresentationGate(ctx,{...ctx.benchmarkMap!,source}).reason,'PF_SCENARIO_IDENTITY_UNVERIFIED');
   ctx.benchmarkMap={...ctx.benchmarkMap!,source:'PF'};const card=equipmentCard(ctx,ctx.network!.lines[0]);assert.equal(card.status,'BLOCKED');assert.equal(card.rows.length,0);
 });
-test('DC N1 case selection gates Q/U and preserves PRE/POST values only for the selected recorded case',()=>{
+test('DC N1 case gates Q/U; recorded case identity and native worsened constraints remain visible',async()=>{
   const {ctx}=context();ctx.resultView.analysis='N1';ctx.resultView.caseId='N1:ElmLne:L0';ctx.n1Result={identity:{modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current)},candidates:[{equipmentId:'L0',sourceClass:'ElmLne',status:'SCREENED',topImpacts:[{equipmentId:'L0',sourceClass:'ElmLne',baseFlowMw:0,postFlowMw:12,deltaPMw:12,baseEstimatedLoadingPct:null,postEstimatedLoadingPct:30}]}]} as unknown as AppContext['n1Result'];
   const s={analysis:'N1',source:'GA',table:'N1_RecordedExtrema_Raw',metric:'postPmw',caseId:ctx.resultView.caseId,n1Layer:'POST'} as const;
   assert.equal(buildMapPresentationData(ctx,s).branches.get('ElmLne:L0')?.value,12);assert.equal(mapPresentationGate(ctx,{...s,metric:'voltageKv'}).reason,'GA_DC_P_ONLY');assert.equal(mapPresentationGate(ctx,{...s,metric:'postQmvar'}).reason,'GA_DC_P_ONLY');
   ctx.resultView.caseId='N1:ElmLne:OTHER';assert.equal(selectedN1Presentation(ctx).status,'NOT_RUN');assert.equal(buildMapPresentationData(ctx,{...s,caseId:ctx.resultView.caseId}).numericValues,0);ctx.resultView.caseId=s.caseId;ctx.n1Result!.candidates[0].status='ISLANDING';assert.equal(mapPresentationGate(ctx,s).enabled,false);
+  ctx.benchmark={groups:{N1:{tables:{N1_Cases_Raw:{headers:['caseId','outageClass','outageFid'],rows:[['PF-NATIVE-CASE','ElmLne','L0']]}}}}} as never;ctx.resultView.caseId='PF-NATIVE-CASE';syncMapCase(ctx);assert.deepEqual(ctx.comparisonOutage,{caseId:'PF-NATIVE-CASE',sourceClass:'ElmLne',fid:'L0'});
+  const base=acNetwork(),n={...base,lines:base.lines.map(l=>({...l,capacity:{quality:'DGS_MAIN_TYPE' as const,typeId:'T',typeName:'T',nominalCurrentKA:1,nominalMVA:173.2,limitingSectionId:null,sections:[],seasonalReference:null}}))};
+  ctx.benchmark=null;ctx.network=n;ctx.n1Result=null;ctx.resultView.caseId='N1:ElmLne:BYPASS';ctx.hybridResult=await runHybridN1(n,ctx.scenario.current,{analysisSettings:ctx.analysisSettings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1,operationalLoadingLimitPercent:1}});
+  const c=ctx.hybridResult.cases.find(c=>c.outage.caseId===ctx.resultView.caseId)!,worsened=c.constraintChanges?.find(c=>c.metric==='postLoadingPercent'&&c.state==='WORSENED');assert.ok(worsened,'fixture must contain a genuine worsened native constraint');
+  const newLayer=buildMapPresentationData(ctx,{...s,caseId:ctx.resultView.caseId,metric:'postLoadingPercent',n1Layer:'NEW_CONSTRAINTS'}),equipment=n.lines.find(e=>e.sourceId===worsened.fid)!;assert.equal(newLayer.branches.get('ElmLne:'+equipment.id)?.status,'WORSENED');assert.equal(newLayer.branches.get('ElmLne:'+equipment.id)?.value,worsened.post);
 });
 test('SC BLOCKED stays null with explicit source/partition reason and rejects stale identities',()=>{
   const {ctx}=context();ctx.resultView.analysis='SC';ctx.resultView.faultId='B0';ctx.scResult={identity:{modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current)},profile:{faultType:'3PH',calculateMode:'MAX'},faults:[{physicalTerminalFid:'B0',physicalTerminalFids:['B0'],nominalKv:400,status:'BLOCKED',ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,reasons:['PARTITION_NOT_VERIFIED']}]} as unknown as AppContext['scResult'];

@@ -81,6 +81,11 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
   const transformed=s.source==='GA'&&target==='ElmTr2'?{...s,metric:s.metric==='pHvMw'?'pFromMw':'qFromMvar'}:s;
   const data=buildBenchmarkMapData(ctx,transformed),result=currentMapLf(ctx),n=ctx.network;
   if(!n)return data;
+  if(s.analysis==='N1'&&s.source==='GA'&&s.n1Layer==='NEW_CONSTRAINTS'){
+    const post=buildBenchmarkMapData(ctx,{...s,n1Layer:'POST'}),changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.filter(c=>['NEW','WORSENED'].includes(c.state))??[];
+    const equipment=new Map([...n.lines,...n.transformers].map(e=>[e.sourceClass+':'+e.id,e])),thermal=new Map(changes.filter(c=>c.metric==='postLoadingPercent').map(c=>[c.sourceClass+':'+c.fid,c]));
+    data.branches.clear();data.sites.clear();for(const [key,value] of post.branches){const e=equipment.get(key),change=e?thermal.get(e.sourceClass+':'+e.sourceId):undefined;if(change)data.branches.set(key,{...value,status:change.state});}
+  }
   if(s.analysis==='SC'&&s.source!=='GA'){
     data.sites.clear();data.branches.clear();for(const r of mapReferenceRows(ctx,s).filter(r=>r.fid===ctx.resultView.faultId)){
       const term=n.buses.find(b=>b.id===r.fid);if(!term||r.nominalKv!==term.vnKv)continue;const value=s.source==='PF'?r.pf.value:s.source==='EXPLORATORY_DELTA'&&r.identityMatched?r.diagnosticDelta??null:null;
@@ -112,6 +117,7 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
     data.sites.clear();const p=selectedN1Presentation(ctx),base=p.post?.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost?.buses:result?.buses,post=p.post?.post.buses;
     for(const site of n.sites){const nominal=representativeStationBus(ctx,site.id,null).nominal,valid=(b:{terms:string[];vnKv:number;vmPu:number})=>b.vnKv===nominal&&b.terms.length>0&&b.terms.every(id=>n.buses.find(t=>t.id===id)?.vnKv===nominal)&&b.terms.some(id=>n.buses.find(t=>t.id===id)?.siteIds.includes(site.id))&&finiteNumber(b.vmPu);
       const candidates=(s.n1Layer==='BASE'?base:post)?.filter(valid).sort((a,b)=>b.vmPu-a.vmPu)??[],b=candidates[0],before=base?.find(a=>a.vnKv===b?.vnKv&&[...a.terms].sort().join('|')===[...b?.terms??[]].sort().join('|'));
+      if(s.n1Layer==='NEW_CONSTRAINTS'&&!ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.some(c=>['NEW','WORSENED'].includes(c.state)&&c.metric==='voltagePu'&&c.physicalTerminalFids?.some(fid=>b?.terms.includes(fid))))continue;
       const u=matchedVoltageKv(b?.vmPu,b?.vnKv,nominal),value=s.n1Layer==='CHANGE'?u!==null&&before?u-before.vmPu*before.vnKv:null:u;
       data.sites.set(site.id,{value,unit:'kV',status:p.status,details:[],representativeFid:b?.terms[0],nominalKv:nominal} as BenchmarkMapValue);
     }
@@ -130,8 +136,8 @@ export function selectedN1Presentation(ctx:AppContext){
 export function syncMapCase(ctx:AppContext){
   if(ctx.resultView.analysis!=='N1')return;
   const p=selectedN1Presentation(ctx);ctx.selectedN1CandidateId=p.candidate?.candidateId??null;
-  const [,cls,...fid]=(ctx.resultView.caseId??'').split(':');
-  ctx.comparisonOutage=['ElmLne','ElmTr2'].includes(cls)&&fid.length?{caseId:ctx.resultView.caseId!,sourceClass:cls as 'ElmLne'|'ElmTr2',fid:fid.join(':')}:null;
+  const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw,row=table?.rows.map(row=>rowObject(table,row)).find(r=>r.caseId===ctx.resultView.caseId),[,cls,...fid]=(ctx.resultView.caseId??'').split(':'),outage=p.post?.outage??(row?{caseId:ctx.resultView.caseId!,sourceClass:String(row.outageClass),fid:String(row.outageFid)}:{caseId:ctx.resultView.caseId!,sourceClass:cls,fid:fid.join(':')});
+  ctx.comparisonOutage=['ElmLne','ElmTr2'].includes(outage.sourceClass)&&outage.fid?{...outage,sourceClass:outage.sourceClass as 'ElmLne'|'ElmTr2'}:null;
 }
 export function selectedScPresentation(ctx:AppContext){
   const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);

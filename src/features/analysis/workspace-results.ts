@@ -25,7 +25,7 @@ export function createWorkspaceResults(ctx:AppContext){
     for(const row of filtered.slice(page*50,page*50+50)){
       const e=entity(row.cls,row.fid),tr=element('tr');let values=[e?.name??row.fid,format(row.value.value),row.value.unit,row.value.status];
       const cell=(data:typeof before)=>row.cls==='ElmSite'?data?.sites.get(row.fid):data?.branches.get(row.cls+':'+row.fid);
-      if(n1)values=[e?.name??row.fid,format(cell(before)?.value),format(cell(after)?.value),format(cell(change)?.value),row.value.unit,n1.method+' · '+n1.status];
+      if(n1)values=[e?.name??row.fid,format(cell(before)?.value),format(cell(after)?.value),format(cell(change)?.value),row.value.unit,n1.method+' · '+n1.status+(selection.n1Layer==='NEW_CONSTRAINTS'?' · '+row.value.status:'')];
       if(sc)values=[e?.name??row.fid,format(cell(ikss)?.value),format(cell(skss)?.value),v.source==='PF'?'PF_REFERENCE_ONLY':sc.status];
       for(const value of values)tr.append(element('td','',value));tr.tabIndex=0;tr.onclick=()=>ctx.select(e?.id??row.fid,row.cls,'map');tr.onkeydown=e=>{if(e.key==='Enter')tr.click();};table.append(tr);
     }
