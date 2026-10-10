@@ -169,7 +169,7 @@ export function createN1ResultsView(ctx: AppContext, isCurrent: () => boolean) {
     (bar.firstElementChild as HTMLButtonElement).disabled = page <= 0; (bar.lastElementChild as HTMLButtonElement).disabled = page >= pages - 1;
     return bar;
   }
-  function selectCandidate(candidateId: string | null) { detailPage = 0; void ctx.selectN1Candidate(candidateId).then(renderCurrent, renderCurrent); }
+  function selectCandidate(candidateId: string | null) { detailPage = 0;const c=ctx.n1Result?.candidates.find(c=>c.candidateId===candidateId),e=c?[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass):null;if(c){ctx.resultView.caseId=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(ctx.benchmarkMap?.analysis==='N1')ctx.benchmarkMap.caseId=ctx.resultView.caseId;}void ctx.selectN1Candidate(candidateId).then(renderCurrent, renderCurrent); }
   function renderScenarios(candidates: readonly N1ScreenCandidate[]) {
     const rows = sortN1(candidates, scenarioSort, scenarioDirection), { pageRows, pager: pageBar } = pageSlice(rows, scenarioPage, p => { scenarioPage = p; renderCurrent(); });
     const byId = catalogMap(), siteName = (id: string) => ctx.network?.sites.find(s => s.id === id)?.name || id, areaName = (id: string) => ctx.network?.sites.find(s => s.areaId === id)?.areaName || id;

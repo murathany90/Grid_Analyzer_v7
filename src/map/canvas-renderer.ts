@@ -2,14 +2,12 @@ import {voltageMatches} from '../domain/model/voltage-band';
 import {displayBranches} from '../domain/results/presentation';
 import type {AppContext} from '../app/contracts';
 import type {BranchResult} from '../domain/results/types';
-import type {Line,Site} from '../domain/model/network';
-import {selectedCapacity} from '../domain/model/capacity';
+import type {Line,Site,Transformer2W} from '../domain/model/network';
 import {buildGeometry,offsetPath,routeEndpointToStationSide,splitBusMarksVisible,qEndpointDirections,type NetworkGeometry} from './geometry';
 import {lineStyle} from './result-style';
 import {BasemapRenderer} from './basemap';
 import {projectWgs84} from './projection';
 import {aggregateStationVoltages,aggregateStationAngles,stationVoltageDeltas,flowScale,voltageColor,scaleColor,type StationVoltage,type StationAngle} from './electrical-overlays';
-import {mapDetailText} from './detail-text';
 import {deltaColor} from './delta-style';
 import {buildIslandMapData,islandColor,type IslandMapData} from './island-map';
 import {effectiveNetwork,emptyScenario} from '../domain/scenario/overlay';
@@ -17,9 +15,10 @@ import {escapeHtml} from '../ui/components/dom';
 import {buildSplitBusTopology,type SplitBusStation,type SplitBusTopology} from '../topology/split-bus';
 import type {CanonicalNetwork} from '../domain/model/network';
 import type {CalculationResult} from '../domain/results/types';
-import { buildBenchmarkMapData,type BenchmarkMapData } from '../domain/benchmark/map-layer';
+import {type BenchmarkMapData} from '../domain/benchmark/map-layer';
 import {lfSnapshotIsCurrent} from '../domain/benchmark/post-result-source';
-import {mapFlowMetric,resultLayerColor,mapMetricLabel} from './layer-policy';
+import {mapFlowMetric,resultLayerColor,mapMetricLabel,buildMapPresentationData,lfMapTarget,LF_MAP_METRICS} from './layer-policy';
+import {equipmentCard,renderEquipmentCard,tooltipPosition,type TooltipEquipment} from './equipment-tooltip';
 export interface MapRenderer {render():void;focus(id:string,sourceClass:string):void;reset():void;dispose():void}
 export class CanvasMapRenderer implements MapRenderer {
   private benchmarkData:BenchmarkMapData|null=null;
@@ -40,6 +39,8 @@ export class CanvasMapRenderer implements MapRenderer {
   private paths=new Map<string,[number,number][]>();private screenKey='';private visibleLines:Line[]=[];private visibleSites:Site[]=[];
   private resize:ResizeObserver;private raf=0;private pointer:{x:number;y:number;px:number;py:number;dragged:boolean}|null=null;
   private animationMetric:'p'|'q'|null=null;
+  private transformerMarks:{equipment:Transformer2W;x:number;y:number}[]=[];
+  private hovered='';
   showSites=true;showLabels=false;simple=false;
   private visibility=()=>this.render();
   private updateSplitTopology(network:CanonicalNetwork):void {
@@ -55,13 +56,13 @@ export class CanvasMapRenderer implements MapRenderer {
     const current=this.splitTopologyCache!;this.splitTopology=current.data;this.splitTopologyKey=current.key;
   }
   private prepareSplitSidePoints(network:CanonicalNetwork):void {
-    this.splitSidePoints.clear();if(this.zoom<2||!this.splitTopology||!splitBusMarksVisible(this.ctx.settings.value.displayMode))return;
+    this.splitSidePoints.clear();if(this.zoom<2||!this.splitTopology||!this.splitVisible())return;
     for(const[siteId,stations]of this.splitGroupsBySite){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
       stations.forEach((station,index)=>{const y=center[1]+(index-(stations.length-1)/2)*16;this.splitSidePoints.set(`${siteId}|${station.bus1.electricalBusId}`,[center[0]-8,y]);this.splitSidePoints.set(`${siteId}|${station.bus2.electricalBusId}`,[center[0]+8,y]);});
     }
   }
   private splitRoutePath(line:Line,path:readonly(readonly[number,number])[],network:CanonicalNetwork):[number,number][] {
-    if(!splitBusMarksVisible(this.ctx.settings.value.displayMode))return path.map(point=>[point[0],point[1]]);
+    if(!this.splitVisible())return path.map(point=>[point[0],point[1]]);
     const fromSites=this.terminalSiteIds.get(line.from)||[],toSites=this.terminalSiteIds.get(line.to)||[],fromBus=this.splitTopology?.terminalToElectricalBus.get(line.from),toBus=this.splitTopology?.terminalToElectricalBus.get(line.to);
     let shifted=path.map(point=>[point[0],point[1]] as [number,number]);
     for(const siteId of line.siteIds){const site=this.splitSiteById.get(siteId);if(!site||site.lat==null||site.lon==null)continue;const center=this.point(site.lon,site.lat);
@@ -97,22 +98,23 @@ export class CanvasMapRenderer implements MapRenderer {
     document.addEventListener('visibilitychange',this.visibility);
     this.resize=new ResizeObserver(()=>this.render());this.resize.observe(canvas);
     canvas.onwheel=e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,factor=e.deltaY<0?1.18:1/1.18,old=this.zoom;this.zoom=Math.min(35,Math.max(.6,old*factor));const f=this.zoom/old;this.panX=(this.panX+this.width/2-x)*f+x-this.width/2;this.panY=(this.panY+this.height/2-y)*f+y-this.height/2;this.render();};
-    canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);this.pointer={x:e.clientX,y:e.clientY,px:this.panX,py:this.panY,dragged:false};};
-    canvas.onpointermove=e=>{if(this.pointer){const dx=e.clientX-this.pointer.x,dy=e.clientY-this.pointer.y;if(Math.hypot(dx,dy)>4)this.pointer.dragged=true;this.panX=this.pointer.px+dx;this.panY=this.pointer.py+dy;this.render();return;}const rect=canvas.getBoundingClientRect(),hit=this.hit(e.clientX-rect.left,e.clientY-rect.top);this.tooltip.hidden=!hit;if(hit){this.tooltip.textContent=this.detailText(hit);this.tooltip.style.left=Math.min(rect.width-270,e.clientX-rect.left+12)+'px';this.tooltip.style.top=(e.clientY-rect.top+12)+'px';}};
+    canvas.onpointerdown=e=>{this.tooltip.hidden=true;canvas.setPointerCapture(e.pointerId);this.pointer={x:e.clientX,y:e.clientY,px:this.panX,py:this.panY,dragged:false};};
+    canvas.onpointermove=e=>{if(this.pointer){const dx=e.clientX-this.pointer.x,dy=e.clientY-this.pointer.y;if(Math.hypot(dx,dy)>4)this.pointer.dragged=true;this.panX=this.pointer.px+dx;this.panY=this.pointer.py+dy;this.render();return;}const rect=canvas.getBoundingClientRect(),hit=this.hit(e.clientX-rect.left,e.clientY-rect.top);this.tooltip.hidden=!hit;if(hit){const key=hit.sourceClass+':'+hit.id;if(this.hovered!==key){this.hovered=key;renderEquipmentCard(this.tooltip,equipmentCard(this.ctx,hit));}const box=this.tooltip.getBoundingClientRect(),p=tooltipPosition(e.clientX,e.clientY,box.width,box.height,innerWidth,innerHeight);this.tooltip.style.left=p.left+'px';this.tooltip.style.top=p.top+'px';}else this.hovered='';};
     canvas.onpointerup=e=>{const pointer=this.pointer;this.pointer=null;if(pointer?.dragged)return;const rect=canvas.getBoundingClientRect(),hit=this.hit(e.clientX-rect.left,e.clientY-rect.top);if(hit)this.ctx.select(hit.id,hit.sourceClass);else if(this.ctx.settings.value.clearOnBlank){this.ctx.selection=null;this.ctx.filters.siteId='';this.ctx.notify();}};
     canvas.onpointerleave=()=>{this.tooltip.hidden=true;};canvas.tabIndex=0;canvas.setAttribute('aria-label','Şebeke haritası. Ok tuşlarıyla kaydırın, artı ve eksiyle yakınlaştırın.');
     canvas.onkeydown=e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Escape'].includes(e.key))e.preventDefault();if(e.key==='Escape'){this.ctx.selection=null;this.ctx.notify();}else{if(e.key==='ArrowLeft')this.panX+=35;if(e.key==='ArrowRight')this.panX-=35;if(e.key==='ArrowUp')this.panY+=35;if(e.key==='ArrowDown')this.panY-=35;if(e.key==='+')this.zoom=Math.min(35,this.zoom*1.2);if(e.key==='-')this.zoom=Math.max(.6,this.zoom/1.2);this.render();}};
   }
   private point(lon:number,lat:number):[number,number]{const[x,y]=projectWgs84(lon,lat);return[this.width/2+x*this.scale+this.panX,this.height/2+y*this.scale+this.panY];}
-  private hit(x:number,y:number):Site|Line|null{for(const s of this.visibleSites){const p=this.point(s.lon!,s.lat!);if(Math.hypot(p[0]-x,p[1]-y)<10)return s;}let best:Line|null=null,dist=8;for(const l of this.visibleLines){const path=this.paths.get(l.id)||[];for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],dx=b[0]-a[0],dy=b[1]-a[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/len)):0,d=Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);if(d<dist){dist=d;best=l;}}}return best;}
+  private splitVisible(){return splitBusMarksVisible(this.ctx.settings.value.displayMode)||!!this.ctx.benchmarkMap;}
+  private hit(x:number,y:number):TooltipEquipment|null{for(const mark of this.transformerMarks)if(Math.hypot(mark.x-x,mark.y-y)<8)return mark.equipment;for(const s of this.visibleSites){const p=this.point(s.lon!,s.lat!);if(Math.hypot(p[0]-x,p[1]-y)<10)return s;}let best:Line|null=null,dist=8;for(const l of this.visibleLines){const path=this.paths.get(l.id)||[];for(let i=1;i<path.length;i++){const a=path[i-1],b=path[i],dx=b[0]-a[0],dy=b[1]-a[1],len=dx*dx+dy*dy,t=len?Math.max(0,Math.min(1,((x-a[0])*dx+(y-a[1])*dy)/len)):0,d=Math.hypot(x-a[0]-dx*t,y-a[1]-dy*t);if(d<dist){dist=d;best=l;}}}return best;}
   render(){
     if(this.ctx.view!=='map'||document.hidden){cancelAnimationFrame(this.raf);this.raf=0;this.animationMetric=null;this.overlay.dataset.flowMetric='none';this.overlay.getContext('2d')?.clearRect(0,0,this.overlay.width,this.overlay.height);return;}const rect=this.canvas.getBoundingClientRect();if(rect.width<2||rect.height<2)return;this.width=rect.width;this.height=rect.height;this.scale=Math.min(this.width/21,this.height/10)*this.zoom;
     const dpr=devicePixelRatio||1;for(const c of[this.canvas,this.overlay,this.baseCanvas,this.selectionCanvas])if(c.width!==Math.round(this.width*dpr)||c.height!==Math.round(this.height*dpr)){c.width=Math.round(this.width*dpr);c.height=Math.round(this.height*dpr);}
     const g=this.canvas.getContext('2d')!;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,this.width,this.height);this.basemap.render(this.baseCanvas,this.width,this.height,this.scale,this.panX,this.panY,this.zoom,this.ctx.settings.value);
     const selection=this.selectionCanvas.getContext('2d')!;selection.setTransform(dpr,0,0,dpr,0,0);selection.clearRect(0,0,this.width,this.height);
     const n=this.ctx.network;if(!n)return;const settings=this.ctx.settings.value;this.updateSplitTopology(n);this.prepareSplitSidePoints(n);if(this.geometry?.modelHash!==n.modelHash){this.geometry=buildGeometry(n);this.screenKey='';}
-    if(this.ctx.benchmarkMap){const key=JSON.stringify([this.ctx.benchmarkMap,n.modelHash,this.ctx.scenario.revision,this.ctx.analysisSettings.value]),result=this.ctx.resultStore.get(this.ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow'),cached=this.benchmarkCache;if(!cached||cached.key!==key||cached.benchmark!==this.ctx.benchmark||cached.result!==result||cached.ac!==this.ctx.n1AcResults||cached.dc!==this.ctx.n1Result||cached.sc!==this.ctx.scResult||cached.hybrid!==this.ctx.hybridResult)this.benchmarkCache={key,benchmark:this.ctx.benchmark,result,ac:this.ctx.n1AcResults,dc:this.ctx.n1Result,sc:this.ctx.scResult,hybrid:this.ctx.hybridResult,data:buildBenchmarkMapData(this.ctx,this.ctx.benchmarkMap)};this.benchmarkData=this.benchmarkCache!.data;}else this.benchmarkData=null;
-    const screenKey=[this.width,this.height,this.zoom,this.panX,this.panY,settings.layoutMode,this.simple,settings.routeDetail,this.splitTopologyKey].join('|');
+    if(this.ctx.benchmarkMap){const key=JSON.stringify([this.ctx.benchmarkMap,n.modelHash,this.ctx.scenario.revision,this.ctx.analysisSettings.value,[...this.ctx.filters.voltages]]),result=this.ctx.resultStore.get(this.ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow'),cached=this.benchmarkCache;if(!cached||cached.key!==key||cached.benchmark!==this.ctx.benchmark||cached.result!==result||cached.ac!==this.ctx.n1AcResults||cached.dc!==this.ctx.n1Result||cached.sc!==this.ctx.scResult||cached.hybrid!==this.ctx.hybridResult)this.benchmarkCache={key,benchmark:this.ctx.benchmark,result,ac:this.ctx.n1AcResults,dc:this.ctx.n1Result,sc:this.ctx.scResult,hybrid:this.ctx.hybridResult,data:buildMapPresentationData(this.ctx,this.ctx.benchmarkMap)};this.benchmarkData=this.benchmarkCache!.data;}else this.benchmarkData=null;
+    const screenKey=[this.width,this.height,this.zoom,this.panX,this.panY,settings.layoutMode,this.simple,settings.routeDetail,this.splitTopologyKey,!!this.ctx.benchmarkMap].join('|');
     if(screenKey!==this.screenKey){this.screenKey=screenKey;const siteById=new Map(n.sites.map(s=>[s.id,s]));this.paths.clear();this.lengths.clear();for(const l of n.lines){let pts=this.geometry.paths.get(l.id)||[];if(this.simple||!settings.routeDetail)pts=l.siteIds.map(id=>siteById.get(id)).filter(s=>s?.lat!=null&&s.lon!=null).map(s=>[s!.lat!,s!.lon!]as const);const parallel=this.geometry.parallel.get(l.id),off=settings.layoutMode==='separated'&&parallel?(parallel.index-(parallel.count-1)/2)*5:0,screenPath=offsetPath(pts.map(p=>this.point(p[1],p[0])),off);this.paths.set(l.id,this.splitRoutePath(l,screenPath,n));}}
     if(!this.lengths.size)for(const[id,path]of this.paths){const segments=path.slice(1).map((p,i)=>Math.hypot(p[0]-path[i][0],p[1]-path[i][1]));this.lengths.set(id,{segments,total:segments.reduce((a,b)=>a+b,0)});}
     const area=this.ctx.filters.areaId,sites=new Map(n.sites.map(s=>[s.id,s])),volts=this.ctx.filters.voltages;
@@ -124,7 +126,7 @@ export class CanvasMapRenderer implements MapRenderer {
       if(!cached||cached.network!==n||cached.result!==result||cached.role!==role||cached.scenarioRevision!==scenarioRevision){const network=effectiveNetwork(n,role==='base'?emptyScenario():this.ctx.scenario.current);this.islandMapCache={network:n,result,role,scenarioRevision,data:buildIslandMapData(network,result)};}
       this.islandMap=this.islandMapCache!.data;
     }else this.islandMap=null;
-    this.tooltip.hidden=true;this.baseRows=this.ctx.resultStore.comparable()?base:new Map();this.flowRows=results;this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.angles=aggregateStationAngles(result?.buses||[],volts);this.voltageDeltas=this.ctx.resultStore.comparable()?stationVoltageDeltas(this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType)?.buses||[],this.ctx.resultStore.get('scenario')?.buses||[],volts):new Map();
+    this.tooltip.hidden=true;this.hovered='';this.baseRows=this.ctx.resultStore.comparable()?base:new Map();this.flowRows=results;this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.angles=aggregateStationAngles(result?.buses||[],volts);this.voltageDeltas=this.ctx.resultStore.comparable()?stationVoltageDeltas(this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType)?.buses||[],this.ctx.resultStore.get('scenario')?.buses||[],volts):new Map();
     const flowMetric=settings.displayMode==='q'?'q':'p',magnitudeScale=flowScale(this.visibleLines.filter(l=>this.paths.get(l.id)?.some(([x,y])=>x>=0&&x<=this.width&&y>=0&&y<=this.height)).map(l=>results.get(l.id)),flowMetric,settings.magnitudePercentile,flowMetric==='q'?settings.magnitudeQMax:settings.magnitudePMax);
     for(const line of this.visibleLines){
       const inService=settings.displayMode!=='delta'&&this.ctx.resultStore.role==='base'?line.inService:this.ctx.scenario.current.lineStatus[line.id]??line.inService;
@@ -136,51 +138,34 @@ export class CanvasMapRenderer implements MapRenderer {
       const n1Island=this.n1IslandForBranch(line.id);if((settings.displayMode==='n1-island'||settings.displayMode==='n1-risk')&&n1Island&&this.ctx.selectedN1IslandId===n1Island.componentId){selection.beginPath();path.forEach(([x,y],i)=>i?selection.lineTo(x,y):selection.moveTo(x,y));selection.strokeStyle='#e8f2ff';selection.lineWidth=style.width+3;selection.setLineDash([2,4]);selection.stroke();}
       if(this.ctx.selection?.id===line.id){selection.beginPath();path.forEach(([x,y],i)=>i?selection.lineTo(x,y):selection.moveTo(x,y));selection.strokeStyle='#fff2b0';selection.lineWidth=style.width+2;selection.setLineDash(style.dash);selection.stroke();}
     }
-    g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){
+    let splitCount=0;g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){
       const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id,delta=this.voltageDeltas.get(s.id),siteIsland=this.islandMap?.siteIslands.get(s.id),dominant=siteIsland?.dominant;
-      const splitMode=splitBusMarksVisible(settings.displayMode),splitStations=this.splitGroupsBySite.get(s.id)||[],drawSplit=splitMode&&this.zoom>=2&&splitStations.length>0;
+      const splitMode=this.splitVisible(),splitStations=this.splitGroupsBySite.get(s.id)||[],drawSplit=splitMode&&this.zoom>=2&&splitStations.length>0;
       const n1SiteIslands=this.n1Lookups()?.islandsBySite.get(s.id)||[],n1Island=n1SiteIslands.find(island=>island.hasReference)||n1SiteIslands[0];
       g.fillStyle=settings.displayMode==='n1-island'?n1Island?.hasReference?islandColor(n1Island.componentId):settings.colorNoResult:settings.displayMode==='island'?dominant&&dominant.status!=='NO_REFERENCE'&&dominant.status!=='NO_RESULT'?islandColor(dominant.islandId):settings.colorNoResult:settings.displayMode==='v'?voltageColor(this.voltages.get(s.id)?.worst.vmPu,settings):settings.displayMode==='angle'?scaleColor(this.angles.get(s.id)?.median,settings.angleMin,settings.angleNeutral,settings.angleMax,settings.angleNegativeColor,settings.angleNeutralColor,settings.anglePositiveColor,settings.colorNoResult):settings.displayMode==='delta'&&settings.deltaMetric==='v'?deltaColor(delta,settings):'#b8e1e3';
       if(this.benchmarkData&&this.ctx.benchmarkMap)g.fillStyle=resultLayerColor('#b8e1e3','site',this.ctx.benchmarkMap,this.benchmarkData.sites.get(s.id),this.benchmarkData.enabled,this.benchmarkData.scale?.p95);
-      if(drawSplit&&!this.benchmarkData){splitStations.forEach((station,index)=>{const cy=y+(index-(splitStations.length-1)/2)*16,left=[x-8,cy] as const,right=[x+8,cy] as const;g.beginPath();g.moveTo(left[0],left[1]);g.lineTo(x-3,cy);g.moveTo(x+3,cy);g.lineTo(right[0],right[1]);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,3]);g.stroke();g.setLineDash([]);g.beginPath();g.arc(x-3,cy,1.8,0,Math.PI*2);g.arc(x+3,cy,1.8,0,Math.PI*2);g.strokeStyle='#f0f5fa';g.lineWidth=1;g.stroke();g.beginPath();g.moveTo(x-2,cy);g.lineTo(x+2,cy-4);g.strokeStyle='#f0f5fa';g.stroke();
+      if(drawSplit){splitCount+=splitStations.length;splitStations.forEach((station,index)=>{const cy=y+(index-(splitStations.length-1)/2)*16,left=[x-8,cy] as const,right=[x+8,cy] as const;g.beginPath();g.moveTo(left[0],left[1]);g.lineTo(x-3,cy);g.moveTo(x+3,cy);g.lineTo(right[0],right[1]);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,3]);g.stroke();g.setLineDash([]);g.beginPath();g.arc(x-3,cy,1.8,0,Math.PI*2);g.arc(x+3,cy,1.8,0,Math.PI*2);g.strokeStyle='#f0f5fa';g.lineWidth=1;g.stroke();g.beginPath();g.moveTo(x-2,cy);g.lineTo(x+2,cy-4);g.strokeStyle='#f0f5fa';g.stroke();
         for(const[side,point]of[[station.bus1,left],[station.bus2,right]] as const){g.beginPath();g.arc(point[0],point[1],5,0,Math.PI*2);g.fillStyle=this.splitSideColor(station,side.electricalBusId);g.fill();g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.stroke();if(this.showLabels||this.zoom>=2.6){g.fillStyle='#e5eef5';g.font='8px system-ui';g.fillText(side.barDesignation==='UNKNOWN'?side.busName:side.barDesignation,point[0]-9,point[1]-7);}}
       });if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+9,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}}
       else{g.beginPath();g.arc(x,y,selected?settings.siteSize+2.5:settings.siteSize,0,Math.PI*2);g.fill();if(selected){selection.beginPath();selection.arc(x,y,settings.siteSize+4,0,Math.PI*2);selection.strokeStyle='#ffe49b';selection.lineWidth=2;selection.setLineDash([]);selection.stroke();}if(splitMode&&splitStations.length){g.beginPath();g.arc(x,y,settings.siteSize+4,0,Math.PI*2);g.strokeStyle='#ffbd4a';g.lineWidth=1.5;g.setLineDash([3,2]);g.stroke();g.setLineDash([]);}}
       if(this.showLabels||selected){g.fillStyle='#d7e7ef';g.font='10px system-ui';g.fillText(s.name,x+5,y-5);}
     }
+    this.canvas.dataset.splitMarkers=String(splitCount);this.transformerMarks=[];
+    if(lfMapTarget(this.ctx.benchmarkMap?.metric??'')==='ElmTr2')for(const site of this.visibleSites){const equipment=n.transformers.filter(t=>t.siteIds.includes(site.id)&&voltageMatches(t.vnKv,volts));equipment.forEach((t,i)=>{const[x,y]=this.point(site.lon!,site.lat!),mx=x+12+(i%4)*11,my=y+8+Math.floor(i/4)*10,value=this.benchmarkData?.branches.get('ElmTr2:'+t.id);g.fillStyle=value?.value!=null?'#ffe49b':'#708596';g.fillRect(mx-3,my-3,6,6);this.transformerMarks.push({equipment:t,x:mx,y:my});});}
     cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.setTransform(dpr,0,0,dpr,0,0);overlay.clearRect(0,0,this.width,this.height);
     const current=lfSnapshotIsCurrent(result,n,!this.ctx.benchmarkMap&&this.ctx.resultStore.role==='base'?emptyScenario():this.ctx.scenario.current,this.ctx.analysisSettings.value)&&(!this.benchmarkData||this.benchmarkData.enabled);
     this.animationMetric=settings.flowDefault?mapFlowMetric(this.ctx.benchmarkMap,settings.displayMode,result,current):null;this.overlay.dataset.flowMetric=this.animationMetric??'none';
     if(this.animationMetric==='q'){this.drawQArrows(overlay,dpr,performance.now());this.raf=requestAnimationFrame(this.animateQ);}else if(this.animationMetric==='p')this.animate();
   }
-  detailText(entity:Site|Line):string {
-    if(this.benchmarkData){const v=entity.sourceClass==='ElmLne'?this.benchmarkData.branches.get(`ElmLne:${entity.id}`):this.benchmarkData.sites.get(entity.id);return `${entity.sourceClass}:${entity.id} · ${entity.name}\n${this.benchmarkData.enabled?v?`${v.value??'—'} ${v.unit} · ${v.status}\n${v.minVpu===undefined?'':`Vpu min ${v.minVpu} / max ${v.maxVpu} / max |V−1| ${v.maxDeviationPu} / temsilci ${v.representativeFid}\nKademeler ${JSON.stringify(v.voltageLevels)}\n`}${[...(v.deltaLevels?[`Tanısal gerilim katmanları ${JSON.stringify(v.deltaLevels)}`]:[]),...v.details].slice(0,12).join('\n')}`:'NO_DATA / UNMATCHED':'METHOD_MISMATCH · '+this.benchmarkData.reason}\nGeometri: ${entity.sourceClass==='ElmSite'?(entity as Site).lat==null?'NO_GEOMETRY':'SOURCE_SITE_COORDINATE':(entity as Line).coordinates.length?'SOURCE_ROUTE':'SOURCE_ENDPOINT_COORDINATE_OR_NO_GEOMETRY'}`;}
-    if(this.ctx.settings.value.displayMode==='n1-island'||this.ctx.settings.value.displayMode==='n1-risk')return this.n1DetailText(entity);
-    const settings=this.ctx.settings.value,line=entity as Line,sites=entity.sourceClass==='ElmLne'?line.siteIds.map(id=>({id,name:this.ctx.network?.sites.find(s=>s.id===id)?.name||'—'})):[];
-    const inService=settings.displayMode!=='delta'&&this.ctx.resultStore.role==='base'?entity.inService:this.ctx.scenario.current.lineStatus[entity.id]??entity.inService;
-    return mapDetailText(entity,{settings,inService,names:sites.map(s=>s.name),row:this.flowRows.get(entity.id),base:this.baseRows.get(entity.id),voltage:this.voltages.get(entity.id),angle:this.angles.get(entity.id),voltageDelta:this.voltageDeltas.get(entity.id),endpointVoltages:sites.map(s=>({name:s.name,voltage:this.voltages.get(s.id),angle:this.angles.get(s.id),delta:this.voltageDeltas.get(s.id)})),island:this.islandMap?.lineIslands.get(entity.id),siteIslands:entity.sourceClass==='ElmSite'?this.islandMap?.siteIslands.get(entity.id):undefined});
+  detailText(entity:TooltipEquipment):string {
+    const card=equipmentCard(this.ctx,entity);return [card.title,card.context,card.status,...card.rows.map(r=>r.join(' · ')),card.note].join('\n');
   }
   benchmarkLegendMarkup():string|null {
     const s=this.ctx.benchmarkMap,data=this.benchmarkData;if(!s||!data)return null;
     const settings=this.ctx.settings.value,colors=[['400 kV',settings.color400],['220 kV',settings.color220],['154 kV',settings.color154],['66 kV',settings.color66],['≤36 kV',settings.colorLow]];
     const fault=this.ctx.scResult?.faults.find(f=>f.physicalTerminalFid===s.caseId),status=!data.enabled?data.reason:(data.numericValues??0)>0?'Kayıtlı sayısal sonuç':s.analysis==='SC'?fault?.status??'NOT_RUN / NO_DATA':'NOT_RUN / NO_POST_RESULT';
     const scale=data.scale?'<span>'+escapeHtml((s.source==='SCENARIO_DELTA'?'Senaryo − referans':s.n1Layer==='CHANGE'?'POST − PRE':'GA − PF')+' · min '+data.scale.min+' / maks '+data.scale.max+' '+data.scale.unit+' · p95 ±'+data.scale.p95)+'</span>':'';
-    return '<b>'+escapeHtml(s.analysis+' · '+s.source+' · '+mapMetricLabel(s.metric))+'</b><span>'+escapeHtml(status)+'</span><span class="ga-map-voltage-key">'+colors.map(([label,color])=>'<span><i style="background:'+color+'"></i>'+label+'</span>').join('')+'</span>'+scale+(s.source==='EXPLORATORY_DELTA'?'<span>EXPLORATORY_DELTA_METHOD_UNVERIFIED · tanısal</span>':'')+'<span>Eksik / uyumsuz sonuç: nominal topoloji korunur</span>'+(data.noGeometry?'<span>NO_GEOMETRY · '+data.noGeometry+' kayıt</span>':'')+'<small>Altlık: geoBoundaries / OSM · CC BY-SA 2.0</small>';
-  }
-  private n1DetailText(entity:Site|Line):string {
-    const detail=this.n1Detail(),fmt=(value:number|null|undefined,digits=1)=>value==null||!Number.isFinite(value)?'—':value.toLocaleString('tr-TR',{maximumFractionDigits:digits}),mode=this.ctx.settings.value.displayMode;
-    if(!detail)return 'N-1 ayrıntısı yok · Sonuç görünümü için N-1 adayını seçin.';
-    if(entity.sourceClass==='ElmSite'){
-      const islands=detail.outageIslands.filter(island=>island.siteIds.includes(entity.id));
-      return `${entity.name}\n${islands.length?islands.map(island=>`${this.n1IslandLabel(island.componentId)} · ${island.hasReference?'Referanslı ada':'Referanssız ada'} · ${island.componentId} · TM ${island.siteIds.length} · ${fmt(island.loadMw)} MW yük · ${fmt(island.generationMw)} MW üretim${island.hasLocalGeneration?' · Yerel üretim var':''}`).join('\n'):'N-1 adasında veri yok'}`;
-    }
-    const outage=detail.outage.equipmentId===entity.id&&detail.outage.sourceClass===entity.sourceClass;
-    if(outage){const line=entity as Line,capacity=this.ctx.network?selectedCapacity(line,this.ctx.network.modelHash)?.mva??null:null,baseLoading=capacity&&detail.candidate.baseFlowMw!=null?Math.abs(detail.candidate.baseFlowMw)/capacity*100:null;return `${entity.name} · N-1 kesinti ekipmanı\nBaz akış: ${fmt(detail.candidate.baseFlowMw)} MW · Baz tahmini yüklenme: ${fmt(baseLoading)}%\nN-1 akış / ΔP / yüklenme: — (kesinti dalı)\nKapasite: ${fmt(capacity)} MVA\nKesinti: ${detail.candidate.name} · Durum: ${detail.candidate.status}`;}
-    const impact=detail.branchImpacts.find(row=>row.equipmentId===entity.id);
-    if(!impact)return `${entity.name}\nN-1 ${mode==='n1-risk'?'risk':'ada'} verisi yok · İzlenen ≥66 kV dallarda değil.`;
-    const loading=impact.postEstimatedLoadingPct??impact.estimatedLoadingPct,hardViolation=loading!=null&&loading>100;
-    const island=this.n1IslandForBranch(entity.id),islandLabel=island?`${this.n1IslandLabel(island.componentId)} · ${island.componentId}`:'—';
-    return `${entity.name} · ${impact.sourceClass}\nBaz akış: ${fmt(impact.baseFlowMw)} MW · Baz yüklenme: ${fmt(impact.baseEstimatedLoadingPct)}%\nN-1 tahmini akış: ${fmt(impact.postFlowMw)} MW · N-1 tahmini yüklenme: ${fmt(loading)}%\nΔP: ${fmt(impact.deltaPMw)} MW\nKapasite: ${fmt(impact.capacityMva)} MVA${hardViolation?' · LİMİT AŞIMI (>100%)':''}\nN-1 adası: ${islandLabel}\nKesinti: ${detail.candidate.name}`;
+    return '<b>'+escapeHtml(s.analysis+' · '+s.source+' · '+(s.analysis==='LF'?LF_MAP_METRICS.find(m=>m.metric===s.metric)?.label??mapMetricLabel(s.metric):mapMetricLabel(s.metric)))+'</b><span>'+escapeHtml(status)+'</span><span>Sayısal: '+(data.numericValues??0)+'</span><span class="ga-map-voltage-key">'+colors.map(([label,color])=>'<span><i style="background:'+color+'"></i>'+label+'</span>').join('')+'</span>'+scale+(s.source==='EXPLORATORY_DELTA'?'<span>EXPLORATORY_DELTA_METHOD_UNVERIFIED · tanısal</span>':'')+'<span>Eksik / uyumsuz sonuç: nominal topoloji korunur</span>'+(data.noGeometry?'<span>NO_GEOMETRY · '+data.noGeometry+' kayıt</span>':'')+'<small>Altlık: geoBoundaries / OSM · CC BY-SA 2.0</small>';
   }
   islandLegendMarkup(noResultColor='#708596'):string {
     const islands=this.islandMap?.islands||[],unreferenced=islands.filter(island=>island.status==='NO_REFERENCE').length;

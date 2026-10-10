@@ -22,7 +22,7 @@ export function resultSortValue(row:ResultRow,key:string):string|number|null|und
   const d=branchDelta(row.baseBranch,row.branch);
   const values:Record<string,string|number|null|undefined>={name:row.name,voltage:row.vnKv,state:row.state,
     p:row.branch?.pf??row.bus?.pMw,q:row.branch?.qf??row.bus?.qMvar,pt:row.branch?.pt,qt:row.branch?.qt,pLoss:row.branch?.pLoss,qLoss:row.branch?.qLoss,loading:row.branch?.loading,
-    v:row.bus?.vmPu,vKv:busVoltageKv(row.bus),angle:row.bus?row.bus.angleRad*180/Math.PI:null,baseV:row.baseBus?.vmPu,baseAngle:row.baseBus?row.baseBus.angleRad*180/Math.PI:null,
+    v:row.bus?.vmPu,vKv:busVoltageKv(row.bus),baseVKv:busVoltageKv(row.baseBus),deltaVKv:row.baseBus?.vnKv===row.bus?.vnKv?difference(busVoltageKv(row.baseBus),busVoltageKv(row.bus)):null,angle:row.bus?row.bus.angleRad*180/Math.PI:null,baseV:row.baseBus?.vmPu,baseAngle:row.baseBus?row.baseBus.angleRad*180/Math.PI:null,
     deltaV:difference(row.baseBus?.vmPu,row.bus?.vmPu),deltaAngle:row.baseBus&&row.bus?difference(row.baseBus.angleRad,row.bus.angleRad)!*180/Math.PI:null,
     baseP:row.baseBranch?.pf,baseQ:row.baseBranch?.qf,baseLoad:row.baseBranch?.loading,scenarioP:row.branch?.pf,scenarioQ:row.branch?.qf,scenarioLoad:row.branch?.loading,deltaP:d.pMw,deltaQ:d.qMvar,deltaLoad:d.loading,deltaPLoss:d.pLoss,deltaQLoss:d.qLoss};
   return values[key];

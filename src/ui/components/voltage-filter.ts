@@ -14,8 +14,8 @@ export function createVoltageFilter(ctx: AppContext, name = 'Gerilim grupları',
     };
     label.append(input, document.createTextNode(band.label)); root.append(label); inputs.set(band.id, input);
   }
-  const menu=element('details','ga-map-menu ga-voltage-menu'),summary=element('summary'),body=element('div','ga-map-menu-body'),actions=element('div','ga-menu-actions');summary.dataset.helpId='map.voltages';
+  const menu=element('details','ga-map-menu ga-voltage-menu'),summary=element('summary'),text=element('span','','Gerilim'),count=element('span'),body=element('div','ga-map-menu-body'),actions=element('div','ga-menu-actions');text.dataset.helpId='map.voltages';text.dataset.helpLabel='Gerilim';text.tabIndex=0;summary.append(text,count);
   const choose=(all:boolean)=>{ctx.filters.voltages.clear();if(all)for(const band of VOLTAGE_BANDS)ctx.filters.voltages.add(band.id);ctx.filters.siteId='';ctx.selection=null;ctx.notify();};
   actions.append(button('Tümünü seç',()=>choose(true)),button('Temizle',()=>choose(false)));body.append(root,actions);menu.append(summary,body);
-  return { element:compact?menu:root, render() { for (const [id, input] of inputs) input.checked = ctx.filters.voltages.has(id);summary.textContent=ctx.filters.voltages.size===5?'Gerilimler · Tümü':ctx.filters.voltages.size?`Gerilimler · ${ctx.filters.voltages.size}/5`:'Gerilimler · Seçim yok'; } };
+  return { element:compact?menu:root, render() { for (const [id, input] of inputs) input.checked = ctx.filters.voltages.has(id);count.textContent=ctx.filters.voltages.size===5?'Tümü':ctx.filters.voltages.size?`${ctx.filters.voltages.size}/5`:'Seçim yok'; } };
 }
