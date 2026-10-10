@@ -7,6 +7,7 @@ import {resolveN1Post,lfSnapshotIsCurrent} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import {hybridIsCurrent} from '../../analysis/contingency-hybrid';
 import { stableJson } from '../calculation/identity';
+import {hasReference} from './reference-slots';
 export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
 export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
 export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;scale?:{p95:number;min:number;max:number;unit:string}}
@@ -25,6 +26,7 @@ function currentLf(ctx:AppContext):boolean {return lfSnapshotIsCurrent(ctx.resul
 export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enabled:boolean;reason:string}{
   if(!ctx.network)return {enabled:false,reason:'MODEL_NOT_LOADED'};
   if(s.source!=='GA'&&!ctx.benchmark)return {enabled:false,reason:'PF_NOT_LOADED'};
+  if(s.source!=='GA'&&!hasReference(ctx.benchmark,s.analysis))return {enabled:false,reason:'PF_REFERENCE_SLOT_NOT_LOADED'};
   if(s.source==='EXPLORATORY_DELTA'){
     if(!s.diagnostic)return {enabled:false,reason:'DIAGNOSTIC_OPT_IN_REQUIRED'};
     if(s.analysis==='LF'&&!currentLf(ctx))return {enabled:false,reason:'GA_LF_NOT_CALCULATED_OR_STALE'};

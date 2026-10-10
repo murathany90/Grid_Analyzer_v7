@@ -14,8 +14,9 @@ import { effectiveNetwork } from '../domain/scenario/overlay';
 import { prepareModel } from '../analysis/power-flow/preparation';
 import { prepareReduced } from '../analysis/fast-ac/reduced-model';
 import { buildN1CandidateCatalog } from '../domain/n1/catalog';
-import { loadBenchmark } from '../importers/powerfactory-benchmark';
-import { loadBenchmarkModel } from '../importers/powerfactory-benchmark/model';
+import {hasReference,mergeReferenceSlots} from '../domain/benchmark/reference-slots';
+import { loadBenchmark,loadBenchmarkReferences } from '../importers/powerfactory-benchmark';
+import { loadBenchmarkModel,normalizeSourceClassAliases } from '../importers/powerfactory-benchmark/model';
 import { auditShortCircuitReadiness } from '../importers/powerfactory-benchmark/readiness';
 import { benchmarkControlContext,benchmarkLfReference } from '../domain/benchmark/reference';
 import { applyPowerFactoryControlContext } from '../analysis/validation/powerfactory-control-context';
@@ -31,7 +32,11 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
   const send=(response:Omit<WorkerResponse,'id'>,transfer:Transferable[]=[])=>scope.postMessage({...response,id:data.id},transfer);
   const progress=(stage:string,detail?:Record<string,unknown>)=>send({type:'PROGRESS',stage,detail});
   try{
-    if(data.type==='LOAD_BENCHMARK_PAIR'){
+    if(data.type==='LOAD_BENCHMARK_REFERENCE'){
+      const incoming=await loadBenchmarkReferences(data.file,progress),benchmark=mergeReferenceSlots(data.previous,incoming,data.network);
+      if(hasReference(incoming,'LF')){const checked=applyPowerFactoryControlContext(data.network,benchmarkControlContext(incoming)),lf=preflightPowerFactoryReference(benchmarkLfReference(incoming),checked,null);if(lf.reasons.some(r=>!r.includes('Yakınsamış Tam AC')))throw Error(`BENCHMARK_TOPOLOGY_MISMATCH: ${lf.reasons.join('; ')}`);}
+      send({type:'RESULT',value:{benchmark,preflight:preflightBenchmark(benchmark,data.network,data.result,data.controlFile)}});
+    }else if(data.type==='LOAD_BENCHMARK_PAIR'){
       const benchmark=await loadBenchmark(data.benchmark,progress),loaded=await loadBenchmarkModel(data.model,progress);
       if(loaded.network.studyCase!==benchmark.groups.LF.identity.studyCase)throw Error('BENCHMARK_IDENTITY_MISMATCH: model Study Case');
       const context=benchmarkControlContext(benchmark),updated=applyPowerFactoryControlContext(loaded.network,context),preflight=preflightPowerFactoryReference(benchmarkLfReference(benchmark),updated,null);
@@ -53,9 +58,9 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       progress('MODEL',{message:'Dosya okunuyor'});const started=performance.now(),buffer=await data.file.arrayBuffer();
       const digest=await crypto.subtle.digest('SHA-256',buffer),modelHash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
       const text=new TextDecoder().decode(buffer),parseStart=performance.now(),raw=JSON.parse(text.replace(/^\uFEFF/,'')),parseMs=performance.now()-parseStart;
-      source=new DgsModel(raw,data.file.name,data.file.size);await source.build(message=>progress('MODEL',{message}));
+      source=new DgsModel(normalizeSourceClassAliases(raw).normalized,data.file.name,data.file.size);await source.build(message=>progress('MODEL',{message}));
       const mapStart=performance.now();network=mapCanonical(source,modelHash);const canonicalMs=performance.now()-mapStart;
-      send({type:'RESULT',value:{network,scContext:adaptShortCircuitSources(raw,network),timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
+      send({type:'RESULT',value:{network,readiness:auditShortCircuitReadiness(raw),scContext:adaptShortCircuitSources(raw,network),timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
     }else if(data.type==='PREPARE'){network=data.network;send({type:'RESULT',value:true});}
     else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');send({type:'RESULT',value:catalogPage(source,data.query)});}
     else if(data.type==='SELF_TEST'){send({type:'RESULT',value:selfTests()});}

@@ -3,6 +3,13 @@ import { mapCanonical } from '../dgs/canonical';
 import { inspectArchive, hashBlob, checkCancel } from './archive';
 import type { BenchmarkProgress } from './index';
 
+/** Shared boundary adapter: keep original tables for audits, normalize only the reader view. */
+export function normalizeSourceClassAliases(raw:DgsRawData){
+  const normalized={...raw},sourceClassAliases:Record<string,string>={};
+  if(raw.ElmGenstat){if(raw.ElmGenStat)throw Error('SOURCE_SCHEMA_MISMATCH: conflicting ElmGenStat class aliases');normalized.ElmGenStat=raw.ElmGenstat;delete normalized.ElmGenstat;sourceClassAliases.ElmGenStat='ElmGenstat';}
+  return {normalized,sourceClassAliases};
+}
+
 export async function loadBenchmarkModel(file:File,progress:BenchmarkProgress=()=>{},signal?:AbortSignal){
   let candidate=file;
   for(let depth=0;/\.zip$/i.test(candidate.name);depth++){
@@ -29,11 +36,7 @@ export async function loadBenchmarkModel(file:File,progress:BenchmarkProgress=()
       if(fid>=0&&name!=='Matrix'&&name!=='MATRIX'){const id=String(row[fid]??'');if(!id||seen.has(id))throw Error(`SOURCE_SCHEMA_MISMATCH: DGS ${name} FID`);seen.add(id);}
     }
   }
-  const normalized={...raw},sourceClassAliases:Record<string,string>={};
-  if(raw.ElmGenstat){
-    if(raw.ElmGenStat)throw Error('SOURCE_SCHEMA_MISMATCH: conflicting ElmGenStat class aliases');
-    normalized.ElmGenStat=raw.ElmGenstat;delete normalized.ElmGenstat;sourceClassAliases.ElmGenStat='ElmGenstat';
-  }
+  const {normalized,sourceClassAliases}=normalizeSourceClassAliases(raw);
   const source=new DgsModel(normalized,candidate.name,candidate.size);await source.build(message=>progress('MODEL',{message}));checkCancel(signal);
   const network=mapCanonical(source,sha256);
   // Original class spelling remains in raw and sourceClassAliases for source audits.

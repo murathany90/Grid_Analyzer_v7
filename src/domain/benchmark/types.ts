@@ -5,7 +5,7 @@ export interface BenchmarkCell {value:number|null;rawText:string;availability:Av
 export interface RawTable {name:string;headers:string[];rows:(string|number|null)[][];rowNumbers:number[];metadata:Record<string,string>;fileSha256:string;analysis:BenchmarkAnalysis;headerRow:number;cellFlags?:Record<string,string[]>}
 export interface BenchmarkIdentity {studyCase:string;studyTime:string;modelHash:string;scenarioHash:string;topologyHash:string;project:string;pfVersion:string;effectiveMethod:string;requestedMethod:string;methodVerificationStatus:string;[key:string]:string}
 export interface BenchmarkGroup {analysis:BenchmarkAnalysis;identity:BenchmarkIdentity;tables:Record<string,RawTable>;workbook:{file:string;sha256:string;sizeBytes:number};log:{file:string;sha256:string;text:string};sidecarSha256:string}
-export interface BenchmarkPackage {groups:Record<BenchmarkAnalysis,BenchmarkGroup>;archiveSha256:string;elapsedMs:number;stages:string[]}
+export interface BenchmarkPackage {groups:Record<BenchmarkAnalysis,BenchmarkGroup>;archiveSha256:string;elapsedMs:number;stages:string[];availableAnalyses?:readonly BenchmarkAnalysis[];sourceArchives?:Partial<Record<BenchmarkAnalysis,string>>}
 export function rowObject(table:RawTable,row:readonly(string|number|null)[]):Record<string,string|number|null>{return Object.fromEntries(table.headers.map((h,i)=>[h,row[i]??null]));}
 export function readCell(table:RawTable,index:number,field:string,unit=''):BenchmarkCell{
   const column=table.headers.indexOf(field),raw=table.rows[index]?.[column],rawText=raw==null?'':String(raw),n=typeof raw==='number'?raw:rawText.trim()&&/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(rawText)?Number(rawText):NaN;

@@ -1,3 +1,4 @@
+import {hasReference} from './reference-slots';
 import type { CanonicalNetwork } from '../model/network';
 import type { CalculationResult } from '../results/types';
 import { comparePowerFactoryReference, type PowerFactoryComparison, type MetricPair } from '../../analysis/validation/powerfactory-reference';
@@ -16,6 +17,7 @@ export function seedBenchmarkPreflight(b:BenchmarkPackage,n:CanonicalNetwork,r:C
 export function preflightBenchmark(b:BenchmarkPackage,n:CanonicalNetwork|null,result:CalculationResult|null,controlFile?:string|null):BenchmarkPreflight{
   const prepared=preparedPreflights.get(b);if(prepared&&prepared.network===n&&prepared.result===result&&prepared.controlFile===controlFile)return prepared.gate;
   if(!n)return {status:'NOT_COMPARABLE',reasons:['MODEL_NOT_LOADED'],lf:null,comparison:null};
+  if(!hasReference(b,'LF'))return {status:'NOT_COMPARABLE',reasons:['LF_REFERENCE_NOT_LOADED'],lf:null,comparison:null};
   const id=b.groups.LF.identity;
   if((n.studyCase||n.name.replace(/\.(json|zip)$/i,''))!==id.studyCase)return {status:'BLOCKED',reasons:['MODEL_STUDY_CASE_MISMATCH'],lf:null,comparison:null};
   if(id.effectiveMethod!=='AC_BALANCED'||id.methodVerificationStatus!=='VERIFIED_EXACT')return {status:'NOT_COMPARABLE',reasons:['LF_METHOD_UNVERIFIED'],lf:null,comparison:null};
