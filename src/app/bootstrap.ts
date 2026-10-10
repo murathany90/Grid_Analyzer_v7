@@ -8,5 +8,6 @@ import '../styles/map.css';
 import '../styles/analysis.css';
 import '../styles/responsive.css';
 import '../styles/benchmark.css';
+import '../styles/ui-workspace.css';
 const app=new Application();
 mountShell(app,document.getElementById('app')!);

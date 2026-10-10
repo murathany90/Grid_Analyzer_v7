@@ -18,6 +18,12 @@ export interface CatalogQuery { className: string; search?: string; siteId?: str
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
+  analysisTab:'LF'|'N1'|'SC';
+  helpId:string|null;
+  comparisonOutage:AcOutage|null;
+  powerFactoryReference:import('../analysis/validation/powerfactory-reference').PowerFactoryReference|null;
+  loadBenchmarkReferences(file:File):Promise<void>;
+  applyBenchmarkControlContext():void;
   network: CanonicalNetwork | null;
   benchmark:BenchmarkPackage|null;
   benchmarkReadiness:ShortCircuitReadiness|null;

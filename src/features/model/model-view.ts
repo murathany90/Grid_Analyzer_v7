@@ -12,7 +12,7 @@ const capabilityNames = [
 export function createModelView(ctx: AppContext): Feature {
   const root = element('section', 'ga-feature ga-model-view');
   const heading = element('div', 'ga-feature-heading');
-  heading.append(element('h2', '', 'Model'), element('p', 'ga-muted', 'PowerFactory DGS modeli bu tarayıcı oturumunda işlenir.'));
+  heading.append(element('h2', '', 'Model Yükle'), element('p', 'ga-muted', 'PowerFactory DGS modeli bu tarayıcı oturumunda işlenir.'));
   const drop = element('div', 'ga-drop');
   drop.tabIndex = 0;
   drop.setAttribute('role', 'group');
@@ -23,6 +23,7 @@ export function createModelView(ctx: AppContext): Feature {
   input.className = 'ga-visually-hidden';
   input.setAttribute('aria-label', 'JSON veya ZIP dosyaları');
   const choose = button('Dosya seç', () => input.click());
+  choose.dataset.helpLabel='Model dosyası ve kimlik';
   const fileLabel = element('label', 'ga-file-label', 'Dosya seçin'); fileLabel.htmlFor = input.id;
   fileLabel.append(input);
   const loading = element('span', 'ga-muted', 'JSON dosyası bu tarayıcı oturumuna yüklenir.');
@@ -51,6 +52,7 @@ export function createModelView(ctx: AppContext): Feature {
   classPanel.append(element('h3', '', 'DGS sınıf sayıları'));
   const classList = element('div', 'ga-class-counts');
   classPanel.append(classList);
+  const cancelLoad=button('Model yüklemesini iptal et',()=>ctx.cancel());drop.append(cancelLoad);message.hidden=true;
   root.append(heading, drop, message, summary, capabilityPanel, warningsPanel, classPanel);
 
   let loadingNow = false;
@@ -99,6 +101,7 @@ export function createModelView(ctx: AppContext): Feature {
 
   function render(): void {
     if (ctx.view !== 'model') return;
+    cancelLoad.hidden=!ctx.busy||!!ctx.network;
     const network = ctx.network;
     message.textContent = ctx.status || 'Model bekleniyor.';
     if (!network) {
@@ -111,7 +114,7 @@ export function createModelView(ctx: AppContext): Feature {
 
     const cards = [
       ['Model', network.name], ['Kayıt', format(network.records, 0)], ['Bara', format(network.buses.length, 0)],
-      ['Hat', format(network.lines.length, 0)], ['Trafo', format(network.transformers.length, 0)], ['TM', format(network.sites.length, 0)],
+      ['Hat', format(network.lines.length, 0)], ['Trafo', format(network.transformers.length, 0)], ['TM', format(network.sites.length, 0)],['StudyCase',network.studyCase||network.name],['Model SHA-256',network.modelHash],
     ];
     summary.replaceChildren(...cards.map(([label, value]) => {
       const card = element('div', 'ga-card'); card.append(element('span', 'ga-muted', label), element('strong', '', value)); return card;

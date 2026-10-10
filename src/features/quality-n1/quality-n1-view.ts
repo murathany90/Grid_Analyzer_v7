@@ -20,13 +20,13 @@ const progressLabels:Record<N1Progress['stage'],string>={N1_TOPOLOGY:'Topoloji s
 function isDefaultN1Candidate(candidate:N1CatalogCandidate):boolean{return candidate.topology==='ISLANDING'||(candidate.topology==='NON_ISLANDING'&&candidate.screenable);}
 export function defaultN1CandidateIds(candidates:readonly N1CatalogCandidate[]):string[]{return candidates.filter(isDefaultN1Candidate).map(candidate=>candidate.candidateId).sort((a,b)=>a.localeCompare(b));}
 
-export function createQualityN1View(ctx:AppContext):Feature{
+export function createQualityN1View(ctx:AppContext,mode:'all'|'quality'|'n1'='all'):Feature{
   const root=element('section','ga-analysis-view'),heading=element('h2','','Kalite & N-1'),scopeRow=element('div','ga-toolbar'),scopeLabel=element('label','','Analiz kapsamı'),scopeSelect=element('select'),scenarioCount=element('span','ga-muted'),tabs=element('div','ga-tabs-small'),content=element('div','ga-panel');
-  let scope:Scope='scenario',active:'quality'|'scenarios'|'results'='quality',selectedFinding:string|null=null;
+  let scope:Scope='scenario',active:'quality'|'scenarios'|'results'=mode==='n1'?'scenarios':'quality',selectedFinding:string|null=null;
   let qualityPage=0,candidatePage=0,qualityGroup='',qualitySort='severity',qualityDirection:SortDirection='asc',candidateSort='name',candidateDirection:SortDirection='asc',catalogRequestKey='',catalogFailedKey='';
   const qualityTab=button('MODEL KALİTESİ',()=>{active='quality';render();}),scenarioTab=button('N-1 SENARYOLARI',()=>{active='scenarios';render();}),resultTab=button('N-1 SONUÇLARI',()=>{active='results';render();});
   scopeSelect.setAttribute('aria-label','Model kalite ve N-1 analiz kapsamı');scopeSelect.innerHTML='<option value="base">Baz Model</option><option value="scenario">Aktif Senaryo</option>';scopeSelect.onchange=()=>{scope=scopeSelect.value as Scope;catalogRequestKey='';render();};
-  scopeLabel.append(scopeSelect);scopeRow.append(scopeLabel,scenarioCount);tabs.append(qualityTab,scenarioTab,resultTab);
+  scopeLabel.append(scopeSelect);scopeRow.append(scopeLabel,scenarioCount);if(mode!=='n1')tabs.append(qualityTab);if(mode!=='quality')tabs.append(scenarioTab,resultTab);heading.textContent=mode==='quality'?'Model Kalitesi':mode==='n1'?'DC N-1 taraması':'Kalite & N-1';
 
   const qualityControls=element('div','ga-analysis-controls'),runQuality=button('Kalite denetimini çalıştır',()=>void ctx.runModelQuality(scope)),qualityCsv=button('CSV indir',exportQualityCsv),qualityJson=button('JSON indir',exportQualityJson);
   const qualitySearch=element('input'),qualitySeverity=element('select'),qualityCategory=element('select'),qualityVoltageFilter=element('select'),qualityGroupFilter=element('select');
@@ -47,14 +47,15 @@ export function createQualityN1View(ctx:AppContext):Feature{
   screenability.innerHTML='<option value="SCREENABLE_ISLANDING">Taranabilir + ada ayıran</option><option value="SCREENABLE">Yalnız DC taranabilir</option><option value="ALL">Tümü</option><option value="ISLANDING">Ada ayıran</option><option value="UNSCREENABLE">Taranamayan</option>';screenability.setAttribute('aria-label','Taranabilirlik filtresi');
   candidateSearch.type='search';candidateSearch.placeholder='Aday veya FID ara';candidateSearch.setAttribute('aria-label','N-1 adaylarında ara');
   const refreshCatalog=button('Kataloğu yenile',()=>{catalogRequestKey='';catalogFailedKey='';render();}),selectAllFiltered=button('Filtredekileri seç',()=>selectFiltered()),selectAll=button('Tüm adayları seç',()=>selectCatalog()),clearSelection=button('Seçimi temizle',()=>{selectedIds.clear();render();}),runN1=button('Seçili senaryoları tara',()=>void ctx.runN1Screen(readOptions())),cancelN1=button('İptal',()=>ctx.cancel());
-  candidateControls.append(lineLabel,trafoLabel,season,ytm,tm,candidateVoltage,screenability,candidateSearch,refreshCatalog,selectAllFiltered,selectAll,clearSelection,runN1,cancelN1);
+  const typeSelect=element('select');typeSelect.setAttribute('aria-label','DC kesinti tipi');for(const [value,text] of [['BOTH','Hat + trafo'],['ElmLne','Yalnız hat'],['ElmTr2','Yalnız trafo'],['NONE','Tip seçilmedi']]){const o=element('option','',text);o.value=value;typeSelect.append(o);}typeSelect.onchange=()=>{lineCheck.checked=['BOTH','ElmLne'].includes(typeSelect.value);trafoCheck.checked=['BOTH','ElmTr2'].includes(typeSelect.value);candidatePage=0;render();};
+  const dcAdvanced=element('details'),selectionActions=element('div','ga-toolbar');dcAdvanced.style.flexBasis=selectionActions.style.flexBasis='100%';dcAdvanced.append(element('summary','','Gelişmiş DC tarama / katalog'),lineLabel,trafoLabel,season,screenability,candidateSearch,refreshCatalog);selectionActions.append(selectAllFiltered,selectAll,clearSelection);candidateControls.append(typeSelect,ytm,tm,candidateVoltage,runN1,cancelN1,dcAdvanced,selectionActions);
   const candidateStatus=element('p','ga-notice'),progressPanel=element('div','ga-notice'),candidateContent=element('div');
   const n1Results=createN1ResultsView(ctx,()=>currentN1()),resultsControls=n1Results.controls,resultsNotice=n1Results.notice;
   const selectedIds=new Set<string>();
   for(const input of [lineCheck,trafoCheck,candidateVoltage,screenability,season,ytm,tm])input.addEventListener('change',()=>{candidatePage=0;render();});
   candidateSearch.oninput=()=>{candidatePage=0;render();};
   ytm.onchange=()=>{tm.value='';candidatePage=0;render();};
-  root.append(heading,scopeRow,tabs,qualityControls,qualityFilters,qualityStatus,candidateControls,candidateStatus,progressPanel,candidateContent,resultsNotice,resultsControls,content);
+  root.append(heading,scopeRow,tabs);if(mode!=='n1')root.append(qualityControls,qualityFilters,qualityStatus);if(mode!=='quality')root.append(candidateControls,candidateStatus,progressPanel,candidateContent,resultsNotice,resultsControls);root.append(content);
 
   function selectedScenario():ReturnType<typeof calculationScenario>{return calculationScenario(ctx.scenario.current,scope);}
   function currentCatalogIdentity(){if(!ctx.network)return null;const s=selectedScenario();return{modelHash:ctx.network.modelHash,scenarioHash:scenarioSignature(s),analysisScope:scope,capacitySeason:season.value as CapacitySeason};}
@@ -99,6 +100,6 @@ export function createQualityN1View(ctx:AppContext):Feature{
   function exportQualityJson(){if(currentQuality())downloadText(JSON.stringify(ctx.modelQualityResult,null,2),'GridAnalyzer-model-quality.json','application/json;charset=utf-8');}
   function exportQualityCsv(){const result=currentQuality()?ctx.modelQualityResult:null;if(!result)return;downloadText(csvDocument([['Önem','Kod','Kategori','Ekipman','FID','Alan','Bulgu','Hesaplama etkisi','Kaynak referansları'],...result.findings.map(x=>{const p=qualityPresentation(x);return[severityLabels[x.severity],x.code,categoryLabels[x.category],x.entityName,x.entityId,x.field,p.message,p.impact,JSON.stringify(x.sourceRefs)];})]),'GridAnalyzer-model-quality.csv','text/csv;charset=utf-8');}
   function pager(total:number,page:number,setPage:(page:number)=>void):HTMLElement{const pages=Math.ceil(total/20),bar=element('div','ga-pager');bar.append(button('Önceki',()=>setPage(Math.max(0,page-1))),element('span','',`${total.toLocaleString('tr-TR')} kayıt · ${pages?page+1:0}/${pages}`),button('Sonraki',()=>setPage(Math.min(Math.max(0,pages-1),page+1))));(bar.firstElementChild as HTMLButtonElement).disabled=page<=0;(bar.lastElementChild as HTMLButtonElement).disabled=page>=pages-1;return bar;}
-  function render(){qualityTab.setAttribute('aria-pressed',String(active==='quality'));scenarioTab.setAttribute('aria-pressed',String(active==='scenarios'));resultTab.setAttribute('aria-pressed',String(active==='results'));renderScope();qualityCsv.disabled=qualityJson.disabled=!currentQuality();if(active==='quality')renderQuality();else if(active==='scenarios')renderScenarios();else renderResults();renderProgressOutside();}
+  function render(){typeSelect.value=lineCheck.checked?(trafoCheck.checked?'BOTH':'ElmLne'):trafoCheck.checked?'ElmTr2':'NONE';qualityTab.setAttribute('aria-pressed',String(active==='quality'));scenarioTab.setAttribute('aria-pressed',String(active==='scenarios'));resultTab.setAttribute('aria-pressed',String(active==='results'));renderScope();qualityCsv.disabled=qualityJson.disabled=!currentQuality();if(active==='quality')renderQuality();else if(active==='scenarios')renderScenarios();else renderResults();renderProgressOutside();}
   return{element:root,render};
 }
