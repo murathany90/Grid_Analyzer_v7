@@ -47,10 +47,18 @@ export class ScenarioStore {
   commandSource='OPERATING';
   constructor(readonly modelHash='',readonly studyCase=''){this.records.set('B0',Object.freeze({id:'B0',name:'Baz B0',parentId:null,modelHash,studyCase,createdAt:new Date().toISOString(),scenarioHash:scenarioSignature(this.value),overlay:this.value,events:[]}));}
   get snapshots():readonly ScenarioSnapshot[]{return [...this.records.values()];}
+  exportState(){return {modelHash:this.modelHash,studyCase:this.studyCase,selectedId:this.selectedId,snapshots:this.snapshots};}
+  restoreState(value:ReturnType<ScenarioStore['exportState']>):boolean{
+    if(value.modelHash!==this.modelHash||value.studyCase!==this.studyCase||!Array.isArray(value.snapshots))return false;
+    const ids=new Set(value.snapshots.map(s=>s.id)),base=value.snapshots.find(s=>s.id==='B0');if(ids.size!==value.snapshots.length||!ids.has(value.selectedId)||!base||scenarioChanged(base.overlay)||base.parentId!==null)return false;
+    if(value.snapshots.some(s=>s.modelHash!==this.modelHash||s.studyCase!==this.studyCase||s.scenarioHash!==scenarioSignature(s.overlay)||s.parentId!==null&&!ids.has(s.parentId)))return false;
+    this.records=new Map(value.snapshots.map(s=>[s.id,Object.freeze({...s,overlay:freezeOverlay(s.overlay),events:Object.freeze(structuredClone(s.events).map((e:ManeuverEvent)=>Object.freeze(e)))} )]));this.serial=Math.max(0,...value.snapshots.map(s=>Number(s.id.replace(/^S/,''))||0));this.select(value.selectedId);return true;
+  }
+
   get selected():ScenarioSnapshot{return this.records.get(this.selectedId)!;}
   select(id:string):boolean{const record=this.records.get(id);if(!record)return false;this.selectedId=id;this.value=record.overlay;this.history=[];this.revision++;return true;}
-  rename(id:string,name:string):void{const record=this.records.get(id);if(record&&name.trim())this.records.set(id,Object.freeze({...record,name:name.trim().slice(0,100)}));}
-  branch(name?:string):ScenarioSnapshot{return this.record(this.value,name);}
+  rename(id:string,name:string):void{const record=this.records.get(id);if(record&&name.trim()){this.records.set(id,Object.freeze({...record,name:name.trim().slice(0,100)}));this.revision++;}}
+  branch(name?:string):ScenarioSnapshot{this.revision++;return this.record(this.value,name);}
   private record(value:ScenarioOverlay,name?:string):ScenarioSnapshot{const parent=this.selected,id='S'+(++this.serial),timestamp=new Date().toISOString(),events:ManeuverEvent[]=[...parent.events];
     for(const key of ['lineStatus','transformerStatus','switchState','busOrTerminalStatus','generatorDispatch','loadAdjustments'] as const){for(const equipmentId of new Set([...Object.keys(parent.overlay[key]),...Object.keys(value[key])])){const before=parent.overlay[key][equipmentId],after=value[key][equipmentId];if(JSON.stringify(before)!==JSON.stringify(after))events.push(Object.freeze({id:id+':'+events.length,order:events.length+1,source:this.commandSource,action:key,equipmentId,before,after,timestamp}));}}
     const snapshot=Object.freeze({id,name:name||'Senaryo '+id,parentId:parent.id,modelHash:this.modelHash,studyCase:this.studyCase,createdAt:timestamp,scenarioHash:scenarioSignature(value),overlay:freezeOverlay(value),events:Object.freeze(events)});this.records.set(id,snapshot);this.selectedId=id;this.value=snapshot.overlay;return snapshot;}
@@ -58,6 +66,7 @@ export class ScenarioStore {
   private history: ScenarioOverlay[] = [];
   revision = 0;
   get historyLength(): number { return this.history.length; }
+  get canUndo(): boolean { return this.selected.parentId!==null; }
   get current(): ScenarioOverlay { return this.value; }
   replace(value: ScenarioOverlay): void { this.history.push(this.value); this.record(value); this.revision++; }
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean): void {

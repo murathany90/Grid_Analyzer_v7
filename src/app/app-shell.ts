@@ -1,3 +1,4 @@
+import {activeResultId} from '../domain/results/workspace';
 import {createScenarioWorkspace} from '../ui/components/scenario-workspace';
 import type {AppContext,Feature} from './contracts';
 import {element,button,configureFormat} from '../ui/components/dom';
@@ -19,7 +20,7 @@ export function mountShell(ctx:AppContext,host:HTMLElement){
   const features=new Map<string,Feature>();for(const[key,label,create]of definitions){const b=button(label,()=>ctx.setView(key));b.dataset.view=key;nav.append(b);try{const feature=create(ctx);feature.element.dataset.view=key;feature.element.hidden=true;features.set(key,feature);main.append(feature.element);}catch(error){const fallback=element('section','ga-notice',`${label} görünümü hazırlanamadı.`);main.append(fallback);console.error(error);}}
   let lastView='';
   function render(){workspace.element.hidden=!ctx.network||!['map','sld','analysis','operating'].includes(ctx.view);workspace.render();main.dataset.activeView=ctx.view;configureFormat(ctx.settings.value.precision);document.body.classList.toggle('ga-light',ctx.settings.value.theme==='light');model.textContent=ctx.network?`${ctx.network.name} · ${ctx.network.sites.length.toLocaleString('tr-TR')} TM`:'';status.textContent=ctx.status;busy.hidden=!ctx.busy;nav.querySelectorAll<HTMLButtonElement>('button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===ctx.view?'page':'false'));
-    for(const[key,feature]of features){feature.element.hidden=key!==ctx.view;if(key===ctx.view){try{feature.render();decorateContextHelp(feature.element,ctx);}catch(error){console.error(error);status.textContent='Bu görünüm yenilenemedi; diğer sekmeler kullanılabilir.';}}else if(lastView===key&&key==='map')feature.render();}lastView=ctx.view;status.title=ctx.status;
+    for(const[key,feature]of features){feature.element.dataset.scenarioId=ctx.scenario.selectedId;feature.element.dataset.resultId=activeResultId(ctx)??'NOT_RUN';feature.element.hidden=key!==ctx.view;if(key===ctx.view){try{feature.render();decorateContextHelp(feature.element,ctx);}catch(error){console.error(error);status.textContent='Bu görünüm yenilenemedi; diğer sekmeler kullanılabilir.';}}else if(lastView===key&&key==='map')feature.render();}lastView=ctx.view;status.title=ctx.status;
   }
   const observer=new MutationObserver(()=>{const active=features.get(ctx.view);if(active)decorateContextHelp(active.element,ctx);});observer.observe(main,{childList:true,subtree:true});ctx.subscribe(render);render();
 }

@@ -1,4 +1,5 @@
 import {activeResultId} from '../../domain/results/workspace';
+import {createWorkspaceResults} from '../analysis/workspace-results';
 import {buildStationTopologyGraph,type StationTopologyGraph,type Feeder} from '../../domain/model/station-topology';
 import {voltageMatches} from '../../domain/model/voltage-band';
 import {createVoltageFilter} from '../../ui/components/voltage-filter';
@@ -173,7 +174,8 @@ export function createSldView(ctx: AppContext): Feature {
   const regionalPager=element('div','ga-pager');regionalPager.hidden=true;
   const diagramHost = element('div', 'ga-sld-diagram');
   const detail = element('section', 'ga-detail', 'Bir bara, fider veya ekipman seçin.');
-  root.append(heading, session.element, toolbar, voltageFilter.element, lineBar, notice, bayToolbar, info,regionalPager, diagramHost, detail);
+  const shared=createWorkspaceResults(ctx),resultPanel=element('details','ga-sld-results'),resultSummary=element('summary','','Analiz sonucu');resultPanel.append(resultSummary,shared.element);resultPanel.ontoggle=()=>{if(resultPanel.open)shared.render();};
+  root.append(heading, session.element, toolbar, voltageFilter.element, lineBar, notice,resultPanel, bayToolbar, info,regionalPager, diagramHost, detail);
 
   let scope: SldScope = 'station', selectedBayId = '', regionalPage = 0;
   let networkIndex: NetworkIndex | null = null, networkHash = '', siteOptionsHash = '', stationData: StationData | null = null;
@@ -285,7 +287,7 @@ export function createSldView(ctx: AppContext): Feature {
     const bay=scope;
     const effectiveGroups = groups.map(group => ({ ...group, buses: group.buses.map(bus => ({ ...bus,
       inService: ctx.scenario.current.busOrTerminalStatus[bus.id] ?? (ctx.scenario.current.restoredTerminals.includes(bus.id) || bus.inService) })) }));
-    const n1Detail=ctx.n1Detail?.candidate.candidateId===ctx.selectedN1CandidateId?ctx.n1Detail:null;
+    const n1Detail=ctx.resultView.analysis==='N1'&&ctx.n1Detail?.candidate.candidateId===ctx.selectedN1CandidateId?ctx.n1Detail:null;
     return { scope: bay, orientation: layoutSelect.value === 'vertical' ? 'vertical' : 'horizontal', station: site, selectedId: selected?.id || null, groups: effectiveGroups, equipment,
       bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?.graph||null,voltageBands:ctx.filters.voltages,page:bay==='regional'?regionalPage:0,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value,n1Detail,selectedN1IslandId:ctx.selectedN1IslandId };
   }
@@ -295,6 +297,7 @@ export function createSldView(ctx: AppContext): Feature {
   }
   async function render(): Promise<void> {
     if (ctx.view !== 'sld') { request++; return; }
+    resultSummary.textContent=`Analiz sonucu · ${ctx.resultView.analysis} · ${ctx.resultView.source} · ${activeResultId(ctx)??'NOT_RUN / STALE'}`;if(resultPanel.open)shared.render();
     session.render();
     const network = ensureNetwork();voltageFilter.render(); syncSites(network);
     if (!network || !networkIndex) {

@@ -4,8 +4,8 @@ import {syntheticBenchmarkPair} from '../helpers/benchmark-model';
 import {loadBenchmark} from '../../src/importers/powerfactory-benchmark';
 import {loadBenchmarkModel} from '../../src/importers/powerfactory-benchmark/model';
 import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
-import {ScenarioStore,emptyScenario} from '../../src/domain/scenario/overlay';
-import {identity} from '../../src/domain/calculation/identity';
+import {ScenarioStore,emptyScenario,scenarioSignature} from '../../src/domain/scenario/overlay';
+import {identity,stableJson} from '../../src/domain/calculation/identity';
 import {AnalysisSettingsStore} from '../../src/domain/calculation/analysis-settings';
 import {buildBenchmarkMapData,benchmarkMapGate,benchmarkLayerColor,type BenchmarkMapSelection} from '../../src/domain/benchmark/map-layer';
 import {metricRows,metricStatistics,preflightBenchmark} from '../../src/domain/benchmark/comparison';
@@ -37,6 +37,13 @@ test('hybrid map resolves exact case, keeps partial island absence and invalidat
   const baseMap=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'BASE'}),change=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'CHANGE'});assert.equal(baseMap.sites.get('B2')?.value,hybrid.basePost?.buses.find(b=>b.terms.includes('B2'))?.vmPu);assert.ok(Math.abs(change.sites.get('B2')!.value!-(map.sites.get('B2')!.value!-baseMap.sites.get('B2')!.value!))<1e-12);assert.ok(change.scale);
   assert.ok(!buildBenchmarkMapData(ctx as never,{...s,caseId:'N1:ElmLne:L0'}).enabled);
   assert.ok(!buildBenchmarkMapData({...ctx,hybridResult:{...hybrid,identity:{...hybrid.identity,settingsHash:'WRONG'}}} as never,s).enabled);
+  const lf=await new BrowserJsPowerFlowEngine().runPowerFlow({network:n,scenario:scenario.current,identity:identity(n.modelHash,scenario.current,'powerFlow',{analysisSettings:settings.value}),analysisSettings:settings.value}),manual={outage:{caseId:s.caseId,sourceClass:'ElmLne',fid:'BYPASS'},status:'CONVERGED',identity:{modelHash:n.modelHash,baseScenarioHash:scenarioSignature(scenario.current),settingsHash:stableJson(settings.value)},result:lf},mixed={...ctx,n1AcResults:[manual],resultStore:{get:()=>lf}};
+  assert.equal(buildBenchmarkMapData(mixed as never,{...s,n1Layer:'BASE'}).sites.get('B2')?.value,lf.buses.find(b=>b.terms.includes('B2'))?.vmPu);
+  assert.equal(benchmarkMapGate({...mixed,resultStore:{get:()=>null}} as never,{...s,n1Layer:'BASE'}).reason,'GA_N1_BASE_METHOD_IDENTITY_NOT_VERIFIED');
+  assert.equal(benchmarkMapGate(mixed as never,{...s,n1Layer:'NEW_CONSTRAINTS'}).reason,'N1_CONSTRAINT_CHANGE_NOT_RECORDED');
+  const dc={...ctx,hybridResult:null,n1Result:{identity:{modelHash:n.modelHash,scenarioHash:scenarioSignature(scenario.current)},candidates:[{equipmentId:'BYPASS',sourceClass:'ElmLne',topImpacts:[{equipmentId:'L0',sourceClass:'ElmLne',baseFlowMw:10,postFlowMw:13,deltaPMw:3,baseEstimatedLoadingPct:20,postEstimatedLoadingPct:26}]}]}};
+  for(const [n1Layer,expected] of [['BASE',10],['POST',13],['CHANGE',3]] as const){const map=buildBenchmarkMapData(dc as never,{...s,metric:'postPmw',n1Layer});assert.ok(map.enabled);assert.equal(map.branches.get('ElmLne:L0')?.value,expected);assert.match(map.branches.get('ElmLne:L0')!.status,/DC_SCREEN/);}
+  assert.equal(buildBenchmarkMapData(dc as never,{...s,metric:'postLoadingPercent',n1Layer:'CHANGE'}).branches.get('ElmLne:L0')?.value,6);
   const resumed=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:5},resume:hybrid});assert.equal(resumed.counts.AC_CALCULATED,3);
 });
 

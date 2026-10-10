@@ -6,7 +6,6 @@ import { rowObject } from './types';
 import { scenarioSignature,emptyScenario } from '../scenario/overlay';
 import {resolveN1Post,lfSnapshotIsCurrent} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
-import {hybridIsCurrent} from '../../analysis/contingency-hybrid';
 import { stableJson } from '../calculation/identity';
 import {hasReference} from './reference-slots';
 export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
@@ -49,11 +48,12 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     if(gate?.status!=='COMPARABLE_PARTIAL')return {enabled:false,reason:gate?.reasons.join('; ')||'METHOD_MISMATCH'};
   }
   if(s.analysis==='N1'&&s.source==='GA'){
-    if(s.n1Layer&&s.n1Layer!=='POST'&&!currentLf(ctx)&&(!ctx.hybridResult?.basePost||!hybridIsCurrent(ctx.hybridResult,ctx.network,ctx.scenario.current,ctx.analysisSettings.value)))return {enabled:false,reason:'GA_N1_BASE_IDENTITY_NOT_VERIFIED'};
     const post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},s.caseId??'');
     const dc=ctx.n1Result,validDc=!!dc&&dc.identity.modelHash===ctx.network.modelHash&&dc.identity.scenarioHash===scenarioSignature(ctx.scenario.current)&&dc.candidates.some(c=>{const e=[...ctx.network!.lines,...ctx.network!.transformers].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return s.caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;});
     if(!post&&!validDc)return {enabled:false,reason:'GA_N1_NOT_CALCULATED_OR_STALE'};
     if(!post&&!['postLoadingPercent','postPmw'].includes(s.metric))return {enabled:false,reason:'GA_DC_P_ONLY'};
+    if(s.n1Layer==='NEW_CONSTRAINTS'&&post?.source!=='HYBRID_FULL_AC')return {enabled:false,reason:'N1_CONSTRAINT_CHANGE_NOT_RECORDED'};
+    if(post&&s.n1Layer&&s.n1Layer!=='POST'&&!(post.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost:currentLf(ctx)))return {enabled:false,reason:'GA_N1_BASE_METHOD_IDENTITY_NOT_VERIFIED'};
   }
   return {enabled:true,reason:''};
 }
@@ -65,12 +65,12 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   const putSite=(id:string,value:BenchmarkMapValue,fid:string,kv:number|null)=>{
     let previous=data.sites.get(id);if(!previous){previous={...value,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
     if(value.value===null)return;
-    if(value.unit==='pu'&&s.n1Layer!=='CHANGE'&&!['DELTA','EXPLORATORY_DELTA'].includes(s.source)){
+    if(value.unit==='pu'&&s.n1Layer!=='CHANGE'&&!['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){
       const v=value.value,deviation=Math.abs(v-1),level=String(kv??'UNKNOWN');previous.voltageLevels??={};const old=previous.voltageLevels[level];
       previous.voltageLevels[level]=old?{minVpu:Math.min(old.minVpu,v),maxVpu:Math.max(old.maxVpu,v),maxDeviationPu:Math.max(old.maxDeviationPu,deviation),representativeFid:deviation>old.maxDeviationPu?fid:old.representativeFid}:{minVpu:v,maxVpu:v,maxDeviationPu:deviation,representativeFid:fid};
       previous.minVpu=Math.min(previous.minVpu??v,v);previous.maxVpu=Math.max(previous.maxVpu??v,v);
       if(previous.maxDeviationPu===undefined||deviation>previous.maxDeviationPu){previous.value=v;previous.maxDeviationPu=deviation;previous.representativeFid=fid;}
-    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
+    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
   };
   const put=(sourceClass:string,fid:string,value:BenchmarkMapValue)=>{
     const line=lineByKey.get(`${sourceClass}:${fid}`),bus=sourceClass==='ElmTerm'?busById.get(fid):undefined,siteIds=line?.siteIds||bus?.siteIds||[];if(s.voltageKv&&(bus?.vnKv??line?.vnKv)!==s.voltageKv)return;
@@ -95,9 +95,9 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
       const resolved=resolveN1Post({network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},s.caseId??'');
       if(resolved){
         data.outage={fid:resolved.outage.fid,sourceClass:resolved.outage.sourceClass};
-        const base=ctx.hybridResult?.basePost??(currentLf(ctx)&&result?postResultAssembler(network,result,'nominal'):undefined),layer=s.n1Layer??'POST',post=layer==='BASE'?base!:resolved.post;
+        const base=resolved.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost:currentLf(ctx)&&result?postResultAssembler(network,result,'nominal'):undefined,layer=s.n1Layer??'POST',post=layer==='BASE'?base!:resolved.post;
         const busKey=(b:{vnKv:number;terms:string[]})=>`${b.vnKv}|${stableJson([...b.terms].sort())}`,baseBuses=new Map(base?.buses.map(b=>[busKey(b),b])),baseBranches=new Map(base?.branches.map(b=>[`${b.sourceClass}:${b.fid}`,b]));
-        const changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges??[];
+        const changes=resolved.source==='HYBRID_FULL_AC'?ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges??[]:[];
         for(const b of post.buses){const before=baseBuses.get(busKey(b)),metric=['voltagePu','postVoltagePu'].includes(s.metric)?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:null;
           const value=metric===null?null:layer==='CHANGE'?(before?metric-(s.metric==='voltageKv'?before.vmPu*before.vnKv:before.vmPu):null):layer==='NEW_CONSTRAINTS'&&!changes.some(c=>c.state==='NEW'&&c.metric==='voltagePu'&&c.physicalTerminalFids?.some(fid=>b.terms.includes(fid)))?null:metric;
           if(metric!==null)for(const fid of b.terms)put('ElmTerm',fid,{value,unit:s.metric==='voltageKv'?'kV':'pu',status:layer,details:[`${fid} / ${s.caseId} / ${resolved.source} / ${layer} / BASE ${before?.vmPu??'null'} / POST ${b.vmPu} / model ${network.modelHash} / settings ${ctx.hybridResult?.identity.settingsHash??'manual AC'}`]});}
@@ -105,7 +105,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
           const value=layer==='CHANGE'?(metric!==null&&previous!==null&&(!s.metric.includes('Loading')||ratingMatches)?metric-previous:null):layer==='NEW_CONSTRAINTS'&&!changes.some(c=>c.state==='NEW'&&c.sourceClass===b.sourceClass&&c.fid===b.fid&&c.metric==='postLoadingPercent')?null:metric;
           put(b.sourceClass,b.fid,{value,unit:s.metric.includes('Loading')?'%':s.metric==='postMva'?'MVA':s.metric==='postQmvar'?'Mvar':s.metric==='postCurrentA'?'A':'MW',status:b.loading.reason||layer,details:[`${b.sourceClass}:${b.fid} / ${s.caseId} / ${layer} / BASE ${previous} / POST ${metric} / CHANGE ${value} / ${s.side??'FROM'}`,`Rating: ${JSON.stringify(b.loading)}`]});}
         if(layer==='CHANGE'){const values=[...data.branches.values(),...data.sites.values()].flatMap(v=>v.value===null?[]:[v.value]),abs=values.map(Math.abs).sort((a,b)=>a-b);data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:data.sites.values().next().value?.unit??''};}
-      }else{const equipment=[...network.lines,...network.transformers].find(e=>e.sourceId===data.outage?.fid&&e.sourceClass===data.outage.sourceClass),c=ctx.n1Result?.candidates.find(c=>c.equipmentId===equipment?.id&&c.sourceClass===data.outage?.sourceClass);for(const b of c?.topImpacts||[]){const e=[...network.lines,...network.transformers].find(e=>e.id===b.equipmentId&&e.sourceClass===b.sourceClass);put(b.sourceClass,e?.sourceId??b.equipmentId,{value:s.metric==='postPmw'?b.postFlowMw:b.postEstimatedLoadingPct,unit:s.metric==='postPmw'?'MW':'%',status:'GA_DC_SCREEN',details:[`${b.sourceClass}:${b.equipmentId} · GA_DC_SCREEN · ${s.caseId} · P-only`]});}}
+      }else{const c=ctx.n1Result?.candidates.find(c=>{const e=[...network.lines,...network.transformers].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return s.caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;}),outage=c?[...network.lines,...network.transformers].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass):null;if(outage)data.outage={fid:outage.sourceId,sourceClass:outage.sourceClass};for(const b of c?.topImpacts||[]){const e=[...network.lines,...network.transformers].find(e=>e.id===b.equipmentId&&e.sourceClass===b.sourceClass),layer=s.n1Layer??'POST',p=s.metric==='postPmw',before=p?b.baseFlowMw:b.baseEstimatedLoadingPct,after=p?b.postFlowMw:b.postEstimatedLoadingPct,value=layer==='BASE'?before:layer==='CHANGE'?p?b.deltaPMw:before!=null&&after!=null?after-before:null:after;put(b.sourceClass,e?.sourceId??b.equipmentId,{value,unit:p?'MW':'%',status:'GA_DC_SCREEN',details:[`${b.sourceClass}:${b.equipmentId} · GA_DC_SCREEN · ${s.caseId} · ${layer} · P-only · recorded top impacts`]});}}
       return data;
     }
   }
