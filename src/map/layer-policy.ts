@@ -12,6 +12,9 @@ import {voltageMatches} from '../domain/model/voltage-band';
 import {lfSnapshotIsCurrent,resolveN1Post} from '../domain/benchmark/post-result-source';
 import {solutionCompleteness} from '../domain/results/diagnostics';
 import {rowObject} from '../domain/benchmark/types';
+import {modelPresentationIndex,highestNominalBySite,resultPresentationIndex,solutionPresentationIndex,partitionKey,type SolvedBus} from './presentation-index';
+import {mapLoadingValues} from './loading-presentation';
+import {capacitySession} from '../domain/model/capacity';
 
 const labels:Record<string,string>={voltagePu:'Bara gerilimi (pu)',voltageKv:'Bara gerilimi (kV)',angleDeg:'Bara açısı (°)',pFromMw:'Hat P giriş (MW)',qFromMvar:'Hat Q giriş (MVAr)',sFromMva:'Hat S giriş (MVA)',pToMw:'Hat P çıkış (MW)',qToMvar:'Hat Q çıkış (MVAr)',sToMva:'Hat S çıkış (MVA)',pHvMw:'Trafo P yüksek gerilim (MW)',qHvMvar:'Trafo Q yüksek gerilim (MVAr)',sHvMva:'Trafo S yüksek gerilim (MVA)',pLvMw:'Trafo P alçak gerilim (MW)',qLvMvar:'Trafo Q alçak gerilim (MVAr)',sLvMva:'Trafo S alçak gerilim (MVA)',iFromA:'Hat akımı giriş (A)',iToA:'Hat akımı çıkış (A)',loadingPercent:'Termik yüklenme (%)',pLossMw:'Aktif kayıp (MW)',qLossMvar:'Reaktif kayıp (MVAr)',pResultMw:'Ekipman P (MW)',qResultMvar:'Ekipman Q (MVAr)',postLoadingPercent:'Kesinti sonrası tahmini yük (%)',postPmw:'Kesinti sonrası P (MW)',postQmvar:'Kesinti sonrası Q (MVAr)',postMva:'Kesinti sonrası S (MVA)',postVoltagePu:'Kesinti sonrası bara gerilimi (pu)',postCurrentA:'Kesinti sonrası akım (A)',postCurrentLoadingPercent:'Kesinti sonrası akım yükü (%)',postApparentLoadingPercent:'Kesinti sonrası görünür güç yükü (%)',islands:'Kesinti sonrası elektrik adaları',thermalRisk:'Kesinti sonrası termik risk (%)',ikssKa:'Başlangıç kısa devre akımı (kA)',skssMva:'Kısa devre gücü (MVA)',ipKa:'Tepe kısa devre akımı (kA)',ibKa:'Kesme akımı (kA)',ithKa:'Termik kısa devre akımı (kA)'};
 export const mapMetricLabel=(metric:string)=>labels[metric]??metric;
@@ -22,8 +25,10 @@ export const LF_MAP_METRICS=[
   {metric:'angleDeg',label:'Bara Açısı (°)',target:'ElmTerm'},
   {metric:'pFromMw',label:'Hat Aktif Güç (MW)',target:'ElmLne'},
   {metric:'qFromMvar',label:'Hat Reaktif Güç (MVAr)',target:'ElmLne'},
+  {metric:'loadingPercent',label:'Yüklenme (%)',target:'ElmBranch'},
   {metric:'pHvMw',label:'Trafo Aktif Güç (MW)',target:'ElmTr2'},
   {metric:'qHvMvar',label:'Trafo Reaktif Güç (MVAr)',target:'ElmTr2'},
+  {metric:'island',label:'Ada / Kuplaj Topolojisi',target:'Topology'},
 ] as const;
 export const finiteNumber=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v);
 export function matchedVoltageKv(pu:unknown,nominal:unknown,otherNominal:unknown):number|null{
@@ -32,20 +37,20 @@ export function matchedVoltageKv(pu:unknown,nominal:unknown,otherNominal:unknown
 export const lfMapTarget=(metric:string)=>LF_MAP_METRICS.find(m=>m.metric===metric)?.target;
 export function currentMapLf(ctx:AppContext){const r=ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
 export function representativeStationBus(ctx:AppContext,siteId:string,result:CalculationResult|null){
-  const nominals=ctx.network?.buses.filter(b=>b.siteIds.includes(siteId)&&voltageMatches(b.vnKv,ctx.filters.voltages)).map(b=>b.vnKv)??[],nominal=nominals.length?Math.max(...nominals):null;
-  const terms=new Map(ctx.network?.buses.map(b=>[b.id,b]));
-  const buses=result?.buses.filter(b=>b.siteIds.includes(siteId)&&b.vnKv===nominal&&b.terms.length>0&&b.terms.every(t=>terms.get(t)?.vnKv===nominal)&&finiteNumber(b.vmPu))??[];
-  return {nominal,bus:buses.sort((a,b)=>b.vmPu-a.vmPu||a.id.localeCompare(b.id))[0]??null,count:buses.length};
+  const n=ctx.network,nominal=n?highestNominalBySite(n,ctx.filters.voltages).get(siteId)??null:null,selected=n&&result&&nominal!==null?resultPresentationIndex(n,result).solution.bySiteAndNominal.get(siteId)?.get(nominal):undefined;
+  return {nominal,bus:selected?.bus??null,count:selected?.count??0};
 }
 export function angleHasReference(result:CalculationResult|null,bus:BusResult|null):boolean{
   const islands=result?.diagnostics.islands;
   return !!bus?.islandId&&finiteNumber(bus.angleRad)&&Array.isArray(islands)&&islands.some(i=>i.islandId===bus.islandId&&typeof i.referenceSource==='string'&&i.referenceSource.length>0&&!['NO_REFERENCE','NO_RESULT'].includes(i.status));
 }
 export function transformerFromIsHv(n:CanonicalNetwork,from:string,to:string,hv:number,lv:number):boolean|null{
-  const a=n.buses.find(b=>b.id===from)?.vnKv,b=n.buses.find(b=>b.id===to)?.vnKv;
+  const terms=modelPresentationIndex(n).physicalTerminalById,a=terms.get(from)?.vnKv,b=terms.get(to)?.vnKv;
   return hv>lv&&a===hv&&b===lv?true:hv>lv&&a===lv&&b===hv?false:null;
 }
 export function mapPresentationGate(ctx:AppContext,s:BenchmarkMapSelection){
+  if(s.analysis==='LF'&&s.metric==='island')return ctx.network&&s.source==='GA'?{enabled:true,reason:'STRUCTURAL_TOPOLOGY'}:{enabled:false,reason:ctx.network?'TOPOLOGY_SOURCE_GA_ONLY':'MODEL_NOT_LOADED'};
+  if(ctx.network&&s.analysis==='LF'&&s.metric==='loadingPercent'&&['DELTA','EXPLORATORY_DELTA'].includes(s.source)){const capacity=capacitySession(ctx.network.modelHash);if(capacity.season!=='nominal'||capacity.manual.size)return {enabled:false,reason:'LOADING_DENOMINATOR_UNVERIFIED: seasonal/manual GA limit differs from native PF evidence'};}
   if(s.analysis==='LF'&&['PF','DELTA','EXPLORATORY_DELTA'].includes(s.source)&&scenarioSignature(ctx.scenario.current)!==scenarioSignature(emptyScenario()))return {enabled:false,reason:'PF_SCENARIO_IDENTITY_UNVERIFIED'};
   const metric=s.analysis==='LF'&&s.source==='GA'&&lfMapTarget(s.metric)==='ElmTr2'?(s.metric==='pHvMw'?'pFromMw':'qFromMvar'):s.metric;
   const gate=benchmarkMapGate(ctx,{...s,metric});
@@ -57,30 +62,49 @@ export function mapPresentationGate(ctx:AppContext,s:BenchmarkMapSelection){
   return gate;
 }
 export function mapCaseOptions(ctx:AppContext,analysis:'N1'|'SC'):string[][]{
-  const rows:string[][]=[];
+  const rows:string[][]=[],seen=new Set<string>(),terms=ctx.network?modelPresentationIndex(ctx.network).physicalTerminalById:null;
   if(analysis==='N1'){
     const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);}
     for(const c of [...ctx.n1AcResults,...ctx.hybridResult?.cases??[]])if(!rows.some(r=>r[0]===c.outage.caseId))rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);
     for(const c of ctx.n1Result?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!rows.some(r=>r[0]===id))rows.push([id,(e?.name??id)+' · '+c.status]);}
   }else{
-    for(const f of ctx.scResult?.faults??[])rows.push([f.physicalTerminalFid,(ctx.network?.buses.find(b=>b.id===f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);
-    const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row),id=String(r.physicalTerminalFid??r.fid??'');if(id&&!rows.some(row=>row[0]===id))rows.push([id,String(r.physicalTerminalName??r.name??id)+' · PF 3PH MAX']);}
+    for(const f of ctx.scResult?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
+    const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row),id=String(r.physicalTerminalFid??r.fid??'');if(id&&!seen.has(id)){seen.add(id);rows.push([id,String(r.physicalTerminalName??r.name??id)+' · PF 3PH MAX']);}}
   }return rows;
 }
+const referenceCaches=new WeakMap<AppContext,{key:string;network:unknown;benchmark:unknown;result:unknown;control:unknown;ac:unknown;hybrid:unknown;sc:unknown;gate:ReturnType<typeof preflightBenchmark>;rows:Map<string,ReturnType<typeof metricRows>>}>();
 export function mapReferenceRows(ctx:AppContext,s:BenchmarkMapSelection){
   const table=ctx.benchmark?.groups[s.analysis].tables[s.table];if(!table||!ctx.network)return [];
   const r=ctx.resultStore.get('base','powerFlow');
   const mode=selectedScPresentation(ctx).sc?.profile.calculateMode??'MAX';
-  const faults=s.analysis==='SC'?table.rows.map(row=>rowObject(table,row)).filter(row=>['3PH','3-Phase Short-Circuit'].includes(String(row.faultType))&&row.calculateMode===mode):[];
-  return metricRows(table,preflightBenchmark(ctx.benchmark!,ctx.network,r,ctx.powerFactoryControlContextNumericFile),s.metric,{lfResult:r,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,diagnostic:s.diagnostic,ac:ctx.n1AcResults,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(s.analysis!=='SC'||faults.some(f=>String(f.physicalTerminalFid??f.fid)===r.fid&&Number(f.nominalKv)===r.nominalKv)));
+  const key=JSON.stringify([ctx.network.modelHash,scenarioSignature(ctx.scenario.current),ctx.analysisSettings.value,ctx.powerFactoryControlContextHash]);let cache=referenceCaches.get(ctx);
+  if(!cache||cache.key!==key||cache.network!==ctx.network||cache.benchmark!==ctx.benchmark||cache.result!==r||cache.control!==ctx.powerFactoryControlContextNumericFile||cache.ac!==ctx.n1AcResults||cache.hybrid!==ctx.hybridResult||cache.sc!==ctx.scResult){cache={key,network:ctx.network,benchmark:ctx.benchmark,result:r,control:ctx.powerFactoryControlContextNumericFile,ac:ctx.n1AcResults,hybrid:ctx.hybridResult,sc:ctx.scResult,gate:preflightBenchmark(ctx.benchmark!,ctx.network,r,ctx.powerFactoryControlContextNumericFile),rows:new Map()};referenceCaches.set(ctx,cache);}
+  const selectionKey=JSON.stringify([s,mode,ctx.resultView.faultId]);let rows=cache.rows.get(selectionKey);
+  if(!rows){const faults=new Set(s.analysis==='SC'?table.rows.map(row=>rowObject(table,row)).filter(row=>['3PH','3-Phase Short-Circuit'].includes(String(row.faultType))&&row.calculateMode===mode).map(f=>String(f.physicalTerminalFid??f.fid)+'|'+Number(f.nominalKv)):[]);
+    rows=metricRows(table,cache.gate,s.metric,{lfResult:r,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,diagnostic:s.diagnostic,ac:ctx.n1AcResults,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(s.analysis!=='SC'||faults.has(r.fid+'|'+r.nominalKv)));cache.rows.set(selectionKey,rows);}
+  return rows;
+}
+const cellIndices=new WeakMap<ReturnType<typeof mapReferenceRows>,Map<string,ReturnType<typeof mapReferenceRows>[number]|null>>();
+export function referenceCellIndex(rows:ReturnType<typeof mapReferenceRows>){let index=cellIndices.get(rows);if(!index){index=new Map();for(const row of rows){const key=row.sourceClass+'|'+row.fid+'|'+row.nominalKv;index.set(key,index.has(key)?null:row);}cellIndices.set(rows,index);}return index;}
+const validReference=(r:ReturnType<typeof mapReferenceRows>[number]|null|undefined)=>!!r&&finiteNumber(r.pf.value)&&r.pf.availability!=='INVALID'&&!r.pf.qualityFlags.includes('SENTINEL_CANDIDATE');
+const stationReferences=new WeakMap<ReturnType<typeof mapReferenceRows>,{network:CanonicalNetwork;bands:string;selected:Map<string,ReturnType<typeof mapReferenceRows>[number]>}>();
+export function representativeReferenceBySite(ctx:AppContext,s:BenchmarkMapSelection){
+  const selected=new Map<string,ReturnType<typeof mapReferenceRows>[number]>(),n=ctx.network;if(!n)return selected;
+  const rows=mapReferenceRows(ctx,{...s,metric:'voltageKv'}),bands=[...ctx.filters.voltages].sort().join('|'),cached=stationReferences.get(rows);if(cached?.network===n&&cached.bands===bands)return cached.selected;
+  const terms=modelPresentationIndex(n).physicalTerminalById,highest=highestNominalBySite(n,ctx.filters.voltages),index=referenceCellIndex(rows);
+  for(const row of index.values()){if(!validReference(row)||row!.sourceClass!=='ElmTerm')continue;const term=terms.get(row!.fid);if(!term||term.vnKv!==row!.nominalKv)continue;
+    for(const id of term.siteIds){if(highest.get(id)!==term.vnKv)continue;const old=selected.get(id);if(!old||row!.pf.value!>old.pf.value!||row!.pf.value===old.pf.value&&row!.fid.localeCompare(old.fid)<0)selected.set(id,row!);}}
+  stationReferences.set(rows,{network:n,bands,selected});return selected;
 }
 /** A view-only projection: canonical domain maps, solver values and caches stay intact. */
 export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMapData{
   const gate=mapPresentationGate(ctx,s),empty:BenchmarkMapData={...gate,branches:new Map(),sites:new Map(),outage:null,noGeometry:0,numericValues:0};if(!gate.enabled)return empty;
   const target=s.analysis==='LF'?lfMapTarget(s.metric):undefined;
+  if(target==='Topology')return empty;
   const transformed=s.source==='GA'&&target==='ElmTr2'?{...s,metric:s.metric==='pHvMw'?'pFromMw':'qFromMvar'}:s;
-  const data=buildBenchmarkMapData(ctx,transformed),result=currentMapLf(ctx),n=ctx.network;
+  const data=s.analysis==='LF'&&(target==='ElmTerm'&&['GA','PF'].includes(s.source)||s.source==='GA'&&s.metric==='loadingPercent')?empty:buildBenchmarkMapData(ctx,transformed),result=currentMapLf(ctx),n=ctx.network;
   if(!n)return data;
+  if(s.analysis==='LF'&&s.source==='GA'&&s.metric==='loadingPercent'&&result){for(const [key,loading] of mapLoadingValues(n,result))data.branches.set(key,{value:loading.maximum,unit:'%',status:loading.status,details:[loading.basis+' · '+loading.season+' · '+loading.source]});}
   if(s.analysis==='N1'&&s.source==='GA'&&s.n1Layer==='NEW_CONSTRAINTS'){
     const post=buildBenchmarkMapData(ctx,{...s,n1Layer:'POST'}),changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.filter(c=>['NEW','WORSENED'].includes(c.state))??[];
     const equipment=new Map([...n.lines,...n.transformers].map(e=>[e.sourceClass+':'+e.id,e])),thermal=new Map(changes.filter(c=>c.metric==='postLoadingPercent').map(c=>[c.sourceClass+':'+c.fid,c]));
@@ -88,7 +112,7 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
   }
   if(s.analysis==='SC'&&s.source!=='GA'){
     data.sites.clear();data.branches.clear();for(const r of mapReferenceRows(ctx,s).filter(r=>r.fid===ctx.resultView.faultId)){
-      const term=n.buses.find(b=>b.id===r.fid);if(!term||r.nominalKv!==term.vnKv)continue;const value=s.source==='PF'?r.pf.value:s.source==='EXPLORATORY_DELTA'&&r.identityMatched?r.diagnosticDelta??null:null;
+      const term=modelPresentationIndex(n).physicalTerminalById.get(r.fid);if(!term||r.nominalKv!==term.vnKv)continue;const value=s.source==='PF'?r.pf.value:s.source==='EXPLORATORY_DELTA'&&r.identityMatched?r.diagnosticDelta??null:null;
       for(const id of term.siteIds)data.sites.set(id,{value:r.pf.availability==='INVALID'||r.pf.qualityFlags.includes('SENTINEL_CANDIDATE')?null:value,unit:r.pf.unit,status:s.source==='PF'?'PF_REFERENCE_ONLY':r.status,details:[],representativeFid:r.fid});
     }
   }
@@ -96,7 +120,7 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
     data.branches=new Map([...data.branches].filter(([k])=>k.startsWith(target+':')));
     if(target==='ElmLne')data.sites.clear();
     if(target==='ElmTr2'&&s.source==='GA'){
-      data.sites.clear();for(const t of n.transformers){const row=result?.branches.find(b=>b.sourceClass==='ElmTr2'&&b.id===t.id),fromHv=transformerFromIsHv(n,t.from,t.to,Math.max(t.vnKv,t.lvKv),Math.min(t.vnKv,t.lvKv));
+      data.sites.clear();const rows=result?resultPresentationIndex(n,result).branchByKey:null;for(const t of n.transformers){const row=rows?.get('ElmTr2:'+t.id),fromHv=transformerFromIsHv(n,t.from,t.to,Math.max(t.vnKv,t.lvKv),Math.min(t.vnKv,t.lvKv));
         const value=row&&fromHv!==null?(s.metric==='pHvMw'?(fromHv?row.pf:row.pt):(fromHv?row.qf:row.qt)):null;
         const v={value:finiteNumber(value)?value:null,unit:s.metric==='pHvMw'?'MW':'MVAr',status:fromHv===null?'HV_LV_IDENTITY_UNVERIFIED':'GA_FULL_AC',details:[]};data.branches.set('ElmTr2:'+t.id,v);for(const site of t.siteIds)if(v.value!==null)data.sites.set(site,v);
       }
@@ -109,14 +133,14 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
     }
   }
   if(s.analysis==='LF'&&s.source==='PF'&&target==='ElmTerm'){
-    data.sites.clear();const rows=mapReferenceRows(ctx,s),voltages=s.metric==='angleDeg'?mapReferenceRows(ctx,{...s,metric:'voltageKv'}):rows;for(const site of n.sites){const nominal=representativeStationBus(ctx,site.id,null).nominal,values=voltages.filter(r=>r.sourceClass==='ElmTerm'&&r.nominalKv===nominal&&n.buses.find(b=>b.id===r.fid&&b.vnKv===nominal)?.siteIds.includes(site.id)&&finiteNumber(r.pf.value)&&r.pf.availability!=='INVALID'&&!r.pf.qualityFlags.includes('SENTINEL_CANDIDATE'));
-      const bus=values.sort((a,b)=>b.pf.value!-a.pf.value!)[0],row=s.metric==='angleDeg'?rows.find(r=>r.fid===bus?.fid&&r.nominalKv===nominal):bus;if(row)data.sites.set(site.id,{value:finiteNumber(row.pf.value)?row.pf.value:null,unit:row.pf.unit,status:'PF_REFERENCE',details:[],nominalKv:nominal} as BenchmarkMapValue);
+    data.sites.clear();const selected=representativeReferenceBySite(ctx,s),angles=s.metric==='angleDeg'?referenceCellIndex(mapReferenceRows(ctx,s)):null;for(const site of n.sites){const nominal=representativeStationBus(ctx,site.id,null).nominal,bus=selected.get(site.id),row=s.metric==='angleDeg'?angles?.get('ElmTerm|'+bus?.fid+'|'+nominal):bus;
+      data.sites.set(site.id,{value:validReference(row)?row!.pf.value:null,unit:s.metric==='angleDeg'?'deg':'kV',status:validReference(row)?'PF_REFERENCE':'NOT_RECORDED',details:[],representativeFid:bus?.fid,nominalKv:nominal} as BenchmarkMapValue);
     }
   }
   if(s.analysis==='N1'&&s.source==='GA'&&s.metric==='voltageKv'){
     data.sites.clear();const p=selectedN1Presentation(ctx),base=p.post?.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost?.buses:result?.buses,post=p.post?.post.buses;
-    for(const site of n.sites){const nominal=representativeStationBus(ctx,site.id,null).nominal,valid=(b:{terms:string[];vnKv:number;vmPu:number})=>b.vnKv===nominal&&b.terms.length>0&&b.terms.every(id=>n.buses.find(t=>t.id===id)?.vnKv===nominal)&&b.terms.some(id=>n.buses.find(t=>t.id===id)?.siteIds.includes(site.id))&&finiteNumber(b.vmPu);
-      const candidates=(s.n1Layer==='BASE'?base:post)?.filter(valid).sort((a,b)=>b.vmPu-a.vmPu)??[],b=candidates[0],before=base?.find(a=>a.vnKv===b?.vnKv&&[...a.terms].sort().join('|')===[...b?.terms??[]].sort().join('|'));
+    const identity=JSON.stringify([ctx.hybridResult?.identity,ctx.n1AcResults.map(c=>c.identity)]),active=s.n1Layer==='BASE'?base:post,index=active?solutionPresentationIndex<SolvedBus>(n,active,identity):null,baseIndex=base?solutionPresentationIndex<SolvedBus>(n,base,identity):null;
+    for(const site of n.sites){const nominal=representativeStationBus(ctx,site.id,null).nominal,b=nominal!==null?index?.bySiteAndNominal.get(site.id)?.get(nominal)?.bus:undefined,before=b?baseIndex?.byPartition.get(partitionKey(b)):null;
       if(s.n1Layer==='NEW_CONSTRAINTS'&&!ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.some(c=>['NEW','WORSENED'].includes(c.state)&&c.metric==='voltagePu'&&c.physicalTerminalFids?.some(fid=>b?.terms.includes(fid))))continue;
       const u=matchedVoltageKv(b?.vmPu,b?.vnKv,nominal),value=s.n1Layer==='CHANGE'?u!==null&&before?u-before.vmPu*before.vnKv:null:u;
       data.sites.set(site.id,{value,unit:'kV',status:p.status,details:[],representativeFid:b?.terms[0],nominalKv:nominal} as BenchmarkMapValue);

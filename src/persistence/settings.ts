@@ -18,7 +18,7 @@ export const defaultSettings = (): Settings => ({
   deltaMetric:'p',voltageMin:.90,voltageNeutral:1,voltageMax:1.10,voltageLowColor:'#508bc2',voltageNeutralColor:'#bccbd3',voltageHighColor:'#e4a66a',
   angleMin:-20,angleNeutral:0,angleMax:20,angleNegativeColor:'#4f91cc',angleNeutralColor:'#becbd1',anglePositiveColor:'#d8965d',
   magnitudePercentile:95,magnitudePMax:0,magnitudeQMax:0,magnitudeIntensity:1,
-  basemapStyle:'dark',showProvinceBorders:true,basemapOpacity:.7,precision:2,pageSize:20,siteSize:2.5,routeDetail:true,
+  basemapStyle:'dark',showProvinceBorders:true,basemapOpacity:.7,precision:1,pageSize:20,siteSize:2.5,routeDetail:true,
   color400:'#e6534e',color220:'#8d80d8',color154:'#449bda',color66:'#51b6bc',colorLow:'#8fb0a0',colorMid:'#449bda',
   colorOut:'#708596',colorScenarioOff:'#e18b55',colorScenarioOn:'#53d2a4',colorNoResult:'#708596',
   loadingColor0:'#c5dbe3',loadingColor1:'#b6dedf',loadingColor2:'#a9d4d3',loadingColor3:'#e5c66b',loadingColor4:'#e9a96a',loadingColor5:'#e58b58',loadingColor6:'#c94345',

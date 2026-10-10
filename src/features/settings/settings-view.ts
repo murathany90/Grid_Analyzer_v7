@@ -20,7 +20,7 @@ export function createSettingsView(ctx: AppContext): Feature {
     const qThresholds=s.qThresholds.map((value,i)=>`<label>Q eşiği ${i+1} (%)<input type="number" data-q-threshold="${i}" value="${value}" min="0" max="300" step="1" aria-label="Q yüklenme eşiği ${i+1} yüzde"></label>`).join('');
     form.innerHTML=`
       <fieldset><legend>Genel</legend>
-        ${number('Ondalık basamak','precision',s.precision,'Ekrandaki sayı biçimi.', '1',0,8)}
+        ${number('Ondalık basamak','precision',s.precision,'Harita kartı ve ekran hassasiyeti: 0–8; yeni kurulumda 1. Ham export değerleri korunur.', '1',0,8)}
         ${number('Envanter sayfa boyutu','pageSize',s.pageSize,'Liste başına kayıt sayısı.','1',10,100)}
         ${number('TM simgesi boyutu','siteSize',s.siteSize,'Haritadaki TM marker yarıçapı.','.5',1,10)}
         ${check('Kaynak güzergâhı','routeDetail',s.routeDetail,'Hatların kaynak coğrafi güzergâhını gösterir.')}

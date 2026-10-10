@@ -6,6 +6,7 @@ import type { BranchResult } from '../domain/results/types';
 import type { Settings } from '../persistence/settings';
 import {islandColor,type ElectricalIslandSummary} from './island-map';
 export interface ResultStyle {color:string;width:number;dash:number[];alpha:number}
+export function engineeringLoadingColor(value:number|null|undefined,settings:Settings){const colors=[settings.loadingColor0,settings.loadingColor1,settings.loadingColor2,settings.loadingColor3,settings.loadingColor4,settings.loadingColor5,settings.loadingColor6];return value==null||!Number.isFinite(value)?settings.colorNoResult:value>100?settings.loadingColor6:colors[settings.thresholds.filter(t=>value>t).length];}
 export const voltageGroup=(kv:number)=>voltageBand(kv)==='400'?'400':['66','154','220'].includes(voltageBand(kv)||'')?'mid':'other';
 export function pLoadingPercent(line:Line,row:BranchResult|undefined):number|null {return row&&line.ratingMva!=null&&line.ratingMva>0?100*Math.max(Math.abs(row.pf),Math.abs(row.pt))/line.ratingMva:null;}
 export function qLoadingPercent(kv:number,row:BranchResult|undefined,settings:Settings):number|null {if(!row)return null;const base=kv>=300?settings.qBase400Mvar:settings.qBase154Mvar;return base>0?100*Math.max(Math.abs(row.qf),Math.abs(row.qt))/base:null;}

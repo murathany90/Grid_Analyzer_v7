@@ -29,13 +29,13 @@ export function createBenchmarkMapControls(ctx:AppContext){
   function commit(){
     const s=selection();ctx.benchmarkMap=s;
     if(!s){ctx.analysisTab=ctx.resultView.analysis='LF';ctx.resultView.source='GA';ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:metric.value as Settings['displayMode']});}
-    else{ctx.analysisTab=ctx.resultView.analysis=s.analysis;ctx.resultView.source=s.source==='PF'?'PF':s.source==='SCENARIO_DELTA'?'Senaryo−Baz':['DELTA','EXPLORATORY_DELTA'].includes(s.source)?'GA−PF':'GA';ctx.resultView.metric=s.metric;ctx.resultView.caseId=s.caseId;ctx.resultView.phase=s.n1Layer==='BASE'?'PRE':s.n1Layer==='CHANGE'?'CHANGE':'POST';ctx.resultView.side=s.side;if(s.analysis==='SC')ctx.resultView.faultId=cases.value;if(s.analysis==='LF')ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:'nominal'});}
+    else{ctx.analysisTab=ctx.resultView.analysis=s.analysis;ctx.resultView.source=s.source==='PF'?'PF':s.source==='SCENARIO_DELTA'?'Senaryo−Baz':['DELTA','EXPLORATORY_DELTA'].includes(s.source)?'GA−PF':'GA';ctx.resultView.metric=s.metric;ctx.resultView.caseId=s.caseId;ctx.resultView.phase=s.n1Layer==='BASE'?'PRE':s.n1Layer==='CHANGE'?'CHANGE':'POST';ctx.resultView.side=s.side;if(s.analysis==='SC')ctx.resultView.faultId=cases.value;if(s.analysis==='LF')ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:s.analysis==='LF'&&s.metric==='island'?'island':'nominal'});}
     syncMapCase(ctx);ctx.notify();
   }
   function populate(){
     if(family===analysis.value)return;family=analysis.value;metric.replaceChildren();phase.value='POST';
     const options=family==='LF'?LF_MAP_METRICS.map(m=>[m.metric,m.label]):family==='N1'?[['postPmw','Kesinti sonrası P (MW)'],['postLoadingPercent','Yüklenme (%)'],['postDeltaPmw','POST−PRE ΔP (MW)'],['postQmvar','Q (MVAr) · Full AC'],['voltageKv','U (kV) · Full AC'],['newConstraints','Yeni/kötüleşen ihlal']]:family==='SC'?[['ikssKa','Ikss (kA)'],['skssMva','Skss (MVA)']]:Object.entries(nominal);
-    for(const [v,l] of options)add(metric,v,l);metric.value=family==='LF'?'pFromMw':family==='N1'?'postPmw':family==='SC'?'ikssKa':ctx.settings.value.displayMode in nominal?ctx.settings.value.displayMode:'nominal';
+    if(family==='LF'){const electrical=document.createElement('optgroup'),topology=document.createElement('optgroup');electrical.label='Elektriksel büyüklükler';topology.label='Topoloji';for(const [v,l] of options){const o=document.createElement('option');o.value=v;o.textContent=l;(v==='island'?topology:electrical).append(o);}metric.append(electrical,topology);}else for(const [v,l] of options)add(metric,v,l);metric.value=family==='LF'?'pFromMw':family==='N1'?'postPmw':family==='SC'?'ikssKa':ctx.settings.value.displayMode in nominal?ctx.settings.value.displayMode:'nominal';
   }
   function render(){
     const external=ctx.benchmarkMap;

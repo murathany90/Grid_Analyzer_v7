@@ -11,6 +11,7 @@ import {initialResultView} from '../../src/domain/results/workspace';
 import {METRICS} from '../../src/domain/benchmark/comparison';
 import {LF_MAP_METRICS,matchedVoltageKv,representativeStationBus,buildMapPresentationData,mapFlowMetric,mapPresentationGate,selectedN1Presentation,selectedScPresentation,mapStatusText,syncMapCase} from '../../src/map/layer-policy';
 import {runHybridN1} from '../../src/analysis/contingency-hybrid';
+import {defaultSettings} from '../../src/persistence/settings';
 import {equipmentCard,tooltipPosition} from '../../src/map/equipment-tooltip';
 import {HELP_HOVER_DELAY_MS} from '../../src/help/context-help';
 function context(){
@@ -18,12 +19,12 @@ function context(){
   const id=identity(network.modelHash,scenario.current,'powerFlow',{analysisSettings:analysisSettings.value});
   const result:CalculationResult={identity:id,status:'CONVERGED',converged:true,iterations:2,rounds:1,maxMismatchMw:0,elapsedMs:2240,buses:network.buses.map((b,i)=>({id:'E'+i,name:'Bara '+i,terms:[b.id],siteIds:['SITE'],vnKv:b.vnKv,vmPu:[1.01,1.03,1.2][i],angleRad:[.1,.2,.3][i],pMw:0,qMvar:0,islandId:'island-1'})),branches:[{id:'L0',sourceClass:'ElmLne',name:'Hat',from:'B0',to:'B1',siteIds:[],vnKv:400,pf:0,pt:-0,qf:NaN,qt:2,ifA:0,itA:0,loading:null,pLoss:0,qLoss:NaN},{id:'TR',sourceClass:'ElmTr2',name:'Trafo',from:'B2',to:'B0',siteIds:['SITE'],vnKv:400,pf:-70,pt:70.5,qf:-20,qt:25,ifA:0,itA:0,loading:70,pLoss:.5,qLoss:5}],generators:[],diagnostics:{islands:[{islandId:'island-1',referenceSource:'SLACK',status:'CONVERGED'}],convergence:{stationControl:'STATION_CONTROL_CONVERGED',activeBalance:'ACTIVE_BALANCE_PARTIAL'}},warnings:[],quality:{numericalStatus:'CONVERGED',controlFidelity:'PARTIAL',referenceValidation:'NOT_AVAILABLE'}};
   store.expect('base',id);store.accept('base',result);
-  const ctx={network,scenario,analysisSettings,resultStore:store,resultView:initialResultView(),benchmark:null,n1AcResults:[],n1Result:null,scResult:null,hybridResult:null,filters:{voltages:new Set(['400','154']),areaId:'',siteId:'',search:''},benchmarkMap:{analysis:'LF',source:'GA',metric:'pFromMw',table:'GA_Reference_Raw'},powerFactoryControlContextNumericFile:null} as unknown as AppContext;
+  const ctx={network,scenario,analysisSettings,settings:{value:defaultSettings()},resultStore:store,resultView:initialResultView(),benchmark:null,n1AcResults:[],n1Result:null,scResult:null,hybridResult:null,filters:{voltages:new Set(['400','154']),areaId:'',siteId:'',search:''},benchmarkMap:{analysis:'LF',source:'GA',metric:'pFromMw',table:'GA_Reference_Raw'},powerFactoryControlContextNumericFile:null} as unknown as AppContext;
   return {ctx,result};
 }
-test('six LF presentation choices retain canonical export fields and never animate transformer power as line power',()=>{
-  assert.equal(LF_MAP_METRICS.length,6);assert.equal(new Set(LF_MAP_METRICS.map(m=>m.metric)).size,6);
-  for(const m of LF_MAP_METRICS)assert.ok(m.metric in METRICS.GA_Reference_Raw);
+test('seven electrical LF choices plus explicit topology retain canonical export fields and never animate transformer power as line power',()=>{
+  assert.equal(LF_MAP_METRICS.length,8);assert.equal(new Set(LF_MAP_METRICS.map(m=>m.metric)).size,8);
+  for(const m of LF_MAP_METRICS.filter(m=>m.metric!=='island'))assert.ok(m.metric in METRICS.GA_Reference_Raw);
   const {ctx,result}=context();const map=buildMapPresentationData(ctx,{...ctx.benchmarkMap!,metric:'pHvMw'});assert.equal(map.branches.has('ElmLne:L0'),false);assert.equal(map.branches.get('ElmTr2:TR')?.value,70.5);
   assert.equal(mapFlowMetric({...ctx.benchmarkMap!,metric:'pHvMw'},'nominal',result,true),null);assert.equal(mapFlowMetric({...ctx.benchmarkMap!,metric:'qHvMvar'},'nominal',result,true),null);
 });
@@ -32,12 +33,12 @@ test('kV projection requires the identical nominal base, preserves zero and reje
 });
 test('TM selects highest nominal tier then highest measured voltage and the angle of that exact partition',()=>{
   const {ctx,result}=context(),selected=representativeStationBus(ctx,'SITE',result);assert.equal(selected.nominal,400);assert.equal(selected.bus?.id,'E1');
-  const card=equipmentCard(ctx,ctx.network!.sites[0]);assert.deepEqual(card.rows[0],['400,00','412,00','+11,46']);assert.ok(card.note.includes('Bara 1'));ctx.filters.voltages.delete('400');assert.equal(representativeStationBus(ctx,'SITE',result).bus?.id,'E2');
+  const card=equipmentCard(ctx,ctx.network!.sites[0]);assert.deepEqual(card.rows[0],['400,0','412,0','+11,5']);assert.ok(card.note.includes('Bara 1'));ctx.filters.voltages.delete('400');assert.equal(representativeStationBus(ctx,'SITE',result).bus?.id,'E2');
   ctx.filters.voltages.add('400');result.diagnostics.islands=[];const angle=buildMapPresentationData(ctx,{...ctx.benchmarkMap!,metric:'angleDeg'});assert.equal(angle.sites.get('SITE')?.value,null);assert.equal(angle.sites.get('SITE')?.status,'ANGLE_REFERENCE_UNKNOWN');
 });
 test('line and HV/LV transformer cards use canonical endpoint signs, nulls, losses and native voltage orientation',()=>{
-  const {ctx}=context(),line=equipmentCard(ctx,ctx.network!.lines[0]),trafo=equipmentCard(ctx,ctx.network!.transformers[0]);assert.equal(line.rows[0][1],'0,00');assert.equal(line.rows[0][2],'—');assert.equal(line.rows[0][3],'404,00');assert.ok(line.note.includes('P kayıp 0,00 MW'));
-  assert.equal(trafo.rows[0][0],'YG');assert.equal(trafo.rows[0][1],'+70,50');assert.equal(trafo.rows[1][1],'-70,00');assert.ok(trafo.note.includes('P kayıp 0,50 MW'));assert.ok(!line.note.includes('NaN'));
+  const {ctx}=context(),line=equipmentCard(ctx,ctx.network!.lines[0]),trafo=equipmentCard(ctx,ctx.network!.transformers[0]);assert.equal(line.rows[0][1],'0,0');assert.equal(line.rows[0][2],'—');assert.equal(line.rows[0][4],'404,0');assert.ok(line.note.includes('Kayıp P/Q (MW/MVAr): 0,0/—'));
+  assert.ok(trafo.rows[0][0].startsWith('YG'));assert.equal(trafo.rows[0][1],'+70,5');assert.equal(trafo.rows[1][1],'-70,0');assert.ok(trafo.note.includes('Kayıp P/Q (MW/MVAr): 0,5/5,0'));assert.ok(!line.note.includes('NaN'));
 });
 test('a nonbase PF/delta context is blocked and never borrows current GA values',()=>{
   const {ctx}=context();ctx.scenario.setStatus('lineStatus','L0',false,true);for(const source of ['PF','DELTA','EXPLORATORY_DELTA'] as const)assert.equal(mapPresentationGate(ctx,{...ctx.benchmarkMap!,source}).reason,'PF_SCENARIO_IDENTITY_UNVERIFIED');
