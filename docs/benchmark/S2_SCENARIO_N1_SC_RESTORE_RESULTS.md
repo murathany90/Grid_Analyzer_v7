@@ -33,7 +33,7 @@ SN7 ZIP bulundu; proje/Downloads/kontrol1 JSON ve export aramasında özgün B0�
 | Tüm kaynak grafı partition | 4077 | 4088 |
 | Tanısal SC seçili hedef / factorization / RHS | 3 / 1 / 3 | 3 / 1 / 3 |
 
-N-1 kullanıcı tarafından ayrıca onaylanan `GA_APPROX_STATION_OFF` profiliyle çalıştı; global LF droop ayarı değiştirilmedi. Profil `CONTROL_FIDELITY_PARTIAL / NOT_PF_PARITY`. Bridge vakasında kalan ağ çözülürken beslenmeyen bölge satırları `ISLAND_UNSUPPLIED` ve null post ile ayrılır. Native droop N-1 destek engeli ve varsayımsız SC BLOCKED kapısı da gerçek worker eylemleriyle doğrulandı.
+N-1 kullanıcı tarafından ayrıca onaylanan `GA_APPROX_STATION_OFF` profiliyle çalıştı; global LF droop ayarı değiştirilmedi. Profil `CONTROL_FIDELITY_PARTIAL / NOT_PF_PARITY`. **SN3/SN4 N-1 ve SC tanısal sonuçları IEC/PF paritesi sağlamaz.** Bridge vakasında kalan ağ çözülürken beslenmeyen bölge satırları `ISLAND_UNSUPPLIED` ve null post ile ayrılır. Native droop N-1 destek engeli ve varsayımsız SC BLOCKED kapısı da gerçek worker eylemleriyle doğrulandı.
 
 SC ayrıca onaylanan NETWORK_APPROXIMATION profilinde c_source=c_fault=1,1; eksik makine r=0,01 ve xdss=0,2 pu; converter bağlı terminal bazında -90°; nominal baz normalizasyonu açık. Bunlar native veya IEC doğrulanmış değer gibi sunulmadı. Native aktif kaynak engelleri SN3: 1 dış kaynak c, 393 makine, 1323 converter; SN4: 1 / 391 / 1292.
 
@@ -51,13 +51,16 @@ Maksimum SC residual SN3 5,962e-13, SN4 3,929e-13. Üçer seçili faultta PF üy
 
 SN3/SN4/SN7 kaynak ZIP'i birer kez çalışma bağlamına alındı; B0, S1, S2, bridge gerçek hesapları kayıtlandı. N-1 native seçili DC ve destek kapısı, ayrı onaylı non-bridge/bridge tanısal AC; SC native bir engelli hedef ve ayrı üç onaylı hedef/model. Daha sonraki ekran denetimlerinde bu gerçek sonuçlar tekrar kullanıldı. Portable doğrulaması ayrı artifact kabulü olarak kayıtlanır. Özgün SN7 S2 ve IEC/PF paritesi veri engeli nedeniyle doğrulanmış sayılmaz.
 
-## Eski dal temizliği
+## Dal temizliği
 
-Silmeden önce aşağıdaki uzak başlar tam SHA ile ve `origin/main` atası olduğu doğrulandı. Yalnız bu üç dal silindi; yeni feature dalı korunur. Investigation dallarından commit taşınmadı.
+Silmeden önce aşağıdaki uzak başlar tam SHA ile ve `origin/main` atası olduğu doğrulandı. Eski üç dalın silinmiş olduğu kapanışta tüm uzak dallar yeniden listelenerek doğrulandı. Kullanıcının son kapanış talimatıyla, başarılı ayrı main CI ve main'e dahil olma kontrolünden sonra kalan feature dalı da silindi. Investigation dallarından commit taşınmadı.
 
 - `fix/map-restore-flow-two-row-toolbar-lightning-20261010`: `37eb511d9767182e0056719dc4798f36dda08fb8`
 - `fix/desktop-map-six-metrics-compact-results-20261011`: `5f336d4da39bab0e828f41ab00d0f7a959da2bde`
 - `fix/map-lf-voltage-freeze-island-loading-tooltips-20261011`: `ac3ba1195054cea92c259e3361e8f77ba4ea8749`
+- `fix/restore-scenario-delta-ytm-n1-sc-20261011`: `a8d72616b21d277b8cf4214120c9a1632d250a3c`
+
+Temizlik sonrasında tek uzak dal `main`. `pf-parity-v2-validated` tag'i ve hedefi değişmeden korundu. Üç investigation dalı da uzak envanterde bulunmuyor; bunların bu kapanışta silindiği iddia edilmez.
 
 ## Son doğrulama
 
@@ -67,4 +70,4 @@ Son portable artifact: **1.639.260 byte**, SHA-256 `552b07953b655e7520d2b6a6721b
 
 Yeni risk filtresi kayıtlı gerçek non-bridge AC matrisiyle SN3'te 16, SN4'te 6 hattı doğru ayırdı; null ve trafolar riskli hat listesine girmedi. Filtre kapatılınca tam matris geri geldi. Her iki modelde filtre açıkken dört masaüstü boyutunda geometri kabulü geçti; bu denetim sıfır yeni solver isteği gönderdi.
 
-Exact-SHA feature CI ve ayrı main CI başarıları, fast-forward entegrasyonu ve son uzak branch envanteri görev kapanış kaydında belirtilir. Bunlar doğrulanmadan entegrasyon başarılı sayılmaz.
+Uygulama commit'i `a8d72616b21d277b8cf4214120c9a1632d250a3c`, main'e fast-forward entegre edildi. Aynı SHA için [feature CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38149378549) ve ayrı [main CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38149626555) tamamlandı ve başarılı. Kapanış sırasında yeni hesaplama, model importu veya yerel test tekrarı yapılmadı; yalnız SHA/hash/CI ve uzak envanter tekrar doğrulandı. Belge güncellemesi sonrasındaki main SHA ve son main CI sonucu yerel görev kapanış kaydında ayrıca belirtilir.
