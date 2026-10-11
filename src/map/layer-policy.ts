@@ -69,10 +69,12 @@ export function mapPresentationGate(ctx:AppContext,s:BenchmarkMapSelection){
 export function mapCaseOptions(ctx:AppContext,analysis:'N1'|'SC'):string[][]{
   const rows:string[][]=[],seen=new Set<string>(),terms=ctx.network?modelPresentationIndex(ctx.network).physicalTerminalById:null;
   if(analysis==='N1'){
+    const statuses=new Map<string,string>();
     const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);seen.add(String(r.caseId));}
     if(ctx.n1CatalogResult&&ctx.n1CatalogIdentity?.modelHash===ctx.network?.modelHash&&ctx.n1CatalogIdentity?.scenarioHash===scenarioSignature(ctx.scenario.current))for(const c of ctx.n1CatalogResult.candidates){const e=modelPresentationIndex(ctx.network!).equipmentByKey.get(c.sourceClass+':'+c.equipmentId),id='N1:'+c.sourceClass+':'+(e?.sourceId??c.equipmentId);if(!seen.has(id)){seen.add(id);rows.push([id,c.name+' · '+c.topology]);}}
-    const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]])if(!seen.has(c.outage.caseId)){seen.add(c.outage.caseId);rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);}
-    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!seen.has(id)){seen.add(id);rows.push([id,(e?.name??id)+' · '+c.status]);}}
+    const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]]){statuses.set(c.outage.caseId,c.status);if(!seen.has(c.outage.caseId)){seen.add(c.outage.caseId);rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);}}
+    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;statuses.set(id,statuses.get(id)??c.status);if(!seen.has(id)){seen.add(id);rows.push([id,(e?.name??id)+' · '+c.status]);}}
+    for(const row of rows){const status=statuses.get(row[0]);if(status&&!row[1].endsWith(' · '+status))row[1]+=' · '+status;}
   }else{
     for(const f of selectedScPresentation(ctx).sc?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
     const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row),id=String(r.physicalTerminalFid??r.fid??'');if(id&&!seen.has(id)){seen.add(id);rows.push([id,String(r.physicalTerminalName??r.name??id)+' · PF 3PH MAX']);}}
