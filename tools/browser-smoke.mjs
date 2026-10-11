@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import path from 'node:path';
 import {assertStudyPanel,assertLoadingTable,assertLongTooltip} from './map-panel-acceptance.mjs';
 import { fileURLToPath } from 'node:url';
+import {auditAnalysisEvidence} from './analysis-evidence-acceptance.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fixture=path.join(root,'tests','fixtures','small-dgs.json');
@@ -170,6 +171,7 @@ try{
  await shared.getByLabel('Sonuç YTM filtresi',{exact:true}).selectOption({index:0});await shared.getByLabel('Sonuç ondalık basamak',{exact:true}).selectOption('3');await shared.getByLabel('Çoklu sonuç sıralaması',{exact:true}).check();await shared.locator('[data-study-sort="nominal"]').click();await shared.locator('[data-study-sort="ikss"]').click();
  const jsonDownload=page.waitForEvent('download');await shared.getByRole('button',{name:'JSON',exact:true}).click();if((await jsonDownload).suggestedFilename()!=='GA_Study.local.json')throw Error('Common JSON export missing');
  if(await shared.locator('tbody tr').count()){const row=shared.locator('tbody tr').first();await row.focus();await row.press('Enter');if(await page.locator('.ga-nav [aria-current="page"]').textContent()!=='Harita')throw Error('Keyboard row focus did not show map');}
+ await auditAnalysisEvidence(browser,url);
  if(errors.length)throw Error(`Browser JS errors: ${errors.join('; ')}`);
  console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → PF mismatch comparison/XLSX/CSV → structured topology → map angle/island → settings → Lightning results → SLD.');
 }finally{
