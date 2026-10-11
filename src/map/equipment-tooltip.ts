@@ -108,13 +108,13 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
   const on=trafo?ctx.scenario.current.transformerStatus[e.id]??e.inService:ctx.scenario.current.lineStatus[e.id]??e.inService;
   card.title+=trafo?` · ${number(Math.max(entity.vnKv,(e as Transformer2W).lvKv))}/${number(Math.min(entity.vnKv,(e as Transformer2W).lvKv))} kV`:` · ${number(entity.vnKv)} kV`;
   const direction=isGa?verifiedPowerDirection(row?.pf,row?.pt):'UNKNOWN',flow=direction==='FROM_TO'?'A → B':direction==='TO_FROM'?'B → A':'Yön belirsiz',capacity=loading?.maximum!=null?`${loading.basis} • ${loading.season}`:isGa?'UNKNOWN_CAPACITY':'Yük: NOT_RECORDED',maximum=isGa?loading?.maximum:scenarioDelta?null:pf('loadingPercent',e.sourceClass,e.sourceId);
-  if(!trafo){card.rows[0][0]='A · '+card.rows[0][0];card.rows[1][0]='B · '+card.rows[1][0];}
   card.note=`P: ${flow} · Kayıp P/Q (MW/MVAr): ${number(pLoss)}/${number(qLoss)} · ${on?'Serviste':'Servis dışı'}${trafo?' · Tap '+number((e as Transformer2W).tapPosition):''} · ${capacity}${loading?.from==null&&loading?.to==null&&maximum!=null?' · Maks yük '+number(maximum)+'%':''}${aLabel.status==='TM_BELIRSIZ'||bLabel.status==='TM_BELIRSIZ'?' · TM_BELIRSIZ':''}${trafo&&fromHv===null?' · HV/LV: BLOCKED':''}`;
   return card;
 }
 export function renderEquipmentCard(host:HTMLElement,card:EquipmentCard){
   const head=element('header'),title=element('strong','',card.title),context=element('small','',card.context),state=element('p','ga-equipment-status',card.status),table=element('table','ga-equipment-table');head.append(title,context);host.replaceChildren(head,state);
-  if(card.headers.length){const tr=element('tr');for(const h of card.headers)tr.append(element('th','',h));table.append(tr);for(const row of card.rows){const tr=element('tr');for(const value of row)tr.append(element('td','',value));table.append(tr);}host.append(table);}
+  title.title=card.title;context.title=card.context;
+  if(card.headers.length){const tr=element('tr');for(const h of card.headers)tr.append(element('th','',h));table.append(tr);for(const row of card.rows){const tr=element('tr');row.forEach((value,i)=>{const td=element('td','',value);if(i===0&&card.headers[0]==='TM / Uç'){td.className='ga-endpoint-name';td.title=value;td.setAttribute('aria-label',value);}tr.append(td);});table.append(tr);}host.append(table);}
   host.append(element('p','ga-equipment-note',card.note));host.dataset.status=card.status;
 }
 export function tooltipPosition(x:number,y:number,width:number,height:number,viewportWidth:number,viewportHeight:number){return {left:Math.max(8,Math.min(x+14,viewportWidth-width-8)),top:Math.max(8,Math.min(y+14,viewportHeight-height-8))};}

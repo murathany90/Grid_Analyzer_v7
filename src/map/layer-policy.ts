@@ -15,6 +15,8 @@ import {rowObject} from '../domain/benchmark/types';
 import {modelPresentationIndex,highestNominalBySite,resultPresentationIndex,solutionPresentationIndex,partitionKey,type SolvedBus} from './presentation-index';
 import {mapLoadingValues} from './loading-presentation';
 import {capacitySession} from '../domain/model/capacity';
+import {stableJson} from '../domain/calculation/identity';
+import {hybridIsCurrent} from '../analysis/contingency-hybrid';
 
 const labels:Record<string,string>={voltagePu:'Bara gerilimi (pu)',voltageKv:'Bara gerilimi (kV)',angleDeg:'Bara açısı (°)',pFromMw:'Hat P giriş (MW)',qFromMvar:'Hat Q giriş (MVAr)',sFromMva:'Hat S giriş (MVA)',pToMw:'Hat P çıkış (MW)',qToMvar:'Hat Q çıkış (MVAr)',sToMva:'Hat S çıkış (MVA)',pHvMw:'Trafo P yüksek gerilim (MW)',qHvMvar:'Trafo Q yüksek gerilim (MVAr)',sHvMva:'Trafo S yüksek gerilim (MVA)',pLvMw:'Trafo P alçak gerilim (MW)',qLvMvar:'Trafo Q alçak gerilim (MVAr)',sLvMva:'Trafo S alçak gerilim (MVA)',iFromA:'Hat akımı giriş (A)',iToA:'Hat akımı çıkış (A)',loadingPercent:'Termik yüklenme (%)',pLossMw:'Aktif kayıp (MW)',qLossMvar:'Reaktif kayıp (MVAr)',pResultMw:'Ekipman P (MW)',qResultMvar:'Ekipman Q (MVAr)',postLoadingPercent:'Kesinti sonrası tahmini yük (%)',postPmw:'Kesinti sonrası P (MW)',postQmvar:'Kesinti sonrası Q (MVAr)',postMva:'Kesinti sonrası S (MVA)',postVoltagePu:'Kesinti sonrası bara gerilimi (pu)',postCurrentA:'Kesinti sonrası akım (A)',postCurrentLoadingPercent:'Kesinti sonrası akım yükü (%)',postApparentLoadingPercent:'Kesinti sonrası görünür güç yükü (%)',islands:'Kesinti sonrası elektrik adaları',thermalRisk:'Kesinti sonrası termik risk (%)',ikssKa:'Başlangıç kısa devre akımı (kA)',skssMva:'Kısa devre gücü (MVA)',ipKa:'Tepe kısa devre akımı (kA)',ibKa:'Kesme akımı (kA)',ithKa:'Termik kısa devre akımı (kA)'};
 export const mapMetricLabel=(metric:string)=>labels[metric]??metric;
@@ -25,7 +27,7 @@ export const LF_MAP_METRICS=[
   {metric:'angleDeg',label:'Bara Açısı (°)',target:'ElmTerm'},
   {metric:'pFromMw',label:'Hat Aktif Güç (MW)',target:'ElmLne'},
   {metric:'qFromMvar',label:'Hat Reaktif Güç (MVAr)',target:'ElmLne'},
-  {metric:'loadingPercent',label:'Yüklenme (%)',target:'ElmBranch'},
+  {metric:'loadingPercent',label:'Yüklenme (%)',target:'ElmLne'},
   {metric:'pHvMw',label:'Trafo Aktif Güç (MW)',target:'ElmTr2'},
   {metric:'qHvMvar',label:'Trafo Reaktif Güç (MVAr)',target:'ElmTr2'},
   {metric:'island',label:'Ada / Kuplaj Topolojisi',target:'Topology'},
@@ -65,10 +67,10 @@ export function mapCaseOptions(ctx:AppContext,analysis:'N1'|'SC'):string[][]{
   const rows:string[][]=[],seen=new Set<string>(),terms=ctx.network?modelPresentationIndex(ctx.network).physicalTerminalById:null;
   if(analysis==='N1'){
     const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);}
-    for(const c of [...ctx.n1AcResults,...ctx.hybridResult?.cases??[]])if(!rows.some(r=>r[0]===c.outage.caseId))rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);
-    for(const c of ctx.n1Result?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!rows.some(r=>r[0]===id))rows.push([id,(e?.name??id)+' · '+c.status]);}
+    const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]])if(!rows.some(r=>r[0]===c.outage.caseId))rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);
+    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!rows.some(r=>r[0]===id))rows.push([id,(e?.name??id)+' · '+c.status]);}
   }else{
-    for(const f of ctx.scResult?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
+    for(const f of selectedScPresentation(ctx).sc?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
     const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row),id=String(r.physicalTerminalFid??r.fid??'');if(id&&!seen.has(id)){seen.add(id);rows.push([id,String(r.physicalTerminalName??r.name??id)+' · PF 3PH MAX']);}}
   }return rows;
 }
@@ -149,12 +151,16 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
   data.numericValues=[...data.branches.values(),...data.sites.values()].filter(v=>finiteNumber(v.value)).length;
   if(data.enabled&&!data.numericValues)data.reason='NO_DATA';return data;
 }
+export function currentN1Metadata(ctx:AppContext){
+  const n=ctx.network,s=ctx.scenario.current,hash=scenarioSignature(s),ac=ctx.n1AcResults.filter(c=>c.identity.modelHash===n?.modelHash&&c.identity.baseScenarioHash===hash&&c.identity.settingsHash===stableJson(ctx.analysisSettings.value)),h=ctx.hybridResult,dc=ctx.n1Result;
+  return {ac,hybrid:h&&n&&hybridIsCurrent(h,n,s,ctx.analysisSettings.value)?h:null,dc:dc&&dc.identity.modelHash===n?.modelHash&&dc.identity.scenarioHash===hash?dc:null};
+}
 export function selectedN1Presentation(ctx:AppContext){
   const id=ctx.resultView.caseId??'',post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,ac:ctx.n1AcResults,hybrid:ctx.hybridResult},id);
   const dc=ctx.n1Result,valid=dc?.identity.modelHash===ctx.network?.modelHash&&dc?.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
   const candidate=valid?dc?.candidates.find(c=>{const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return id===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;}):undefined;
-  const recorded=ctx.n1AcResults.find(c=>c.outage.caseId===id&&c.identity.modelHash===ctx.network?.modelHash&&c.identity.baseScenarioHash===scenarioSignature(ctx.scenario.current));
-  return {post,candidate,method:post?.source??(candidate?'GA_DC_SCREEN':'NOT_RUN'),status:post?.status??recorded?.status??candidate?.status??'NOT_RUN'};
+  const metadata=currentN1Metadata(ctx),recorded=metadata.ac.find(c=>c.outage.caseId===id),hybrid=metadata.hybrid?.cases.find(c=>c.outage.caseId===id);
+  return {post,candidate,recorded,hybrid,method:post?.source??(recorded?'MANUAL_FULL_AC':hybrid?'HYBRID_FULL_AC':candidate?'GA_DC_SCREEN':'NOT_RUN'),status:post?.status??recorded?.status??hybrid?.status??candidate?.status??'NOT_RUN'};
 }
 /** Select an existing row without requesting the N-1 detail worker. */
 export function syncMapCase(ctx:AppContext){
@@ -166,7 +172,7 @@ export function syncMapCase(ctx:AppContext){
 export function selectedScPresentation(ctx:AppContext){
   const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
   const exact=current?sc.faults.filter(f=>f.physicalTerminalFid===ctx.resultView.faultId):[],matches=exact.length?exact:current?sc.faults.filter(f=>f.physicalTerminalFids.includes(ctx.resultView.faultId??'')):[];
-  const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(current&&!ctx.resultView.faultId?'NOT_RUN':'BLOCKED'),reason:fault?.reasons.slice(0,3).join('; ')??'Gerekli IEC kaynak/partition kanıtı yok'};
+  const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(!current||!ctx.resultView.faultId?'NOT_RUN':'BLOCKED'),reason:fault?.reasons.join('; ')??(!current?'Güncel kayıt yüklenmedi':'Gerekli IEC kaynak/partition kanıtı yok')};
 }
 export function mapStatusText(ctx:AppContext):string{
   const v=ctx.resultView,base=ctx.scenario.selectedId==='B0'?'Baz':'Senaryo';

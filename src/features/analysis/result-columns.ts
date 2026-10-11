@@ -1,9 +1,10 @@
 import type {BranchResult,BusResult} from '../../domain/results/types';
 import {branchDelta,difference} from '../../domain/results/delta';
+import type {PresentedLoading} from '../../map/loading-presentation';
 
 export type ResultKind='line'|'trafo'|'bus';
 export type ResultTab='results'|'delta'|'energize';
-export interface ResultRow {id:string;name:string;cls:string;vnKv:number;siteIds:readonly string[];source:boolean;on:boolean;terms:string[];state?:string;branch?:BranchResult;bus?:BusResult;baseBranch?:BranchResult;baseBus?:BusResult}
+export interface ResultRow {id:string;name:string;cls:string;vnKv:number;siteIds:readonly string[];source:boolean;on:boolean;terms:string[];state?:string;branch?:BranchResult;bus?:BusResult;baseBranch?:BranchResult;baseBus?:BusResult;validatedLoading?:PresentedLoading|null}
 export interface ResultMetric {key:string;label:string;unit?:string}
 export interface ResultColumn {width:number;metrics:ResultMetric[];label?:string}
 const metric=(key:string,label:string,unit?:string):ResultMetric=>({key,label,unit});
@@ -21,7 +22,7 @@ export function resultColumns(kind:ResultKind,tab:ResultTab):ResultColumn[]{
 export function resultSortValue(row:ResultRow,key:string):string|number|null|undefined {
   const d=branchDelta(row.baseBranch,row.branch);
   const values:Record<string,string|number|null|undefined>={name:row.name,voltage:row.vnKv,state:row.state,
-    p:row.branch?.pf??row.bus?.pMw,q:row.branch?.qf??row.bus?.qMvar,pt:row.branch?.pt,qt:row.branch?.qt,pLoss:row.branch?.pLoss,qLoss:row.branch?.qLoss,loading:row.branch?.loading,
+    p:row.branch?.pf??row.bus?.pMw,q:row.branch?.qf??row.bus?.qMvar,pt:row.branch?.pt,qt:row.branch?.qt,pLoss:row.branch?.pLoss,qLoss:row.branch?.qLoss,loading:row.validatedLoading===undefined?row.branch?.loading:row.validatedLoading?.maximum,
     v:row.bus?.vmPu,vKv:busVoltageKv(row.bus),baseVKv:busVoltageKv(row.baseBus),deltaVKv:row.baseBus?.vnKv===row.bus?.vnKv?difference(busVoltageKv(row.baseBus),busVoltageKv(row.bus)):null,angle:row.bus?row.bus.angleRad*180/Math.PI:null,baseV:row.baseBus?.vmPu,baseAngle:row.baseBus?row.baseBus.angleRad*180/Math.PI:null,
     deltaV:difference(row.baseBus?.vmPu,row.bus?.vmPu),deltaAngle:row.baseBus&&row.bus?difference(row.baseBus.angleRad,row.bus.angleRad)!*180/Math.PI:null,
     baseP:row.baseBranch?.pf,baseQ:row.baseBranch?.qf,baseLoad:row.baseBranch?.loading,scenarioP:row.branch?.pf,scenarioQ:row.branch?.qf,scenarioLoad:row.branch?.loading,deltaP:d.pMw,deltaQ:d.qMvar,deltaLoad:d.loading,deltaPLoss:d.pLoss,deltaQLoss:d.qLoss};
@@ -33,7 +34,7 @@ export function sortResultRows(rows:readonly ResultRow[],key:string|null,descend
   return [...rows].sort((a,b)=>{
     const x=resultSortValue(a,key||'name'),y=resultSortValue(b,key||'name');
     const missing=(v:typeof x)=>v==null||(typeof v==='number'&&!Number.isFinite(v));
-    if(missing(x)||missing(y))return Number(missing(x))-Number(missing(y));
+    if(missing(x)||missing(y))return Number(missing(x))-Number(missing(y))||a.name.localeCompare(b.name,'tr')||a.id.localeCompare(b.id);
     const cmp=typeof x==='string'?x.localeCompare(String(y),'tr'):absoluteKeys.has(key||'')?Math.abs(Number(x))-Math.abs(Number(y)):Number(x)-Number(y);
     return (descending?-cmp:cmp)||a.name.localeCompare(b.name,'tr')||a.id.localeCompare(b.id);
   });
