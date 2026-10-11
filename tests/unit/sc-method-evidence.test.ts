@@ -32,3 +32,14 @@ test('equipment interrupting/making/thermal verdicts require their own quantitie
   const absent=scEquipmentCheck({nominalKv:154,ibKa:null,ipKa:null,ithKa:null,thermalTimeS:1},rating);assert.equal(absent.interrupting.status,'BLOCKED');assert.equal(absent.making.status,'BLOCKED');assert.equal(absent.thermal.status,'BLOCKED');
   const actual={nominalKv:154,ibKa:21,ipKa:40,ithKa:14,thermalTimeS:.1},r=scEquipmentCheck(actual,rating);assert.equal(r.interrupting.status,'EXCEEDED');assert.equal(r.making.status,'WITHIN_RATING');assert.equal(r.thermal.status,'BLOCKED');assert.equal(scEquipmentCheck({...actual,thermalTimeS:1},rating).thermal.status,'WITHIN_RATING');
 });
+
+test('SC source summary audits missing canonical adapters and limits its claim to observed fields',async()=>{
+  const full=scMethodPreflight(profile,context,n,emptyScenario());assert.equal(full.sourceStatus,'ADAPTER_FIELDS_PRESENT');assert.equal(full.sourceCoverage.canonicalComplete,true);
+  assert.equal(scMethodPreflight(profile,context).sourceCoverage.canonicalComplete,null);
+  const incomplete={...n,generators:[{...n.externalGrids[0],id:'OMITTED',sourceId:'OMITTED',sourceClass:'ElmSym',voltageControl:true,qMin:null,qMax:null}]},audit=scMethodPreflight(profile,context,incomplete,emptyScenario());
+  assert.equal(audit.sourceStatus,'PARTIAL');assert.equal(audit.sourceCoverage.canonicalComplete,false);assert.equal(audit.sourceFamilies.ElmSym.expectedCanonical,1);assert.equal(audit.sourceFamilies.ElmSym.missingAdapter,1);
+  assert.deepEqual(audit.sourceCoverage.missingAdapters,[{sourceClass:'ElmSym',fid:'OMITTED'}]);
+  clearScPreparationCache();const actual=await calculateThreePhase(incomplete,emptyScenario(),context,['B1'],profile);assert.equal(actual.faults[0].status,'BLOCKED');assert.equal(actual.faults[0].ikssKa,null);assert.equal(actual.methodEvidence?.sourceStatus,'PARTIAL');assert.match(actual.faults[0].reasons.join(';'),/MISSING_SOURCE_MODEL/);
+  const duplicate=scMethodPreflight(profile,{...context,sources:[context.sources[0],context.sources[0]]},n);assert.equal(duplicate.sourceStatus,'PARTIAL');assert.equal(duplicate.sourceCoverage.duplicateAdapters.length,1);
+  assert.equal(scMethodPreflight(profile,context,{...n,modelHash:'OLD'}).sourceStatus,'SOURCE_IDENTITY_UNVERIFIED');
+});

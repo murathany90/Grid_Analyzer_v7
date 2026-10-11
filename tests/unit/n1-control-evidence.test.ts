@@ -6,6 +6,7 @@ import {defaultAnalysisSettings} from '../../src/domain/calculation/analysis-set
 import {validateAcOutages} from '../../src/analysis/contingency-ac';
 import {runHybridN1} from '../../src/analysis/contingency-hybrid';
 import {hybridStudySettings} from '../../src/analysis/contingency-hybrid/profile';
+import {n1ControlEvidence} from '../../src/analysis/contingency-ac/control-evidence';
 
 const outage={caseId:'N1:ElmLne:BYPASS',sourceClass:'ElmLne' as const,fid:'BYPASS'};
 function stationFixture(remoteBus='B2',bounded=true){
@@ -43,4 +44,18 @@ test('unresolved distributed active balance cannot pass a station-free strict ga
 test('real DC and AC coverage counts do not promote unverified safe cases to full coverage',async()=>{
   const r=await runHybridN1(acNetwork(),emptyScenario(),{policy:{acBudgetCases:1},selectedCandidateIds:['ElmLne:BYPASS']});
   assert.equal(r.counts.AC_ATTEMPTED,1);assert.equal(r.counts.AC_NUMERICALLY_SOLVED,1);assert.equal(r.counts.AC_VERIFIED,1);assert.equal(r.counts.AC_UNVERIFIED,2);assert.equal(r.counts.DC_SCREENED,0);assert.equal(r.status,'PARTIAL');
+});
+
+test('active station evidence accepts only exact converged and source-bounded states',async()=>{
+  const n=stationFixture(),s=settings(),[actual]=await validateAcOutages(n,emptyScenario(),[outage],{analysisSettings:s});
+  assert.equal(n1ControlEvidence(n,actual.result!,s).fidelity,'CONTROL_VERIFIED');
+  for(const status of ['STATION_CONTROL_FAILED','NOT_RUN','UNKNOWN','STATION_CONTROL_PARTIAL','',undefined]){
+    const r=structuredClone(actual.result!);(r.diagnostics.convergence as Record<string,unknown>).stationControl=status;
+    const e=n1ControlEvidence(n,r,s);assert.equal(e.numericalSolved,true);assert.equal(e.fidelity,'CONTROL_FIDELITY_PARTIAL');assert.ok(e.reasons.includes('STATION_CONTROL_NOT_CONVERGED'),String(status));
+  }
+  for(const field of ['stationControllerSummary','convergence'])for(const status of ['UNKNOWN','NOT_RUN','PARTIAL_SOURCE_FIDELITY','',undefined]){
+    const r=structuredClone(actual.result!);(r.diagnostics[field] as Record<string,unknown>)[field==='convergence'?'sourceFidelity':'stationSourceFidelity']=status;
+    assert.equal(n1ControlEvidence(n,r,s).fidelity,'CONTROL_FIDELITY_PARTIAL',field+' '+status);
+  }
+  for(const count of [NaN,-1,'0',undefined]){const r=structuredClone(actual.result!);(r.diagnostics.stationControllerSummary as Record<string,unknown>).unsupported=count;assert.equal(n1ControlEvidence(n,r,s).fidelity,'CONTROL_FIDELITY_PARTIAL');}
 });

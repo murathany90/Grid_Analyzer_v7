@@ -24,6 +24,8 @@ import { calculationConvergenceLabel,fullAcDiagnostics } from '../domain/results
 import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../domain/benchmark/comparison';
 import {hybridStudySettings} from '../analysis/contingency-hybrid/profile';
 import {runHybridN1,hybridIsCurrent} from '../analysis/contingency-hybrid';
+import {assertOperationalLimits} from '../analysis/contingency-hybrid/limits';
+import {DEFAULT_HYBRID_POLICY} from '../analysis/contingency-hybrid';
 import {benchmarkControlContext} from '../domain/benchmark/reference';
 import {hasReference} from '../domain/benchmark/reference-slots';
 
@@ -87,7 +89,9 @@ export class Application implements AppContext {
     finally{if(timer)clearTimeout(timer);}
   }
   async runHybrid(options:import('../analysis/contingency-hybrid').HybridOptions,resume=false):Promise<void>{
-    if(!this.network||this.busy)return;this.analysisTab='N1';this.resultView.analysis='N1';
+    if(!this.network||this.busy)return;
+    try{assertOperationalLimits(this.network,this.scenario.current,{...DEFAULT_HYBRID_POLICY,...options.policy});}catch(e){this.setMessage(e instanceof Error?e.message:String(e));return;}
+    this.analysisTab='N1';this.resultView.analysis='N1';
     const network=this.network,scenario=structuredClone(this.scenario.current),settings=hybridStudySettings(this.analysisSettings.value,options.studyProfile??'CURRENT_SETTINGS'),job=++this.job,signature=scenarioSignature(scenario),settingsSignature=stableJson(this.analysisSettings.value),abort=new AbortController();
     this.hybridAbort=abort;this.busy=true;
     const current=()=>job===this.job&&this.network===network&&scenarioSignature(this.scenario.current)===signature&&stableJson(this.analysisSettings.value)===settingsSignature;

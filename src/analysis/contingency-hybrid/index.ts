@@ -3,7 +3,7 @@ import type {ScenarioOverlay} from '../../domain/scenario/overlay';
 import {effectiveNetwork,scenarioSignature} from '../../domain/scenario/overlay';
 import {identity,stableJson} from '../../domain/calculation/identity';
 import {comparePostConstraints,constraintCounts,type ConstraintChange} from './constraints';
-import {validateLimitProfiles,operationalLimits,type OperationalLimitProfile} from './limits';
+import {validateLimitProfiles,operationalLimits,assertOperationalLimits,type OperationalLimitProfile} from './limits';
 import {hybridStudyIsCurrent,type HybridStudyProfile} from './profile';
 import {lfSnapshotIsCurrent} from '../../domain/benchmark/post-result-source';
 import type {AnalysisSettings} from '../../domain/calculation/analysis-settings';
@@ -76,6 +76,7 @@ export function hybridIsCurrent(r:HybridResult,n:CanonicalNetwork,s:ScenarioOver
 export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOverlay,options:HybridOptions={}):Promise<HybridResult>{
   const start=performance.now(),policy={...DEFAULT_HYBRID_POLICY,...options.policy},filter=options.filter??{},season=options.season??'nominal';
   validateLimitProfiles(policy.limitProfiles);
+  assertOperationalLimits(network,scenario,policy);
   if(!Number.isInteger(policy.acBudgetCases)||policy.acBudgetCases<0||policy.acBudgetCases>100||policy.concurrency!==1||!Number.isFinite(policy.dcPromotionLoadingPercent)||policy.dcPromotionLoadingPercent<0||!(policy.operationalLoadingLimitPercent>0)||!(policy.voltageMinPu>0&&policy.voltageMinPu<policy.voltageMaxPu)||!(policy.perCaseTimeLimitMs>0&&policy.perCaseTimeLimitMs<=300000)||!(policy.globalTimeLimitMs>0&&policy.globalTimeLimitMs<=1800000))throw Error('HYBRID_INVALID_POLICY');
   if(!Number.isInteger(options.dcClearValidationCases??1)||(options.dcClearValidationCases??1)<0||(options.dcClearValidationCases??1)>100)throw Error('HYBRID_INVALID_CLEAR_SAMPLE');
   const id=snapshot(network,scenario,options,policy);

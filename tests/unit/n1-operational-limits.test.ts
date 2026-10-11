@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {operationalLimits,validateLimitProfiles} from '../../src/analysis/contingency-hybrid/limits';
+import {operationalLimits,validateLimitProfiles,preflightOperationalLimits} from '../../src/analysis/contingency-hybrid/limits';
+import {runHybridN1} from '../../src/analysis/contingency-hybrid';
 import {comparePostConstraints} from '../../src/analysis/contingency-hybrid/constraints';
 import {postResultAssembler} from '../../src/analysis/contingency-ac/post-results';
 import {validateAcOutages} from '../../src/analysis/contingency-ac';
@@ -20,4 +21,13 @@ test('real POST constraints reject reversed endpoints and retain rating basis',a
 test('BASE/POST voltage severity uses the same source-labelled regional policy',()=>{
   const base={buses:[{terms:['T'],vnKv:154,vmPu:.96,angleDeg:0,ytmIds:['OA']}],branches:[]},post={...base,buses:[{...base.buses[0],vmPu:.94}]};
   const [row]=comparePostConstraints(base,post,{...defaults,limitProfiles:[area]});assert.equal(row.state,'WORSENED');assert.equal(row.limit,.97);assert.ok(Math.abs(row.delta!+.02)<1e-12);
+});
+
+test('multi-YTM coupled bus conflict is reported before any Full AC or DC work',async()=>{
+  const base=acNetwork(),sites=['A','B'].map(id=>({...base.buses[0],id,sourceId:id,sourceClass:'ElmSite',areaId:id,areaName:id,lat:null,lon:null,voltages:[100]})),n={...base,sites,buses:base.buses.map((b,i)=>({...b,siteIds:[i===0?'A':'B']})),switches:[{...base.lines[0],sourceClass:'ElmCoup',id:'COUP',sourceId:'COUP',from:'B0',to:'B1',closed:true}]};
+  const profiles=[{...area,id:'A100',ytmId:'A',voltageKv:100},{...area,id:'B100',ytmId:'B',voltageKv:100,voltageMinPu:.95}],policy={...defaults,limitProfiles:profiles};
+  const p=preflightOperationalLimits(n,emptyScenario(),policy);assert.equal(p.status,'BLOCKED');assert.deepEqual(p.conflicts[0].profileIds,['A100','B100']);assert.ok(p.conflicts[0].physicalTerminalFids?.includes('B1'));assert.deepEqual(p.conflicts[0].ytmIds,['A','B']);assert.strictEqual(preflightOperationalLimits(n,emptyScenario(),policy),p);
+  let calls=0;await assert.rejects(runHybridN1(n,emptyScenario(),{policy,solveBase:async()=>{calls++;throw Error('Must not solve');}}),/AMBIGUOUS_LIMIT_PROFILE/);assert.equal(calls,0);
+  const consistent={...policy,limitProfiles:profiles.map(p=>({...p,voltageMinPu:.97}))};assert.equal(preflightOperationalLimits(n,emptyScenario(),consistent).status,'READY');
+  const open={...emptyScenario(),switchState:{COUP:false}};assert.equal(preflightOperationalLimits(n,open,policy).status,'READY');
 });
