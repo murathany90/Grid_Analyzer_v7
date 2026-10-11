@@ -58,6 +58,8 @@ B0 `CONVERGED_FULL_NR`, son NR iterasyonu 2, Q-limit round 2; global max mismatc
 
 Active balance `DISTRIBUTED_ADJUSTABLE_LOADS`, 1.947 eligible load, 1 iterasyon; final correction 0. Native station/droop kaynak kapsamı kısmi. DGS source tanısındaki SOURCE_EXACT etiketi, kontrol provenance'ının PARTIAL_SOURCE_FIDELITY kapısını kaldırmaz. OA özel satır projeksiyonu Pfrom/Pto, Qfrom/Qto, S/akım, terminal Vpu/kV/açı ve loading denominator/source alanlarını korur.
 
+Station controller telemetrisi: active 270, supported 240, satisfied 186, unsupported 30; droop active 135, safe/controlled 105/105, remote conflict 0. Kaynak Q-limit'i eksik controller 6; SOURCE_BOUNDED 264. Kaynakta olmayan limit üretilmedi. Station voltage residual max 0.03453334091686355 pu, mean 0.00132875636340129 pu; bu controller residual'ı çok küçük nodal MW mismatch ile aynı büyüklük değildir. Full control doğruluğu bu nedenle yakınsamadan çıkarılamaz.
+
 PF yöntem etiketi VERIFIED_EXACT yalnız PF exportuna aittir. GA preflight **EXPLORATORY_ONLY**: PF calculation-setting semantics eksik veya raw enum-only. 7.970 hücrede keşif amaçlı imzalı GA−PF farkı var; doğrulanmış LF farkı yok. Physical identity/endpoint/partition/method kapıları atlanmadı; açı adası/reference alignment ayrıca sertifikalı sayılmadı. PF gerçek sıfır hücre 41, sentinel 0 kayıtlı; eksik hücre sıfır yapılmadı.
 
 ### Metrik/band paydaları
@@ -66,50 +68,115 @@ PF yöntem etiketi VERIFIED_EXACT yalnız PF exportuna aittir. GA preflight **EX
 
 | Metrik | Band kV | nGA | nPF | nMatched | nComparable | nBlocked | Sertifikalı hata |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| voltagePu | 154 | 189 | 193 | 189 | 0 | 2735 | null |
-| voltageKv | 154 | 189 | 193 | 189 | 0 | 2735 | null |
-| angleDeg | 154 | 189 | 193 | 189 | 0 | 2735 | null |
-| voltagePu | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
-| voltageKv | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
-| angleDeg | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
 | voltagePu | 400 | 29 | 30 | 29 | 0 | 509 | null |
+| voltagePu | 220 | 0 | 0 | 0 | 0 | 0 | null |
+| voltagePu | 154 | 189 | 193 | 189 | 0 | 2735 | null |
+| voltagePu | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| voltagePu | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
 | voltageKv | 400 | 29 | 30 | 29 | 0 | 509 | null |
+| voltageKv | 220 | 0 | 0 | 0 | 0 | 0 | null |
+| voltageKv | 154 | 189 | 193 | 189 | 0 | 2735 | null |
+| voltageKv | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| voltageKv | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
 | angleDeg | 400 | 29 | 30 | 29 | 0 | 509 | null |
+| angleDeg | 220 | 0 | 0 | 0 | 0 | 0 | null |
+| angleDeg | 154 | 189 | 193 | 189 | 0 | 2735 | null |
+| angleDeg | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| angleDeg | ≤36 | 282 | 329 | 282 | 0 | 3034 | null |
 | pFromMw | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| qFromMvar | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| sFromMva | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| pToMw | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| qToMvar | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| sToMva | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| pHvMw | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| qHvMvar | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| sHvMva | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| pLvMw | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| qLvMvar | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| sLvMva | 400 | 61 | 61 | 61 | 0 | 114 | null |
-| iFromA | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| iToA | 400 | 53 | 53 | 53 | 0 | 114 | null |
-| loadingPercent | 400 | 114 | 114 | 114 | 0 | 114 | null |
-| pLossMw | 400 | 114 | 114 | 114 | 0 | 114 | null |
-| qLossMvar | 400 | 114 | 114 | 114 | 0 | 114 | null |
+| pFromMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | pFromMw | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| pFromMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| pFromMw | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| qFromMvar | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| qFromMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | qFromMvar | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| qFromMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| qFromMvar | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| sFromMva | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| sFromMva | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | sFromMva | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| sFromMva | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| sFromMva | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| pToMw | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| pToMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | pToMw | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| pToMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| pToMw | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| qToMvar | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| qToMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | qToMvar | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| qToMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| qToMvar | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| sToMva | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| sToMva | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | sToMva | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| sToMva | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| sToMva | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| pHvMw | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| pHvMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | pHvMw | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| pHvMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| pHvMw | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| qHvMvar | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| qHvMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | qHvMvar | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| qHvMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| qHvMvar | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| sHvMva | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| sHvMva | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | sHvMva | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| sHvMva | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| sHvMva | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| pLvMw | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| pLvMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | pLvMw | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| pLvMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| pLvMw | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| qLvMvar | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| qLvMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | qLvMvar | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| qLvMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| qLvMvar | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| sLvMva | 400 | 61 | 61 | 61 | 0 | 114 | null |
+| sLvMva | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | sLvMva | 154 | 293 | 293 | 293 | 0 | 546 | null |
+| sLvMva | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| sLvMva | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| iFromA | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| iFromA | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | iFromA | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| iFromA | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| iFromA | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| iToA | 400 | 53 | 53 | 53 | 0 | 114 | null |
+| iToA | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | iToA | 154 | 253 | 253 | 253 | 0 | 546 | null |
+| iToA | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| iToA | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| loadingPercent | 400 | 114 | 114 | 114 | 0 | 114 | null |
+| loadingPercent | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | loadingPercent | 154 | 546 | 546 | 546 | 0 | 546 | null |
+| loadingPercent | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| loadingPercent | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| pLossMw | 400 | 114 | 114 | 114 | 0 | 114 | null |
+| pLossMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | pLossMw | 154 | 546 | 546 | 546 | 0 | 546 | null |
+| pLossMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| pLossMw | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| qLossMvar | 400 | 114 | 114 | 114 | 0 | 114 | null |
+| qLossMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
 | qLossMvar | 154 | 546 | 546 | 546 | 0 | 546 | null |
+| qLossMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
+| qLossMvar | ≤36 | 0 | 0 | 0 | 0 | 0 | null |
+| pResultMw | 400 | 0 | 0 | 0 | 0 | 0 | null |
+| pResultMw | 220 | 0 | 0 | 0 | 0 | 0 | null |
+| pResultMw | 154 | 0 | 0 | 0 | 0 | 0 | null |
+| pResultMw | 66 | 0 | 0 | 0 | 0 | 0 | null |
 | pResultMw | ≤36 | 64 | 64 | 64 | 0 | 64 | null |
+| qResultMvar | 400 | 0 | 0 | 0 | 0 | 0 | null |
+| qResultMvar | 220 | 0 | 0 | 0 | 0 | 0 | null |
+| qResultMvar | 154 | 0 | 0 | 0 | 0 | 0 | null |
+| qResultMvar | 66 | 0 | 0 | 0 | 0 | 0 | null |
 | qResultMvar | ≤36 | 64 | 64 | 64 | 0 | 64 | null |
 
 ### Keşif istatistikleri — yöntem doğrulanmamış GA−PF
@@ -207,6 +274,8 @@ Aşağıdaki delta B0'a göre GA−GA'dır; 739 fiziksel branch projeksiyonu, 10
 İndirilen gerçek dosyalarda LF XLSX 4.077 bara, 5.140 branch, 1.965 generator + Diagnostics; LF CSV 5.140 branch + provenance. SC study CSV/XLSX 6.278 ELEMENT, GA Ikss 23, PF Ikss 465. N-1 study CSV/XLSX 660 ELEMENT + tek CASE_TOTAL, CASE_TOTAL MW=0, bütün ELEMENT unsuppliedLoadMW boş/null. XLSX sayısal XML hücreleri numeric tipinde ve CSV ondalık-virgül sayılarıyla eşleşti. SC JSON 23 diagnostic fault, factor/RHS 1/23, Ip/Ib/Ith null. Export özel dosya hash'leri ignored kanıtta. LF native JSON düğmesi yok; JSON kabulü gerçek SC exportuyla yapıldı.
 
 ## Süre ve bellek
+
+Toplam gerçek worker analiz çağrıları **LF / N-1 / SC = 6 / 5 / 4**. LF: 5 native ayarlı çağrı (iki B0, native N-1 base, iki yeni manevra) + 1 station-off tanısal base. N-1: 1 DC screen + 4 AC validate. SC: 1 native BLOCKED + 1 dispatch sonrası iptal + 2 başarılı tanısal batch. İptal edilen SC çağrısı sayıya dahil, başarılı süre dağılımına dahil değildir. Katalog, import, preflight ve IndexedDB restore ek solver çağrısı sayılmaz.
 
 Tek yerel host, Node performance.now/process.hrtime.bigint ve page performance.mark; worker interval başlangıç postMessage, bitiş gerçek sonuç cevabı. UI wall interval import/notify/render/serialization işlerini içerir; solver elapsed ile aynı ölçüm değildir. Süre median'ı ortadaki iki örneğin ortalaması, P95 nearest-rank. n=1 bir dağılım güveni sağlamaz. Farklı vaka/batch boyutları aynı işin beş tekrarı olarak sunulmadı. Tam hesap/model importu yalnız beş örnek uğruna tekrar edilmedi.
 
