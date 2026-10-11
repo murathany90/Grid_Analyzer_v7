@@ -24,3 +24,5 @@ Manuel Full AC doğrulamada varsayılan STRICT kontrol kapısı korunur. Kullan�
 İlk tarayıcı denemelerinde dar ⚡ panelin tablo yüksekliği ve gizli yinelenen hesap formu bulundu. Panel filtreleri daraltılabilir yapıldı; Analizler ortak tablosunda ikinci hesap formu oluşturulması kaldırıldı. Eski STRICT test beklentisi açık tanısal seçimi denetleyecek şekilde genişletildi; hesap kapısı ve eşikler gevşetilmedi. 1366 px başlıkları tablo içi yatay kaydırmayla okunur tutulur.
 
 Son kabul, gerçek veri ve CI sonuçları `07_FINAL_ACCEPTANCE.md` içinde verilir. Ekran görüntüleri ve gerçek model kanıtları özel/ignored alandadır.
+
+PF–GA metrik görünümü toplam/eşleşen/karşılaştırılabilir/bloke/eksik paydalarını ve açılır bias, MAE, RMSE, medyan, P95/P99, maksimum ve worst FID alanlarını gösterir. Aynı istatistikler mevcut metrik JSON dışa aktarmasına eklenir; tanısal delta bu istatistiklere girmez. Satır CSV/XLSX sözleşmeleri korunur.
