@@ -61,4 +61,8 @@ Silmeden önce aşağıdaki uzak başlar tam SHA ile ve `origin/main` atası old
 
 ## Son doğrulama
 
-Hedefli LF 6 ve SC 14 test geçti; typecheck ve architecture lint geçti. Tam unit/e2e, portable gerçek veri kabulü ve exact-SHA feature/main CI sonuçları tamamlandıktan sonra kapanış kaydı eklenir. Bu aşamada main entegrasyonu tamamlanmış sayılmaz.
+Tam unit/regression **390/390**, fail/skip/cancel **0**. Typecheck, 269 kaynak dosyası için architecture lint, standard build, portable build, iki e2e suite ve portable PF benchmark smoke geçti. İlk full unit çalışmasındaki eski `%` beklentisi `pp` ve yanlış birimi reddetme ile düzeltildi. Browser smoke native katalog/recorded DC etiketleri birlikte korunacak şekilde düzeltildi; PF smoke yeni hızlı panelden bağımsız mevcut analiz panelini açıkça hedefler. Test silinmedi, skip/gevşetme yapılmadı.
+
+Portable artifact: **1.638.540 byte**, SHA-256 `c2c5ea9044410aa2fcfdce3b837be27beedcb242486e7166990b3aa713e721ce`. Raw HEAD bytes, deterministik yeniden build ve LF-only provenance unit kapısı geçti. `d902d4a` kaynak/portable commitinde izole Chromium'da gerçek SN3 ZIP bir kez daha yüklendi; gerçek Full AC worker bir kez çalıştı. 4077 bara / 5140 dal, mismatch 2,041e-8 MW, engine 2,579 s, uçtan uca hesap 29,976 s. Portable B0 vektörü önceki doğrulanmış SN3 B0 ile bit düzeyinde aynı. Portable gerçek veri kabulünde kaynak temizdi, artifact raw HEAD ile eşti. Bu ayrı artifact kabulüyle toplam gerçek SN3 ZIP yükleme bütçesi iki; SN4/SN7 birer.
+
+Exact-SHA feature CI ve ayrı main CI başarıları, fast-forward entegrasyonu ve son uzak branch envanteri görev kapanış kaydında belirtilir. Bunlar doğrulanmadan entegrasyon başarılı sayılmaz.
