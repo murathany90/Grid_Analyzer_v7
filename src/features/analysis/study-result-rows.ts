@@ -42,6 +42,7 @@ export function studyResultRows(ctx:AppContext,selection:BenchmarkMapSelection){
       }
     }
   }
-  return {rows,catalogCount:options.length,numericCount:rows.filter(r=>!r.metadata).length,data};
+  const selected=selection.analysis==='SC'?ctx.resultView.faultId:selection.caseId,selectedCatalogCount=selected?(options.some(([id])=>id===selected)||rows.length?1:0):options.length;
+  return {rows,catalogCount:options.length,selectedCatalogCount,numericCount:rows.filter(r=>!r.metadata).length,data};
 }
 export function sortStudyRows(rows:readonly StudyRow[],key:'name'|'pre'|'post'|'delta'|'ikss'|'skss'|'status',descending:boolean){return [...rows].sort((a,b)=>{const x=a[key],y=b[key],missing=(v:typeof x)=>v===null||(typeof v==='number'&&!Number.isFinite(v)),tie=()=>a.name.localeCompare(b.name,'tr')||a.id.localeCompare(b.id);if(missing(x)||missing(y))return Number(missing(x))-Number(missing(y))||tie();const cmp=typeof x==='string'?x.localeCompare(String(y),'tr'):Number(x)-Number(y);return (descending?-cmp:cmp)||tie();});}

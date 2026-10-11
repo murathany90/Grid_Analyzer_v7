@@ -31,7 +31,7 @@ export function createWorkspaceResults(ctx:AppContext){
       for(const [i,value] of values.entries()){const td=element('td','',value);if(i===0||i===values.length-1){td.title=i===0?row.name:row.status+' · '+row.reason;}tr.append(td);}tr.tabIndex=0;tr.onclick=()=>ctx.select(row.fid,row.cls,'map');tr.onkeydown=e=>{if(e.key==='Enter')tr.click();};tbody.append(tr);
     }
     const old=container.scrollTop;container.replaceChildren(table);container.scrollTop=old;if(!filtered.length)container.append(element('p','ga-notice',study.rows.length?'Bu filtrelerde kayıt yok.':'NOT_RUN · Kayıt yüklenmedi.'));
-    root.dataset.catalogCount=String(study.catalogCount);root.dataset.numericCount=String(study.numericCount);count.textContent=`${study.catalogCount} ${sc?'arıza':n1?'vaka':'katalog'} · ${study.numericCount} sayısal sonuç · ${filtered.length} kayıt · ${page+1}/${pages}`;previous.disabled=page===0;next.disabled=page===pages-1;
+    root.dataset.catalogCount=String(study.catalogCount);root.dataset.selectedCatalogCount=String(study.selectedCatalogCount);root.dataset.numericCount=String(study.numericCount);count.title=`Toplam katalog: ${study.catalogCount}`;count.textContent=`${study.selectedCatalogCount} ${sc?'arıza':n1?'vaka':'katalog'} · ${study.numericCount} sayısal sonuç · ${filtered.length} kayıt · ${page+1}/${pages}`;previous.disabled=page===0;next.disabled=page===pages-1;
   }
   return {element:root,render};
 }
