@@ -1,3 +1,4 @@
+import {scenarioLfComparison} from '../results/lf-comparison';
 import {postResultAssembler} from '../../analysis/contingency-ac/post-results';
 import type { BenchmarkAnalysis } from './types';
 import type { AppContext } from '../../app/contracts';
@@ -22,10 +23,10 @@ function canonicalRows(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMetricRo
   const rows=metricRows(table,gate,s.metric,{lfResult:result,diagnostic:s.diagnostic===true,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark,ac:ctx.n1AcResults}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(!s.voltageKv||r.nominalKv===s.voltageKv));
   rowCache.set(ctx,{key,benchmark:ctx.benchmark,result,ac:ctx.n1AcResults,dc:ctx.n1Result,hybrid:ctx.hybridResult,sc:ctx.scResult,rows});return rows;
 }
-function currentLf(ctx:AppContext):boolean {return lfSnapshotIsCurrent(ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow'),ctx.network,ctx.scenario.current,ctx.analysisSettings?.value);}
+function currentLf(ctx:AppContext):boolean {const base=ctx.scenario.selectedId==='B0'||ctx.resultView?.analysis==='LF'&&ctx.resultStore.role==='base';return lfSnapshotIsCurrent(ctx.resultStore.get(base?'base':'scenario','powerFlow'),ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings?.value);}
 export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enabled:boolean;reason:string}{
   if(!ctx.network)return {enabled:false,reason:'MODEL_NOT_LOADED'};
-  if(s.source==='SCENARIO_DELTA')return s.analysis==='LF'&&ctx.resultStore.comparable()?{enabled:true,reason:'GA_SCENARIO_MINUS_GA_REFERENCE'}:{enabled:false,reason:'STALE_OR_INCOMPATIBLE_GA_SCENARIOS'};
+  if(s.source==='SCENARIO_DELTA'){const pair=scenarioLfComparison(ctx,s.metric);return {enabled:s.analysis==='LF'&&pair.enabled,reason:pair.reason||pair.status};}
   if(s.source!=='GA'&&!ctx.benchmark)return {enabled:false,reason:'PF_NOT_LOADED'};
   if(s.source!=='GA'&&!hasReference(ctx.benchmark,s.analysis))return {enabled:false,reason:'PF_REFERENCE_SLOT_NOT_LOADED'};
   if(s.source==='EXPLORATORY_DELTA'){
@@ -80,8 +81,15 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     for(const id of siteIds){putSite(id,value,fid,bus?.vnKv??null);const site=siteById.get(id);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
     if(!hasGeometry)data.noGeometry++;
   };
-  const result=ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow');
-  if(s.source==='SCENARIO_DELTA'){const before=ctx.resultStore.getSnapshot(ctx.resultStore.comparisonScenarioId,'powerFlow'),oldBranches=new Map(before?.branches.map(b=>[`${b.sourceClass}:${b.id}`,b])),oldBuses=new Map(before?.buses.map(b=>[`${b.vnKv}|${stableJson([...b.terms].sort())}`,b]));const branchValue=(b:import('../results/types').BranchResult)=>({pFromMw:b.pf,qFromMvar:b.qf,pToMw:b.pt,qToMvar:b.qt,sFromMva:Math.hypot(b.pf,b.qf),sToMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading,iFromA:b.ifA,iToA:b.itA} as Record<string,number|null>)[s.metric]??null;for(const b of result?.branches??[]){const old=oldBranches.get(`${b.sourceClass}:${b.id}`),a=old?branchValue(old):null,c=branchValue(b);put(b.sourceClass,b.id,{value:a!==null&&c!==null?c-a:null,unit:METRICS.GA_Reference_Raw[s.metric]??'',status:'GA_SCENARIO_MINUS_GA_REFERENCE',details:[`${ctx.scenario.selectedId} − ${ctx.resultStore.comparisonScenarioId} · GA ONLY`]});}for(const b of result?.buses??[]){const old=oldBuses.get(`${b.vnKv}|${stableJson([...b.terms].sort())}`),a=old?(s.metric==='voltagePu'?old.vmPu:s.metric==='voltageKv'?old.vmPu*old.vnKv:null):null,c=s.metric==='voltagePu'?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:null;for(const fid of b.terms)put('ElmTerm',fid,{value:a!==null&&c!==null?c-a:null,unit:METRICS.GA_Reference_Raw[s.metric]??'',status:old?'GA_SCENARIO_MINUS_GA_REFERENCE':'PARTITION_NOT_1_TO_1',details:[`${ctx.scenario.selectedId} − ${ctx.resultStore.comparisonScenarioId} · partition identity`]});}return data;}
+  const baseView=s.analysis==='LF'&&ctx.resultStore.role==='base',result=ctx.resultStore.get(baseView||ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow');
+  if(s.source==='SCENARIO_DELTA'){
+    const pair=scenarioLfComparison(ctx,s.metric),details=(v:import('../results/lf-comparison').LfComparisonCell)=>[ctx.scenario.selectedId+' − '+ctx.resultStore.comparisonScenarioId+' · GA ONLY',v.reason||pair.status,'PRE '+v.pre+' · POST '+v.post+' · Δ '+v.delta+' '+v.unit];
+    if(!['voltageKv','voltagePu','angleDeg'].includes(s.metric))for(const e of [...network.lines,...network.transformers]){const v=pair.branches.get(e.sourceClass+':'+e.id);if(v)put(e.sourceClass,e.sourceId,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});}
+    for(const [fid,v] of pair.terminals)put('ElmTerm',fid,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});
+    const values=[...data.branches.values(),...data.sites.values()].flatMap(v=>v.value===null?[]:[v.value]),abs=values.map(Math.abs).sort((a,b)=>a-b);
+    data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:pair.branches.values().next().value?.unit??pair.terminals.values().next().value?.unit??''};
+    return data;
+  }
   if(s.analysis==='SC'&&s.source==='GA'&&ctx.scResult){
     for(const f of ctx.scResult.faults){if(ctx.resultView?.faultId&&!f.physicalTerminalFids.includes(ctx.resultView.faultId)&&f.physicalTerminalFid!==ctx.resultView.faultId)continue;const value=s.metric==='ikssKa'?f.ikssKa:f.skssMva;for(const fid of f.physicalTerminalFids.length?f.physicalTerminalFids:[f.physicalTerminalFid])put('ElmTerm',fid,{value,unit:s.metric==='ikssKa'?'kA':'MVA',status:f.status,details:[`${fid} → ${f.electricalBusId??'—'} · ${f.status} · ${f.reasons.slice(0,3).join('; ')}`]});}return data;
   }

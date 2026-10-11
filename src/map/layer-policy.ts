@@ -1,3 +1,6 @@
+import {n1RiskColor} from './n1-risk-style';
+import {deltaColor} from './delta-style';
+import {scenarioLfComparison} from '../domain/results/lf-comparison';
 import type {BenchmarkMapSelection,BenchmarkMapValue} from '../domain/benchmark/map-layer';
 import {benchmarkLayerColor} from '../domain/benchmark/map-layer';
 import type {CalculationResult} from '../domain/results/types';
@@ -37,7 +40,7 @@ export function matchedVoltageKv(pu:unknown,nominal:unknown,otherNominal:unknown
   return finiteNumber(pu)&&finiteNumber(nominal)&&nominal>0&&nominal===otherNominal?pu*nominal:null;
 }
 export const lfMapTarget=(metric:string)=>LF_MAP_METRICS.find(m=>m.metric===metric)?.target;
-export function currentMapLf(ctx:AppContext){const r=ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
+export function currentMapLf(ctx:AppContext){const base=ctx.scenario.selectedId==='B0'||ctx.resultView?.analysis==='LF'&&ctx.resultStore.role==='base',r=ctx.resultStore.get(base?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
 export function representativeStationBus(ctx:AppContext,siteId:string,result:CalculationResult|null){
   const n=ctx.network,nominal=n?highestNominalBySite(n,ctx.filters.voltages).get(siteId)??null:null,selected=n&&result&&nominal!==null?resultPresentationIndex(n,result).solution.bySiteAndNominal.get(siteId)?.get(nominal):undefined;
   return {nominal,bus:selected?.bus??null,count:selected?.count??0};
@@ -66,9 +69,10 @@ export function mapPresentationGate(ctx:AppContext,s:BenchmarkMapSelection){
 export function mapCaseOptions(ctx:AppContext,analysis:'N1'|'SC'):string[][]{
   const rows:string[][]=[],seen=new Set<string>(),terms=ctx.network?modelPresentationIndex(ctx.network).physicalTerminalById:null;
   if(analysis==='N1'){
-    const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);}
-    const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]])if(!rows.some(r=>r[0]===c.outage.caseId))rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);
-    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!rows.some(r=>r[0]===id))rows.push([id,(e?.name??id)+' · '+c.status]);}
+    const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);seen.add(String(r.caseId));}
+    if(ctx.n1CatalogResult&&ctx.n1CatalogIdentity?.modelHash===ctx.network?.modelHash&&ctx.n1CatalogIdentity?.scenarioHash===scenarioSignature(ctx.scenario.current))for(const c of ctx.n1CatalogResult.candidates){const e=modelPresentationIndex(ctx.network!).equipmentByKey.get(c.sourceClass+':'+c.equipmentId),id='N1:'+c.sourceClass+':'+(e?.sourceId??c.equipmentId);if(!seen.has(id)){seen.add(id);rows.push([id,c.name+' · '+c.topology]);}}
+    const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]])if(!seen.has(c.outage.caseId)){seen.add(c.outage.caseId);rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);}
+    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;if(!seen.has(id)){seen.add(id);rows.push([id,(e?.name??id)+' · '+c.status]);}}
   }else{
     for(const f of selectedScPresentation(ctx).sc?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
     const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row),id=String(r.physicalTerminalFid??r.fid??'');if(id&&!seen.has(id)){seen.add(id);rows.push([id,String(r.physicalTerminalName??r.name??id)+' · PF 3PH MAX']);}}
@@ -148,6 +152,11 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
       data.sites.set(site.id,{value,unit:'kV',status:p.status,details:[],representativeFid:b?.terms[0],nominalKv:nominal} as BenchmarkMapValue);
     }
   }
+  if(s.analysis==='LF'&&s.source==='SCENARIO_DELTA'&&target==='ElmTerm'){
+    data.sites.clear();const pair=scenarioLfComparison(ctx,s.metric);
+    for(const site of n.sites){const selected=representativeStationBus(ctx,site.id,result),fid=selected.bus?.terms[0],cell=fid?pair.terminals.get(fid):null;
+      data.sites.set(site.id,{value:cell?.delta??null,unit:cell?.unit??(s.metric==='angleDeg'?'deg':'kV'),status:cell?.status??'NOT_RUN',details:[cell?.reason??pair.reason],representativeFid:fid});}
+  }
   data.numericValues=[...data.branches.values(),...data.sites.values()].filter(v=>finiteNumber(v.value)).length;
   if(data.enabled&&!data.numericValues)data.reason='NO_DATA';return data;
 }
@@ -172,7 +181,7 @@ export function syncMapCase(ctx:AppContext){
 export function selectedScPresentation(ctx:AppContext){
   const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
   const exact=current?sc.faults.filter(f=>f.physicalTerminalFid===ctx.resultView.faultId):[],matches=exact.length?exact:current?sc.faults.filter(f=>f.physicalTerminalFids.includes(ctx.resultView.faultId??'')):[];
-  const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(!current||!ctx.resultView.faultId?'NOT_RUN':'BLOCKED'),reason:fault?.reasons.join('; ')??(!current?'Güncel kayıt yüklenmedi':'Gerekli IEC kaynak/partition kanıtı yok')};
+  const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(matches.length>1?'PARTITION_AMBIGUOUS':'NOT_RUN'),reason:fault?.reasons.join('; ')??(matches.length>1?'PARTITION_AMBIGUOUS: birden fazla fault kaydı':!current?'Güncel kayıt yüklenmedi':'Seçilen fiziksel fault hesaplanmadı')};
 }
 export function mapStatusText(ctx:AppContext):string{
   const v=ctx.resultView,base=ctx.scenario.selectedId==='B0'?'Baz':'Senaryo';
@@ -189,9 +198,11 @@ export function mapMetricTarget(metric:string):'site'|'branch'{
   return /voltage|angle|ikss|skss|ipKa|ibKa|ithKa/i.test(metric)?'site':'branch';
 }
 /** Missing or inapplicable numbers never erase the nominal electrical geography. */
-export function resultLayerColor(nominal:string,target:'site'|'branch',selection:BenchmarkMapSelection,value:BenchmarkMapValue|undefined,enabled:boolean,scale?:number):string{
+export function resultLayerColor(nominal:string,target:'site'|'branch',selection:BenchmarkMapSelection,value:BenchmarkMapValue|undefined,enabled:boolean,scale?:number,settings?:Settings):string{
   if(!enabled||mapMetricTarget(selection.metric)!==target||value?.value==null||!Number.isFinite(value.value))return nominal;
   if(selection.analysis==='LF'&&selection.source==='GA'&&/^[pq](From|To|Hv|Lv)M(w|var)$/.test(selection.metric))return nominal;
+  if(selection.source==='SCENARIO_DELTA'&&settings){const metric=selection.metric,maximum=metric==='loadingPercent'?settings.deltaLoad:/^q/.test(metric)?settings.deltaQ:/voltage/.test(metric)?settings.deltaV*(metric==='voltageKv'?((value as BenchmarkMapValue&{nominalKv?:number}).nominalKv??1):1):settings.deltaP;return deltaColor(value.value,{...settings,deltaMetric:'p',deltaP:maximum});}
+  if(selection.analysis==='N1'&&selection.source==='GA'&&selection.n1Layer!=='CHANGE'&&/LoadingPercent|thermalRisk/.test(selection.metric)&&settings)return n1RiskColor(value.value,settings.riskWarningPercent)??nominal;
   const kv=(value as BenchmarkMapValue&{nominalKv?:number}).nominalKv;
   if(value.unit==='kV'&&finiteNumber(kv)&&kv>0&&!['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(selection.source))return benchmarkLayerColor({...value,value:value.value/kv,unit:'pu'});
   return benchmarkLayerColor(value,selection.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(selection.source),scale);

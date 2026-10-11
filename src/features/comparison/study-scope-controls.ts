@@ -4,7 +4,7 @@ import type {CanonicalNetwork} from '../../domain/model/network';
 export function createStudyScope(label:string){
   const root=element('div','ga-toolbar'),areas=element('select'),voltage=element('select'),tm=element('select'),types=element('select'),endpoints=element('select');
   areas.multiple=voltage.multiple=true;areas.size=voltage.size=4;areas.setAttribute('aria-label',label+' YTM kapsamı');voltage.setAttribute('aria-label',label+' gerilim kapsamı');endpoints.setAttribute('aria-label',label+' uç kapsamı');
-  for(const [value,text] of [['','Tüm gerilimler'],['400','400 / 380 / 420 kV'],['154','154 kV bandı'],['33','33 / 34.5 / 31.5 kV']]){const o=element('option','',text);o.value=value;voltage.append(o);}voltage.options[0].selected=true;
+  for(const [value,text] of [['','Tüm gerilimler'],['400','400 / 380 / 420 kV'],['220','220 kV'],['66','66 kV'],['154','154 kV bandı'],['36','≤36 kV'],['33','33 / 34.5 / 31.5 kV']]){const o=element('option','',text);o.value=value;voltage.append(o);}voltage.options[0].selected=true;
   for(const [value,text]of [['BOTH','Seçili küme içi, sınır ve bilinmeyen'],['INTERNAL','Seçili YTM kümesinin içi'],['CONNECTED','Seçili kümenin sınırı'],['SAME_YTM_INTERNAL','Aynı YTM içi'],['UNKNOWN_SCOPE','Ucu çözümlenmemiş / belirsiz']]){const o=element('option','',text);o.value=value;endpoints.append(o);}
   tm.setAttribute('aria-label',label+' TM kapsamı');root.append(areas,tm,voltage,endpoints);
   types.setAttribute('aria-label',label+' kesinti tipi');for(const [value,text]of [['BOTH','Hat + trafo'],['ElmLne','Yalnız hat'],['ElmTr2','Yalnız trafo']]){const o=element('option','',text);o.value=value;types.append(o);}if(label==='Hibrit')root.append(types);

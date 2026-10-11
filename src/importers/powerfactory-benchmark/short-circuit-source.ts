@@ -61,5 +61,5 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   }
   if(options.overrides?.some(o=>!sources.some(s=>s.sourceClass===o.sourceClass&&s.fid===o.fid)))throw Error('SC_UNKNOWN_OVERRIDE_FID');
   if(options.allowMixedNominalKv&&!options.provenance?.trim())throw Error('SC_NOMINAL_NORMALIZATION_PROVENANCE_REQUIRED');
-  return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[]};
+  return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
 }

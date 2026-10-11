@@ -1,3 +1,4 @@
+import {scenarioLfComparison} from '../domain/results/lf-comparison';
 import type {AppContext} from '../app/contracts';
 import type {Site,Line,Transformer2W} from '../domain/model/network';
 import type {BusResult,BranchResult,CalculationResult} from '../domain/results/types';
@@ -88,27 +89,29 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
   if(e.sourceClass==='ElmSite'){
     const selected=representativeStationBus(ctx,e.id,r),nominal=selected.nominal;let bus=selected.bus,u=matchedVoltageKv(bus?.vmPu,bus?.vnKv,nominal),a=angleHasReference(r,bus)?bus!.angleRad*180/Math.PI:null,name=bus?.name??'—';
     if(!isGa&&!scenarioDelta){const selected=representativeReferenceBySite(ctx,selection).get(e.id);u=selected?.pf.value??null;a=selected?pf('angleDeg','ElmTerm',selected.fid,nominal):null;name=selected?modelPresentationIndex(ctx.network).physicalTerminalById.get(selected.fid)?.name??'—':'—';}
-    if(scenarioDelta){const old=ctx.resultStore.getSnapshot(ctx.resultStore.comparisonScenarioId,'powerFlow'),before=old&&bus?resultPresentationIndex(ctx.network,old).solution.byPartition.get(partitionKey(bus)):null;u=before&&u!==null?u-before.vmPu*before.vnKv:null;a=before&&a!==null&&before.islandId===bus?.islandId?a-before.angleRad*180/Math.PI:null;}
+    if(scenarioDelta){const cell=bus?scenarioLfComparison(ctx,'voltageKv').terminals.get(bus.terms[0]):null,angle=bus?scenarioLfComparison(ctx,'angleDeg').terminals.get(bus.terms[0]):null;u=cell?.delta??null;a=angle?.delta??null;}
     card.title+=` · ${number(nominal)} kV`;card.headers=['Nominal (kV)','U (kV)','Açı (°)'];card.rows=[[number(nominal),number(u),number(a,true)]];
     card.note=`YG bara: ${name} · aynı baranın U/açı kaydı${selected.count>1?' · +'+(selected.count-1)+' diğer bara':''}. Ayrıntı: ekipmanı seçin.`;return card;
   }
   const entity=e as Line|Transformer2W,row=r?resultPresentationIndex(ctx.network,r).branchByKey.get(e.sourceClass+':'+e.id):null,baseline=scenarioDelta?ctx.resultStore.getSnapshot(ctx.resultStore.comparisonScenarioId,'powerFlow'):null,old=baseline?resultPresentationIndex(ctx.network,baseline).branchByKey.get(e.sourceClass+':'+e.id):null;
-  const ga=(key:keyof BranchResult)=>{const value=row?.[key],before=old?.[key];return finiteNumber(value)?scenarioDelta?finiteNumber(before)?value-before:null:value:null;};
+  const metricKeys:Partial<Record<keyof BranchResult,string>>={pf:'pFromMw',qf:'qFromMvar',pt:'pToMw',qt:'qToMvar'};
+  const ga=(key:keyof BranchResult)=>scenarioDelta?scenarioLfComparison(ctx,metricKeys[key]??'').branches.get(e.sourceClass+':'+e.id)?.delta??null:finiteNumber(row?.[key])?row![key] as number:null;
   const trafo=e.sourceClass==='ElmTr2',fromHv=trafo?transformerFromIsHv(ctx.network,entity.from,entity.to,Math.max(entity.vnKv,(e as Transformer2W).lvKv),Math.min(entity.vnKv,(e as Transformer2W).lvKv)):true;
   const aLabel=endpointStationLabel(ctx,entity.from,'A'),bLabel=endpointStationLabel(ctx,entity.to,'B'),loading=isGa&&r?mapLoadingValues(ctx.network,r).get(e.sourceClass+':'+e.id):null;
   const endpoint=(from:boolean)=>{const b=endpointBus(ctx,r,from?entity.from:entity.to),nominal=modelPresentationIndex(ctx.network!).physicalTerminalById.get(from?entity.from:entity.to)?.vnKv;
     const p=isGa||scenarioDelta?ga(from?'pf':'pt'):pf(trafo?(from===fromHv?'pHvMw':'pLvMw'):from?'pFromMw':'pToMw',e.sourceClass,e.sourceId);
     const q=isGa||scenarioDelta?ga(from?'qf':'qt'):pf(trafo?(from===fromHv?'qHvMvar':'qLvMvar'):from?'qFromMvar':'qToMvar',e.sourceClass,e.sourceId);
-    const u=isGa?matchedVoltageKv(b?.vmPu,b?.vnKv,nominal):scenarioDelta?null:pf('voltageKv','ElmTerm',from?entity.from:entity.to,nominal);
-    const a=isGa&&angleHasReference(r,b)?b!.angleRad*180/Math.PI:!isGa&&!scenarioDelta?pf('angleDeg','ElmTerm',from?entity.from:entity.to,nominal):null;
-    const label=(from?aLabel:bLabel).label,load=isGa?(from?loading?.from:loading?.to):null;
+    const u=isGa?matchedVoltageKv(b?.vmPu,b?.vnKv,nominal):scenarioDelta?scenarioLfComparison(ctx,'voltageKv').terminals.get(from?entity.from:entity.to)?.delta??null:pf('voltageKv','ElmTerm',from?entity.from:entity.to,nominal);
+    const a=scenarioDelta?scenarioLfComparison(ctx,'angleDeg').terminals.get(from?entity.from:entity.to)?.delta??null:isGa&&angleHasReference(r,b)?b!.angleRad*180/Math.PI:!isGa&&!scenarioDelta?pf('angleDeg','ElmTerm',from?entity.from:entity.to,nominal):null;
+    const label=(from?aLabel:bLabel).label,load=scenarioDelta?scenarioLfComparison(ctx,'loadingPercent').branches.get(e.sourceClass+':'+e.id)?.delta??null:isGa?(from?loading?.from:loading?.to):null;
     return [(trafo?(fromHv===null?'YG/AG ?':from===fromHv?'YG':'AG')+' · ':'')+(from?'A':'B')+' · '+label,number(trafo&&fromHv===null?null:p,true),number(trafo&&fromHv===null?null:q,true),number(load),number(u),number(a,true)];};
-  card.headers=['TM / Uç','P (MW)','Q (MVAr)','Yük (%)','U (kV)','Açı (°)'];card.rows=trafo&&fromHv===false?[endpoint(false),endpoint(true)]:[endpoint(true),endpoint(false)];
+  card.headers=['TM / Uç','P (MW)','Q (MVAr)',scenarioDelta?'ΔYük (pp)':'Yük (%)','U (kV)','Açı (°)'];card.rows=trafo&&fromHv===false?[endpoint(false),endpoint(true)]:[endpoint(true),endpoint(false)];
   const pLoss=isGa||scenarioDelta?ga('pLoss'):pf('pLossMw',e.sourceClass,e.sourceId),qLoss=isGa||scenarioDelta?ga('qLoss'):pf('qLossMvar',e.sourceClass,e.sourceId);
   const on=trafo?ctx.scenario.current.transformerStatus[e.id]??e.inService:ctx.scenario.current.lineStatus[e.id]??e.inService;
   card.title+=trafo?` · ${number(Math.max(entity.vnKv,(e as Transformer2W).lvKv))}/${number(Math.min(entity.vnKv,(e as Transformer2W).lvKv))} kV`:` · ${number(entity.vnKv)} kV`;
   const direction=isGa?verifiedPowerDirection(row?.pf,row?.pt):'UNKNOWN',flow=direction==='FROM_TO'?'A → B':direction==='TO_FROM'?'B → A':'Yön belirsiz',capacity=loading?.maximum!=null?`${loading.basis} • ${loading.season}`:isGa?'UNKNOWN_CAPACITY':'Yük: NOT_RECORDED',maximum=isGa?loading?.maximum:scenarioDelta?null:pf('loadingPercent',e.sourceClass,e.sourceId);
   card.note=`P: ${flow} · Kayıp P/Q (MW/MVAr): ${number(pLoss)}/${number(qLoss)} · ${on?'Serviste':'Servis dışı'}${trafo?' · Tap '+number((e as Transformer2W).tapPosition):''} · ${capacity}${loading?.from==null&&loading?.to==null&&maximum!=null?' · Maks yük '+number(maximum)+'%':''}${aLabel.status==='TM_BELIRSIZ'||bLabel.status==='TM_BELIRSIZ'?' · TM_BELIRSIZ':''}${trafo&&fromHv===null?' · HV/LV: BLOCKED':''}`;
+  if(scenarioDelta){const cell=scenarioLfComparison(ctx,'loadingPercent').branches.get(e.sourceClass+':'+e.id);card.note=ctx.resultStore.comparisonScenarioId+' '+number(cell?.pre)+'% · '+ctx.scenario.selectedId+' '+number(cell?.post)+'% · Δ '+number(cell?.delta,true)+' pp · '+(cell?.reason||cell?.status||'NOT_RUN');}
   return card;
 }
 export function renderEquipmentCard(host:HTMLElement,card:EquipmentCard){

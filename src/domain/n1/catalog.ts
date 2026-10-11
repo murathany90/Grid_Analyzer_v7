@@ -173,7 +173,7 @@ export function filterN1CatalogCandidates(candidates: readonly N1CatalogCandidat
 }
 
 /** Native voltage bands: 400 includes 380/420, 33 includes 31.5/34.5. */
-export function voltageBandMatches(kv:number,band:number):boolean{return band===400?kv>=300&&kv<=450:band===154?kv>=110&&kv<=170:band===33?kv>=24&&kv<=36:kv===band;}
+export function voltageBandMatches(kv:number,band:number):boolean{return band===400?kv>=300&&kv<=450:band===154?kv>=110&&kv<=170:band===33?kv>=24&&kv<=36:band===36?kv>0&&kv<=36:kv===band;}
 
 export function classifyN1Scope(c:Pick<N1CatalogCandidate,'fromYtmIds'|'toYtmIds'>,selected:readonly string[]=[]):'INTERNAL_SELECTED_SET'|'BOUNDARY_SELECTED_SET'|'OUTSIDE_SELECTED_SET'|'UNKNOWN_SCOPE'{
   if(c.fromYtmIds.length!==1||c.toYtmIds.length!==1)return 'UNKNOWN_SCOPE';

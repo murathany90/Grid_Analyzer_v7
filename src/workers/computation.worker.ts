@@ -23,7 +23,7 @@ import { applyPowerFactoryControlContext } from '../analysis/validation/powerfac
 import { preflightPowerFactoryReference } from '../analysis/validation/powerfactory-preflight';
 import { validateAcOutages } from '../analysis/contingency-ac';
 import {adaptShortCircuitSources} from '../importers/powerfactory-benchmark/short-circuit-source';
-import {calculateThreePhase} from '../analysis/short-circuit';
+import {calculateThreePhase,scFaultCatalog,clearScPreparationCache} from '../analysis/short-circuit';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -48,6 +48,9 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
     }else if(data.type==='ADAPT_SC_CONTEXT'){
       if(!source)throw Error('SC_NATIVE_SOURCE_CONTEXT_UNAVAILABLE');
       send({type:'RESULT',value:adaptShortCircuitSources(source.raw,data.network,undefined,data.options)});
+    }else if(data.type==='SC_FAULT_CATALOG'){
+      if(!network)throw Error('Model yüklenmedi.');
+      send({type:'RESULT',value:scFaultCatalog(network,data.scenario,data.context,data.terminals)});
     }else if(data.type==='RUN_SC_3PH'){
       if(!network)throw Error('Model yüklenmedi.');
       send({type:'RESULT',value:await calculateThreePhase(network,data.scenario,data.context,data.terminals,data.profile,{onProgress:progress})});
@@ -61,7 +64,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       source=new DgsModel(normalizeSourceClassAliases(raw).normalized,data.file.name,data.file.size);await source.build(message=>progress('MODEL',{message}));
       const mapStart=performance.now();network=mapCanonical(source,modelHash);const canonicalMs=performance.now()-mapStart;
       send({type:'RESULT',value:{network,readiness:auditShortCircuitReadiness(raw),scContext:adaptShortCircuitSources(raw,network),timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
-    }else if(data.type==='PREPARE'){network=data.network;send({type:'RESULT',value:true});}
+    }else if(data.type==='PREPARE'){clearScPreparationCache();network=data.network;send({type:'RESULT',value:true});}
     else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');send({type:'RESULT',value:catalogPage(source,data.query)});}
     else if(data.type==='SELF_TEST'){send({type:'RESULT',value:selfTests()});}
     else if(data.type==='CANCEL'){scope.close();}

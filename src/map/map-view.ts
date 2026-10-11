@@ -1,4 +1,4 @@
-import {activeResultId} from '../domain/results/workspace';
+import {activeResultId,workspaceMapSelection} from '../domain/results/workspace';
 import {deltaLabels,deltaMaximum} from './delta-style';
 import type {Settings} from '../persistence/settings';
 import type {Line} from '../domain/model/network';
@@ -33,7 +33,7 @@ export function createMapView(ctx:AppContext):Feature{
   lineBody.append(mapControl('Hat yerleşimi',layout),mapControl('LF görünümü',role));benchmarkControls.body.append(mapControl('Kapasite',capacity),deltaControl);lineMenu.append(lineSummary,lineBody);
   const scenarioChip=button('B0',()=>panel.open('SCENARIOS'),'Senaryoları aç');scenarioChip.className+=' ga-map-scenario-chip';scenarioChip.dataset.helpId='map.scenario';
   scope.append(mapControl('YTM',area),voltageFilter.element,lineMenu,benchmarkControls.analysisControl,benchmarkControls.sourceControl,scenarioChip);
-  const calc=button('Hesapla',()=>{if(ctx.resultView.analysis==='LF'){if(ctx.resultStore.active)panel.open('RESULTS');else void ctx.run('powerFlow',requestedRole(ctx));}else if(activeResultId(ctx))panel.open('RESULTS');else ctx.setView('analysis:'+ctx.resultView.analysis);}),refresh=button('↻',()=>ctx.resultView.analysis==='LF'?void ctx.run('powerFlow',requestedRole(ctx)):ctx.setView('analysis:'+ctx.resultView.analysis),'Yeniden hesapla'),fit=button('Sığdır',()=>renderer.reset()),fullscreen=button('Tam ekran',()=>{if(document.fullscreenElement===root)void document.exitFullscreen();else void root.requestFullscreen();});
+  const calc=button('Hesapla',()=>{if(ctx.resultView.analysis==='LF'){if(ctx.resultStore.active)panel.open('RESULTS');else void ctx.run('powerFlow',requestedRole(ctx));}else if(activeResultId(ctx))panel.open('RESULTS');else panel.startStudy();}),refresh=button('↻',()=>ctx.resultView.analysis==='LF'?void ctx.run('powerFlow',requestedRole(ctx)):panel.startStudy(),'Yeniden hesapla'),fit=button('Sığdır',()=>renderer.reset()),fullscreen=button('Tam ekran',()=>{if(document.fullscreenElement===root)void document.exitFullscreen();else void root.requestFullscreen();});
   calc.dataset.helpId=refresh.dataset.helpId='map.calculate';fit.dataset.helpId='map.fit';fullscreen.dataset.helpId='map.fullscreen';
   const find=button('Bul',()=>{const q=search.value.trim().toLocaleLowerCase('tr-TR'),line=ctx.network?.lines.find(l=>q&&[l.name,l.id,l.sourceId].join(' ').toLocaleLowerCase('tr-TR').includes(q));if(line){ctx.select(line.id,'ElmLne');renderer.focus(line.id,'ElmLne');closeMenus();}else ctx.setMessage('Hat bulunamadı.');});find.dataset.helpId='map.search';
   const searchGroup=element('div','ga-map-search');searchGroup.append(search,find);
@@ -42,7 +42,7 @@ export function createMapView(ctx:AppContext):Feature{
   area.onchange=()=>{ctx.filters.areaId=area.value;ctx.filters.siteId='';ctx.selection=null;panel.table.page=0;ctx.notify();};
   layout.onchange=()=>{ctx.settings.update({layoutMode:layout.value as 'standard'|'separated'});ctx.notify();};
   capacity.onchange=()=>{if(ctx.network){setCapacitySeason(ctx.network.modelHash,capacity.value as CapacitySeason);ctx.notify();}};
-  role.onchange=()=>{ctx.resultStore.role=role.value as 'base'|'scenario'|'delta';ctx.benchmarkMap=null;ctx.resultView.analysis=ctx.analysisTab='LF';ctx.notify();};
+  role.onchange=()=>{ctx.resultStore.role=role.value as 'base'|'scenario'|'delta';ctx.resultView.analysis=ctx.analysisTab='LF';ctx.resultView.source=role.value==='delta'?'Senaryo−Baz':'GA';ctx.resultView.phase=role.value==='base'?'PRE':role.value==='delta'?'CHANGE':'POST';ctx.benchmarkMap=workspaceMapSelection(ctx);ctx.notify();};
   deltaMetric.onchange=()=>{ctx.settings.update({deltaMetric:deltaMetric.value as Settings['deltaMetric']});ctx.notify();};
   function closeMenus(){root.querySelectorAll<HTMLDetailsElement>('.ga-map-menu[open]').forEach(menu=>{menu.open=false;});}
   const outside=(e:PointerEvent)=>{if(!(e.target as Element).closest('.ga-map-menu'))closeMenus();},escape=(e:KeyboardEvent)=>{if(e.key==='Escape')closeMenus();};

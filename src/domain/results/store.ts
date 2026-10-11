@@ -1,3 +1,4 @@
+import {lfComparisonReason} from './lf-comparison';
 import { identityKey, type AnalysisType, type CalculationIdentity } from '../calculation/identity';
 import type { CalculationResult } from './types';
 import { branchDelta } from './delta';
@@ -26,10 +27,8 @@ export class ResultStore {
   clear(): void { this.expected.clear(); this.results.clear(); this.role = 'base';this.scenarioId='working';this.comparisonScenarioId='B0'; }
   private comparisonResult():CalculationResult|null{const key=`${this.comparisonScenarioId}.${this.analysisType}`,r=this.results.get(key);return r&&this.expected.get(key)===identityKey(r.identity)?r:null;}
   getSnapshot(id:string,type:AnalysisType='powerFlow'):CalculationResult|null{const key=`${id}.${type}`,r=this.results.get(key);return r&&this.expected.get(key)===identityKey(r.identity)?r:null;}
-  comparable(): boolean {
-    const a = this.comparisonResult(), b = this.get('scenario');
-    return !!a && !!b && a.identity.modelHash === b.identity.modelHash && a.identity.optionsHash === b.identity.optionsHash && a.identity.engine === b.identity.engine && a.identity.engineVersion === b.identity.engineVersion && a.converged && b.converged;
-  }
+  comparisonReason():string{return lfComparisonReason(this.comparisonResult(),this.get('scenario'));}
+  comparable():boolean{return !this.comparisonReason();}
   delta() {
     if (!this.comparable()) return [];
     const a = this.comparisonResult()!, b = this.get('scenario')!;

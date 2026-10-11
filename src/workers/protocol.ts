@@ -16,6 +16,7 @@ export type WorkerRequest = {id:number}&(
   {type:'RUN_N1_AC_VALIDATE';scenario:ScenarioOverlay;outages:AcOutage[];analysisSettings:AnalysisSettings} |
   {type:'ADAPT_SC_CONTEXT';network:CanonicalNetwork;options:import('../analysis/short-circuit/source-adapter').ScAdapterOptions} |
   {type:'RUN_SC_3PH';scenario:ScenarioOverlay;context:ScSourceContext;terminals:string[];profile:ScProfile} |
+  {type:'SC_FAULT_CATALOG';scenario:ScenarioOverlay;context:ScSourceContext;terminals:string[]} |
   {type:'RUN_AC'|'RUN_DC'|'RUN_FAST';scenario:ScenarioOverlay;identity:CalculationIdentity;analysisSettings?:AnalysisSettings} |
   {type:'CATALOG';query:CatalogQuery} | {type:'RUN_MODEL_QUALITY';scenario:ScenarioOverlay} |
   {type:'BUILD_N1_CATALOG';scenario:ScenarioOverlay;capacitySeason:CapacitySeason;includeAllVoltages?:boolean} |

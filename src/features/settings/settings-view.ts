@@ -22,6 +22,7 @@ export function createSettingsView(ctx: AppContext): Feature {
       <fieldset><legend>Genel</legend>
         ${number('Ondalık basamak','precision',s.precision,'Harita kartı ve ekran hassasiyeti: 0–8; yeni kurulumda 1. Ham export değerleri korunur.', '1',0,8)}
         ${number('Envanter sayfa boyutu','pageSize',s.pageSize,'Liste başına kayıt sayısı.','1',10,100)}
+        ${number('N-1 risk uyarısı (%)','riskWarningPercent',s.riskWarningPercent,'Görsel risk uyarısı; fiziksel %100 limiti ve DC promosyon politikası ayrı kalır.','1',0,99)}
         ${number('TM simgesi boyutu','siteSize',s.siteSize,'Haritadaki TM marker yarıçapı.','.5',1,10)}
         ${check('Kaynak güzergâhı','routeDetail',s.routeDetail,'Hatların kaynak coğrafi güzergâhını gösterir.')}
       </fieldset>

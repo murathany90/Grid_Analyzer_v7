@@ -1,5 +1,5 @@
 export interface Settings {
-  precision:number;pageSize:number;siteSize:number;routeDetail:boolean;
+  precision:number;pageSize:number;siteSize:number;routeDetail:boolean;riskWarningPercent:number;
   color400: string; color220:string; color154:string; color66:string; colorLow:string; colorMid: string;
   colorOut: string; colorScenarioOff: string; colorScenarioOn: string; colorNoResult:string;
   loadingColor0:string;loadingColor1:string;loadingColor2:string;loadingColor3:string;loadingColor4:string;loadingColor5:string;loadingColor6:string;
@@ -18,7 +18,7 @@ export const defaultSettings = (): Settings => ({
   deltaMetric:'p',voltageMin:.90,voltageNeutral:1,voltageMax:1.10,voltageLowColor:'#508bc2',voltageNeutralColor:'#bccbd3',voltageHighColor:'#e4a66a',
   angleMin:-20,angleNeutral:0,angleMax:20,angleNegativeColor:'#4f91cc',angleNeutralColor:'#becbd1',anglePositiveColor:'#d8965d',
   magnitudePercentile:95,magnitudePMax:0,magnitudeQMax:0,magnitudeIntensity:1,
-  basemapStyle:'dark',showProvinceBorders:true,basemapOpacity:.7,precision:1,pageSize:20,siteSize:2.5,routeDetail:true,
+  basemapStyle:'dark',showProvinceBorders:true,basemapOpacity:.7,precision:1,pageSize:20,siteSize:2.5,routeDetail:true,riskWarningPercent:80,
   color400:'#e6534e',color220:'#8d80d8',color154:'#449bda',color66:'#51b6bc',colorLow:'#8fb0a0',colorMid:'#449bda',
   colorOut:'#708596',colorScenarioOff:'#e18b55',colorScenarioOn:'#53d2a4',colorNoResult:'#708596',
   loadingColor0:'#c5dbe3',loadingColor1:'#b6dedf',loadingColor2:'#a9d4d3',loadingColor3:'#e5c66b',loadingColor4:'#e9a96a',loadingColor5:'#e58b58',loadingColor6:'#c94345',
@@ -51,6 +51,7 @@ export class SettingsStore {
     const enums = {palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta','island','n1-island','n1-risk'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
     for (const key of Object.keys(enums) as (keyof typeof enums)[]) if (!(enums[key] as readonly string[]).includes(next[key])) Object.assign(next,{[key]:this.value[key]});
     next.precision=Math.round(Math.max(0,Math.min(8,next.precision||0)));next.pageSize=Math.round(Math.max(10,Math.min(100,next.pageSize||20)));next.siteSize=Math.max(1,Math.min(10,next.siteSize||2.5));
+    if(!Number.isFinite(next.riskWarningPercent)||next.riskWarningPercent<0||next.riskWarningPercent>=100)next.riskWarningPercent=this.value.riskWarningPercent;
     if(!Number.isFinite(next.voltageMin)||next.voltageMin<=0||next.voltageMin>=2)next.voltageMin=this.value.voltageMin;
     if(!Number.isFinite(next.voltageNeutral)||next.voltageNeutral<=0||next.voltageNeutral>=2)next.voltageNeutral=this.value.voltageNeutral;
     if(!Number.isFinite(next.voltageMax)||next.voltageMax<=0||next.voltageMax>2)next.voltageMax=this.value.voltageMax;

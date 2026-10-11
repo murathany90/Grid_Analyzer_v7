@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {calculateThreePhase,type ScProfile} from '../../src/analysis/short-circuit';
+import {calculateThreePhase,scFaultCatalog,clearScPreparationCache,type ScProfile} from '../../src/analysis/short-circuit';
 import {adaptShortCircuitSources} from '../../src/importers/powerfactory-benchmark/short-circuit-source';
 import type {ScSourceContext} from '../../src/analysis/short-circuit/source-adapter';
 import {factorPositiveSequence} from '../../src/analysis/short-circuit/positive-sequence';
@@ -19,6 +19,23 @@ for(const count of [2,3,5])test(`independent SC ${count}-bus radial Zkk / Ikss /
 });
 test('parallel branches halve branch impedance; fault resistance is in ohms',async()=>{
   const n=acNetwork(2),r=await calculateThreePhase(n,emptyScenario(),context(n),['B1'],{...profile,rfOhm:2});near(r.faults[0].zkkOhm!.im,15);near(r.faults[0].ikssKa,110/(Math.sqrt(3)*Math.hypot(3,15)));
+});
+
+test('bounded SC batches reuse component factors; source, scenario and model changes invalidate preparation',async()=>{
+  clearScPreparationCache();const n=acNetwork(3),c=context(n),scope=scFaultCatalog(n,emptyScenario(),c,['B0','B1','B1','UNKNOWN']);
+  assert.equal(scope.physicalTerminals,3);assert.equal(scope.electricalPartitions,2);assert.equal(scope.unmappedTerminals,1);assert.equal(scope.networkPartitions,3);
+  assert.equal(scope.identity.targetHash,scFaultCatalog(n,emptyScenario(),c,['UNKNOWN','B1','B0']).identity.targetHash);assert.notEqual(scope.identity.targetHash,scFaultCatalog(n,emptyScenario(),c,['B0','B2','UNKNOWN']).identity.targetHash);
+  const first=await calculateThreePhase(n,emptyScenario(),c,['B0'],profile),next=await calculateThreePhase(n,emptyScenario(),c,['B1'],profile);
+  assert.equal(first.factorizations,1);assert.equal(next.factorizations,0);assert.equal(next.rhsCount,1);near(next.faults[0].zkkOhm!.im,10+20/3);
+  c.sources[0].xOhm=20;const changed=await calculateThreePhase(n,emptyScenario(),c,['B1'],profile);assert.equal(changed.factorizations,1);assert.notEqual(changed.identity.sourceHash,next.identity.sourceHash);near(changed.faults[0].zkkOhm!.im,20+20/3);
+  const opened=await calculateThreePhase(n,{...emptyScenario(),lineStatus:{L0:false,BYPASS:false}},c,['B1'],profile);assert.equal(opened.faults[0].status,'BLOCKED');assert.equal(opened.faults[0].ikssKa,null);
+  const other={...n,modelHash:'separate-model'},fresh=await calculateThreePhase(other,emptyScenario(),{...c,modelHash:other.modelHash},['B0'],profile);assert.equal(fresh.factorizations,1);clearScPreparationCache();
+});
+
+test('retiring a preparation during an active batch does not dispose its leased factor',async()=>{
+  clearScPreparationCache();const n=acNetwork(3),c=context(n),other={...acNetwork(2),modelHash:'concurrent-sc'};
+  const [a,b]=await Promise.all([calculateThreePhase(n,emptyScenario(),c,['B0','B1','B2'],profile),calculateThreePhase(other,emptyScenario(),context(other),['B0'],profile)]);
+  assert.equal(a.factorizations,1);assert.equal(a.rhsCount,3);assert.ok(a.faults.every(f=>f.status==='CALCULATED_NETWORK_APPROXIMATION'));assert.equal(b.factorizations,1);clearScPreparationCache();
 });
 test('transformer impedance base and non-unity ratio independently agree',()=>{
   const f=factorPositiveSequence(2,[{a:0,b:1,rPu:.01,xPu:.1,tap:1.05,phaseRad:.4}],[{bus:0,rPu:.01,xPu:.1}]);
