@@ -13,7 +13,7 @@ import {solutionCompleteness} from '../domain/results/diagnostics';
 import {modelPresentationIndex,resultPresentationIndex,solutionPresentationIndex,partitionKey} from './presentation-index';
 import {postBranchMetric} from '../analysis/contingency-ac/post-results';
 export type TooltipEquipment=Site|Line|Transformer2W;
-export interface EquipmentCard {title:string;context:string;status:string;headers:string[];rows:string[][];note:string}
+export interface EquipmentCard {title:string;context:string;status:string;headers:string[];rows:string[][];note:string;details?:string}
 export const engineeringNumber=(v:unknown,signed=false,precision=1)=>formatEngineering(v,precision,{signed});
 /** Canonical endpoint convention: positive means injection from that terminal into the branch. */
 export function verifiedPowerDirection(from:unknown,to:unknown):'FROM_TO'|'TO_FROM'|'UNKNOWN'{return finiteNumber(from)&&finiteNumber(to)?from>0&&to<0?'FROM_TO':from<0&&to>0?'TO_FROM':'UNKNOWN':'UNKNOWN';}
@@ -56,14 +56,27 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
       if(b){const trafo=e.sourceClass==='ElmTr2',t=e as Transformer2W,hv=trafo?transformerFromIsHv(ctx.network,t.from,t.to,Math.max(t.vnKv,t.lvKv),Math.min(t.vnKv,t.lvKv)):true;
         const cell=(metric:string,side:string)=>buildMapPresentationData(ctx,{...selection,metric,side}).branches.get(e.sourceClass+':'+e.id)?.value;
         const post=solutionPresentationIndex(ctx.network,p.post!.post.buses,JSON.stringify([ctx.hybridResult?.identity,ctx.n1AcResults.map(c=>c.identity)])),lf=currentMapLf(ctx),base=p.post?.source==='HYBRID_FULL_AC'&&ctx.hybridResult?.basePost?solutionPresentationIndex(ctx.network,ctx.hybridResult.basePost.buses,JSON.stringify(ctx.hybridResult.identity)):lf?resultPresentationIndex(ctx.network,lf).solution:null;
+        const angleReasons=new Set<string>();
         const endpoint=(from:boolean)=>{const id=from?t.from:t.to,after=post.byTerminal.get(id),before=base?.byTerminal.get(id),term=modelPresentationIndex(ctx.network!).physicalTerminalById.get(id),pu=v.phase==='PRE'?before?.vmPu:after?.vmPu,nominal=v.phase==='PRE'?before?.vnKv:after?.vnKv,u=matchedVoltageKv(pu,nominal,term?.vnKv),voltage=v.phase==='CHANGE'?u!==null&&before&&after&&partitionKey(before)===partitionKey(after)?u-before.vmPu*before.vnKv:null:u;
+          let angle:number|null=null;
+          if(v.phase==='POST'&&after&&finiteNumber(after.angleDeg)){const r=p.recorded?.result;if(!r||angleHasReference(r,endpointBus(ctx,r,id)))angle=after.angleDeg;}
+          else if(v.phase==='PRE'||v.phase==='BASE'){if(before&&lf&&angleHasReference(lf,endpointBus(ctx,lf,id)))angle='angleDeg' in before&&finiteNumber(before.angleDeg)?before.angleDeg:'angleRad' in before&&finiteNumber(before.angleRad)?before.angleRad*180/Math.PI:null;}
+          else if(v.phase==='CHANGE'&&after&&before&&partitionKey(before)===partitionKey(after)){
+            const a=endpointBus(ctx,lf,id),r=p.recorded?.result,z=endpointBus(ctx,r??null,id),references=(r:CalculationResult|null,b:BusResult|null)=>Array.isArray(r?.diagnostics.islands)?r.diagnostics.islands.find(i=>i.islandId===b?.islandId)?.referenceSource:null;
+            if(lf&&r&&a&&z&&angleHasReference(lf,a)&&angleHasReference(r,z)&&references(lf,a)===references(r,z)&&a.islandId===z.islandId&&JSON.stringify(lf.buses.filter(b=>b.islandId===a.islandId).flatMap(b=>b.terms).sort())===JSON.stringify(r.buses.filter(b=>b.islandId===z.islandId).flatMap(b=>b.terms).sort()))angle=after.angleDeg-a.angleRad*180/Math.PI;
+            else angleReasons.add(r?'ANGLE_REFERENCE_MISMATCH':'ANGLE_REFERENCE_UNKNOWN');
+          }else angleReasons.add('ANGLE_REFERENCE_MISMATCH');
+          if(angle===null&&!angleReasons.size)angleReasons.add('ANGLE_REFERENCE_UNKNOWN');
           const rating=b.loading.basis==='CURRENT_A'?(from?b.loading.fromLimitA:b.loading.toLimitA):b.loading.ratingMva,numerator=b.loading.basis==='CURRENT_A'?(from?b.ifA:b.itA):postBranchMetric(b,'postMva',from?'FROM':'TO'),load=v.phase==='POST'&&finiteNumber(rating)&&rating>0&&finiteNumber(numerator)&&numerator>=0?100*numerator/rating:null,label=endpointStationLabel(ctx,id,from?'A':'B').label;
-          return [(trafo?(hv===null?'YG/AG ?':from===hv?'YG':'AG'):'')+' '+label,number(trafo&&hv===null?null:cell('postPmw',from?'FROM':'TO'),true),number(trafo&&hv===null?null:cell('postQmvar',from?'FROM':'TO'),true),number(load),number(mapPresentationGate(ctx,{...selection,metric:'voltageKv'}).enabled?voltage:null),'—'];};
-        card.rows=hv===false?[endpoint(false),endpoint(true)]:[endpoint(true),endpoint(false)];}
+          return [(trafo?(hv===null?'YG/AG ?':from===hv?'YG':'AG'):'')+' '+label,number(trafo&&hv===null?null:cell('postPmw',from?'FROM':'TO'),true),number(trafo&&hv===null?null:cell('postQmvar',from?'FROM':'TO'),true),number(load),number(mapPresentationGate(ctx,{...selection,metric:'voltageKv'}).enabled?voltage:null),number(angle,true)];};
+        card.rows=hv===false?[endpoint(false),endpoint(true)]:[endpoint(true),endpoint(false)];card.details=[...angleReasons].join('; ');}
       else card.rows=[['PRE',number(d?.baseFlowMw,true),number(d?.baseEstimatedLoadingPct)],['POST',number(d?.postFlowMw,true),number(d?.postEstimatedLoadingPct)]];
     }
-    else if(p.post){const value=buildMapPresentationData(ctx,{...selection,metric:'voltageKv'}).sites.get(e.id);card.headers=['Nominal (kV)','U (kV)','Açı (°)'];card.rows=[[number(representativeStationBus(ctx,e.id,null).nominal),number(value?.value),'—']];}
-    card.note=p.post?'Mevcut Full AC post-vaka kaydı; aynı kesinti ve senaryo.':'DC P-only · Q/U ve AC ihlal: NOT_RUN';return card;
+    else if(p.post){const value=buildMapPresentationData(ctx,{...selection,metric:'voltageKv'}).sites.get(e.id),nominal=representativeStationBus(ctx,e.id,null).nominal,index=solutionPresentationIndex(ctx.network,p.post.post.buses,JSON.stringify(p.post.outage)),bus=nominal===null?null:index.bySiteAndNominal.get(e.id)?.get(nominal)?.bus,lf=currentMapLf(ctx),before=bus?endpointBus(ctx,lf,bus.terms[0]):null,r=p.recorded?.result,after=bus?endpointBus(ctx,r??null,bus.terms[0]):null;let angle:number|null=null;
+      if(v.phase==='POST'&&bus&&finiteNumber(bus.angleDeg)&&(!r||angleHasReference(r,after)))angle=bus.angleDeg;
+      else if((v.phase==='PRE'||v.phase==='BASE')&&lf&&angleHasReference(lf,before))angle=before!.angleRad*180/Math.PI;
+      card.headers=['Nominal (kV)','U (kV)','Açı (°)'];card.rows=[[number(nominal),number(value?.value),number(angle,true)]];if(angle===null)card.details='ANGLE_REFERENCE_UNKNOWN';}
+    card.note=p.post?'Mevcut Full AC post-vaka kaydı; aynı kesinti ve senaryo.':'DC P-only · Q/U/açı ve AC ihlal: NOT_RUN';if(card.details)card.note+=' · '+card.details;return card;
   }
   if(v.analysis==='SC'){
     const p=selectedScPresentation(ctx),f=p.fault,relevant=e.sourceClass==='ElmSite'&&(f?.physicalTerminalFids.length?f.physicalTerminalFids:[f?.physicalTerminalFid]).some(id=>id&&modelPresentationIndex(ctx.network!).physicalTerminalById.get(id)?.siteIds.includes(e.id));
@@ -94,7 +107,7 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
     card.note=`YG bara: ${name} · aynı baranın U/açı kaydı${selected.count>1?' · +'+(selected.count-1)+' diğer bara':''}. Ayrıntı: ekipmanı seçin.`;return card;
   }
   const entity=e as Line|Transformer2W,row=r?resultPresentationIndex(ctx.network,r).branchByKey.get(e.sourceClass+':'+e.id):null,baseline=scenarioDelta?ctx.resultStore.getSnapshot(ctx.resultStore.comparisonScenarioId,'powerFlow'):null,old=baseline?resultPresentationIndex(ctx.network,baseline).branchByKey.get(e.sourceClass+':'+e.id):null;
-  const metricKeys:Partial<Record<keyof BranchResult,string>>={pf:'pFromMw',qf:'qFromMvar',pt:'pToMw',qt:'qToMvar'};
+  const metricKeys:Partial<Record<keyof BranchResult,string>>={pf:'pFromMw',qf:'qFromMvar',pt:'pToMw',qt:'qToMvar',pLoss:'pLossMw',qLoss:'qLossMvar'};
   const ga=(key:keyof BranchResult)=>scenarioDelta?scenarioLfComparison(ctx,metricKeys[key]??'').branches.get(e.sourceClass+':'+e.id)?.delta??null:finiteNumber(row?.[key])?row![key] as number:null;
   const trafo=e.sourceClass==='ElmTr2',fromHv=trafo?transformerFromIsHv(ctx.network,entity.from,entity.to,Math.max(entity.vnKv,(e as Transformer2W).lvKv),Math.min(entity.vnKv,(e as Transformer2W).lvKv)):true;
   const aLabel=endpointStationLabel(ctx,entity.from,'A'),bLabel=endpointStationLabel(ctx,entity.to,'B'),loading=isGa&&r?mapLoadingValues(ctx.network,r).get(e.sourceClass+':'+e.id):null;
@@ -109,15 +122,16 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
   const pLoss=isGa||scenarioDelta?ga('pLoss'):pf('pLossMw',e.sourceClass,e.sourceId),qLoss=isGa||scenarioDelta?ga('qLoss'):pf('qLossMvar',e.sourceClass,e.sourceId);
   const on=trafo?ctx.scenario.current.transformerStatus[e.id]??e.inService:ctx.scenario.current.lineStatus[e.id]??e.inService;
   card.title+=trafo?` · ${number(Math.max(entity.vnKv,(e as Transformer2W).lvKv))}/${number(Math.min(entity.vnKv,(e as Transformer2W).lvKv))} kV`:` · ${number(entity.vnKv)} kV`;
-  const direction=isGa?verifiedPowerDirection(row?.pf,row?.pt):'UNKNOWN',flow=direction==='FROM_TO'?'A → B':direction==='TO_FROM'?'B → A':'Yön belirsiz',capacity=loading?.maximum!=null?`${loading.basis} • ${loading.season}`:isGa?'UNKNOWN_CAPACITY':'Yük: NOT_RECORDED',maximum=isGa?loading?.maximum:scenarioDelta?null:pf('loadingPercent',e.sourceClass,e.sourceId);
+  const direction=isGa||scenarioDelta&&scenarioLfComparison(ctx,'pFromMw').enabled?verifiedPowerDirection(row?.pf,row?.pt):'UNKNOWN',flow=direction==='FROM_TO'?'A → B':direction==='TO_FROM'?'B → A':'Yön belirsiz',capacity=loading?.maximum!=null?`${loading.basis} • ${loading.season}`:isGa?'UNKNOWN_CAPACITY':'Yük: NOT_RECORDED',maximum=isGa?loading?.maximum:scenarioDelta?null:pf('loadingPercent',e.sourceClass,e.sourceId);
   card.note=`P: ${flow} · Kayıp P/Q (MW/MVAr): ${number(pLoss)}/${number(qLoss)} · ${on?'Serviste':'Servis dışı'}${trafo?' · Tap '+number((e as Transformer2W).tapPosition):''} · ${capacity}${loading?.from==null&&loading?.to==null&&maximum!=null?' · Maks yük '+number(maximum)+'%':''}${aLabel.status==='TM_BELIRSIZ'||bLabel.status==='TM_BELIRSIZ'?' · TM_BELIRSIZ':''}${trafo&&fromHv===null?' · HV/LV: BLOCKED':''}`;
-  if(scenarioDelta){const cell=scenarioLfComparison(ctx,'loadingPercent').branches.get(e.sourceClass+':'+e.id);card.note=ctx.resultStore.comparisonScenarioId+' '+number(cell?.pre)+'% · '+ctx.scenario.selectedId+' '+number(cell?.post)+'% · Δ '+number(cell?.delta,true)+' pp · '+(cell?.reason||cell?.status||'NOT_RUN');}
+  if(scenarioDelta){const cell=scenarioLfComparison(ctx,'loadingPercent').branches.get(e.sourceClass+':'+e.id);card.details=card.note+' · '+(cell?.reason||cell?.status||'NOT_RUN');card.note=ctx.resultStore.comparisonScenarioId+' '+number(cell?.pre)+'% · '+ctx.scenario.selectedId+' '+number(cell?.post)+'% · Δ '+number(cell?.delta,true)+' pp\nP: '+flow+' · ΔKayıp P/Q '+number(pLoss,true)+'/'+number(qLoss,true)+' · '+(on?'Serviste':'Servis dışı')+(trafo?' · Tap '+number((e as Transformer2W).tapPosition):'');}
   return card;
 }
 export function renderEquipmentCard(host:HTMLElement,card:EquipmentCard){
+  const oldDetails=host.querySelector<HTMLDetailsElement>('.ga-equipment-details'),open=oldDetails?.open??false,focused=oldDetails?.contains(document.activeElement);
   const head=element('header'),title=element('strong','',card.title),context=element('small','',card.context),state=element('p','ga-equipment-status',card.status),table=element('table','ga-equipment-table');head.append(title,context);host.replaceChildren(head,state);
   title.title=card.title;context.title=card.context;
   if(card.headers.length){const tr=element('tr');for(const h of card.headers)tr.append(element('th','',h));table.append(tr);for(const row of card.rows){const tr=element('tr');row.forEach((value,i)=>{const td=element('td','',value);if(i===0&&card.headers[0]==='TM / Uç'){td.className='ga-endpoint-name';td.title=value;td.setAttribute('aria-label',value);}tr.append(td);});table.append(tr);}host.append(table);}
-  host.append(element('p','ga-equipment-note',card.note));host.dataset.status=card.status;
+  host.append(element('p','ga-equipment-note',card.note));if(card.details){const details=element('details','ga-equipment-details'),summary=element('summary','','Detay');details.open=open;summary.title=card.details;details.append(summary,element('p','',card.details));host.append(details);if(focused)summary.focus({preventScroll:true});}host.dataset.status=card.status;
 }
 export function tooltipPosition(x:number,y:number,width:number,height:number,viewportWidth:number,viewportHeight:number){return {left:Math.max(8,Math.min(x+14,viewportWidth-width-8)),top:Math.max(8,Math.min(y+14,viewportHeight-height-8))};}

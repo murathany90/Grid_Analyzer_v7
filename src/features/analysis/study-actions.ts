@@ -2,6 +2,7 @@ import type {AppContext} from '../../app/contracts';
 import {element,button} from '../../ui/components/dom';
 import {createCalculationActions} from '../comparison/calculation-actions';
 import {syncMapCase} from '../../map/layer-policy';
+import {scBatchProgress,cancelScBatch} from './sc-study-state';
 
 /** Compact controls delegate to the existing scope, policy, assumption and worker actions. */
 export function createStudyActions(ctx:AppContext){
@@ -10,7 +11,7 @@ export function createStudyActions(ctx:AppContext){
   const calculations=createCalculationActions(ctx,()=>ctx.resultView.analysis,()=>ctx.comparisonOutage,true);
   advanced.append(element('summary','','Kapsam / ayarlar'),calculations.element);
   const start=()=>{syncMapCase(ctx);if(ctx.resultView.analysis==='N1'&&mode.value==='DC')calculations.screen();else if(ctx.resultView.analysis==='N1'&&mode.value==='AC'){if(ctx.comparisonOutage)void ctx.runN1AcValidation([ctx.comparisonOutage]);else ctx.setMessage('Full AC için bir kesinti seçin.');}else calculations.start();};
-  const run=button('Başlat',start),stop=button('Durdur',()=>ctx.cancel()),resume=button('Devam',()=>calculations.resume()),results=button('Sonuçlar',()=>ctx.setView('analysis:'+ctx.resultView.analysis));root.append(mode,run,stop,resume,results,advanced);
-  function render(){const family=ctx.resultView.analysis;root.hidden=family==='LF';mode.hidden=family!=='N1';run.textContent=family==='SC'?'Hesapla':'Başlat';run.setAttribute('aria-label','Harita '+family+' '+run.textContent);stop.setAttribute('aria-label','Harita '+family+' Durdur');resume.setAttribute('aria-label','Harita '+family+' Devam');run.disabled=ctx.busy||!ctx.network;stop.disabled=!ctx.busy;resume.disabled=ctx.busy||!ctx.network||family==='N1'&&!ctx.hybridResult;calculations.render();}
+  const run=button('Başlat',start),stop=button('Durdur',()=>{if(ctx.resultView.analysis==='SC')cancelScBatch(ctx);ctx.cancel();}),resume=button('Devam',()=>calculations.resume()),results=button('Sonuçlar',()=>ctx.setView('analysis:'+ctx.resultView.analysis)),progress=element('span','ga-study-progress');root.append(mode,run,stop,resume,results,progress,advanced);
+  function render(){const family=ctx.resultView.analysis;root.hidden=family==='LF';mode.hidden=family!=='N1';progress.hidden=family!=='SC';const p=family==='SC'?scBatchProgress(ctx):null;if(p){progress.textContent=`${p.processed}/${p.targets} · GA ${p.calculated} · bloke ${p.blocked} · kalan ${p.remaining}`;progress.title=`Hedef ${p.targets} · işlenen ${p.processed} · başarılı ${p.calculated} · bloke ${p.blocked} · iptal ${p.cancelled} · kalan ${p.remaining} · çalışan batch ${p.batch}`;}run.textContent=family==='SC'?'Hesapla':'Başlat';run.setAttribute('aria-label','Harita '+family+' '+run.textContent);stop.setAttribute('aria-label','Harita '+family+' Durdur');resume.setAttribute('aria-label','Harita '+family+' Devam');run.disabled=ctx.busy||!ctx.network;stop.disabled=!ctx.busy;resume.disabled=ctx.busy||!ctx.network||family==='N1'&&!ctx.hybridResult||family==='SC'&&!p?.remaining;calculations.render();}
   return {element:root,render,start};
 }

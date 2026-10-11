@@ -27,7 +27,7 @@ function activeN1Id(ctx:AppContext):string|null{
 }
 export function activeResultId(ctx:AppContext):string|null{const v=ctx.resultView;if(v.source==='PF'){const r=ctx.benchmark?.groups[v.analysis];return r?shortId('PF',stableJson(r.identity)):null;}
   if(v.analysis==='LF'){const r=ctx.resultStore.active;return r?shortId('LF',identityKey(r.identity)):null;}
-  if(v.analysis==='SC')return ctx.scResult?ctx.scResult.identity.scenarioHash===scenarioSignature(ctx.scenario.current)?shortId('SC',stableJson(ctx.scResult.identity)):null:null;
+  if(v.analysis==='SC')return ctx.scResult&&ctx.scResult.identity.modelHash===ctx.network?.modelHash&&ctx.scResult.identity.scenarioHash===scenarioSignature(ctx.scenario.current)?shortId('SC',stableJson(ctx.scResult.identity)):null;
   return activeN1Id(ctx);
 }
 

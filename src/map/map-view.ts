@@ -12,12 +12,14 @@ import {element,button,escapeHtml as h} from '../ui/components/dom';
 import {CanvasMapRenderer} from './canvas-renderer';
 import {createLightningPanel} from './lightning-panel';
 import {createBenchmarkMapControls,mapControl} from './benchmark-controls';
+import {equipmentCard,renderEquipmentCard,tooltipPosition} from './equipment-tooltip';
 
 export function createMapView(ctx:AppContext):Feature{
   const root=element('section','ga-map-view'),bar=element('div','ga-map-toolbar'),scope=element('div','ga-map-toolbar-row ga-map-scope-row'),tools=element('div','ga-map-toolbar-row ga-map-tools-row'),wrap=element('div','ga-map-wrap'),baseCanvas=element('canvas','ga-basemap-canvas'),selectionCanvas=element('canvas','ga-selection-canvas'),canvas=element('canvas','ga-network-canvas'),overlay=element('canvas','ga-flow-canvas'),tooltip=element('div','ga-map-tooltip'),legend=element('aside','ga-map-legend'),detail=element('div','ga-map-selection'),empty=element('div','ga-map-empty','Haritayı görmek için en az bir gerilim grubu seçin.');
   tooltip.hidden=true;empty.hidden=true;canvas.id='networkCanvas';bar.append(scope,tools);wrap.append(baseCanvas,canvas,selectionCanvas,overlay,tooltip,legend,detail,empty);root.append(bar,wrap);
   const renderer=new CanvasMapRenderer(ctx,canvas,overlay,tooltip,baseCanvas,selectionCanvas),panel=createLightningPanel(ctx),benchmarkControls=createBenchmarkMapControls(ctx),statusBar=element('div','ga-map-status'),statusText=element('span'),statusDetails=element('details','ga-map-status-details'),statusSummary=element('summary','','Ayrıntı'),statusBody=element('div');statusText.setAttribute('role','status');statusDetails.append(statusSummary,statusBody);statusBar.append(statusText,statusDetails);
   wrap.append(panel.element);root.append(statusBar);
+  const studyTooltip=(event:Event)=>{if(ctx.view!=='map')return;const fid=(event as CustomEvent<{fid:string}>).detail.fid,term=ctx.network?.buses.find(t=>t.sourceId===fid||t.id===fid),site=ctx.network?.sites.find(s=>term?.siteIds.includes(s.id));if(!site)return;renderer.focus(site.id,'ElmSite');renderEquipmentCard(tooltip,equipmentCard(ctx,site));tooltip.hidden=false;const rect=canvas.getBoundingClientRect(),box=tooltip.getBoundingClientRect(),p=tooltipPosition(rect.left+rect.width/3,rect.top+rect.height/2,box.width,box.height,innerWidth,innerHeight);tooltip.style.left=p.left+'px';tooltip.style.top=p.top+'px';};document.addEventListener('ga-study-map-tooltip',studyTooltip);
   const lightning=button('⚡',()=>panel.toggle(),'Elektriksel Sonuçlar');lightning.className+=' ga-lightning-toggle';lightning.dataset.helpId='map.results';wrap.append(lightning);
   const area=element('select'),layout=element('select'),role=element('select'),search=element('input'),capacity=element('select'),deltaMetric=element('select');
   area.setAttribute('aria-label','YTM filtresi');area.id='mapArea';area.dataset.helpId='map.area';
@@ -85,5 +87,5 @@ export function createMapView(ctx:AppContext):Feature{
     const selectionKey=selected?`${selected.sourceClass}|${selected.id}`:'';if(selectionKey!==lastSelection){lastSelection=selectionKey;if(selected&&selected.sourceClass!=='ElmTerm')renderer.focus(selected.id,selected.sourceClass);}
     panel.render();
   }
-  return{element:root,render,dispose:()=>{window.removeEventListener('resize',resize);document.removeEventListener('fullscreenchange',fullscreenChanged);document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);panel.dispose();renderer.dispose();}};
+  return{element:root,render,dispose:()=>{window.removeEventListener('resize',resize);document.removeEventListener('fullscreenchange',fullscreenChanged);document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',escape);document.removeEventListener('ga-study-map-tooltip',studyTooltip);panel.dispose();renderer.dispose();}};
 }
