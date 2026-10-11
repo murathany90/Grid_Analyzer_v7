@@ -71,11 +71,11 @@ export class Application implements AppContext {
     }catch(error){if(job===this.job)this.status=`Benchmark yüklenemedi: ${error instanceof Error?error.message:String(error)}`;}
     finally{if(job===this.job){this.stopLoadHeartbeat();this.loadingModel=false;this.busy=false;this.notify();}}
   }
-  async runN1AcValidation(outages:import('../analysis/contingency-ac').AcOutage[]):Promise<void>{
+  async runN1AcValidation(outages:import('../analysis/contingency-ac').AcOutage[],controlPolicy:'STRICT'|'ALLOW_PARTIAL'='STRICT'):Promise<void>{
     if(!this.network||this.busy)return;this.analysisTab='N1';this.resultView.analysis='N1';const network=this.network,job=++this.job,scenario=structuredClone(this.scenario.current),signature=scenarioSignature(scenario),settings=structuredClone(this.analysisSettings.value),settingsSignature=stableJson(settings);this.busy=true;this.n1AcResults=[];this.setMessage('Seçili kesintiler Full AC ile doğrulanıyor');
     const timeout=setTimeout(()=>{if(job===this.job){this.cancel();this.setMessage('N-1 AC zaman bütçesi doldu · CANCELLED');}},120000);
     try{if(!await this.prepareCalculationWorker(network,job))return;
-      const results=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages,analysisSettings:settings});
+      const results=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages,analysisSettings:settings,controlPolicy});
       if(job!==this.job||this.network!==network||scenarioSignature(this.scenario.current)!==signature||stableJson(this.analysisSettings.value)!==settingsSignature)return;
       this.n1AcResults=results;if(this.resultView.analysis==='N1'){this.resultView.caseId=results[0]?.outage.caseId;this.resultView.phase='POST';this.resultView.source='GA';this.resultView.metric='postLoadingPercent';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 AC · ${results.filter(r=>r.status==='CONVERGED').length}/${results.length} yakınsamış · PF ayrıntılı paritesi yok`;
     }catch(error){if(job===this.job)this.status=`N-1 AC: ${error instanceof Error?error.message:String(error)}`;}

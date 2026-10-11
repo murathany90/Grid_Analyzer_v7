@@ -19,7 +19,7 @@ export function scMethodPreflight(profile:ScProfile,context:ScSourceContext){
   }
   const requestedNormative=profile.edition===IEC_2016;
   return {schemaVersion:2 as const,engineVersion:'GA_SC_NETWORK_V2',requestedEdition:profile.edition,normativeStatus:'BLOCKED' as const,requestedNormative,
-    sourceStatus:context.sources.some(s=>s.inService&&(s.reason||s.parameterStatus==='ASSUMED'||s.parameterStatus==='UNSUPPORTED'))||context.assumptions?.length?'PARTIAL' as const:'SOURCE_INPUTS_AVAILABLE' as const,
+    sourceStatus:!context.sources.some(s=>s.inService)?'SOURCE_UNAVAILABLE' as const:context.sources.some(s=>s.inService&&(s.reason||s.parameterStatus==='ASSUMED'||s.parameterStatus==='UNSUPPORTED'))||context.assumptions?.length?'PARTIAL' as const:'SOURCE_INPUTS_AVAILABLE' as const,
     sourceFamilies:families,corrections:{KT:'NOT_IMPLEMENTED',KG:'NOT_IMPLEMENTED',KKW:'NOT_IMPLEMENTED'},
     blockers:[...IEC_2016_BLOCKERS,...(requestedNormative&&profile.frequencyHz!==50?['REQUESTED_50_HZ_PROFILE_NOT_RECORDED']:[]),...(profile.faultType!=='3PH'?['SEQUENCE_AND_GROUNDING_MODEL_NOT_IMPLEMENTED']:[])],
     times:{breakerOpeningTimeS:profile.breakerOpeningTimeS??null,thermalClearingTimeS:profile.thermalClearingTimeS??null},

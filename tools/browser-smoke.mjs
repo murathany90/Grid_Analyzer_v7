@@ -155,6 +155,21 @@ try{
    if(await page.locator('.ga-context-help,.ga-help-field').count()||await page.getByRole('button',{name:/^Bilgi:/}).count())throw Error('Decorative information buttons remain: '+label);
    if(label==='Analizler'||label==='Ayarlar'){await page.mouse.move(0,0);await page.screenshot({path:'local-benchmark-results/desktop-map-'+(label==='Analizler'?'analysis':'settings')+'.png'});}
  }
+ await page.getByRole('button',{name:'Analizler',exact:true}).click();const workspace=page.locator('.ga-analysis-workspace');
+ for(const viewport of [{width:1366,height:768},{width:1440,height:900},{width:1600,height:900},{width:1920,height:1080}]){
+   await page.setViewportSize(viewport);
+   for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
+     await workspace.getByRole('button',{name:label,exact:true}).click();if(label==='Kısıt Analizi (N-1)')await workspace.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');if(label==='Yük Akışı Analizi')await workspace.getByLabel('LF sonuç görünümü',{exact:true}).selectOption('COMMON');
+     const layout=workspace.locator('.ga-analysis-layout:visible'),geometry=await layout.evaluate(e=>({columns:getComputedStyle(e).gridTemplateColumns.split(' ').length,width:e.getBoundingClientRect().width,overflow:document.documentElement.scrollWidth>innerWidth}));
+     if(geometry.columns!==3||geometry.overflow)throw Error('Analysis three-column geometry '+JSON.stringify({viewport,label,geometry}));if(await layout.locator('.ga-analysis-evidence .ga-study-verdict').count()!==4)throw Error('Analysis evidence verdicts missing');
+     if(await layout.locator('.ga-study-table tbody tr').count()>50)throw Error('Unbounded common study DOM');
+   }
+   await page.screenshot({path:'local-benchmark-results/analysis-v7-20261011/analysis-sc-'+viewport.width+'.png'});
+ }
+ const shared=workspace.locator('.ga-workspace-results'),columns=shared.locator('.ga-study-columns');await columns.locator('summary').click();await columns.getByLabel('YTM sütunu',{exact:true}).uncheck();if((await shared.locator('thead th').allTextContents()).includes('YTM'))throw Error('Column visibility not applied');await columns.getByLabel('YTM sütunu',{exact:true}).check();await columns.locator('summary').click();
+ await shared.getByLabel('Sonuç YTM filtresi',{exact:true}).selectOption({index:0});await shared.getByLabel('Sonuç ondalık basamak',{exact:true}).selectOption('3');await shared.getByLabel('Çoklu sonuç sıralaması',{exact:true}).check();await shared.locator('[data-study-sort="nominal"]').click();await shared.locator('[data-study-sort="ikss"]').click();
+ const jsonDownload=page.waitForEvent('download');await shared.getByRole('button',{name:'JSON',exact:true}).click();if((await jsonDownload).suggestedFilename()!=='GA_Study.local.json')throw Error('Common JSON export missing');
+ if(await shared.locator('tbody tr').count()){const row=shared.locator('tbody tr').first();await row.focus();await row.press('Enter');if(await page.locator('.ga-nav [aria-current="page"]').textContent()!=='Harita')throw Error('Keyboard row focus did not show map');}
  if(errors.length)throw Error(`Browser JS errors: ${errors.join('; ')}`);
  console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → PF mismatch comparison/XLSX/CSV → structured topology → map angle/island → settings → Lightning results → SLD.');
 }finally{

@@ -23,6 +23,7 @@ export function n1ControlEvidence(network:CanonicalNetwork,result:CalculationRes
   if(network.stationControllers.some(c=>c.inService)&&stationMode==='off')reasons.push('STATION_CONTROL_OFF_LOCAL_PV_PROFILE');
   if(stationMode!=='off'){
     if(network.stationControllers.some(c=>c.inService)&&!station)reasons.push('STATION_SUPPORT_EVIDENCE_MISSING');
+    if(network.stationControllers.some(c=>c.inService)&&!convergence?.stationControl)reasons.push('STATION_CONVERGENCE_EVIDENCE_MISSING');
     if((station?.unsupported??0)>0||(station?.unsupportedProfile??0)>0)reasons.push('UNSUPPORTED_STATION_CONTROL');
     if(convergence?.stationControl==='STATION_CONTROL_PARTIAL')reasons.push('STATION_CONTROL_NOT_CONVERGED');
     if(fallback?.occurred)reasons.push('STATION_CONTROL_BASELINE_FALLBACK');

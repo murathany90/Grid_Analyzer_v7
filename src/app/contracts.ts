@@ -41,7 +41,7 @@ export interface AppContext {
   runSc(terminals:string[],profile:import('../analysis/short-circuit').ScProfile,adapterOptions?:import('../analysis/short-circuit/source-adapter').ScAdapterOptions):Promise<void>;
   benchmarkMap:BenchmarkMapSelection|null;
   loadBenchmarkPair(model:File,benchmark:File):Promise<void>;
-  runN1AcValidation(outages:AcOutage[]):Promise<void>;
+  runN1AcValidation(outages:AcOutage[],controlPolicy?:'STRICT'|'ALLOW_PARTIAL'):Promise<void>;
   modelQualityResult: ModelQualityAuditResult | null;
   modelQualityScenarioHash: string | null;
   modelQualityAnalysisScope: 'base'|'scenario'|null;
