@@ -28,7 +28,7 @@ ctx.network={...base,sites,buses:base.buses.map(b=>({...b,siteIds:b.id==='B1'?['
 ctx.hybridResult=await runHybridN1(ctx.network,ctx.scenario.current,{analysisSettings:ctx.analysisSettings.value,studyProfile:'NATIVE_PARTIAL_CONTROLS',selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}});
 ctx.n1AcResults=await validateAcOutages(ctx.network,ctx.scenario.current,[{caseId:'N1:ElmLne:BYPASS',sourceClass:'ElmLne',fid:'BYPASS'}],{analysisSettings:ctx.analysisSettings.value,controlPolicy:'ALLOW_PARTIAL'});
 const w=createAnalysisWorkspace(ctx);document.querySelector('#app').append(w.element);ctx.subscribe(()=>w.render());ctx.notify();window.evidence=()=>studyEvidence(ctx);
-window.largeSc=()=>{const f=scAuditFixture(6278);ctx.network=f.network;ctx.scenario=f.ctx.scenario;ctx.benchmark=f.benchmark;ctx.scResult=f.result([f.fault(0,'CALCULATED_NETWORK_APPROXIMATION'),f.fault(1),f.fault(2,'CALCULATED_NETWORK_APPROXIMATION')]);ctx.hybridResult=null;ctx.n1AcResults=[];ctx.resultView={...f.ctx.resultView};ctx.analysisTab='SC';ctx.notify();};
+window.largeSc=()=>{const f=scAuditFixture(6278);ctx.network=f.network;ctx.scenario=f.ctx.scenario;ctx.benchmark=f.benchmark;ctx.scResult=f.result([f.fault(0,'CALCULATED_NETWORK_APPROXIMATION'),f.fault(1),f.fault(2,'CALCULATED_NETWORK_APPROXIMATION')]);ctx.hybridResult=null;ctx.n1AcResults=[];ctx.resultView={...f.ctx.resultView};ctx.analysisTab='SC';ctx.notify();ctx.scResult=f.result([f.fault(0,'CALCULATED_NETWORK_APPROXIMATION'),f.fault(1),f.fault(2,'CALCULATED_NETWORK_APPROXIMATION')]);ctx.notify();};
 window.ready=true;
 </script></body></html>`;
   const target=new URL('analysis-evidence.html',url).href,proof={dataset:'SYNTHETIC_UI_AND_TINY_NATIVE_RESULTS',geometry:[],errors};
@@ -54,7 +54,7 @@ window.ready=true;
       }
       proof.geometry.push({width,rows:await sc.locator('.ga-study-table tbody tr').count(),overflow:false});assert.ok(proof.geometry.at(-1).rows<=50);
     }
-    await page.setViewportSize({width:1440,height:900});const shared=sc.locator('.ga-workspace-results');
+    await page.setViewportSize({width:1440,height:900});const shared=sc.locator('.ga-workspace-results');assert.equal(Number(await shared.getAttribute('data-ga-calculated-count')),2);assert.equal(Number(await shared.getAttribute('data-ga-blocked-count')),1);
     proof.filters=await shared.evaluate(e=>{const input=e.querySelector('[aria-label="Ortak sonuçlarda FID ara"]'),times=[];for(let i=0;i<25;i++){input.value=i%2?'Terminal 1':'';const t=performance.now();input.dispatchEvent(new Event('input'));if(i>=5)times.push(performance.now()-t);if(e.querySelectorAll('tbody tr').length>50)throw Error('Unbounded rows');}input.value='';input.dispatchEvent(new Event('input'));times.sort((a,b)=>a-b);return {catalog:Number(e.dataset.totalFaultCatalogCount),samples:times.length,medianMs:(times[9]+times[10])/2,p95Ms:times[18],maxMs:times.at(-1)};});assert.equal(proof.filters.catalog,6278);
     assert.deepEqual(await page.evaluate(()=>workerRequests),[]);assert.deepEqual(errors,[]);
     await mkdir('local-benchmark-results/analysis-hardening-20261012',{recursive:true});await writeFile('local-benchmark-results/analysis-hardening-20261012/ui-proof.json',JSON.stringify(proof,null,2));await page.screenshot({path:'local-benchmark-results/analysis-hardening-20261012/sc-1440.png'});

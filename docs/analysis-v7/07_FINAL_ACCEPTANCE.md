@@ -1,5 +1,7 @@
 # Son kabul — Analizler / native N-1 / IEC 2016
 
+Bu belge ae82a5f başlangıç feature kabulünü kaydeder. 12.10.2026 bağımsız denetim düzeltmeleri, güncel test sayısı ve portable için [08_INDEPENDENT_AUDIT_FIXES.md](08_INDEPENDENT_AUDIT_FIXES.md) belgesine bakın.
+
 Teslim durumu **PARTIAL**. Çalışan LF/DC motorları korunarak arayüz, kontrol doğruluğu, gerçek kapsam sayacı, kullanıcı işletme limitleri ve SC yöntem sınırı geliştirildi. Tam native kontrol desteği ve normatif IEC 60909-0:2016 tamamlanmadı. Bağımsız normatif kanıt kapısı kapalıdır; tanısal hesaplar IEC/PF paritesi diye yeniden etiketlenmez.
 
 Başlangıç ve korunan main: `9b1eee94d5ef4548716611fc5447f07727c41d51`. Çalışma dalı: `feat/analysis-ui-native-n1-iec60909-2016`. Main'e merge/push yapılmaz; bu prompt ayrıca onay gerektirir. Dallar/tag'ler otomatik silinmez. Başlangıç main'in bağımsız CI'ı [38169566522](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38169566522) başarılıdır; bu feature CI yerine geçmez.
