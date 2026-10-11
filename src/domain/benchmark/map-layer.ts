@@ -5,7 +5,7 @@ import type { AppContext } from '../../app/contracts';
 import { metricRows,preflightBenchmark,type BenchmarkMetricRow,METRICS } from './comparison';
 import { rowObject } from './types';
 import { scenarioSignature,emptyScenario } from '../scenario/overlay';
-import {resolveN1Post,lfSnapshotIsCurrent} from './post-result-source';
+import {resolveN1Post,lfSnapshotIsCurrent,selectN1Result} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import { stableJson } from '../calculation/identity';
 import {hasReference} from './reference-slots';
@@ -49,7 +49,9 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     if(gate?.status!=='COMPARABLE_PARTIAL')return {enabled:false,reason:gate?.reasons.join('; ')||'METHOD_MISMATCH'};
   }
   if(s.analysis==='N1'&&s.source==='GA'){
+    const selected=selectN1Result({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults,dc:ctx.n1Result},s.caseId);
     const post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},s.caseId??'');
+    if(selected.current&&selected.ac&&!post)return {enabled:false,reason:selected.ac.status+'; SELECTED_MANUAL_POST_NOT_AVAILABLE'};
     const dc=ctx.n1Result,validDc=!!dc&&dc.identity.modelHash===ctx.network.modelHash&&dc.identity.scenarioHash===scenarioSignature(ctx.scenario.current)&&dc.candidates.some(c=>{const e=[...ctx.network!.lines,...ctx.network!.transformers].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return s.caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;});
     if(!post&&!validDc)return {enabled:false,reason:'GA_N1_NOT_CALCULATED_OR_STALE'};
     if(!post&&!['postLoadingPercent','postPmw'].includes(s.metric))return {enabled:false,reason:'GA_DC_P_ONLY'};

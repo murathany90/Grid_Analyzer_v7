@@ -1,4 +1,4 @@
-import {resolveN1Post} from './post-result-source';
+import {resolveN1Post,selectN1Result} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import type {HybridResult} from '../../analysis/contingency-hybrid';
 import type {ScResult} from '../../analysis/short-circuit';
@@ -17,7 +17,7 @@ export function augmentCalculatedRow(r:BenchmarkMetricRow,raw:Record<string,stri
   // equivalence has been supplied for an arbitrary edited overlay.
   if(scenarioSignature(s)!==scenarioSignature(emptyScenario()))return;
   if(r.analysis==='N1'&&r.table==='N1_RecordedExtrema_Raw'){
-    const resolved=resolveN1Post(o,r.caseId),h=o.hybrid,c=h?.cases.find(c=>c.outage.caseId===r.caseId&&c.outage.fid===raw.outageFid&&c.outage.sourceClass===raw.outageClass);
+    const selected=selectN1Result(o,r.caseId),resolved=resolveN1Post(o,r.caseId),h=selected.hybrid,c=selected.hybridCase?.outage.fid===raw.outageFid&&selected.hybridCase.outage.sourceClass===raw.outageClass?selected.hybridCase:undefined;
     const parsed=/^N1:(ElmLne|ElmTr2):(.+)$/.exec(r.caseId);if(parsed&&(parsed[1]!==raw.outageClass||parsed[2]!==raw.outageFid))return;
     if(!resolved&&!c)return;if(resolved&&(resolved.outage.fid!==raw.outageFid||resolved.outage.sourceClass!==raw.outageClass))return;
     const branch=resolved?.post.branches.find(b=>b.sourceClass===r.sourceClass&&b.fid===r.fid);

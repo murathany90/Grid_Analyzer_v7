@@ -12,7 +12,7 @@ import {buildBenchmarkMapData,benchmarkMapGate,type BenchmarkMapData} from '../d
 import {metricRows,preflightBenchmark} from '../domain/benchmark/comparison';
 import {scenarioSignature,emptyScenario} from '../domain/scenario/overlay';
 import {voltageMatches} from '../domain/model/voltage-band';
-import {lfSnapshotIsCurrent,resolveN1Post} from '../domain/benchmark/post-result-source';
+import {lfSnapshotIsCurrent,resolveN1Post,selectN1Result} from '../domain/benchmark/post-result-source';
 import {solutionCompleteness} from '../domain/results/diagnostics';
 import {rowObject} from '../domain/benchmark/types';
 import {modelPresentationIndex,highestNominalBySite,resultPresentationIndex,solutionPresentationIndex,partitionKey,type SolvedBus} from './presentation-index';
@@ -168,9 +168,8 @@ export function currentN1Metadata(ctx:AppContext){
 }
 export function selectedN1Presentation(ctx:AppContext){
   const id=ctx.resultView.caseId??'',post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,ac:ctx.n1AcResults,hybrid:ctx.hybridResult},id);
-  const dc=ctx.n1Result,valid=dc?.identity.modelHash===ctx.network?.modelHash&&dc?.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
-  const candidate=valid?dc?.candidates.find(c=>{const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass);return id===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;}):undefined;
-  const metadata=currentN1Metadata(ctx),recorded=metadata.ac.find(c=>c.outage.caseId===id),hybrid=metadata.hybrid?.cases.find(c=>c.outage.caseId===id);
+  const selected=selectN1Result({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,ac:ctx.n1AcResults,hybrid:ctx.hybridResult,dc:ctx.n1Result},id);
+  const candidate=selected.current?selected.candidate:undefined,recorded=selected.current?selected.ac:undefined,hybrid=selected.current?selected.hybridCase:undefined;
   return {post,candidate,recorded,hybrid,method:post?.source??(recorded?'MANUAL_FULL_AC':hybrid?'HYBRID_FULL_AC':candidate?'GA_DC_SCREEN':'NOT_RUN'),status:post?.status??recorded?.status??hybrid?.status??candidate?.status??'NOT_RUN'};
 }
 /** Select an existing row without requesting the N-1 detail worker. */

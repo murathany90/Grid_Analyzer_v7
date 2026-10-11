@@ -1,5 +1,5 @@
 import {buildBenchmarkMapData,type BenchmarkMapSelection} from '../benchmark/map-layer';
-import {resolveN1Post} from '../benchmark/post-result-source';
+import {resolveN1Post,selectN1Result} from '../benchmark/post-result-source';
 import {sha256} from '@noble/hashes/sha2.js';
 import type {AppContext} from '../../app/contracts';
 import {stableJson,identityKey} from '../calculation/identity';
@@ -15,12 +15,12 @@ const n1Ids=new WeakMap<AppContext,{key:string;refs:unknown[];id:string|null}>()
 /** READY belongs to a recorded case/phase/metric, never to the enclosing run. */
 function activeN1Id(ctx:AppContext):string|null{
   const v=ctx.resultView;if(!ctx.network||!v.caseId)return null;
-  const c=ctx.n1AcResults.find(c=>c.outage.caseId===v.caseId),h=ctx.hybridResult?.cases.find(c=>c.outage.caseId===v.caseId),selection=ctx.benchmarkMap?.analysis==='N1'&&ctx.benchmarkMap.caseId===v.caseId&&ctx.benchmarkMap.metric===v.metric?ctx.benchmarkMap:workspaceMapSelection(ctx);
+  const owner=selectN1Result({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults,dc:ctx.n1Result},v.caseId),c=owner.ac,h=owner.hybridCase,selection=ctx.benchmarkMap?.analysis==='N1'&&ctx.benchmarkMap.caseId===v.caseId&&ctx.benchmarkMap.metric===v.metric?ctx.benchmarkMap:workspaceMapSelection(ctx);
   const key=stableJson([v.caseId,v.phase,v.metric,v.source,v.side,selection,ctx.analysisSettings.value,ctx.powerFactoryControlContextHash]),refs=[ctx.network,ctx.scenario.current,ctx.benchmark,ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow'),ctx.n1Result,ctx.n1AcResults,c?.result,c?.status,ctx.hybridResult,ctx.hybridResult?.basePost,h?.mapResults,h?.status],old=n1Ids.get(ctx);
   if(old?.key===key&&old.refs.every((r,i)=>r===refs[i]))return old.id;
   const data=buildBenchmarkMapData(ctx,selection);let id:string|null=null;
   if(data.enabled&&(data.numericValues??0)>0){
-    const post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},v.caseId),identity=post?.source==='MANUAL_FULL_AC'?c?.identity:post?.source==='HYBRID_FULL_AC'?ctx.hybridResult?.identity:ctx.n1Result?.identity;
+    const post=resolveN1Post({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults},v.caseId),identity=post?.source==='MANUAL_FULL_AC'?c?.identity:post?.source==='HYBRID_FULL_AC'?owner.hybrid?.identity:owner.dc?.identity;
     if(identity)id=shortId('N1',stableJson([identity,post?.source??'GA_DC_SCREEN',v.caseId,selection.n1Layer,v.metric,v.side]));
   }
   n1Ids.set(ctx,{key,refs,id});return id;
