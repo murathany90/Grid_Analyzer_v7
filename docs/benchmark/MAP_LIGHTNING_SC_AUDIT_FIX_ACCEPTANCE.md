@@ -43,13 +43,23 @@ SN3 ve SN4 gerçek cache N-1/SC UI replay'i **1366×768, 1440×900, 1600×900, 1
 
 Tooltip ölçümü **340×151,91 px**; Δ/Detay **340×185,66 px** ve alt sınır 1072 ≤ 1080; Tab odak/Detay/ESC yeniden açma geçti. Hesap bütçesi testi gerçek controller'a **sentetik mock worker cevapları** verir: 10+20 aynı kimlik 30 BLOCKED kayıt; sourceHash değişince yalnız yeni 1 kayıt. Bu 30 gerçek SC çözümü değildir.
 
-Yerel tam test bir kez **398: 397 pass / 1 fail** çalıştı; tek hata yeni portable'ın henüz eski HEAD artifact'ine karşı karşılaştırılmasıydı. Güncel portable uygulama commit'ine alındı; başarısız portable-byte dosyası **5/5**, son yeni unit dosyası **8/8** geçti. Test kaldırılmadı/skip edilmedi. Typecheck, lint (274 kaynak), üç E2E suite, standart build, portable build ve `git diff --check` geçti. Son küçük iptal/sunum değişikliğinden sonra yalnız yeni browser suite tekrarlandı; kapsamlı gerçek analiz tekrarlanmadı. Final commit'in bütün 398 testi exact-HEAD CI ile ayrıca doğrulanacaktır.
+Yerel tam test bir kez **398: 397 pass / 1 fail** çalıştı; tek hata yeni portable'ın henüz eski HEAD artifact'ine karşı karşılaştırılmasıydı. Güncel portable uygulama commit'ine alındı; başarısız portable-byte dosyası **5/5**, son yeni unit dosyası **8/8** geçti. Test kaldırılmadı/skip edilmedi. Typecheck, lint (274 kaynak), üç E2E suite, standart build, portable build ve `git diff --check` geçti. Son küçük iptal/sunum değişikliğinden sonra yalnız yeni browser suite tekrarlandı; kapsamlı gerçek analiz tekrarlanmadı. Uygulama+ilk kabul belgesi HEAD'i `131b1953f422ffdb02ab2181deaa607f5ef1c22c` için [feature CI 38159599652](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38159599652) **completed/success**; job log'unda **398 test / 398 pass / 0 fail / 0 skip**, üç E2E ve committed portable-byte kapısı doğrulandı. Ayrıca güncel committed portable üzerinden `pf-benchmark-browser-smoke.ts --portable` geçti; dış ağ kaynakları kapalı sentetik browser kabulüdür.
 
 Portable: **1.649.720 bayt**, raw SHA-256 `13e658ad0350a2fc8ee808e23c44e7cf993f60d1f360ed9da10ad4a647068630`. İki ardışık build deterministik; committed blob ile aynı ve LF-only.
 
 ## Yayın / dal temizliği
 
-Bu belge hazırlığında feature `codex/map-lightning-sc-multifault-audit-20261011`; feature CI, main FF, ayrı main CI ve uzaktaki dal/tag kapanış kanıtı yayın kapıları geçtikten sonra eklenecektir. Başarısız CI ile merge veya dal silme yapılmaz.
+Yayın kapıları gerçekleşti: feature exact HEAD `131b1953f422ffdb02ab2181deaa607f5ef1c22c`, [feature CI 38159599652](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38159599652) **completed/success**. Yeniden fetch sonrası `origin/main` atalık kontrolü geçti; `84d0472613a487396f3cfcf79f21cc071ec6b8a2 → 131b1953f422ffdb02ab2181deaa607f5ef1c22c` **merge --ff-only** ve normal main push yapıldı. Aynı SHA için ayrı [main CI 38159789225](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38159789225) **completed/success**, **398/398, fail 0, skip 0**, üç E2E ve raw portable kapısı geçti.
+
+Silmeden önce tüm uzak heads/tags kaydedildi. `codex/map-lightning-sc-multifault-audit-20261011` son SHA'sı `131b1953f422ffdb02ab2181deaa607f5ef1c22c`; `merge-base --is-ancestor feature origin/main` başarılı ve ayrı main CI yeşil olduktan sonra **yalnız bu tur oluşturulan uzak feature silindi**. Son `fetch --prune` + `ls-remote --heads --tags` sonucu:
+
+| Kalan uzak ref | SHA |
+|---|---|
+| main (uygulama entegrasyonu ve temizlik anında) | 131b1953f422ffdb02ab2181deaa607f5ef1c22c |
+| pf-parity-v2-validated tag object | 0f2b18243a31a840895775e187e368ef1da9d42e |
+| pf-parity-v2-validated peeled target | c8c940360cd851604996b54cab17cdcce9a61aa3 |
+
+Üç eski investigation dalı (`q_parity_investigation`, `investigation/q-parity-transformer-q-balance`, `investigation/u2909-same-root`) bu turun başında ve sonunda uzak refs'te yoktu; bu tur silindiği iddia edilmez ve yeniden kurulmadı. Bu belgeyi kapatan commit yalnız bu Markdown'ı değiştirir; kaynak/portable uygulama SHA'sı ve yukarıdaki CI kanıtı aynen kalır. Belge push'u sonrası oluşan son main HEAD/CI, teslim mesajında ve ignored `local-benchmark-results/map-lightning-audit-release-private.json` kaydında ayrıca doğrulanır; yerel kapsamlı test veya gerçek analiz tekrarlanmaz.
 
 ## Açık hesap yetenekleri / veri gereksinimi
 
