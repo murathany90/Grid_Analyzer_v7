@@ -1,6 +1,6 @@
 import {stableJson} from '../../domain/calculation/identity';
 import type {AnalysisSettings} from '../../domain/calculation/analysis-settings';
-export type HybridStudyProfile='CURRENT_SETTINGS'|'GA_APPROX_STATION_OFF';
+export type HybridStudyProfile='CURRENT_SETTINGS'|'NATIVE_PARTIAL_CONTROLS'|'GA_APPROX_STATION_OFF';
 /** Only an explicit study-profile selection disables station control. Global LF settings stay intact. */
 export function hybridStudySettings(settings:AnalysisSettings,profile:HybridStudyProfile):AnalysisSettings{
   const copy=structuredClone(settings);

@@ -8,6 +8,7 @@ import { BrowserJsPowerFlowEngine } from '../api/browser-js-engine';
 import { prepareModel } from '../power-flow/preparation';
 import { buildTopology } from '../../topology/electrical-topology';
 import { sha256 } from '@noble/hashes/sha2.js';
+import {n1ControlEvidence,type ControlEvidence} from './control-evidence';
 
 export type AcContingencyStatus='CONVERGED'|'PARTIAL_SOLUTION'|'DIVERGED'|'ISLAND_UNSUPPLIED'|'UNSUPPORTED_CONTROL_CONFIGURATION'|'CANCELLED'|'NOT_COMPUTABLE';
 export interface AcOutage {caseId:string;sourceClass:'ElmLne'|'ElmTr2';fid:string}
@@ -15,9 +16,9 @@ export interface AcContingency {
   outage:AcOutage;method:'GA_AC_POST_CONTINGENCY';status:AcContingencyStatus;reason:string;
   identity:{modelHash:string;baseScenarioHash:string;scenarioHash:string;settingsHash:string;topologyIdentity:string;key:string};
   components?:{islandId:string;status:'SUPPLIED_COMPONENT'|'UNSUPPLIED_COMPONENT'|'UNSUPPORTED_COMPONENT';busCount:number}[];
-  result:CalculationResult|null;unsuppliedLoadMw?:number;elapsedMs:number;branchApparentPower:{sourceClass:string;fid:string;sfMva:number;stMva:number;loadingPercent:number|null}[];
+  result:CalculationResult|null;controlEvidence?:ControlEvidence;unsuppliedLoadMw?:number;elapsedMs:number;branchApparentPower:{sourceClass:string;fid:string;sfMva:number;stMva:number;loadingPercent:number|null}[];
 }
-export interface AcValidationOptions {maxCases?:number;timeBudgetMs?:number;maxBuses?:number;analysisSettings?:AnalysisSettings;signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void}
+export interface AcValidationOptions {maxCases?:number;timeBudgetMs?:number;maxBuses?:number;analysisSettings?:AnalysisSettings;controlPolicy?:'STRICT'|'ALLOW_PARTIAL';signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void}
 /** Opt-in service only. A copied overlay is the sole solver input change. */
 export async function validateAcOutages(network:CanonicalNetwork,scenario:ScenarioOverlay,outages:readonly AcOutage[],options:AcValidationOptions={}):Promise<AcContingency[]>{
   const max=options.maxCases??3,budget=options.timeBudgetMs??120000,start=performance.now();
@@ -53,11 +54,12 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     options.onProgress?.('N1_AC_VALIDATE',{message:`AC kesinti doğrulaması: ${outage.caseId}`});
     const result=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario:overlay,identity:identity(network.modelHash,overlay,'powerFlow',{analysisSettings:options.analysisSettings,contingency:key}),analysisSettings:options.analysisSettings},options.onProgress);
     if(options.signal?.aborted||performance.now()-start>budget){row.status='CANCELLED';row.reason='CANCELLED_OR_TIME_BUDGET';finish();continue;}
-    const controls=result.diagnostics.stationControllerSummary as {unsupported?:number;unsupportedProfile?:number}|undefined;
-    if((options.analysisSettings?.powerFlow.stationControlMode??'off')!=='off'&&((controls?.unsupported??0)>0||(controls?.unsupportedProfile??0)>0)){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason='UNSUPPORTED_STATION_CONTROL';}
-    else if(!result.converged){row.status='DIVERGED';row.reason=result.status;}
+    const controls=n1ControlEvidence(post,result,options.analysisSettings);row.controlEvidence=controls;
+    const allowPartial=options.controlPolicy==='ALLOW_PARTIAL'||controls.reasons.every(r=>r==='STATION_CONTROL_OFF_LOCAL_PV_PROFILE');
+    if(!result.converged){row.status='DIVERGED';row.reason=result.status;}
     else if(result.maxMismatchMw===null||!Number.isFinite(result.maxMismatchMw)){row.status='NOT_COMPUTABLE';row.reason='MISSING_PHYSICAL_RESIDUAL';}
-    else{row.status=partial?'PARTIAL_SOLUTION':'CONVERGED';row.reason=partial?'UNSUPPLIED_COMPONENTS_EXCLUDED_FROM_NUMERICAL_SOLUTION':'';if((options.analysisSettings?.powerFlow.stationControlMode??'off')==='off'&&post.stationControllers.some(c=>c.inService))row.reason+='; STATION_CONTROL_OFF_LOCAL_PV_PROFILE; CONTROL_FIDELITY_PARTIAL';row.result=result;row.branchApparentPower=result.branches.map(b=>({sourceClass:b.sourceClass,fid:b.id,sfMva:Math.hypot(b.pf,b.qf),stMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading}));}
+    else if(controls.fidelity==='CONTROL_FIDELITY_PARTIAL'&&!allowPartial){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason=controls.reasons.join('; ');}
+    else{row.status=partial||controls.fidelity!=='CONTROL_VERIFIED'?'PARTIAL_SOLUTION':'CONVERGED';row.reason=[partial?'UNSUPPLIED_COMPONENTS_EXCLUDED_FROM_NUMERICAL_SOLUTION':'',...controls.reasons,controls.fidelity!=='CONTROL_VERIFIED'?'CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY':''].filter(Boolean).join('; ');row.result=result;row.branchApparentPower=result.branches.map(b=>({sourceClass:b.sourceClass,fid:b.id,sfMva:Math.hypot(b.pf,b.qf),stMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading}));}
     finish();
   }
   return results;

@@ -100,7 +100,7 @@ export class Application implements AppContext {
         onCaseDetail:async(caseId,detail)=>{if(current()&&this.hybridResult)await this.database.put('hybrid-detail:'+stableJson({identity:this.hybridResult.identity,caseId}),detail);},
         solveBase:budget=>work(async()=>unpackResult(await this.calculation.request<PackedResult>({type:'RUN_AC',scenario,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:settings}),analysisSettings:settings})),budget),
         screen:(opts,budget)=>work(()=>this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options:opts}),budget),
-        solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings});return rows[0];},budget),
+        solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings,controlPolicy:options.studyProfile==='NATIVE_PARTIAL_CONTROLS'||options.studyProfile==='GA_APPROX_STATION_OFF'?'ALLOW_PARTIAL':'STRICT'});return rows[0];},budget),
       });
       if(current()){this.hybridResult=result;if(this.resultView.analysis==='N1'){this.resultView.caseId=result.cases[0]?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 hibrit · ${result.status} · ${JSON.stringify(result.counts)} · ${result.reason}`;}
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}

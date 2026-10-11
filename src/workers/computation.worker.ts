@@ -56,7 +56,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       send({type:'RESULT',value:await calculateThreePhase(network,data.scenario,data.context,data.terminals,data.profile,{onProgress:progress})});
     }else if(data.type==='RUN_N1_AC_VALIDATE'){
       if(!network)throw Error('Model yüklenmedi.');
-      send({type:'RESULT',value:await validateAcOutages(network,data.scenario,data.outages,{maxCases:3,timeBudgetMs:120000,analysisSettings:data.analysisSettings,onProgress:progress})});
+      send({type:'RESULT',value:await validateAcOutages(network,data.scenario,data.outages,{maxCases:3,timeBudgetMs:120000,analysisSettings:data.analysisSettings,controlPolicy:data.controlPolicy,onProgress:progress})});
     }else if(data.type==='LOAD_MODEL'){
       progress('MODEL',{message:'Dosya okunuyor'});const started=performance.now(),buffer=await data.file.arrayBuffer();
       const digest=await crypto.subtle.digest('SHA-256',buffer),modelHash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');

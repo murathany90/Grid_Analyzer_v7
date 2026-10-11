@@ -10,6 +10,8 @@ for(const count of [3,5])test(`${count}-bus AC outage agrees with independent lo
   const p=.3,q=.1,x=(count-1)*.1,y=(1-2*x*q+Math.sqrt((1-2*x*q)**2-4*x*x*(p*p+q*q)))/2;
   const last=result.result!.buses.find(b=>b.terms.includes(`B${count-1}`))!;assert.ok(Math.abs(last.vmPu-Math.sqrt(y))<1e-5);
   const branch=result.result!.branches.find(b=>b.id==='L0')!,qSource=(q+x*(p*p+q*q)/y)*100;assert.ok(Math.abs(branch.pf-30)<1e-5);assert.ok(Math.abs(branch.qf-qSource)<1e-4);
+  const expectedAngle=-Math.atan2(x*p,y+x*q);assert.ok(Math.abs(last.angleRad-expectedAngle)<1e-6);
+  const pLoss=result.result!.branches.reduce((sum,b)=>sum+b.pf+b.pt,0),qLoss=result.result!.branches.reduce((sum,b)=>sum+b.qf+b.qt,0);assert.ok(Math.abs(pLoss)<1e-7);assert.ok(Math.abs(qLoss-(qSource-10))<1e-4);
   assert.equal(result.branchApparentPower.find(b=>b.fid==='L0')!.loadingPercent,null);assert.ok(Math.abs(result.branchApparentPower.find(b=>b.fid==='L0')!.sfMva-Math.hypot(30,qSource))<1e-4);
 });
 test('unsupplied island is explicit; no synthetic slack is inserted',async()=>{
