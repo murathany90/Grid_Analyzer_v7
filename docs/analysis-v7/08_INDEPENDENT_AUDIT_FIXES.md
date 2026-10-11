@@ -39,6 +39,6 @@ Bu yalnız kaynak-satırı/filtre sunum maliyetidir; LF/SC solver hızlanması, 
 - Gerçek cached SN3 UI: PASS; gerçek yeni numerical acceptance: NOT_RUN.
 - Bağımsız IEC normatif testler ve PF parity: BLOCKED. Tam native station/droop/P dengeleme, KT/KG/KKW, Ip/Ib/Ith, sekans/topraklama ve equipment adapter eksikleri devam eder.
 
-Portable SHA-256: `acf51c91fe277a41b8569badc097621d6eae08484291cfec787ef31119462342` — 1.688.537 byte. Bu düzeltmenin exact commit CI bağlantısı ve final SHA görev kapanışında doğrulanır; önceki feature CI başarıları yeni dalın CI'ı yerine sunulmaz.
+Portable SHA-256: `1ce2b1a18343e95de60a75c12143b55b2930de7d221e5e3d553771d88d22743d` — 1.688.550 byte. Bu düzeltmenin exact commit CI bağlantısı ve final SHA görev kapanışında doğrulanır; önceki feature CI başarıları yeni dalın CI'ı yerine sunulmaz.
 
 Önceki SN7 S2 özgün manevra defteri değil, yeni kontrollü test senaryosuydu. Önceki SN3/SN4 tanısal N-1/SC sonuçları IEC/PF paritesi değildir. Bu görev bunları normatif olarak tamamlamaz.
