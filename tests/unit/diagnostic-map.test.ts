@@ -31,7 +31,7 @@ test('canonical diagnostic map uses signed native cells, robust scale and separa
 
 test('hybrid map resolves exact case, keeps partial island absence and invalidates snapshots',async()=>{
   const base=acNetwork(),n={...base,buses:base.buses.map(b=>({...b,siteIds:[b.id]})),sites:base.buses.map(b=>({...b,areaId:'A',areaName:'A',lat:39,lon:32,voltages:[100]}))},settings=new AnalysisSettingsStore(),scenario=new ScenarioStore();
-  const hybrid=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}}),ctx={network:n,hybridResult:hybrid,n1AcResults:[],n1Result:null,resultStore:{get:()=>null},analysisSettings:settings,scenario};
+  const hybrid=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,studyProfile:'NATIVE_PARTIAL_CONTROLS',selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}}),ctx={network:n,hybridResult:hybrid,n1AcResults:[],n1Result:null,resultStore:{get:()=>null},analysisSettings:settings,scenario};assert.equal(hybrid.status,'PARTIAL');assert.equal(hybrid.counts.AC_VERIFIED,0);
   const s:BenchmarkMapSelection={analysis:'N1',source:'GA',metric:'postVoltagePu',table:'N1_RecordedExtrema_Raw',caseId:'N1:ElmLne:BYPASS'};
   const map=buildBenchmarkMapData(ctx as never,s);assert.ok(map.enabled);assert.equal(map.sites.size,3);assert.match(map.sites.get('B2')!.details.join(),/HYBRID_FULL_AC/);
   const baseMap=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'BASE'}),change=buildBenchmarkMapData(ctx as never,{...s,n1Layer:'CHANGE'});assert.equal(baseMap.sites.get('B2')?.value,hybrid.basePost?.buses.find(b=>b.terms.includes('B2'))?.vmPu);assert.ok(Math.abs(change.sites.get('B2')!.value!-(map.sites.get('B2')!.value!-baseMap.sites.get('B2')!.value!))<1e-12);assert.ok(change.scale);
@@ -44,7 +44,7 @@ test('hybrid map resolves exact case, keeps partial island absence and invalidat
   const dc={...ctx,hybridResult:null,n1Result:{identity:{modelHash:n.modelHash,scenarioHash:scenarioSignature(scenario.current)},candidates:[{equipmentId:'BYPASS',sourceClass:'ElmLne',topImpacts:[{equipmentId:'L0',sourceClass:'ElmLne',baseFlowMw:10,postFlowMw:13,deltaPMw:3,baseEstimatedLoadingPct:20,postEstimatedLoadingPct:26}]}]}};
   for(const [n1Layer,expected] of [['BASE',10],['POST',13],['CHANGE',3]] as const){const map=buildBenchmarkMapData(dc as never,{...s,metric:'postPmw',n1Layer});assert.ok(map.enabled);assert.equal(map.branches.get('ElmLne:L0')?.value,expected);assert.match(map.branches.get('ElmLne:L0')!.status,/DC_SCREEN/);}
   assert.equal(buildBenchmarkMapData(dc as never,{...s,metric:'postLoadingPercent',n1Layer:'CHANGE'}).branches.get('ElmLne:L0')?.value,6);
-  const resumed=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:5},resume:hybrid});assert.equal(resumed.counts.AC_CALCULATED,3);
+  const resumed=await runHybridN1(n,scenario.current,{analysisSettings:settings.value,studyProfile:'NATIVE_PARTIAL_CONTROLS',selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:5},resume:hybrid});assert.equal(resumed.counts.AC_CALCULATED,3);
 });
 
 test('N1 loading observation uses queue denominator; absent PF basis blocks even diagnostic delta',async()=>{

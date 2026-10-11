@@ -24,7 +24,9 @@ test('The B0 PF scorecard stays numerically identical through B0 S1 S2 B0 select
 });
 
 test('An N1 run cannot mark a different or unrecorded case phase metric READY',async()=>{
-  const network=acNetwork(),scenario=new ScenarioStore(network.modelHash),analysisSettings=new AnalysisSettingsStore(),hybridResult=await runHybridN1(network,scenario.current,{analysisSettings:analysisSettings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}});
+  const network=acNetwork(),scenario=new ScenarioStore(network.modelHash),analysisSettings=new AnalysisSettingsStore(),options={analysisSettings:analysisSettings.value,selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}},strict=await runHybridN1(network,scenario.current,options);
+  assert.equal(strict.status,'BLOCKED');assert.match(strict.reason,/BASE_FULL_AC_NOT_VERIFIED/);assert.equal(strict.counts.AC_ATTEMPTED,0);
+  const hybridResult=await runHybridN1(network,scenario.current,{...options,studyProfile:'NATIVE_PARTIAL_CONTROLS'});assert.equal(hybridResult.status,'PARTIAL');assert.equal(hybridResult.counts.AC_VERIFIED,0);
   const ctx={network,scenario,analysisSettings,hybridResult,n1AcResults:[],n1Result:null,resultStore:new ResultStore(),benchmark:null,benchmarkMap:null,powerFactoryControlContextHash:null,resultView:{...initialResultView(),analysis:'N1',caseId:'N1:ElmLne:BYPASS',metric:'postVoltagePu',phase:'POST'}} as unknown as AppContext;
   for(const phase of ['PRE','POST','CHANGE'] as const){ctx.resultView.phase=phase;assert.match(activeResultId(ctx)??'',/^N1-/);}
   ctx.resultView.caseId='N1:ElmLne:L0';assert.equal(activeResultId(ctx),null);
