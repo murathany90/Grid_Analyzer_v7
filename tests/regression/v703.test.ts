@@ -36,7 +36,7 @@ test('map hover and selection text follow loading, delta Q/loading/V and nominal
   const line={id:'H',name:'Hat',sourceClass:'ElmLne',vnKv:154,inService:true} as Line,settings=defaultSettings(),data={settings,names:['A TM','B TM'],inService:false,row:branch(500,70),base:branch(400,40)};
   settings.displayMode='loading';assert.match(mapDetailText(line,data),/Yüklenme 70 %/);assert.doesNotMatch(mapDetailText(line,data),/A P|B P/);
   settings.displayMode='delta';settings.deltaMetric='q';assert.match(mapDetailText(line,data),/ΔQ \+50 MVAr/);assert.doesNotMatch(mapDetailText(line,data),/A P|B P/);
-  settings.deltaMetric='loading';assert.match(mapDetailText(line,data),/ΔYük \+30 %/);assert.match(mapDetailText(line,{...data,base:undefined}),/Sonuç yok/);
+  settings.deltaMetric='loading';assert.match(mapDetailText(line,data),/ΔYük \+30 pp/);assert.doesNotMatch(mapDetailText(line,data),/ΔYük \+30 %/);assert.match(mapDetailText(line,{...data,base:undefined}),/Sonuç yok/);
   settings.deltaMetric='v';assert.match(mapDetailText(line,{...data,endpointVoltages:[{name:'A TM',delta:-.01}]}),/A TM · ΔV -0,01 pu/);
   settings.displayMode='nominal';assert.match(mapDetailText(line,data),/154 kV\nA TM → B TM\nServis dışı/);assert.doesNotMatch(mapDetailText(line,data),/500/);
   settings.displayMode='q';assert.match(mapDetailText(line,{...data,row:{...data.row,qf:NaN}}),/A Q — \/ Sonuç yok/);
