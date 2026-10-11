@@ -6,7 +6,7 @@ Başlangıç: `d487ce953e6329dcaf815d590b7351f4c6067964`. Uygulama dalı: `fix/r
 
 Raw `BranchResult.loading` 0/0 çıkarımı ortak, doğrulanmış yüklenme projeksiyonuyla değiştirildi. Hatlarda seçili akım kapasitesi, trafolarda fiziksel rated MVA kullanılıyor; fark yüzde puan (pp). Canonical sonuç şeması ve LF/DC/AC denklemleri değişmedi. Aynı model, motor, güncel ayar, overlay, terminal partition ve açı referansı kapıları harita, Analizler ve ⚡ için ortak. Gerçek sıfır korunuyor; eksik kapasite/sonuç veya uyumsuz kimlik null ve nedeni ile gösteriliyor.
 
-B0/S1/S2 ve seçilebilir referans için PRE/POST/ΔP, ΔQ, ΔkV, Δaçı, Δyüklenme; fiziksel trafo YG/AG uçları; sıfır merkezli pp lejantı; kaynak/metrik tercihini hesap sonrasında koruma eklendi. N-1 ve SC eylemleri mevcut worker hesaplarına bağlandı. N-1 tam çözülmüş dal matrisi, Q, yüklenme ve beslenmeyen yük gösteriliyor. Uyarı eşiği varsayılan %80 ve ayarlanabilir; fiziksel %100 limiti ile DC %90 promosyon politikası ayrı.
+B0/S1/S2 ve seçilebilir referans için PRE/POST/ΔP, ΔQ, ΔkV, Δaçı, Δyüklenme; fiziksel trafo YG/AG uçları; sıfır merkezli pp lejantı; kaynak/metrik tercihini hesap sonrasında koruma eklendi. N-1 ve SC eylemleri mevcut worker hesaplarına bağlandı. N-1 tam çözülmüş dal matrisi, Q, yüklenme ve beslenmeyen yük gösteriliyor. Tek tıkla uyarı eşiğini geçen hat listesi filtrelenebilir. Uyarı eşiği varsayılan %80 ve ayarlanabilir; fiziksel %100 limiti ile DC %90 promosyon politikası ayrı.
 
 SC kapsamı tüm kaynak grafında ölçülüyor. Seçili fiziksel FID, elektriksel partition ve PF kayıt sayısı ayrı. Kaynak hazırlığı ve component factorization tek retained cache ile tekrar kullanılıyor; profil/model/overlay değişimi geçersizleştiriyor. İlk batch varsayılan 10, en çok 20 hedef; devam tamamlanan faultları tekrar çözmüyor. PF MAX sütunu GA BLOCKED olsa da ayrı referans olarak görünür; verified Δ için üyelik/method kapıları korunur. Eksik native alanlar ve gereken bağımsız PF export kanıtları JSON olarak indirilebilir.
 
@@ -24,7 +24,7 @@ SN7 ZIP bulundu; proje/Downloads/kontrol1 JSON ve export aramasında özgün B0�
 | Screenable / islanding / unscreenable | 2245 / 2597 / 289 | 2233 / 2610 / 289 |
 | Orta Anadolu native/PF outage eşleşmesi | 660 / 660 | 664 / 664 |
 | Seçili tanısal non-bridge vaka | AC_CONVERGED_VIOLATION | AC_CONVERGED_VIOLATION |
-| Tam matriste yüklenmesi ≥%80 ekipman | 49 | 53 |
+| Tam matriste yüklenmesi ≥%80 ekipman | 49 (16 hat / 33 trafo) | 53 (6 hat / 47 trafo) |
 | Non-bridge en yüksek yüklenme % | 121,190871 | 452,838112 |
 | Bridge vaka / beslenmeyen yük MW | PARTIAL_SOLUTION / 16,921 | PARTIAL_SOLUTION / 23,870 |
 | Orta Anadolu SC fiziksel FID | 6278 | 6368 |
@@ -37,11 +37,11 @@ N-1 kullanıcı tarafından ayrıca onaylanan `GA_APPROX_STATION_OFF` profiliyle
 
 SC ayrıca onaylanan NETWORK_APPROXIMATION profilinde c_source=c_fault=1,1; eksik makine r=0,01 ve xdss=0,2 pu; converter bağlı terminal bazında -90°; nominal baz normalizasyonu açık. Bunlar native veya IEC doğrulanmış değer gibi sunulmadı. Native aktif kaynak engelleri SN3: 1 dış kaynak c, 393 makine, 1323 converter; SN4: 1 / 391 / 1292.
 
-| Un kV | SN3 GA Ikss kA | SN4 GA Ikss kA |
-|---|---:|---:|
-| 154 | 1,514373 | 1,848196 |
-| 33,6 | 5,485037 | 6,323063 |
-| 31,5 | 9,990285 | 10,061398 |
+| Un kV | SN3 GA Ikss kA | SN3 PF MAX kA | SN4 GA Ikss kA | SN4 PF MAX kA |
+|---|---:|---:|---:|---:|
+| 154 | 1,514373 | 1,503326 | 1,848196 | 1,843486 |
+| 33,6 | 5,485037 | — | 6,323063 | — |
+| 31,5 | 9,990285 | 9,194216 | 10,061398 | 9,172603 |
 
 Maksimum SC residual SN3 5,962e-13, SN4 3,929e-13. Üçer seçili faultta PF üyeliği `MISSING_MEMBERS`; birer faultta ayrıca `NOMINAL_BASE_MISMATCH`. GA/PF Δ ve IEC sertifikasyonu **BLOCKED**; Ip/Ib/Ith null. PF sonuçları GA kaynak parametresi olarak kullanılmadı. Tüm 6000+ faultlar brute force çözülmedi.
 
@@ -63,6 +63,6 @@ Silmeden önce aşağıdaki uzak başlar tam SHA ile ve `origin/main` atası old
 
 Tam unit/regression **390/390**, fail/skip/cancel **0**. Typecheck, 269 kaynak dosyası için architecture lint, standard build, portable build, iki e2e suite ve portable PF benchmark smoke geçti. İlk full unit çalışmasındaki eski `%` beklentisi `pp` ve yanlış birimi reddetme ile düzeltildi. Browser smoke native katalog/recorded DC etiketleri birlikte korunacak şekilde düzeltildi; PF smoke yeni hızlı panelden bağımsız mevcut analiz panelini açıkça hedefler. Test silinmedi, skip/gevşetme yapılmadı.
 
-Portable artifact: **1.638.540 byte**, SHA-256 `c2c5ea9044410aa2fcfdce3b837be27beedcb242486e7166990b3aa713e721ce`. Raw HEAD bytes, deterministik yeniden build ve LF-only provenance unit kapısı geçti. `d902d4a` kaynak/portable commitinde izole Chromium'da gerçek SN3 ZIP bir kez daha yüklendi; gerçek Full AC worker bir kez çalıştı. 4077 bara / 5140 dal, mismatch 2,041e-8 MW, engine 2,579 s, uçtan uca hesap 29,976 s. Portable B0 vektörü önceki doğrulanmış SN3 B0 ile bit düzeyinde aynı. Portable gerçek veri kabulünde kaynak temizdi, artifact raw HEAD ile eşti. Bu ayrı artifact kabulüyle toplam gerçek SN3 ZIP yükleme bütçesi iki; SN4/SN7 birer.
+Portable artifact: **1.638.546 byte**, SHA-256 `c2c5ea9044410aa2fcfdce3b837be27beedcb242486e7166990b3aa713e721ce`. Raw HEAD bytes, deterministik yeniden build ve LF-only provenance unit kapısı geçti. `d902d4a` kaynak/portable commitinde izole Chromium'da gerçek SN3 ZIP bir kez daha yüklendi; gerçek Full AC worker bir kez çalıştı. 4077 bara / 5140 dal, mismatch 2,041e-8 MW, engine 2,579 s, uçtan uca hesap 29,976 s. Portable B0 vektörü önceki doğrulanmış SN3 B0 ile bit düzeyinde aynı. Portable gerçek veri kabulünde kaynak temizdi, artifact raw HEAD ile eşti. Bu ayrı artifact kabulüyle toplam gerçek SN3 ZIP yükleme bütçesi iki; SN4/SN7 birer.
 
 Exact-SHA feature CI ve ayrı main CI başarıları, fast-forward entegrasyonu ve son uzak branch envanteri görev kapanış kaydında belirtilir. Bunlar doğrulanmadan entegrasyon başarılı sayılmaz.
