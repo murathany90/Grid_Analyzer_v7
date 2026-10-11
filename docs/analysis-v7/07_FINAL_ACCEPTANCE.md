@@ -26,7 +26,7 @@ Başlangıç ve korunan main: `9b1eee94d5ef4548716611fc5447f07727c41d51`. Çalı
 | standard / portable build | PASS | Tek HTML, mevcut offline worker/import mimarisi korunur |
 | `test:full` control1 harness | SKIPPED / SOURCE_UNAVAILABLE | Tracked control1 gerçek fixture içermiyor; ayrı gerçek SN3 çalışma yukarıda, bu skip PASS değildir |
 | Portable raw-byte gate | PASS yerel | Committed HTML ve yeniden derlenen HTML SHA-256 eşleşir; CI aynı kapıyı çalıştırır |
-| Feature CI | Görev kapanışında exact SHA ile doğrulanır | [Dal CI](https://github.com/murathany90/Grid_Analyzer_v7/actions?query=branch%3Afeat%2Fanalysis-ui-native-n1-iec60909-2016); son SHA/run bağlantısı kapanış mesajında |
+| Feature CI | PASS | Kaynak ve kabul belgeleri commit'i `c48d2afd43863528bd2f2a3f1b9d55119ed653e0` için [38177637605](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38177637605) başarılı; bu sonucu kaydeden yalnız belge commit'inin exact CI'ı ayrıca kapanış mesajında doğrulanır |
 
 ## Teslim portable
 
