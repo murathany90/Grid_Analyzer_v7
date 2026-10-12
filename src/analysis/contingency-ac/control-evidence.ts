@@ -40,6 +40,8 @@ export function n1ControlEvidence(network:CanonicalNetwork,result:CalculationRes
   if(fidelity?.fidelity==='PARTIAL')record('SOURCE_PHYSICS','PARTIAL',1,'PARTIAL_NATIVE_SOURCE_PHYSICS');
   const reactive=result.diagnostics.reactiveLimitClasses as {fidelity?:string}|undefined;
   if(reactive?.fidelity==='PARTIAL')record('REACTIVE_LIMIT_MODES','PARTIAL',1,'UNSUPPORTED_REACTIVE_LIMIT_MODES');
+  const localPv=network.generators.filter(g=>g.inService&&g.voltageControl),unboundedPv=localPv.filter(g=>g.qMin===null||g.qMax===null||!Number.isFinite(g.qMin)||!Number.isFinite(g.qMax)||g.qMin!>g.qMax!);
+  if(settings?.powerFlow.reactiveLimitsEnabled!==false&&unboundedPv.length)record('PV_SOURCE_REACTIVE_LIMITS','PARTIAL',unboundedPv.length,'PV_SOURCE_REACTIVE_LIMITS_MISSING_OR_INVALID');
   const transformers=network.transformers.filter(e=>e.inService),invalidTaps=transformers.filter(e=>!Number.isFinite(e.tap)||e.tap<=0||!Number.isFinite(e.phase)||e.tapResolution?.startsWith('FALLBACK'));
   record('FIXED_TRANSFORMER_TAP_PHASE',invalidTaps.length?'INVALID_INPUT':transformers.length?'SUPPORTED':'NOT_APPLICABLE',transformers.length,invalidTaps.length?'INVALID_OR_SUBSTITUTED_FIXED_TAP_PHASE':'NATIVE_FIXED_TAP_PHASE; AUTOMATIC_CONTROL_NOT_CLAIMED');
   const shunts=network.shunts.filter(e=>e.inService),invalidShunts=shunts.filter(e=>!Number.isFinite(e.gPu)||!Number.isFinite(e.bPu)||e.stepProvenance?.startsWith('INVALID'));

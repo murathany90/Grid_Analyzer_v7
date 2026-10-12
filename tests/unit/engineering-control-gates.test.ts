@@ -40,3 +40,13 @@ test('even a diagnostic N-1 profile refuses forged converged BASE and POST resid
   t.mock.method(BrowserJsPowerFlowEngine.prototype,'runPowerFlow',async()=>forged);
   const [post]=await validateAcOutages(network,emptyScenario(),[{caseId:'N1:ElmLne:BYPASS',sourceClass:'ElmLne',fid:'BYPASS'}],{analysisSettings:s,controlPolicy:'ALLOW_PARTIAL'});assert.equal(post.status,'NOT_COMPUTABLE');assert.equal(post.result,null);assert.equal(post.controlEvidence?.numericalSolved,false);
 });
+
+test('local PV sources also need valid Q bounds when reactive-limit control is requested',async()=>{
+  const n=acNetwork(2),s=settings(),source={...n.loads[0],id:'PV',sourceId:'PV',sourceClass:'ElmSym',pMw:10,qMvar:0,vmSet:1.02,voltageControl:true},outage={caseId:'N1:ElmLne:BYPASS',sourceClass:'ElmLne' as const,fid:'BYPASS'};
+  const bounded={...n,generators:[{...source,qMin:-100,qMax:100}]},missing={...n,generators:[{...source,qMin:null,qMax:null}]};
+  const [ok]=await validateAcOutages(bounded,emptyScenario(),[outage],{analysisSettings:s});assert.equal(ok.status,'CONVERGED');assert.equal(ok.controlEvidence?.fidelity,'CONTROL_VERIFIED');
+  const [strict]=await validateAcOutages(missing,emptyScenario(),[outage],{analysisSettings:s});assert.equal(strict.status,'UNSUPPORTED_CONTROL_CONFIGURATION');assert.equal(strict.result,null);assert.match(strict.reason,/PV_SOURCE_REACTIVE_LIMITS_MISSING/);
+  const [diagnostic]=await validateAcOutages(missing,emptyScenario(),[outage],{analysisSettings:s,controlPolicy:'ALLOW_PARTIAL'});assert.equal(diagnostic.status,'PARTIAL_SOLUTION');assert.equal(diagnostic.controlEvidence?.numericalSolved,true);assert.equal(diagnostic.controlEvidence?.fidelity,'CONTROL_FIDELITY_PARTIAL');
+  assert.ok(Math.abs(diagnostic.result!.buses.find(b=>b.terms.includes('B1'))!.vmPu-1.02)<1e-8,'missing bounds do not silently change the PV equation');
+  const invalid={...bounded,generators:bounded.generators.map(g=>({...g,qMin:20,qMax:-20}))};assert.match(n1ControlEvidence(invalid,ok.result!,s).reasons.join(';'),/PV_SOURCE_REACTIVE_LIMITS_MISSING/);
+});
