@@ -8,7 +8,7 @@ import {loadBenchmarkModel} from '../src/importers/powerfactory-benchmark/model'
 import {loadBenchmark} from '../src/importers/powerfactory-benchmark';
 import {benchmarkControlContext} from '../src/domain/benchmark/reference';
 import {applyPowerFactoryControlContext} from '../src/analysis/validation/powerfactory-control-context';
-import {defaultAnalysisSettings} from '../src/domain/calculation/analysis-settings';
+import {defaultAnalysisSettings,activeAnalysisSettings,analysisSettingsHash} from '../src/domain/calculation/analysis-settings';
 import {identity} from '../src/domain/calculation/identity';
 import {emptyScenario,scenarioSignature} from '../src/domain/scenario/overlay';
 import {BrowserJsPowerFlowEngine} from '../src/analysis/api/browser-js-engine';
@@ -31,11 +31,12 @@ try{
   const bytes=await readFile(modelPath);proof.modelFile={path:modelPath,sha256:sha(bytes),bytes:bytes.length};
   const loaded=await stage('NEW_MODEL_IMPORT',()=>loadBenchmarkModel(new File([bytes],basename(modelPath))));
   const benchmark=referencePath==='-'?null:await stage('NEW_PF_IMPORT',async()=>{const bytes=await readFile(referencePath);proof.referenceFile={path:referencePath,sha256:sha(bytes),bytes:bytes.length};return loadBenchmark(new File([bytes],basename(referencePath)));});
-  const network=benchmark?applyPowerFactoryControlContext(loaded.network,benchmarkControlContext(benchmark)):loaded.network;
+  const control=benchmark?benchmarkControlContext(benchmark):null,controlHash=control?.sourceHash??null;
+  const network=control?applyPowerFactoryControlContext(loaded.network,control):loaded.network;
   const settings=defaultAnalysisSettings(),scenario=emptyScenario(),engine=new BrowserJsPowerFlowEngine();
   proof.settings=settings;proof.baseMva=network.baseMva;proof.frequencyHz={requested:50,nativeVerified:false};
   proof.referenceIdentity=benchmark?Object.fromEntries(Object.entries(benchmark.groups).map(([k,g])=>[k,g.identity])):{status:'SOURCE_UNAVAILABLE'};
-  const lf=await stage('NEW_NATIVE_LF',()=>engine.runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:settings}),analysisSettings:settings}));
+  const lf=await stage('NEW_NATIVE_LF',()=>engine.runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:activeAnalysisSettings(settings,'powerFlow'),analysisSettingsHash:analysisSettingsHash(settings,'powerFlow'),controlContextHash:controlHash}),analysisSettings:settings}));
   assert.equal(lf.converged,true);assert.ok(lf.maxMismatchMw!==null&&lf.maxMismatchMw<=settings.powerFlow.nodalToleranceKva/1000);
   proof.lf={status:lf.status,converged:lf.converged,maxMismatchMw:lf.maxMismatchMw,elapsedMs:lf.elapsedMs,buses:lf.buses.length,branches:lf.branches.length,diagnostics:lf.diagnostics,control:n1ControlEvidence(network,lf,settings)};
   const area=network.sites.find(s=>/orta.*anadolu/i.test(s.areaName))?.areaId;
@@ -67,7 +68,7 @@ try{
   proof.resultIdentity={modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario)};
   proof.status='PASS_SOFTWARE_WITH_PARTIAL_ENGINEERING';proof.completedUtc=new Date().toISOString();
   // Genuine freshly computed snapshots for a separate rendered UI acceptance; all remain ignored.
-  await writeFile(join(out,tag+'-fresh-ui-private.json'),JSON.stringify({network,benchmark,lf,settings,hybrid,sc,scContext:diagnostic,catalog:scCatalog,areaId:area}));
+  await writeFile(join(out,tag+'-fresh-ui-private.json'),JSON.stringify({network,benchmark,lf,settings,controlHash,hybrid,sc,scContext:diagnostic,catalog:scCatalog,areaId:area}));
   console.log(JSON.stringify({tag,status:proof.status,lf:{buses:lf.buses.length,branches:lf.branches.length,residualMw:lf.maxMismatchMw},n1:hybrid.counts,sc:{physical:scCatalog.physicalTerminals,electrical:scCatalog.electricalPartitions,native:scNative.counts,diagnostic:sc.counts,normative:normative.counts},pfComparable:benchmark?0:null}));
 }catch(error){proof.status='FAIL';proof.error=String(error);process.exitCode=1;console.error(tag+' FAILED; see ignored private proof');}
 finally{clearScPreparationCache();await writeFile(join(out,tag+'-private-proof.json'),JSON.stringify(proof,null,2));}
