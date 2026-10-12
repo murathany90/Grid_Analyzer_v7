@@ -25,7 +25,7 @@ export function createInventoryView(ctx: AppContext): Feature {
   const detail = element('section', 'ga-detail', 'Ayrıntı için bir ekipman seçin.');
   root.append(heading, toolbar, voltageFilter.element, count, tableWrap, pager, detail);
 
-  let page = 0, selected: CatalogRow | null = null, revision = 0, lastModelHash = '', optionModelHash = '', siteOptionsKey = '', lastQueryKey = '', pendingQueryKey = '';
+  let page = 0, selected: CatalogRow | null = null, revision = 0, lastModelHash = '', optionModelHash = '', siteOptionsKey = '', lastQueryKey = '', pendingQueryKey = '',lastContextSelection='';
   const pageSizeNow = () => Math.max(10, Math.min(100, Math.floor(ctx.settings.value.pageSize || 20)));
   let lastFilterKey='';
   const currentClass = () => classSelect.value || 'ElmSite';
@@ -89,6 +89,8 @@ export function createInventoryView(ctx: AppContext): Feature {
   async function render(): Promise<void> {
     if (ctx.view !== 'inventory') { revision++; return; }
     syncOptions();
+    const focus=ctx.selection,focusKey=(ctx.network?.modelHash??'')+'|'+(focus?focus.sourceClass+'|'+focus.id:'');
+    if(focus&&focusKey!==lastContextSelection&&[...classSelect.options].some(o=>o.value===focus.sourceClass)){lastContextSelection=focusKey;classSelect.value=focus.sourceClass;search.value=focus.id;areaSelect.value='';siteSelect.value='';page=0;}
 
     const network = ctx.network;
     if (!network) { lastModelHash = ''; optionModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; count.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }
@@ -103,6 +105,7 @@ export function createInventoryView(ctx: AppContext): Feature {
       const result = await ctx.catalog({ ...filter, className, page, pageSize: size });
       if (request !== revision || ctx.view !== 'inventory' || ctx.network?.modelHash !== network.modelHash) return;
       renderTable(result); renderPager(result.total, size);
+      const focused=result.rows.find(r=>r.id===ctx.selection?.id&&currentClass()===ctx.selection.sourceClass);if(focused)showDetail(focused);
       count.textContent = `${classLabel(className)} · ${format(result.total, 0)} kayıt`;
       lastQueryKey = queryKey;
     } catch (error) {

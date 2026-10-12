@@ -10,6 +10,9 @@ import { downloadText, element } from '../../ui/components/dom';
 import { fetchCatalogAll } from '../catalog';
 import { SvgSldRenderer, type SldDiagram, type SldEquipment, type SldRegionalBranch, type SldSwitch, type SldTerminal, type SldScope } from './sld-renderer';
 import {calculationEngineLabel,calculationSessionStatus} from '../../ui/components/calculation-controls';
+import {createSldResultOverlay,type SldMode} from './result-overlay';
+import {oppositeStation,SldNavigationHistory} from './navigation';
+import {selectedN1Presentation} from '../../map/layer-policy';
 
 interface NetworkIndex {
   network: CanonicalNetwork;
@@ -100,17 +103,18 @@ function buildNetworkIndex(network: CanonicalNetwork, ctx: AppContext): NetworkI
 }
 
 async function fetchStationData(ctx: AppContext, network: CanonicalNetwork, site: Site): Promise<StationData> {
-  const classes = ['ElmBay', 'ElmTerm', 'StaCubic', 'ElmCoup', 'ElmSubstat', 'StaSwitch'] as const;
+  const classes = ['ElmBay', 'ElmTerm', 'StaCubic', 'ElmCoup', 'ElmSubstat', 'StaSwitch', 'ElmTr3', 'ElmTr2'] as const;
   const results = await Promise.all(classes.map(async className => network.classCounts[className]
     ? (await fetchCatalogAll(ctx, className, { siteId: site.id })).rows : []));
-  const [bays, terminals, cubicles, couplers, substats, stationSwitches] = results;const switches=[...couplers,...stationSwitches];
+  const [bays, terminals, cubicles, couplers, substats, stationSwitches,threeWinding,twoWinding] = results;const switches=[...couplers,...stationSwitches];
+  const unsupportedEquipment=[...threeWinding.map(r=>({...r,sourceClass:'ElmTr3'})),...twoWinding.filter(r=>!network.transformers.some(t=>t.id===r.id&&network.buses.some(b=>b.id===t.from)&&network.buses.some(b=>b.id===t.to))).map(r=>({...r,sourceClass:'ElmTr2'}))];
   const rawByKey = new Map<string, CatalogRow>();
   classes.forEach((className, index) => results[index].forEach(row => rawByKey.set(keyOf(className, row.id), row)));
   const terminalsByBay = new Map<string, CatalogRow[]>(), cubiclesByTerminal = new Map<string, CatalogRow[]>(), switchesByBay = new Map<string, CatalogRow[]>();
   for (const row of terminals) { const parent = field(row, 'fold_id'); const list = terminalsByBay.get(parent) || []; list.push(row); terminalsByBay.set(parent, list); }
   for (const row of cubicles) { const terminal = field(row, 'fold_id'); const list = cubiclesByTerminal.get(terminal) || []; list.push(row); cubiclesByTerminal.set(terminal, list); }
   for (const row of switches) { const direct=field(row,'fold_id'),cub=cubicles.find(c=>c.id===direct),term=cub?terminals.find(t=>t.id===field(cub,'fold_id')):null;const parent=term?field(term,'fold_id'):direct; const list = switchesByBay.get(parent) || []; list.push(row); switchesByBay.set(parent, list); }
-  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
+  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats,unsupportedEquipment}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
     terminalsByBay, cubiclesByTerminal, switchesByBay, substatsById: new Map(substats.map(row => [row.id, row.name || row.id])) };
 }
 
@@ -126,7 +130,7 @@ function classifySwitch(row: CatalogRow, switchIndex: Map<string, Switch>, ctx: 
   const kind = usage === 'cbk' ? 'breaker' : usage === 'dct' ? 'isolator' : 'other';
   return { id: row.id, name: row.name || row.id, sourceClass: switchEntity?.sourceClass==='StaSwitch'?'StaSwitch':'ElmCoup', kind,
     from: switchEntity?.from || null, to: switchEntity?.to || null, modelClosed: sourceClosed,
-    closed: ctx.scenario.current.switchState[row.id] ?? sourceClosed, inService: switchEntity?.inService ?? !bool(row.attributes.outserv) };
+    closed: ctx.scenario.current.switchState[row.id] ?? sourceClosed, inService: switchEntity?.inService ?? !bool(row.attributes.outserv),stateKnown:Object.hasOwn(ctx.scenario.current.switchState,row.id)||([0,1,true,false,'0','1'] as unknown[]).includes(row.attributes.on_off) };
 }
 
 function createBayTerminals(index: NetworkIndex, station: StationData, bay: CatalogRow, switches: readonly SldSwitch[], ctx: AppContext): SldTerminal[] {
@@ -160,8 +164,14 @@ export function createSldView(ctx: AppContext): Feature {
   layoutSelect.append(new Option('Yatay bara + dikey fider', 'vertical'), new Option('Yatay fider ayrıntısı', 'horizontal'));
   const voltageFilter=createVoltageFilter(ctx,'SLD gerilim grupları'),technical=element('input');technical.type='checkbox';const technicalLabel=element('label','ga-check','Teknik görünüm');technicalLabel.append(technical);
   const downloadButton = element('button', 'ga-button', 'SVG indir'); downloadButton.type = 'button';
+  const mode=element('select'),colorMode=element('select');mode.setAttribute('aria-label','SLD görünüm modu');colorMode.setAttribute('aria-label','SLD renk temeli');
+  for(const [value,label]of [['ytbs','YTBS klasik'],['technical','Teknik tek hat'],['LF','Güç akışı'],['N1','N-1 analiz'],['SC','Kısa devre sonuç'],['operation','Bara / anahtar işletme'],['compact','Kompakt görünüm']])mode.append(new Option(label,value));
+  colorMode.append(new Option('Gerilim renkleri','voltage'),new Option('İşletme durum renkleri','state'));
+  colorMode.title='Gerilim rengi anma kV sınıfını gösterir; enerjilenme kanıtı değildir. Anahtar konumu, servis durumu, senaryo ve analiz alarmı ayrı katmanlardır.';
+  const resultsToggle=element('input'),arrowsToggle=element('input');resultsToggle.type=arrowsToggle.type='checkbox';resultsToggle.checked=arrowsToggle.checked=true;
+  const resultsLabel=element('label','ga-check','Sonuç etiketleri'),arrowsLabel=element('label','ga-check','Akış okları');resultsLabel.append(resultsToggle);arrowsLabel.append(arrowsToggle);
   const resetButton = element('button', 'ga-button', 'Seçimi temizle'); resetButton.type = 'button';
-  toolbar.append(siteSelect, scopeSelect, layoutSelect, downloadButton,technicalLabel);
+  toolbar.append(siteSelect, scopeSelect,mode,colorMode, layoutSelect, downloadButton,technicalLabel,resultsLabel,arrowsLabel);
   const lineBar = element('div', 'ga-toolbar');
   const lineSelect = element('select'); lineSelect.setAttribute('aria-label', 'TM ile ilişkili hat');
   lineBar.append(lineSelect);
@@ -181,9 +191,14 @@ export function createSldView(ctx: AppContext): Feature {
   let networkIndex: NetworkIndex | null = null, networkHash = '', siteOptionsHash = '', stationData: StationData | null = null;
   let request = 0, lastRenderKey = '', selected: { id: string; sourceClass: string } | null = null;
   let lastContextSelection = '';
+  let resultRevision=0,lastResultRefs:unknown[]=[];
+  let detailTab='Genel';
   const stationCache = new Map<string, StationData>();
   const renderer = new SvgSldRenderer();
-  toolbar.append(actionButton('Sığdır',()=>renderer.fit()),actionButton('Yakınlaştır +',()=>renderer.zoom(1.3)),actionButton('Uzaklaştır −',()=>renderer.zoom(1/1.3)));
+  const history=new SldNavigationHistory(),back=actionButton('Önceki TM’ye dön',()=>{const previous=history.back();if(!previous)return;siteSelect.value=previous.siteId;scope=previous.scope;selectedBayId=previous.bayId;selected={id:previous.lineId,sourceClass:'ElmLne'};ctx.selection={...selected};lastContextSelection=keyOf('ElmLne',previous.lineId);lastRenderKey='';ctx.notify();void render();});back.disabled=true;toolbar.append(back);
+  const redraw=()=>{lastRenderKey='';void render();};
+  mode.onchange=()=>{if(['LF','N1','SC'].includes(mode.value)){ctx.resultView.analysis=mode.value as 'LF'|'N1'|'SC';ctx.resultView.source='GA';}technical.checked=mode.value==='technical';ctx.notify();redraw();};colorMode.onchange=resultsToggle.onchange=arrowsToggle.onchange=redraw;
+  toolbar.append(actionButton('Sığdır',()=>renderer.fit()),actionButton('Yakınlaştır +',()=>renderer.zoom(1.3)),actionButton('Uzaklaştır −',()=>renderer.zoom(1/1.3)),actionButton('Seçili ekipmana odaklan',()=>{if(selected)renderer.focus(selected.id,selected.sourceClass);}));
   baySearch.oninput=()=>{if(stationData)drawFeederPicker(stationData);};bayGroup.onchange=()=>{if(stationData)drawFeederPicker(stationData);};technical.onchange=()=>{lastRenderKey='';void render();};
   bayPicker.onchange=()=>{const feeder=stationData?.graph.feeders.find(f=>f.id===bayPicker.value);if(!feeder)return;selectedBayId=feeder.id;selectEquipment(feeder.sourceClass==='ElmBay'?feeder.id:feeder.id.slice(feeder.id.indexOf('|')+1),feeder.sourceClass);};
 
@@ -193,6 +208,7 @@ export function createSldView(ctx: AppContext): Feature {
     if (hash !== networkHash) {
       networkHash = hash; networkIndex = network ? buildNetworkIndex(network, ctx) : null;
       stationCache.clear(); stationData = null; selectedBayId = ''; regionalPage = 0; selected = null; lastContextSelection = '';
+      history.clear();
       siteOptionsHash = '';
     }
     return network;
@@ -238,25 +254,40 @@ export function createSldView(ctx: AppContext): Feature {
     const equipment = networkIndex?.equipmentById.get(selected.id)?.find(item => item.sourceClass === selected?.sourceClass);
     const name = entity?.name || raw?.name || equipment?.name || selected.id;
     detail.replaceChildren(element('h3', '', name), element('p', 'ga-muted', `${selected.sourceClass} · ${selected.id}`));
-    const technicalDetails=element('details'),technicalSummary=element('summary','','Teknik kaynak ayrıntıları');technicalDetails.append(technicalSummary);
-    if(entity)addAttributes(technicalDetails,entity.sourceRefs);if(raw)addAttributes(technicalDetails,raw.attributes);detail.append(technicalDetails);
+    const tabs=element('div','ga-sld-detail-tabs');tabs.setAttribute('role','tablist');const panels=element('div','ga-sld-detail-panels');detail.append(tabs,panels);
+    const sections=new Map<string,HTMLElement>();
+    for(const label of ['Genel','Elektriksel','Sonuçlar','Kaynak ve kalite','İşlemler']){const panel=element('section');panel.setAttribute('role','tabpanel');panel.hidden=label!==detailTab;sections.set(label,panel);panels.append(panel);const tab=actionButton(label,()=>{detailTab=label;for(const [name,p]of sections)p.hidden=name!==label;for(const b of tabs.querySelectorAll('button'))b.setAttribute('aria-selected',String(b===tab));});tab.setAttribute('role','tab');tab.setAttribute('aria-selected',String(label===detailTab));tabs.append(tab);}
+    const general=sections.get('Genel')!,electrical=sections.get('Elektriksel')!,quality=sections.get('Kaynak ve kalite')!,results=sections.get('Sonuçlar')!;
+    addAttributes(general,{FID:selected.id,Sınıf:selected.sourceClass,TM:currentSite()?.name??'—',YTM:currentSite()?.areaName??'—',İşletme:equipment?.inService===false?'Servis dışı':equipment?.closed===false?'Açık':equipment?.inService?'Serviste':'—',Terminaller:equipment?.busIds??(entity&&'bus'in entity?[entity.bus]:[])});
+    if(entity){const canonical:Record<string,unknown>={};for(const [key,value]of Object.entries(entity))if(!['sourceRefs','sourceId','sourceClass','siteIds','coordinates','name','id'].includes(key))canonical[key]=value;electrical.append(element('p','ga-muted','Kanonik model değerleri; kaynak dönüşümleri ve baz bilgisi aşağıdadır.'));addAttributes(electrical,canonical);quality.append(element('h4','','Kaynak alanları'));addAttributes(quality,entity.sourceRefs);}
+    if(raw){quality.append(element('h4','','Ham DGS alanları · birimler yalnız kaynakta doğrulanır'));addAttributes(quality,raw.attributes);}else quality.append(element('p','ga-muted','Ham kaynak ayrıntıları yükleniyor veya mevcut değil.'));
+    const overlay=createSldResultOverlay(ctx,mode.value as SldMode),entry=overlay.entries.get(keyOf(selected.sourceClass,selected.id));results.append(element('p','ga-result-context',`${overlay.phase} · ${entry?.status??overlay.status} · ${entry?.method??overlay.method}`));if(entry)addAttributes(results,entry.values);else results.append(element('p','ga-muted','— · Bu ekipman için güncel sayısal sonuç yok.'));
+    const issues=stationData?.graph.issues.filter(i=>i.sourceId===selected!.id)??[];if(issues.length)addAttributes(quality,{KaynakSorunları:issues});
+    if(entity?.sourceClass==='ElmTr2'){const t=entity as Transformer2W;quality.append(element('p','ga-muted',`İki sargı kanonik model · ototrafo türü kaynakta doğrulanmadı · faz ${t.sourceRefs.phase?.map(r=>r.field).join(',')??'—'} · tap ${t.tapResolution??'—'}`));const type=raw?findRaw(String(raw.attributes.typ_id??''),'TypTr2'):null;if(type){electrical.append(element('h4','','Ham TypTr2 · anma gerilimleri işletme barasından farklı olabilir'));addAttributes(electrical,type.attributes);}}
     const actions=element('div','ga-actions');actions.append(resetButton);
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
-      const engine=calculationEngineLabel(ctx);
-      actions.append(actionButton(key==='switchState'?'Kapat / servise al':'Servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Aç / servis dışı':'Servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + Senaryo Full AC hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
+      actions.append(actionButton(key==='switchState'?'Senaryoda kapat':'Senaryoda servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Senaryoda aç':'Senaryoda servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + Senaryo Full AC hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
       }
       actions.append(actionButton('Haritada göster',()=>ctx.select(entity.id,entity.sourceClass,'map')));
+      actions.append(actionButton('Envanterde göster',()=>ctx.select(entity.id,entity.sourceClass,'inventory')),actionButton('Analizlerde göster',()=>ctx.select(entity.id,entity.sourceClass,'analysis:'+ctx.resultView.analysis)));
+      if(entity.sourceClass==='ElmLne'&&ctx.network){const target=oppositeStation(ctx.network,entity.id,siteSelect.value);if(target)actions.append(actionButton('Karşı TM: '+target.site.name,()=>{history.push({siteId:siteSelect.value,lineId:entity.id,scope,bayId:selectedBayId});siteSelect.value=target.site.id;scope='station';selectedBayId='';lastContextSelection=keyOf(entity.sourceClass,entity.id);ctx.select(entity.id,entity.sourceClass);lastRenderKey='';void render();}));}
     }
-    if (actions.childElementCount) detail.append(actions);
+    const feeders=stationData?.graph.feeders.filter(f=>f.equipmentKeys.includes(keyOf(selected!.sourceClass,selected!.id))||f.switchIds.includes(selected!.id)||f.terminalIds.includes(selected!.id))??[];
+    for(const f of feeders)actions.append(actionButton('Fider: '+f.name,()=>{selectedBayId=f.id;scope='bay';redraw();}));
+    if(entity?.sourceClass==='ElmTr2'&&equipment?.busIds.length===2)actions.append(actionButton('Diğer sargıyı göster',()=>{scope='station';selectedBayId='';lastRenderKey='';void render().then(()=>renderer.focus(equipment.busIds[1],'ElmTerm'));}));
+    if (actions.childElementCount) sections.get('İşlemler')!.append(element('p','ga-muted','Yerel senaryo simülasyonu; fiziksel işletme komutu gönderilmez.'),actions);
   }
   function selectEquipment(id: string, sourceClass: string): void {
+    if(mode.value==='SC'&&sourceClass==='ElmTerm')ctx.resultView.faultId=networkIndex?.buses.get(id)?.sourceId??id;
+    if(selected?.id!==id||selected.sourceClass!==sourceClass)detailTab='Genel';
     const feeder=stationData?.graph.feeders.find(f=>sourceClass==='ElmBay'?f.id===id:f.equipmentKeys.includes(keyOf(sourceClass,id)));
-    if(feeder&&scope!=='regional'){selectedBayId=feeder.id;scope='bay';}
+    if(feeder&&scope==='bay')selectedBayId=feeder.id;
     selected = { id, sourceClass }; ctx.select(id, sourceClass); renderDetail(); lastRenderKey = '';
     // Render immediately so the selected symbol is emphasized; the parent shell
     // may also call render after the context notification, which is deduplicated.
     void render();
+    if(!findRaw(id,sourceClass)&&ctx.network?.classCounts[sourceClass])void fetchCatalogAll(ctx,sourceClass,{search:id}).then(async page=>{const row=page.rows.find(r=>r.id===id);if(!row||!stationData)return;stationData.rawByKey.set(keyOf(sourceClass,id),row);const typeId=String(row.attributes.typ_id??'');if(typeId&&sourceClass==='ElmTr2'){const types=await fetchCatalogAll(ctx,'TypTr2',{search:typeId});const type=types.rows.find(r=>r.id===typeId);if(type)stationData.rawByKey.set(keyOf('TypTr2',typeId),type);}if(selected?.id===id)renderDetail();}).catch(()=>{});
   }
   function filteredFeeders(data:StationData):Feeder[]{const q=baySearch.value.toLocaleLowerCase('tr-TR');return data.graph.feeders.filter(f=>voltageMatches(f.voltageKv,ctx.filters.voltages)&&(!q||(f.name+' '+f.id).toLocaleLowerCase('tr-TR').includes(q))&&(!bayGroup.value||String(data.baysById.get(f.id)?.attributes.fold_id||'')===bayGroup.value));}
   function drawFeederPicker(data:StationData):void {
@@ -269,6 +300,7 @@ export function createSldView(ctx: AppContext): Feature {
     const groupsById = index.groupsBySite.get(site.id) || new Map<string, Bus[]>();
     const groups = [...groupsById.entries()].map(([id, buses]) => ({ id: id || site.id, name: data?.substatsById.get(id) || (id ? `Bara grubu · ${id}` : 'Baralar'), buses }));
     const equipment = equipmentForStation(index, site.id, ctx);
+    for(const item of data?.graph.equipment??[])if(item.sourceClass==='ElmTr3'||!equipment.some(e=>e.sourceClass===item.sourceClass&&e.id===item.id)){const raw=data?.rawByKey.get(keyOf(item.sourceClass,item.id));equipment.push({id:item.id,name:item.name,sourceClass:item.sourceClass,busIds:item.terminals,siteIds:[site.id],inService:raw?!bool(raw.attributes.outserv):false,voltageKv:index.buses.get(item.terminals[0])?.vnKv,lvKv:index.buses.get(item.terminals.at(-1)??'')?.vnKv});}
     const feeder=scope==='bay'?data?.graph.feeders.find(f=>f.id===selectedBayId):null;
     const switchRows=data?.switchesByBay.get(selectedBayId)||data?.switches.filter(sw=>feeder?.switchIds.includes(sw.id))||[];
     const switches=switchRows.map(row=>classifySwitch(row,index.switchesById,ctx));
@@ -287,13 +319,14 @@ export function createSldView(ctx: AppContext): Feature {
     const bay=scope;
     const effectiveGroups = groups.map(group => ({ ...group, buses: group.buses.map(bus => ({ ...bus,
       inService: ctx.scenario.current.busOrTerminalStatus[bus.id] ?? (ctx.scenario.current.restoredTerminals.includes(bus.id) || bus.inService) })) }));
-    const n1Detail=ctx.resultView.analysis==='N1'&&ctx.n1Detail?.candidate.candidateId===ctx.selectedN1CandidateId?ctx.n1Detail:null;
+    const candidate=mode.value==='N1'?selectedN1Presentation(ctx).candidate:null,n1Detail=candidate&&ctx.n1Detail?.candidate.candidateId===candidate.candidateId?ctx.n1Detail:null;
     return { scope: bay, orientation: layoutSelect.value === 'vertical' ? 'vertical' : 'horizontal', station: site, selectedId: selected?.id || null, groups: effectiveGroups, equipment,
-      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?.graph||null,voltageBands:ctx.filters.voltages,page:bay==='regional'?regionalPage:0,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value,n1Detail,selectedN1IslandId:ctx.selectedN1IslandId };
+      bays: data?.bays || [], selectedBay, terminals, switches, regionalSites, regionalBranches, unresolvedSwitches,graph:data?.graph||null,voltageBands:ctx.filters.voltages,page:bay==='regional'?regionalPage:0,technical:technical.checked,scenario:ctx.scenario.current,settings:ctx.settings.value,n1Detail,selectedN1IslandId:ctx.selectedN1IslandId,mode:mode.value as SldMode,overlay:createSldResultOverlay(ctx,mode.value as SldMode),showResults:resultsToggle.checked,showArrows:arrowsToggle.checked,colorMode:colorMode.value as 'voltage'|'state' };
   }
   function makeRenderKey(network: CanonicalNetwork | null, site: Site | null): string {
+    const refs=[ctx.resultStore.active,ctx.hybridResult,ctx.scResult,ctx.scContext,ctx.n1AcResults,ctx.n1Result];if(refs.some((r,i)=>r!==lastResultRefs[i])){resultRevision++;lastResultRefs=refs;}
     return JSON.stringify([network?.modelHash || '', ctx.view, site?.id || '', scope, regionalPage, selectedBayId,
-      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature(),ctx.selectedN1CandidateId,ctx.selectedN1IslandId,ctx.n1DetailLoading]);
+      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature(),ctx.selectedN1CandidateId,ctx.selectedN1IslandId,ctx.n1DetailLoading,mode.value,colorMode.value,resultsToggle.checked,arrowsToggle.checked,resultRevision,ctx.resultView,ctx.analysisSettings.value,ctx.resultStore.role,ctx.powerFactoryControlContextHash]);
   }
   async function render(): Promise<void> {
     if (ctx.view !== 'sld') { request++; return; }
@@ -333,7 +366,7 @@ export function createSldView(ctx: AppContext): Feature {
         diagramHost.replaceChildren(message, retry); return;
       }
       if (activeRequest !== request || ctx.view !== 'sld' || ctx.network?.modelHash !== network.modelHash) return;
-      if(contextChanged&&selected&&selected.sourceClass!=='ElmSite'){const feeder=data.graph.feeders.find(f=>selected!.sourceClass==='ElmBay'?f.id===selected!.id:f.equipmentKeys.includes(keyOf(selected!.sourceClass,selected!.id)));if(feeder){selectedBayId=feeder.id;scope='bay';}}
+      if(contextChanged&&selected&&selected.sourceClass!=='ElmSite'){const feeder=data.graph.feeders.find(f=>selected!.sourceClass==='ElmBay'?f.id===selected!.id:f.equipmentKeys.includes(keyOf(selected!.sourceClass,selected!.id)));if(feeder&&scope==='bay')selectedBayId=feeder.id;}
       if(scope==='bay'&&!data.graph.feeders.some(f=>f.id===selectedBayId&&voltageMatches(f.voltageKv,ctx.filters.voltages)))selectedBayId=filteredFeeders(data)[0]?.id||'';
       drawFeederPicker(data);
     } else { stationData = null; bayToolbar.hidden = true; }
@@ -346,6 +379,8 @@ export function createSldView(ctx: AppContext): Feature {
       regionalPager.replaceChildren(prev,element('span','ga-muted',`${regionalPage+1}/${pages}`),next);
     }
     renderer.render(diagramHost, diagram, selectEquipment);
+    back.disabled=history.length===0;
+    root.dataset.sldUnresolved=String(data?.graph.counters.diagramUnresolvedTotal??0);root.dataset.sldMode=mode.value;
     if (scope === 'regional') info.textContent = `${diagram.regionalBranches.length} gerçek TM bağlantısı · ${diagram.regionalSites.length} merkez · sayfada en fazla 12 komşu. Paralel hatlar üstteki hat seçicisinden ayrı seçilebilir.`;
     else if (scope==='bay') info.textContent = `${diagram.terminals.length} gerçek terminal · ${diagram.switches.length} ElmCoup anahtarı · ${diagram.unresolvedSwitches} çözülemeyen uç. Senaryo durumları yerel çalışma kopyasındadır.`;
     else info.textContent = `${site.name} · ${data?.graph.busSections.length||0} bara bölümü · ${data?.bays.length||0} kaynak fider · ${data?.graph.terminals.length||0} terminal · yatay bara / dikey fider. Sürükle: kaydır · tekerlek: yakınlaştır.`;

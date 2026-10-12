@@ -6,11 +6,14 @@ import type { ScenarioOverlay } from '../../domain/scenario/overlay';
 import type { Settings } from '../../persistence/settings';
 import type { N1SelectedDetail } from '../../domain/n1';
 import {islandColor} from '../../map/island-map';
+import {physicalStationLayout} from './physical-layout';
+import type {SldMode,SldResultOverlay} from './result-overlay';
+import {engineeringSymbol} from './symbols';
 export type SldScope='station'|'bay'|'regional';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
 export interface SldTerminal {id:string;name:string;bayId:string;external:boolean;equipment:readonly SldEquipment[]}
-export interface SldSwitch {id:string;name:string;sourceClass:'ElmCoup'|'StaSwitch';kind:'breaker'|'isolator'|'other';from:string|null;to:string|null;modelClosed:boolean;closed:boolean;inService:boolean}
+export interface SldSwitch {id:string;name:string;sourceClass:'ElmCoup'|'StaSwitch';kind:'breaker'|'isolator'|'other';from:string|null;to:string|null;modelClosed:boolean;closed:boolean;inService:boolean;stateKnown?:boolean}
 export interface SldRegionalBranch extends SldEquipment {fromSiteId:string;toSiteId:string}
 export interface SldDiagram {
   scope:SldScope;orientation:'horizontal'|'vertical';station:Site;selectedId:string|null;groups:readonly SldBusGroup[];equipment:readonly SldEquipment[];
@@ -18,13 +21,14 @@ export interface SldDiagram {
   regionalSites:readonly Site[];regionalBranches:readonly SldRegionalBranch[];unresolvedSwitches:number;
   graph:StationTopologyGraph|null;voltageBands:ReadonlySet<VoltageBand>;page:number;technical:boolean;scenario:ScenarioOverlay;settings:Settings;
   n1Detail:N1SelectedDetail|null;selectedN1IslandId:string|null;
+  mode?:SldMode;overlay?:SldResultOverlay;showResults?:boolean;showArrows?:boolean;colorMode?:'voltage'|'state';
 }
 type Select=(id:string,sourceClass:string)=>void;
 const NS='http://www.w3.org/2000/svg',ink='#e0edf2',muted='#9bb3c1',normal='#90d4df';
 function svg<K extends keyof SVGElementTagNameMap>(tag:K,attrs:Record<string,string|number>,parent?:SVGElement):SVGElementTagNameMap[K]{const n=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,String(v));parent?.append(n);return n;}
 function text(parent:SVGElement,x:number,y:number,label:string,size=12,color=ink,anchor='start'){const n=svg('text',{x,y,fill:color,'font-size':size,'font-family':'system-ui, sans-serif','text-anchor':anchor},parent);n.textContent=label;return n;}
 const shorten=(s:string,n=23)=>s.length>n?s.slice(0,n-1)+'…':s;
-function group(parent:SVGElement,id:string,cls:string,name:string,select:Select,detail=''){const g=svg('g',{'data-id':id,'data-class':cls,role:'button',tabindex:0,'aria-label':name},parent);svg('title',{},g).textContent=`${name}\n${cls} · ${id}${detail?'\n'+detail:''}`;g.onclick=()=>select(id,cls);g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(id,cls);}};return g;}
+function group(parent:SVGElement,id:string,cls:string,name:string,select:Select,detail=''){const g=svg('g',{'data-id':id,'data-class':cls,role:'button',tabindex:0,'aria-label':name},parent);svg('title',{},g).textContent=`${name}\n${cls} · ${id}${detail?'\n'+detail:''}`;g.onclick=e=>{e.stopPropagation();select(id,cls);};g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(id,cls);}};return g;}
 function stateStyle(d:SldDiagram,source:boolean,current:boolean){return {color:source!==current?(current?d.settings.colorScenarioOn:d.settings.colorScenarioOff):current?normal:d.settings.colorOut,dash:current?'':'6 4'};}
 function equipmentState(d:SldDiagram,item:SldEquipment){return stateStyle(d,item.sourceInService??item.inService,item.inService);}
 function n1RiskColor(loading:number|null):string|null{if(loading==null||!Number.isFinite(loading))return null;return loading<80?'#43b874':loading<85?'#e4c84f':loading<=90?'#e99340':'#e34848';}
@@ -44,7 +48,7 @@ function applyN1Overlay(root:SVGSVGElement,d:SldDiagram):void{
     if(!label)continue;
     const dashes=outage||component&&!component.hasReference?'6 4':'';
     const stroke=component&&(selectedComponent||!impact)&&!outage?islandColor(component.componentId):color;
-    for(const line of groupElement.querySelectorAll<SVGPathElement>('path[data-connection]')){line.setAttribute('stroke',stroke);line.setAttribute('stroke-dasharray',dashes);line.setAttribute('stroke-width',outage||selectedComponent?'4':'3');}
+    if(outage)for(const line of groupElement.querySelectorAll<SVGPathElement>('path[data-connection]'))line.setAttribute('stroke-dasharray',dashes);
     if(component)groupElement.setAttribute('data-n1-island',component.componentId);
     const title=groupElement.querySelector('title');if(title)title.textContent+=`\n${label}${component?` · ${component.componentId} · ${component.references.map(row=>row.name).join(', ')||'YOK'} · ${component.hasLocalGeneration?`Yerel üretim var (${component.generatorCount} jeneratör, ${component.generationMw.toFixed(1)} MW)`:''}`:''}${impact?` · Baz ${impact.baseFlowMw.toFixed(1)} MW · N-1 ${impact.postFlowMw==null?'—':impact.postFlowMw.toFixed(1)+' MW'} · ΔP ${impact.deltaPMw==null?'—':impact.deltaPMw.toFixed(1)+' MW'} · Kapasite ${impact.capacityMva==null?'—':impact.capacityMva.toFixed(1)+' MVA'}`:''}`;
     const bounds=groupElement.getBBox(),badgeWidth=Math.min(210,Math.max(68,label.length*6+14)),badge=svg('g',{'pointer-events':'none','aria-hidden':'true',...(component?{'data-n1-island':component.componentId}:{})},groupElement),x=bounds.x+bounds.width-badgeWidth/2,y=bounds.y-11;
@@ -54,13 +58,17 @@ function applyN1Overlay(root:SVGSVGElement,d:SldDiagram):void{
 }
 function path(parent:SVGElement,points:readonly (readonly[number,number])[],color:string,dash='',width=2){return svg('path',{d:points.map((p,i)=>`${i?'L':'M'}${p[0]},${p[1]}`).join(' '),fill:'none',stroke:color,'stroke-width':width,'stroke-dasharray':dash,'data-connection':'orthogonal'},parent);}
 function symbol(parent:SVGElement,x:number,y:number,cls:string,color:string,closed=true,kind='breaker'){
-  if(cls==='ElmTr2'){svg('circle',{cx:x,cy:y-6,r:10,stroke:color,fill:'#102033','stroke-width':2},parent);svg('circle',{cx:x,cy:y+6,r:10,stroke:color,fill:'none','stroke-width':2},parent);}
+  if(cls==='ElmTr2')engineeringSymbol(parent,'transformer2w',x,y,color);
+  else if(cls==='ElmTr3')engineeringSymbol(parent,'transformer3w',x,y,color);
   else if(cls==='ElmCoup'||cls==='StaSwitch'){
     if(kind==='isolator'){svg('rect',{x:x-9,y:y-12,width:18,height:24,fill:'#102033'},parent);path(parent,[[x,y+10],[closed?x:x+9,y-10]],color);svg('circle',{cx:x,cy:y-11,r:2,fill:color},parent);svg('circle',{cx:x,cy:y+11,r:2,fill:color},parent);}
-    else svg('rect',{x:x-7,y:y-8,width:14,height:16,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);
+    else if(kind==='breaker')svg('rect',{x:x-7,y:y-8,width:14,height:16,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);
+    else svg('path',{d:`M${x},${y-9} L${x+8},${y} L${x},${y+9} L${x-8},${y} Z`,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);
   }
   else if(cls==='ElmLne'){svg('path',{d:`M${x},${y-16} L${x},${y} M${x-6},${y-6} L${x},${y} L${x+6},${y-6}`,fill:'none',stroke:color,'stroke-width':2},parent);}
-  else{svg('circle',{cx:x,cy:y,r:12,stroke:color,fill:'#102033','stroke-width':2},parent);text(parent,x,y+4,cls==='ElmLod'?'Y':cls==='ElmShnt'?'Ş':'G',11,color,'middle');}
+  else if(cls==='ElmSym'||cls==='ElmGenStat')engineeringSymbol(parent,'generator',x,y,color);
+  else if(cls==='ElmLod')engineeringSymbol(parent,'load',x,y,color);
+  else{svg('circle',{cx:x,cy:y,r:12,stroke:color,fill:'#102033','stroke-width':2},parent);text(parent,x,y+4,cls==='ElmShnt'?'Ş':'G',11,color,'middle');}
 }
 function wrappedText(parent:SVGElement,x:number,y:number,label:string,limit=18,size=10,color=ink){
   const words=label.split(/\s+/);let first='';while(words.length&&(!first||first.length+words[0].length+1<=limit)){first+=(first?' ':'')+words.shift();}
@@ -69,60 +77,59 @@ function wrappedText(parent:SVGElement,x:number,y:number,label:string,limit=18,s
 export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SVGSVGElement {
   const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
 }
+function voltageColor(d:SldDiagram,kv:number){return kv>=300?d.settings.color400:kv>=180?d.settings.color220:kv>=100?d.settings.color154:kv>=50?d.settings.color66:d.settings.colorLow;}
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  if(!d.graph)return;const layout=layoutStation(d.graph,d.voltageBands),graph=d.graph;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
-  text(root,24,30,d.station.name,21);text(root,24,52,`TM genel · ${graph.busSections.length} bara bölümü · ${graph.sourceFeederCount} kaynak fider · kaynak anahtar bağlantıları`,12,muted);
-  const positions=new Map(layout.sections.map(p=>[p.section.id,p]));
-  for(const level of layout.levels)text(root,24,level.y,`${level.kv||'—'} kV`,17,'#f1cf8a');
-  for(const p of layout.sections){const b=p.section,current=d.scenario.busOrTerminalStatus[b.id]??(d.scenario.restoredTerminals.includes(b.id)||b.inService),style=stateStyle(d,b.inService,current),g=group(root,b.id,'ElmTerm',b.name,select,`${b.voltageKv} kV · ${current?'Serviste':'Servis dışı'}`);
-    text(g,24,p.y+4,shorten(b.name,26),11);path(g,[[p.x1,p.y],[p.x2,p.y]],d.selectedId===b.id?'#ffe382':style.color,style.dash,4);
-    if(d.technical)text(g,p.x2,p.y-7,b.id,9,muted,'end');
+  if(!d.graph)return;const graph=d.graph,layout=physicalStationLayout(graph,d.voltageBands,d.mode==='compact');root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
+  text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${graph.sourceFeederCount} kaynak fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
+  const palette=(kv:number,state:boolean)=>d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
+  const equipment=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
+  const overlay=(g:SVGGElement,key:string,x:number,y:number)=>{
+    const entry=d.overlay?.entries.get(key);if(!entry)return;
+    g.dataset.resultStatus=entry.status;g.dataset.resultMethod=entry.method;
+    const title=g.querySelector('title');if(title)title.textContent+=`\n${entry.status} · ${entry.method}\n`+Object.entries(entry.values).map(([k,v])=>`${k}: ${v??'—'}`).join('\n');
+    if(d.showResults!==false)entry.lines.forEach((line,i)=>text(g,x,y+i*14,line,9,entry.alarm?'#ff746f':ink,'middle'));
+    if(d.showArrows!==false&&entry.direction!==null&&entry.direction!==0){const sign=entry.direction>0?1:-1;svg('path',{d:`M${x+18},${y-20-sign*8} L${x+18},${y-20+sign*8} M${x+12},${y-20+sign*2} L${x+18},${y-20+sign*8} L${x+24},${y-20+sign*2}`,fill:'none',stroke:normal,'data-flow-direction':sign>0?'FROM_TO':'TO_FROM'},g);}
+  };
+  for(const p of layout.sections){const b=p.section,current=d.scenario.busOrTerminalStatus[b.id]??(d.scenario.restoredTerminals.includes(b.id)||b.inService),g=group(root,b.id,'ElmTerm',b.name,select,`${b.voltageKv} kV · ${current?'Serviste':'Servis dışı'}`);
+    path(g,[[p.x1,p.y],[p.x2,p.y]],d.selectedId===b.id?'#ffe382':palette(b.voltageKv,current),current?'':'6 4',4);text(g,24,p.y+4,shorten(b.name,28),11);g.dataset.port=b.id;g.dataset.semantic='busbar-section';overlay(g,`ElmTerm|${b.id}`,p.x2-120,p.y-8);
   }
-  const eq=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
-  const terminalLinks=stationTerminalLinks(graph,layout),linkedFeeders=new Set(terminalLinks.flatMap(link=>link.points.map(p=>p.feederId)));
-  for(const {terminal,points}of terminalLinks){const current=d.scenario.busOrTerminalStatus[terminal.id]??(d.scenario.restoredTerminals.includes(terminal.id)||terminal.inService),style=stateStyle(d,terminal.inService,current),g=group(root,terminal.id,'ElmTerm',terminal.name,select,'Kaynakta ortak terminal'),y=Math.min(...points.map(p=>p.y))-18;
-    path(g,[[Math.min(...points.map(p=>p.x)),y],[Math.max(...points.map(p=>p.x)),y]],style.color,style.dash);
-    for(const p of points){path(g,[[p.x,y],[p.x,p.y-12]],style.color,style.dash);svg('circle',{cx:p.x,cy:y,r:2,fill:style.color},g);}
+  const terminalGroups=new Map<string,SVGGElement>(),cubiclePositions=new Map<string,{x:number;y:number}>();
+  for(const [id,p]of layout.ports){if(p.semantics==='busbar-section')continue;const term=graph.terminals.find(t=>t.id===id)!,g=group(root,id,'ElmTerm',term.name,select,`${term.vnKv} kV · ${id}`);g.dataset.port=id;g.dataset.semantic=p.semantics;svg('circle',{cx:p.x,cy:p.y,r:3,fill:palette(term.vnKv,term.inService)},g);if(d.technical)text(g,p.x+7,p.y-4,id,8,muted);terminalGroups.set(id,g);overlay(g,`ElmTerm|${id}`,p.x,p.y+16);}
+  // Every physical switch owns exactly one symbol and one native endpoint route.
+  let unresolvedPosition=0;
+  for(const route of layout.routes){const {sw,a,b}=route,item=equipment.get(`${sw.sourceClass}|${sw.id}`);if(!item)continue;
+    if(!a&&!b&&graph.terminals.some(t=>t.id===sw.from)&&graph.terminals.some(t=>t.id===sw.to))continue;
+    const known=sw.stateKnown||Object.hasOwn(d.scenario.switchState,sw.id),closed=item.closed??false,state=!item.inService?'OUT_OF_SERVICE':!known?'UNKNOWN':closed?'CLOSED':'OPEN';
+    const color=state==='UNKNOWN'?d.settings.colorNoResult:!item.inService?d.settings.colorOut:palette(graph.terminals.find(t=>t.id===sw.from)?.vnKv??0,closed),g=group(root,sw.id,sw.sourceClass,item.name,select,`${sw.kind} · ${state} · ${sw.from} → ${sw.to}`);
+    g.dataset.physicalSwitch=`${sw.sourceClass}|${sw.sourceId}`;g.dataset.from=sw.from;g.dataset.to=sw.to;g.dataset.state=state;g.dataset.semantic=sw.kind;g.dataset.bay=sw.bayId??'';
+    let x=a?.x??layout.width-70,y=a?.y??100;
+    if(a&&b&&sw.from!==sw.to){x=a.x;y=(a.y+b.y)/2;
+      const sign=b.y>=a.y?1:-1;path(g,[[a.x,a.y],[a.x,y-sign*12]],color,item.inService?'':'6 4');path(g,[[x,y+sign*12],[x,b.y],[b.x,b.y]],color,item.inService?'':'6 4');
+    }else if(a&&sw.from===sw.to){const attached=graph.equipment.filter(e=>e.kind!=='transformer'&&e.terminals.includes(a.terminalId)),at=attached.findIndex(e=>e.id===sw.equipmentId);x=a.x+(attached.length>1&&at>=0?(at-(attached.length-1)/2)*100:0);y=a.y+35;path(g,[[a.x,a.y],[x,a.y],[x,y-12]],color);cubiclePositions.set(`${sw.sourceClass}|${sw.id}`,{x,y});g.dataset.semantic='cubicle-switch';}
+    else{const known=graph.terminals.some(t=>t.id===sw.from)&&graph.terminals.some(t=>t.id===sw.to);y=(a??b)?.y??90+unresolvedPosition++*24;text(g,x-20,y,known?'Port görünüm kapsamı dışında':'Uç belirsiz',9,muted,'end');}
+    symbol(g,x,y,sw.sourceClass,color,closed,sw.kind);if(state==='UNKNOWN')text(g,x+12,y+3,'?',10,color);
+    if(d.selectedId===sw.id)svg('circle',{cx:x,cy:y,r:17,fill:'none',stroke:'#ffe382'},g);
+    if(d.technical)text(g,x+12,y-7,sw.id,8,muted);
   }
-  const switchById=new Map(graph.switches.map(sw=>[sw.id,sw]));
-  const drawSwitch=(parent:SVGElement,id:string,x:number,y:number)=>{const sw=switchById.get(id),item=d.equipment.find(e=>e.id===id);if(!sw||!item)return;const closed=item.closed??false,style=stateStyle(d,(item.sourceClosed??closed)&&(item.sourceInService??true),closed&&item.inService),g=group(parent,id,item.sourceClass,item.name,select,`${sw.kind} · ${closed?'Kapalı':'Açık'}`);symbol(g,x,y,item.sourceClass,style.color,closed,sw.kind);};
-  const equipmentPositions=new Map<string,{x:number;y:number;feederId:string}[]>();
-  for(const p of layout.feeders){const f=p.feeder,entity=f.equipmentKeys.map(k=>eq.get(k)).find(Boolean),identity=f.sourceClass==='ElmBay'?f.id:entity?.id||f.id;
-    const g=group(root,identity,f.sourceClass,f.name,select,`${f.terminalIds.length} terminal · ${f.switchIds.length} anahtar · ${f.equipmentKeys.length} ekipman`),style=entity?equipmentState(d,entity):{color:normal,dash:''};
-    g.setAttribute('data-feeder',f.id);
-    const connections=feederSwitchPaths(graph,f).filter(c=>positions.has(c.busId));
-    // StaSwitch belongs to the equipment cubicle (canonical from===to), not a new bus edge.
-    const cubicleSwitches=f.switchIds.filter(id=>{const sw=switchById.get(id);return sw&&sw.from===sw.to&&entity?.busIds.includes(sw.from);});
-    let common:string[]=[];
-    if(connections.length){common=[...connections[0].switchIds];for(const connection of connections.slice(1)){let count=0;while(count<common.length&&count<connection.switchIds.length&&common[common.length-1-count]===connection.switchIds[connection.switchIds.length-1-count])count++;common=count?common.slice(-count):[];}}
-    const barBottom=Math.max(0,...layout.sections.filter(b=>b.section.voltageKv===f.voltageKv).map(b=>b.y)),junction=barBottom+45+(p.y-barBottom-65)*.5;
-    const directPorts=entity&&f.sourceClass!=='ElmBay'&&entity.busIds.filter(id=>positions.has(id)).length===2?entity.busIds:[];
-    for(const[c,connection]of (directPorts.length?[]:connections).entries()){const bus=positions.get(connection.busId)!,x=p.x+(c-(connections.length-1)/2)*32,branch=connection.switchIds.slice(0,connection.switchIds.length-common.length);
-      path(g,[[x,bus.y],[x,junction],[p.x,junction]],style.color,style.dash);svg('circle',{cx:x,cy:bus.y,r:3,fill:style.color},g);
-      branch.forEach((id,i)=>drawSwitch(g,id,x,barBottom+25+(i+.5)*(junction-barBottom-30)/Math.max(1,branch.length)));
-    }
-    if(directPorts.length){directPorts.forEach((id,i)=>{const bus=positions.get(id);if(!bus)return;const x=p.x+(i?35:0),y=p.y+(i?15:-15);path(g,[[x,bus.y],[x,y],[p.x,y]],style.color,style.dash);svg('circle',{cx:x,cy:bus.y,r:3,fill:style.color},g);});}
-    else if(connections.length){path(g,[[p.x,junction],[p.x,p.y-13]],style.color,style.dash);const chain=[...common,...cubicleSwitches];chain.forEach((id,i)=>drawSwitch(g,id,p.x,junction+(i+.5)*(p.y-junction-20)/Math.max(1,chain.length)));}
-    else if(!linkedFeeders.has(f.id))text(g,p.x,p.y-25,'Uç belirsiz',9,muted,'middle');
-    if(!entity||entity.sourceClass==='ElmTr2')svg('circle',{cx:p.x,cy:p.y,r:4,fill:style.color},g);else symbol(g,p.x,p.y,entity.sourceClass,style.color);
-    const label=entity&&entity.sourceClass!=='ElmTr2'?entity.name:f.name;wrappedText(g,p.x,p.y+28,label);
-    if(d.technical)text(g,p.x,p.y+59,identity,8,muted,'middle');
-    for(const key of f.equipmentKeys)equipmentPositions.set(key,[...(equipmentPositions.get(key)||[]),{x:p.x,y:p.y,feederId:f.id}]);
+  if(unresolvedPosition)root.setAttribute('viewBox',`0 0 ${layout.width} ${Math.max(layout.height,120+unresolvedPosition*24)}`);
+  const attachmentCounts=new Map<string,number>();
+  for(const e of graph.equipment){const item=equipment.get(`${e.sourceClass}|${e.id}`);if(!item)continue;const ports=e.terminals.map(id=>layout.ports.get(id)).filter((p):p is NonNullable<typeof p>=>!!p);if(!ports.length)continue;
+    const g=group(root,e.id,e.sourceClass,e.name,select,e.terminals.join(' → ')),style=equipmentState(d,item),color=palette(item.voltageKv??graph.terminals.find(t=>t.id===e.terminals[0])?.vnKv??0,item.inService);g.dataset.terminals=e.terminals.join('|');g.dataset.semantic=e.kind;
+    let x=ports[0].x,y=ports[0].y+80;
+    if(e.kind==='transformer3w'){x=ports.reduce((v,p)=>v+p.x,0)/ports.length;y=ports.reduce((v,p)=>v+p.y,0)/ports.length;for(const [i,p]of ports.entries())path(g,[[p.x,p.y],[p.x,y],[x+(i===2?15:0),y]],palette(graph.terminals.find(t=>t.id===p.terminalId)?.vnKv??0,item.inService),style.dash);symbol(g,x,y,'ElmTr3',color);text(g,x+30,y,shorten(e.name,24),10);text(g,x+30,y+15,'PARTIAL · hesap UNSUPPORTED',9,'#ffd27e');}
+    else if(e.kind==='transformer'&&ports.length===2){const [a,b]=ports,parallel=graph.equipment.filter(other=>other.kind==='transformer'&&other.terminals.join('|')===e.terminals.join('|'));x=(a.x+b.x)/2+(parallel.indexOf(e)-(parallel.length-1)/2)*70;y=(a.y+b.y)/2;
+      path(g,[[a.x,a.y],[x,a.y],[x,y-16]],color,style.dash);path(g,[[x,y+16],[x,b.y],[b.x,b.y]],palette(item.lvKv??0,item.inService),style.dash);symbol(g,x,y,'ElmTr2',color);g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1];
+      text(g,x+23,y-4,shorten(e.name,26),10);text(g,x+23,y+13,`${item.voltageKv??'—'}/${item.lvKv??'—'} kV · ${item.ratingMva??'—'} MVA`,9,muted);
+    }else{const a=ports[0],shared=graph.equipment.filter(other=>other.kind!=='transformer'&&other.terminals.includes(a.terminalId)).length,at=attachmentCounts.get(a.terminalId)??0;attachmentCounts.set(a.terminalId,at+1);x=a.x+(shared>1?(at-(shared-1)/2)*100:0);const cub=graph.switches.find(s=>s.from===s.to&&s.equipmentId===e.id),switchPosition=cub?cubiclePositions.get(`${cub.sourceClass}|${cub.id}`):null;if(switchPosition)path(g,[[switchPosition.x,switchPosition.y+12],[x,y-16]],color,style.dash);else path(g,[[a.x,a.y],[x,a.y],[x,y-16]],color,style.dash);symbol(g,x,y,e.sourceClass,color);wrappedText(g,x,y+26,e.name,24,10);}
+    if(d.selectedId===e.id)svg('circle',{cx:x,cy:y,r:20,fill:'none',stroke:'#ffe382'},g);
+    if(d.overlay?.outageKey===`${e.sourceClass}|${e.id}`){g.dataset.outage='true';text(g,x,y-25,'N-1 KESİNTİ',10,'#ff746f','middle');}
+    overlay(g,`${e.sourceClass}|${e.id}`,x,y+54);
   }
-  let bridge=0;
-  for(const e of graph.equipment.filter(e=>e.kind==='transformer')){
-    const key=`${e.sourceClass}|${e.id}`,lanes=equipmentPositions.get(key)||[],item=eq.get(key);if(!item||!lanes.length)continue;
-    const style=equipmentState(d,item),first=lanes[0],last=lanes[lanes.length-1];
-    if(first===last){const g=group(root,e.id,e.sourceClass,e.name,select);symbol(g,first.x,first.y,'ElmTr2',style.color);continue;}
-    const x=Math.max(...layout.sections.map(p=>p.x2))+70+bridge++*160,mid=(first.y+last.y)/2,g=group(root,e.id,e.sourceClass,e.name,select);
-    path(g,[[first.x,first.y],[x,first.y],[x,last.y],[last.x,last.y]],style.color,style.dash);symbol(g,x,mid,'ElmTr2',style.color);wrappedText(g,x,mid+33,e.name,20);
-    const rating=[item.voltageKv&&item.lvKv?`${item.voltageKv} / ${item.lvKv} kV`:'',item.ratingMva?`${item.ratingMva} MVA`:''].filter(Boolean).join(' · ');if(rating)wrappedText(g,x,mid+65,rating,22,9,muted);
-    if(d.technical)text(g,x,mid-25,e.id,9,muted,'middle');
-  }
-  let coupler=0;for(const sw of graph.switches){const a=positions.get(sw.from),b=positions.get(sw.to);if(!a||!b||a.section.voltageKv!==b.section.voltageKv||a.section.id===b.section.id)continue;const x=238+coupler++*28,item=d.equipment.find(e=>e.id===sw.id),closed=item?.closed??false,style=stateStyle(d,(item?.sourceClosed??closed)&&(item?.sourceInService??true),closed&&(item?.inService??true));path(root,[[x,a.y],[x,b.y]],style.color,style.dash);drawSwitch(root,sw.id,x,(a.y+b.y)/2);}
-  text(root,24,layout.height-15,`Tam istasyon · ${layout.feeders.length} bağlantı · ${graph.unresolvedEndpoints} çözülemeyen uç`,11,muted);
-
+  for(const p of layout.feeders){const issues=graph.issues.filter(i=>i.sourceId===p.feeder.id);if(!issues.length)continue;const g=group(root,p.feeder.id,p.feeder.sourceClass,p.feeder.name,select,issues.map(i=>i.reason).join('\n'));g.dataset.unresolved='true';text(g,p.x,p.y+25,'Uç belirsiz · '+p.feeder.name,9,'#ffd27e','middle');}
+  text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · fider ${graph.counters.unresolvedFeederTerminals} · ekipman ${graph.counters.unresolvedEquipmentConnections} · cubicle ${graph.counters.missingCubicleReferences}`,11,muted);
+  if(d.overlay&&['LF','N1','SC'].includes(d.mode??''))text(root,24,layout.height-35,`${d.mode} ${d.overlay.phase} · ${d.overlay.status} · ${d.overlay.method}`,10,muted);
 }
+
 function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   const terminals=[...d.terminals].sort((a,b)=>a.id.localeCompare(b.id)),adj=new Map(terminals.map(t=>[t.id,[] as string[]]));
   for(const s of d.switches)if(s.from&&s.to&&adj.has(s.from)&&adj.has(s.to)){adj.get(s.from)!.push(s.to);adj.get(s.to)!.push(s.from);}
@@ -134,7 +141,7 @@ function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   const width=horizontal?Math.max(900,260+depth*210):Math.max(900,lanes*240+180),height=horizontal?Math.max(480,lanes*170+180):Math.max(480,depth*150+210);
   root.setAttribute('viewBox',`0 0 ${width} ${height}`);text(root,24,31,d.selectedBay?.name||'Fider',20);text(root,24,53,`${terminals.length} terminal · ${d.switches.length} kaynak anahtar · ${d.unresolvedSwitches} çözülemeyen uç`,12,muted);
   const pos=new Map<string,[number,number]>();for(const[level,rows]of groups)rows.forEach((t,i)=>pos.set(t.id,horizontal?[150+level*210,120+i*170]:[210+i*240,105+level*150]));
-  for(const s of d.switches){const a=pos.get(s.from||''),b=pos.get(s.to||'');if(!a||!b)continue;const g=group(root,s.id,s.sourceClass,s.name,select,`${s.kind} · ${s.closed?'Kapalı':'Açık'}`),style=stateStyle(d,s.modelClosed,s.closed),color=!s.inService?d.settings.colorOut:style.color;
+  for(const s of d.switches){const a=pos.get(s.from||''),b=pos.get(s.to||'');if(!a||!b)continue;const state=!s.inService?'OUT_OF_SERVICE':s.stateKnown===false?'UNKNOWN':s.closed?'CLOSED':'OPEN',g=group(root,s.id,s.sourceClass,s.name,select,`${s.kind} · ${state}`),style=stateStyle(d,s.modelClosed,s.closed),color=!s.inService?d.settings.colorOut:s.stateKnown===false?d.settings.colorNoResult:style.color;g.dataset.physicalSwitch=`${s.sourceClass}|${s.id}`;g.dataset.state=state;
     const midY=(a[1]+b[1])/2,midX=(a[0]+b[0])/2,points:[number,number][]=horizontal?[[a[0],a[1]],[midX,a[1]],[midX,b[1]],[b[0],b[1]]]:[[a[0],a[1]],[a[0],midY],[b[0],midY],[b[0],b[1]]];path(g,points,color,s.closed?style.dash:'5 4');
     const x=horizontal?midX:a[0],y=horizontal?a[1]:midY;symbol(g,x,y,s.sourceClass,color,s.closed,s.kind);text(g,x+16,y-5,shorten(`${s.kind==='breaker'?'Kesici':s.kind==='isolator'?'Ayırıcı':'Anahtar'} ${s.name}`,27),10,color);if(d.technical)text(g,x+16,y+10,s.id,9,muted);
   }
@@ -155,6 +162,7 @@ export class SvgSldRenderer {
   zoom(factor:number){if(!this.root)return;const[x,y,w,h]=this.box(),nextW=Math.max(this.fitBox[2]/12,Math.min(this.fitBox[2]*2,w/factor)),nextH=nextW*h/w;this.root.setAttribute('viewBox',[x+(w-nextW)/2,y+(h-nextH)/2,nextW,nextH].join(' '));}
   exportSvg():string|null{return this.root?new XMLSerializer().serializeToString(fullDiagramClone(this.root,this.fitBox)):null;}
   fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
+  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;const b=g.getBBox(),w=Math.max(360,b.width+100),h=Math.max(260,b.height+100);this.root!.setAttribute('viewBox',[b.x+b.width/2-w/2,b.y+b.height/2-h/2,w,h].join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {
     const key=[d.station.id,d.scope,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
