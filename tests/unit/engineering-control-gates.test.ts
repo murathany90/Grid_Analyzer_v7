@@ -7,6 +7,7 @@ import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine
 import {identity} from '../../src/domain/calculation/identity';
 import {n1ControlEvidence} from '../../src/analysis/contingency-ac/control-evidence';
 import {validateAcOutages} from '../../src/analysis/contingency-ac';
+import {runHybridN1} from '../../src/analysis/contingency-hybrid';
 
 const settings=()=>{const s=defaultAnalysisSettings();s.powerFlow.stationControlMode='off';s.powerFlow.activeBalancingMode='SINGLE_REFERENCE';return s;};
 async function solve(){const network=acNetwork(),scenario=emptyScenario(),s=settings();return {network,s,result:await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario,identity:identity(network.modelHash,scenario,'powerFlow'),analysisSettings:s})};}
@@ -30,4 +31,12 @@ test('fixed native physics and missing source or reactive-mode fidelity remain s
   const bad={...fixed,transformers:fixed.transformers.map(t=>({...t,tap:NaN})),shunts:fixed.shunts.map(t=>({...t,bPu:Infinity}))};assert.equal(n1ControlEvidence(bad,result,s).fidelity,'CONTROL_FIDELITY_PARTIAL');
   const offline={...bad,transformers:bad.transformers.map(t=>({...t,inService:false})),shunts:bad.shunts.map(t=>({...t,inService:false}))};assert.equal(n1ControlEvidence(offline,result,s).fidelity,'CONTROL_VERIFIED');
   for(const diagnostics of [{sourceFidelity:{fidelity:'PARTIAL'}},{reactiveLimitClasses:{fidelity:'PARTIAL'}}])assert.equal(n1ControlEvidence(network,{...result,diagnostics:{...result.diagnostics,...diagnostics}},s).fidelity,'CONTROL_FIDELITY_PARTIAL');
+});
+
+test('even a diagnostic N-1 profile refuses forged converged BASE and POST residuals',async t=>{
+  const {network,s,result}=await solve();
+  const forged={...result,maxMismatchMw:.006};
+  const base=await runHybridN1(network,emptyScenario(),{analysisSettings:s,studyProfile:'NATIVE_PARTIAL_CONTROLS',solveBase:async()=>forged,policy:{acBudgetCases:1}});assert.equal(base.status,'BLOCKED');assert.equal(base.counts.AC_ATTEMPTED,0);
+  t.mock.method(BrowserJsPowerFlowEngine.prototype,'runPowerFlow',async()=>forged);
+  const [post]=await validateAcOutages(network,emptyScenario(),[{caseId:'N1:ElmLne:BYPASS',sourceClass:'ElmLne',fid:'BYPASS'}],{analysisSettings:s,controlPolicy:'ALLOW_PARTIAL'});assert.equal(post.status,'NOT_COMPUTABLE');assert.equal(post.result,null);assert.equal(post.controlEvidence?.numericalSolved,false);
 });

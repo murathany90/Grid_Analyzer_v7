@@ -57,7 +57,7 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     const controls=n1ControlEvidence(post,result,options.analysisSettings);row.controlEvidence=controls;
     const allowPartial=options.controlPolicy==='ALLOW_PARTIAL'||controls.reasons.every(r=>r==='STATION_CONTROL_OFF_LOCAL_PV_PROFILE');
     if(!result.converged){row.status='DIVERGED';row.reason=result.status;}
-    else if(result.maxMismatchMw===null||!Number.isFinite(result.maxMismatchMw)){row.status='NOT_COMPUTABLE';row.reason='MISSING_PHYSICAL_RESIDUAL';}
+    else if(!controls.numericalSolved){row.status='NOT_COMPUTABLE';row.reason='MISSING_INVALID_OR_EXCESSIVE_PHYSICAL_RESIDUAL';}
     else if(controls.fidelity==='CONTROL_FIDELITY_PARTIAL'&&!allowPartial){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason=controls.reasons.join('; ');}
     else{row.status=partial||controls.fidelity!=='CONTROL_VERIFIED'?'PARTIAL_SOLUTION':'CONVERGED';row.reason=[partial?'UNSUPPLIED_COMPONENTS_EXCLUDED_FROM_NUMERICAL_SOLUTION':'',...controls.reasons,controls.fidelity!=='CONTROL_VERIFIED'?'CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY':''].filter(Boolean).join('; ');row.result=result;row.branchApparentPower=result.branches.map(b=>({sourceClass:b.sourceClass,fid:b.id,sfMva:Math.hypot(b.pf,b.qf),stMva:Math.hypot(b.pt,b.qt),loadingPercent:b.loading}));}
     finish();
