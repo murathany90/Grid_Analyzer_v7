@@ -16,6 +16,14 @@ test('SC absent or uncomputed selection is NOT_RUN; only its own fault evidence 
   ctx.scResult={...ctx.scResult!,faults:[{...ctx.scResult!.faults[0],physicalTerminalFids:['B0','ALIAS']},{...ctx.scResult!.faults[0],physicalTerminalFid:'B2',physicalTerminalFids:['B2','ALIAS']}]};ctx.resultView.faultId='ALIAS';assert.equal(selectedScPresentation(ctx).status,'PARTITION_AMBIGUOUS');assert.equal(selectedScPresentation(ctx).fault,null);
   ctx.scResult={...ctx.scResult!,identity:{...ctx.scResult!.identity,scenarioHash:'other'}};assert.equal(selectedScPresentation(ctx).status,'NOT_RUN');
 });
+
+test('current SC batch has its own aggregate state without inventing a selected fault or normative acceptance',()=>{
+  const network=acNetwork(),scenario=new ScenarioStore(network.modelHash),ctx={network,scenario,resultView:{},scResult:{identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario.current)},faults:[{physicalTerminalFid:'B0',physicalTerminalFids:['B0'],status:'CALCULATED_NETWORK_APPROXIMATION',reasons:[],ikssKa:0}]}} as unknown as AppContext;
+  assert.equal(selectedScPresentation(ctx).status,'SC_BATCH_NETWORK_APPROXIMATION');assert.equal(selectedScPresentation(ctx).fault,null);
+  ctx.resultView.faultId='B2';assert.equal(selectedScPresentation(ctx).status,'NOT_RUN');ctx.resultView.faultId=undefined;
+  ctx.scResult!.faults[0].status='BLOCKED';ctx.scResult!.faults[0].ikssKa=null;assert.equal(selectedScPresentation(ctx).status,'SC_BATCH_BLOCKED');ctx.scResult!.faults[0].status='CANCELLED';assert.equal(selectedScPresentation(ctx).status,'SC_BATCH_PARTIAL');
+  ctx.scResult!.identity.scenarioHash='stale';assert.equal(selectedScPresentation(ctx).status,'NOT_RUN');
+});
 test('independent PF MAX kA remains visible with GA BLOCKED, while stale scenario, nominal mismatch, duplicate and sentinel are rejected',async()=>{
   const pair=syntheticBenchmarkPair(true),network=(await loadBenchmarkModel(pair.model)).network,benchmark=await loadBenchmark(pair.benchmark),scenario=new ScenarioStore(network.modelHash),ctx={network,benchmark,scenario,resultStore:new ResultStore()} as unknown as AppContext;
   ctx.scResult={identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario.current)},profile:{calculateMode:'MAX',faultType:'3PH'},faults:[{physicalTerminalFid:'SYN-B0',physicalTerminalFids:['SYN-B0'],nominalKv:100,status:'BLOCKED',reasons:['MISSING_IEC_FACTOR'],ikssKa:null,skssMva:null}]} as unknown as ScResult;

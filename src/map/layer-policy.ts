@@ -181,6 +181,7 @@ export function syncMapCase(ctx:AppContext){
 }
 export function selectedScPresentation(ctx:AppContext){
   const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
+  if(current&&!ctx.resultView.faultId&&sc.faults.length){const numeric=sc.faults.some(f=>f.status==='CALCULATED_NETWORK_APPROXIMATION'&&f.ikssKa!==null&&Number.isFinite(f.ikssKa)),blocked=sc.faults.every(f=>f.status==='BLOCKED'||f.status==='UNSUPPORTED');return {sc,fault:null,status:numeric?'SC_BATCH_NETWORK_APPROXIMATION':blocked?'SC_BATCH_BLOCKED':'SC_BATCH_PARTIAL',reason:'Toplu sonuç özeti; tek arıza kanıtı için fiziksel terminal seçin. IEC/PF paritesi doğrulanmadı.'};}
   const exact=current?sc.faults.filter(f=>f.physicalTerminalFid===ctx.resultView.faultId):[],matches=exact.length?exact:current?sc.faults.filter(f=>f.physicalTerminalFids.includes(ctx.resultView.faultId??'')):[];
   const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(matches.length>1?'PARTITION_AMBIGUOUS':'NOT_RUN'),reason:fault?.reasons.join('; ')??(matches.length>1?'PARTITION_AMBIGUOUS: birden fazla fault kaydı':!current?'Güncel kayıt yüklenmedi':'Seçilen fiziksel fault hesaplanmadı')};
 }
