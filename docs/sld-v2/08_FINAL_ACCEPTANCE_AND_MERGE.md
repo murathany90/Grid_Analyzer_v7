@@ -14,8 +14,8 @@ Uygulama zinciri: 93fcd73 (native topoloji/port/overlay/UI), 19a3fe9 (portable),
 | Git HEAD ham portable blob = rebuild | PASS; mevcut byte kapısı korunur |
 | Portable offline browser | PASS; gerçek CPU worker / import / analiz / export / cancellation akışları |
 | Gerçek kaynak topoloji / SN3-SN4 sunum | PASS; 07 raporundaki kapsam ve sınırlar |
-| Exact feature CI | Push sonrası doğrulanacak |
-| Main FF / ayrı main CI | Henüz uygulanmadı; feature CI kapısına bağlı |
+| Exact feature CI | SUCCESS; 7b660d0a8c2c6ba9cb3a6b0afb095e3a9b1d2ad0; [38313119790](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313119790) |
+| Main FF / ayrı main CI | SUCCESS; c8ee28b → aynı 7b660d0; [38313537307](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313537307) |
 
 Portable: dist-portable/GridAnalyzer_v7.html, 1.721.359 byte. SHA-256: 57dca2d1e0649e568e58f8469a5b5a82f09cb66bfed6ea10972f34f6575ea65e.
 
@@ -25,4 +25,8 @@ Korunan sınırlar: ototrafo sınıflandırması kaynakta doğrulanmadı; 3W ele
 
 Mevcut LF/DC/N1/SC motor kaynakları değişmedi. Başlangıçtaki 438 test silinmedi/skip edilmedi/gevşetilmedi. v702 fixture yalnız yeni StationTopologyGraph kaynak metadata alanlarıyla genişletildi; tüm eski assertions korunur.
 
-Uzak dallar/tagler silinmeyecek; force push veya reset kullanılmayacak. Exact feature CI başarılı ve main güncel/çatışmasız ise prompt yetkisiyle güvenli fast-forward; main push sonrası ayrıca main CI zorunludur.
+GitHub PR bağlantısı 403 Resource not accessible by integration döndürdü. Promptun açık fallback yetkisi kullanıldı: fetch ile main c8ee28b ve feature 7b660d0 doğrulandı, ancestry başarılı, main --ff-only ile güncellendi ve pushlandı. Aynı SHA için ayrı head_branch=main CI SUCCESS doğrulandı. Motor kaynaklarında baseline'a göre diff yok; portable hash aynıdır.
+
+Dal/tag silinmedi, force push/reset kullanılmadı. Korunan uzak dallar: main, feat/sld-v2-engineering-topology, codex/analysis-v7-evidence-hardening, feat/analysis-ui-native-n1-iec60909-2016, feat/engineering-n1-iec60909-validation. pf-parity-v2-validated tag'i korunur. Feature SHA main'in atasıdır.
+
+Bu kapanış belgesi yukarıdaki uygulama kabulü ve entegrasyon run'larını sabitler. Belge commitini taşıyan nihai uzak main SHA ve kendi exact main CI sonucu, içerik/SHA döngüsü oluşturmadan yerel FINAL_RECEIPT.json ve son kullanıcı tesliminde kaydedilir. Kaynak kodu ve portable byte'ları belge commitinde değişmez.
