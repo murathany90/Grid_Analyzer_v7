@@ -14,6 +14,8 @@ export type SldMode='ytbs'|'technical'|'LF'|'N1'|'SC'|'operation'|'compact';
 export interface SldResultEntry {status:string;method:string;values:Record<string,number|string|null>;lines:string[];direction:number|null;alarm:boolean}
 export interface SldResultOverlay {status:string;method:string;phase:string;entries:Map<string,SldResultEntry>;outageKey:string|null}
 export const finite=(v:unknown):number|null=>typeof v==='number'&&Number.isFinite(v)?v:null;
+/** Positive endpoint injection leaves that physical terminal; TO is not guessed as -FROM. */
+export function sldFlowAtPort(entry:SldResultEntry,side:'FROM'|'TO'):number|null{return finite(entry.values[side==='FROM'?'pFromMw':'pToMw']);}
 const fmt=(v:unknown)=>finite(v)===null?'—':finite(v)!.toFixed(2);
 const hash=(v:unknown)=>Array.from(sha256(new TextEncoder().encode(stableJson(v))),n=>n.toString(16).padStart(2,'0')).join('');
 export function sldLfCurrent(ctx:AppContext,r:CalculationResult|null,role:'base'|'scenario'):r is CalculationResult {
@@ -36,7 +38,7 @@ function buildSldResultOverlay(ctx:AppContext,mode:SldMode):SldResultOverlay {
   const base=ctx.resultStore.get('base','powerFlow'),scenario=ctx.resultStore.get('scenario','powerFlow');
   const role=ctx.resultStore.role==='base'?'base':'scenario',r=role==='base'?base:scenario;
   const installBranch=(key:string,values:Record<string,number|string|null>,status:string,method:string)=>{
-    out.entries.set(key,{status,method,values,lines:[`P/Q uç 1: ${fmt(values.pFromMw)} / ${fmt(values.qFromMvar)} MW/MVAr`,`P/Q uç 2: ${fmt(values.pToMw)} / ${fmt(values.qToMvar)} MW/MVAr`,`I: ${fmt(values.iFromA)} / ${fmt(values.iToA)} A · Yük ${fmt(values.loadingPercent)}%`],direction:finite(values.pFromMw),alarm:(finite(values.loadingPercent)??0)>100});
+    const change=out.phase==='CHANGE',prefix=change?'Δ ':'';out.entries.set(key,{status,method,values,lines:[`${prefix}P/Q uç 1: ${fmt(values.pFromMw)} / ${fmt(values.qFromMvar)} MW/MVAr`,`${prefix}P/Q uç 2: ${fmt(values.pToMw)} / ${fmt(values.qToMvar)} MW/MVAr`,`${prefix}I: ${fmt(values.iFromA)} / ${fmt(values.iToA)} A · ${prefix}Yük ${fmt(values.loadingPercent)} ${change?'pp':'%'}`],direction:finite(values.pFromMw),alarm:!change&&(finite(values.loadingPercent)??0)>100});
   };
   if(mode==='LF'){
     if(!sldLfCurrent(ctx,r,role)){out.status=r?'STALE':'NOT_RUN / STALE';return out;}

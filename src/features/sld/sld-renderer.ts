@@ -8,6 +8,7 @@ import type { N1SelectedDetail } from '../../domain/n1';
 import {islandColor} from '../../map/island-map';
 import {physicalStationLayout} from './physical-layout';
 import type {SldMode,SldResultOverlay} from './result-overlay';
+import {sldFlowAtPort} from './result-overlay';
 import {engineeringSymbol} from './symbols';
 export type SldScope='station'|'bay'|'regional';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
@@ -83,12 +84,13 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${graph.sourceFeederCount} kaynak fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
   const palette=(kv:number,state:boolean)=>d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
   const equipment=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
-  const overlay=(g:SVGGElement,key:string,x:number,y:number)=>{
+  const overlay=(g:SVGGElement,key:string,x:number,y:number,side:'FROM'|'TO'='FROM',axis:readonly[number,number]=[0,1])=>{
     const entry=d.overlay?.entries.get(key);if(!entry)return;
     g.dataset.resultStatus=entry.status;g.dataset.resultMethod=entry.method;
     const title=g.querySelector('title');if(title)title.textContent+=`\n${entry.status} · ${entry.method}\n`+Object.entries(entry.values).map(([k,v])=>`${k}: ${v??'—'}`).join('\n');
     if(d.showResults!==false)entry.lines.forEach((line,i)=>text(g,x,y+i*14,line,9,entry.alarm?'#ff746f':ink,'middle'));
-    if(d.showArrows!==false&&entry.direction!==null&&entry.direction!==0){const sign=entry.direction>0?1:-1;svg('path',{d:`M${x+18},${y-20-sign*8} L${x+18},${y-20+sign*8} M${x+12},${y-20+sign*2} L${x+18},${y-20+sign*8} L${x+24},${y-20+sign*2}`,fill:'none',stroke:normal,'data-flow-direction':sign>0?'FROM_TO':'TO_FROM'},g);}
+    const direction=sldFlowAtPort(entry,side);
+    if(d.showArrows!==false&&direction!==null&&direction!==0){const sign=direction>0?1:-1,vx=axis[0]*sign,vy=axis[1]*sign,cx=x+18,cy=y-20,ex=cx+vx*8,ey=cy+vy*8,change=d.overlay?.phase==='CHANGE';svg('path',{d:`M${cx-vx*8},${cy-vy*8} L${ex},${ey} M${ex-vx*6-vy*6},${ey-vy*6+vx*6} L${ex},${ey} L${ex-vx*6+vy*6},${ey-vy*6-vx*6}`,fill:'none',stroke:normal,'data-flow-side':side,'data-flow-direction':change?(sign>0?'INCREASED_INJECTION':'DECREASED_INJECTION'):sign>0?'LOCAL_OUTBOUND':'LOCAL_INBOUND'},g);if(change)text(g,cx+12,cy+3,'Δ',9,normal);}
   };
   for(const p of layout.sections){const b=p.section,current=d.scenario.busOrTerminalStatus[b.id]??(d.scenario.restoredTerminals.includes(b.id)||b.inService),g=group(root,b.id,'ElmTerm',b.name,select,`${b.voltageKv} kV · ${current?'Serviste':'Servis dışı'}`);
     path(g,[[p.x1,p.y],[p.x2,p.y]],d.selectedId===b.id?'#ffe382':palette(b.voltageKv,current),current?'':'6 4',4);text(g,24,p.y+4,shorten(b.name,28),11);g.dataset.port=b.id;g.dataset.semantic='busbar-section';overlay(g,`ElmTerm|${b.id}`,p.x2-120,p.y-8);
@@ -115,15 +117,16 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   const attachmentCounts=new Map<string,number>();
   for(const e of graph.equipment){const item=equipment.get(`${e.sourceClass}|${e.id}`);if(!item)continue;const ports=e.terminals.map(id=>layout.ports.get(id)).filter((p):p is NonNullable<typeof p>=>!!p);if(!ports.length)continue;
     const g=group(root,e.id,e.sourceClass,e.name,select,e.terminals.join(' → ')),style=equipmentState(d,item),color=palette(item.voltageKv??graph.terminals.find(t=>t.id===e.terminals[0])?.vnKv??0,item.inService);g.dataset.terminals=e.terminals.join('|');g.dataset.semantic=e.kind;
-    let x=ports[0].x,y=ports[0].y+80;
+    let x=ports[0].x,y=ports[0].y+80,flowSide:'FROM'|'TO'=e.terminals.indexOf(ports[0].terminalId)===1?'TO':'FROM',flowAxis:readonly[number,number]=[0,1];g.dataset.localTerminal=ports[0].terminalId;
     if(e.kind==='transformer3w'){x=ports.reduce((v,p)=>v+p.x,0)/ports.length;y=ports.reduce((v,p)=>v+p.y,0)/ports.length;for(const [i,p]of ports.entries())path(g,[[p.x,p.y],[p.x,y],[x+(i===2?15:0),y]],palette(graph.terminals.find(t=>t.id===p.terminalId)?.vnKv??0,item.inService),style.dash);symbol(g,x,y,'ElmTr3',color);text(g,x+30,y,shorten(e.name,24),10);text(g,x+30,y+15,'PARTIAL · hesap UNSUPPORTED',9,'#ffd27e');}
-    else if(e.kind==='transformer'&&ports.length===2){const [a,b]=ports,parallel=graph.equipment.filter(other=>other.kind==='transformer'&&other.terminals.join('|')===e.terminals.join('|'));x=(a.x+b.x)/2+(parallel.indexOf(e)-(parallel.length-1)/2)*70;y=(a.y+b.y)/2;
+    else if(e.kind==='transformer'&&ports.length===2){const [a,b]=ports,parallel=graph.equipment.filter(other=>other.kind==='transformer'&&other.terminals.join('|')===e.terminals.join('|'));x=(a.x+b.x)/2+(parallel.indexOf(e)-(parallel.length-1)/2)*70;y=(a.y+b.y)/2;flowSide='FROM';flowAxis=[0,b.y>=a.y?1:-1];
       path(g,[[a.x,a.y],[x,a.y],[x,y-16]],color,style.dash);path(g,[[x,y+16],[x,b.y],[b.x,b.y]],palette(item.lvKv??0,item.inService),style.dash);symbol(g,x,y,'ElmTr2',color);g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1];
       text(g,x+23,y-4,shorten(e.name,26),10);text(g,x+23,y+13,`${item.voltageKv??'—'}/${item.lvKv??'—'} kV · ${item.ratingMva??'—'} MVA`,9,muted);
+    }else if(e.kind==='line'&&ports.length===2){const[a,b]=ports;flowSide='FROM';if(a.x!==b.x){x=(a.x+b.x)/2;y=Math.max(a.y,b.y)+70;flowAxis=[b.x>a.x?1:-1,0];path(g,[[a.x,a.y],[a.x,y],[b.x,y],[b.x,b.y]],color,style.dash);}else{x=a.x+60;y=(a.y+b.y)/2;flowAxis=[0,b.y>=a.y?1:-1];path(g,[[a.x,a.y],[x,a.y],[x,b.y],[b.x,b.y]],color,style.dash);}g.dataset.nativeFrom=e.terminals[0];g.dataset.nativeTo=e.terminals[1];wrappedText(g,x,y+26,e.name,24,10);
     }else{const a=ports[0],shared=graph.equipment.filter(other=>other.kind!=='transformer'&&other.terminals.includes(a.terminalId)).length,at=attachmentCounts.get(a.terminalId)??0;attachmentCounts.set(a.terminalId,at+1);x=a.x+(shared>1?(at-(shared-1)/2)*100:0);const cub=graph.switches.find(s=>s.from===s.to&&s.equipmentId===e.id),switchPosition=cub?cubiclePositions.get(`${cub.sourceClass}|${cub.id}`):null;if(switchPosition)path(g,[[switchPosition.x,switchPosition.y+12],[x,y-16]],color,style.dash);else path(g,[[a.x,a.y],[x,a.y],[x,y-16]],color,style.dash);symbol(g,x,y,e.sourceClass,color);wrappedText(g,x,y+26,e.name,24,10);}
     if(d.selectedId===e.id)svg('circle',{cx:x,cy:y,r:20,fill:'none',stroke:'#ffe382'},g);
     if(d.overlay?.outageKey===`${e.sourceClass}|${e.id}`){g.dataset.outage='true';text(g,x,y-25,'N-1 KESİNTİ',10,'#ff746f','middle');}
-    overlay(g,`${e.sourceClass}|${e.id}`,x,y+54);
+    overlay(g,`${e.sourceClass}|${e.id}`,x,y+54,flowSide,flowAxis);
   }
   for(const p of layout.feeders){const issues=graph.issues.filter(i=>i.sourceId===p.feeder.id);if(!issues.length)continue;const g=group(root,p.feeder.id,p.feeder.sourceClass,p.feeder.name,select,issues.map(i=>i.reason).join('\n'));g.dataset.unresolved='true';text(g,p.x,p.y+25,'Uç belirsiz · '+p.feeder.name,9,'#ffd27e','middle');}
   text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · fider ${graph.counters.unresolvedFeederTerminals} · ekipman ${graph.counters.unresolvedEquipmentConnections} · cubicle ${graph.counters.missingCubicleReferences}`,11,muted);

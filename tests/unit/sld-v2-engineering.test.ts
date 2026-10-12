@@ -4,7 +4,7 @@ import type {CanonicalNetwork,Bus,Switch} from '../../src/domain/model/network';
 import {buildStationTopologyGraph,type StationSources} from '../../src/domain/model/station-topology';
 import {physicalStationLayout} from '../../src/features/sld/physical-layout';
 import {oppositeStation,SldNavigationHistory} from '../../src/features/sld/navigation';
-import {sldBranchValues,sldLfCurrent,createSldResultOverlay} from '../../src/features/sld/result-overlay';
+import {sldBranchValues,sldLfCurrent,createSldResultOverlay,sldFlowAtPort,type SldResultEntry} from '../../src/features/sld/result-overlay';
 import {transformerPresentation} from '../../src/features/sld/transformer-presentation';
 import {allVoltageBands} from '../../src/domain/model/voltage-band';
 import {buildTopology} from '../../src/topology/electrical-topology';
@@ -61,6 +61,7 @@ test('SLD native 3W physical projection never fabricates a two-winding calculati
 test('SLD endpoint injections, losses, amperes and missing values use the canonical contract',()=>{
  const v=sldBranchValues({pf:100,qf:20,pt:-98,qt:-15,ifA:400,itA:800},60);assert.equal(v.pLossMw,2);assert.equal(v.qLossMvar,5);assert.equal(v.iFromA,400);assert.equal(v.sToMva,Math.hypot(98,15));
  const missing=sldBranchValues({pf:0,qf:NaN,pt:0,qt:0,ifA:NaN,itA:0},null);assert.equal(missing.pFromMw,0);assert.equal(missing.qFromMvar,null);assert.equal(missing.sFromMva,null);assert.equal(missing.loadingPercent,null);assert.equal(missing.iToA,0);
+ const entry:SldResultEntry={values:v,direction:v.pFromMw,status:'SYNTHETIC_RENDER_CONTRACT',method:'ENDPOINT_INJECTION_CONTRACT',lines:[],alarm:false};assert.equal(sldFlowAtPort(entry,'FROM'),100);assert.equal(sldFlowAtPort(entry,'TO'),-98);assert.equal(sldFlowAtPort({...entry,values:{pFromMw:100,pToMw:null}},'TO'),null);
 });
 function context(){const {n}=fixture([['C','B1','T',true]],['B1','T']);const settings=defaultAnalysisSettings(),scenario=new ScenarioStore(n.modelHash),store=new ResultStore();return {network:n,analysisSettings:{value:settings},settings:{value:defaultSettings()},powerFactoryControlContextHash:null,scenario,resultStore:store,resultView:{analysis:'LF',source:'GA',phase:'BASE',scenarioId:'B0',metric:'pFromMw'},n1AcResults:[],hybridResult:null,n1Result:null,scResult:null,scContext:null} as unknown as AppContext;}
 test('SLD stale gate checks exact type, method, scenario, settings and source-control options',()=>{
