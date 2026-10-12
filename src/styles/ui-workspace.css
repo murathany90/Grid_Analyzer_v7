@@ -60,6 +60,15 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
 .ga-sld-view .ga-toolbar select { min-width:160px; max-width:100%; flex:1 1 180px; }
 .ga-sld-view .ga-toolbar button { flex:0 1 auto; }
 .ga-sld-diagram { min-width:0; width:100%; overflow:hidden; border:1px solid var(--border,#2a4658); border-radius:8px; }
+.ga-sld-diagram { position:relative; }
+.ga-sld-quick-switch { position:absolute;right:8px;top:8px;max-width:min(330px,calc(100% - 16px));padding:12px;background:#183247;border:1px solid #90d4df;border-radius:8px;box-shadow:0 6px 18px #0008;z-index:2; }
+.ga-sld-quick-switch[hidden] { display:none; }
+.ga-sld-quick-switch strong { display:block;overflow-wrap:anywhere; }
+.ga-sld-quick-switch p { margin:5px 0 9px;font-size:11px; }
+.ga-sld-view .ga-sld-quick-switch .ga-actions { display:grid;grid-template-columns:1fr 1fr; }
+.ga-sld-quick-switch button { min-height:38px;white-space:normal;overflow-wrap:anywhere; }
+.ga-sld-quick-switch button:nth-child(3) { grid-column:1 / -1; }
+@media (max-width:600px) { .ga-sld-quick-switch { top:auto;bottom:8px;max-width:calc(100% - 16px); } }
 .ga-sld-detail-tabs { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0; }
 .ga-sld-detail-tabs [aria-selected="true"] { border-color:#90d4df; background:#214255; }
 .ga-sld-detail-panels { min-width:0; }

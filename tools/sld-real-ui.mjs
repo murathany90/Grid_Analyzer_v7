@@ -21,10 +21,10 @@ const v=createSldView(ctx);window.sld=v;document.querySelector('#app').append(v.
 const browser=await chromium.launch({headless:true,args:['--js-flags=--max-old-space-size=6144']}),page=await browser.newPage({viewport:{width:1440,height:1000}});page.setDefaultTimeout(90000);const proof={label,stations:[],errors:[],solverRequests:[]};page.on('pageerror',e=>proof.errors.push(e.message));
 try{
  await page.route('**/sld-private.html',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('http://127.0.0.1:5460/sld-private.html');await page.waitForFunction(()=>window.ready);
- for(const id of ['M1583','M1301','M56']){
+ for(const id of ['M1583','M1301','M56','M38'].filter(id=>JSON.parse(fixtures.toString()).fixtures.some(f=>f.site.id===id))){
   await page.getByLabel('Trafo merkezi',{exact:true}).selectOption(id);await page.waitForFunction(id=>document.querySelector('svg')?.getAttribute('aria-label')?.includes(window.fixture.network.sites.find(s=>s.id===id).name),id);
   const stats=await page.locator('.ga-sld-svg').evaluate(svg=>{const nodes=[...svg.querySelectorAll('g[data-id][data-class]')],switches=nodes.filter(g=>['ElmCoup','StaSwitch'].includes(g.dataset.class)),ids=switches.map(g=>g.dataset.class+'|'+g.dataset.id);return {switchCount:ids.length,uniqueSwitchCount:new Set(ids).size,unresolvedLabels:[...svg.querySelectorAll('text')].filter(t=>t.textContent.includes('Uç belirsiz')).length,elements:svg.querySelectorAll('*').length,viewBox:svg.getAttribute('viewBox'),nativeEdges:switches.map(g=>({id:g.dataset.id,from:g.dataset.from,to:g.dataset.to,state:g.dataset.state})),transformers:nodes.filter(g=>g.dataset.class==='ElmTr2').map(g=>({id:g.dataset.id,ends:g.dataset.terminals,hv:g.dataset.hvTerminal,lv:g.dataset.lvTerminal})),ports:[...svg.querySelectorAll('[data-port]')].map(g=>g.dataset.port)};});
-  proof.stations.push({id,...stats});if(label==='CURRENT'){assert.equal(stats.switchCount,stats.uniqueSwitchCount);assert.equal(stats.switchCount,id==='M1583'?75:id==='M1301'?50:276);}
+  proof.stations.push({id,...stats});if(label==='CURRENT'){assert.equal(stats.switchCount,stats.uniqueSwitchCount);assert.equal(stats.switchCount,JSON.parse(fixtures.toString()).fixtures.find(f=>f.site.id===id).graph.switches.length);}
   const download=page.waitForEvent('download');await page.getByRole('button',{name:'SVG indir',exact:true}).click();await (await download).saveAs(resolve(out,`${label}-${id}.svg`));
   await page.locator('.ga-sld-diagram').screenshot({path:resolve(out,`${label}-${id}.png`)});
   if(label==='CURRENT'){

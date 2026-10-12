@@ -183,6 +183,7 @@ export function createSldView(ctx: AppContext): Feature {
   const info = element('p', 'ga-muted');
   const regionalPager=element('div','ga-pager');regionalPager.hidden=true;
   const diagramHost = element('div', 'ga-sld-diagram');
+  const quickSwitch=element('section','ga-sld-quick-switch');quickSwitch.setAttribute('role','region');quickSwitch.setAttribute('aria-label','Hızlı manevra');quickSwitch.hidden=true;
   const detail = element('section', 'ga-detail', 'Bir bara, fider veya ekipman seçin.');
   const shared=createWorkspaceResults(ctx),resultPanel=element('details','ga-sld-results'),resultSummary=element('summary','','Analiz sonucu');resultPanel.append(resultSummary,shared.element);resultPanel.ontoggle=()=>{if(resultPanel.open)shared.render();};
   root.append(heading, session.element, toolbar, voltageFilter.element, lineBar, notice,resultPanel, bayToolbar, info,regionalPager, diagramHost, detail);
@@ -252,6 +253,7 @@ export function createSldView(ctx: AppContext): Feature {
     const button = element('button', 'ga-button', label); button.type = 'button'; button.addEventListener('click', run); return button;
   }
   function renderDetail(): void {
+    quickSwitch.replaceChildren();quickSwitch.hidden=true;
     if (!selected) { detail.textContent = 'Bir bara, fider veya ekipman seçin.'; return; }
     const entity = findEntity(selected.id, selected.sourceClass), raw = findRaw(selected.id, selected.sourceClass);
     const equipment = networkIndex?.equipmentById.get(selected.id)?.find(item => item.sourceClass === selected?.sourceClass);
@@ -262,7 +264,7 @@ export function createSldView(ctx: AppContext): Feature {
     for(const label of ['Genel','Elektriksel','Sonuçlar','Kaynak ve kalite','İşlemler']){const panel=element('section');panel.setAttribute('role','tabpanel');panel.hidden=label!==detailTab;sections.set(label,panel);panels.append(panel);const tab=actionButton(label,()=>{detailTab=label;for(const [name,p]of sections)p.hidden=name!==label;for(const b of tabs.querySelectorAll('button'))b.setAttribute('aria-selected',String(b===tab));});tab.setAttribute('role','tab');tab.setAttribute('aria-selected',String(label===detailTab));tabs.append(tab);}
     const general=sections.get('Genel')!,electrical=sections.get('Elektriksel')!,quality=sections.get('Kaynak ve kalite')!,results=sections.get('Sonuçlar')!;
     addAttributes(general,{FID:selected.id,Sınıf:selected.sourceClass,TM:currentSite()?.name??'—',YTM:currentSite()?.areaName??'—',İşletme:equipment?.inService===false?'Servis dışı':equipment?.closed===false?'Açık':equipment?.inService?'Serviste':'—',Terminaller:equipment?.busIds??(entity&&'bus'in entity?[entity.bus]:[])});
-    if(entity){const canonical:Record<string,unknown>={};for(const [key,value]of Object.entries(entity))if(!['sourceRefs','sourceId','sourceClass','siteIds','coordinates','name','id'].includes(key))canonical[key]=value;electrical.append(element('p','ga-muted','Kanonik model değerleri; kaynak dönüşümleri ve baz bilgisi aşağıdadır.'));addAttributes(electrical,canonical);quality.append(element('h4','','Kaynak alanları'));addAttributes(quality,entity.sourceRefs);}
+    if(entity){const canonical:Record<string,unknown>={};for(const [key,value]of Object.entries(entity))if(!['sourceRefs','sourceId','sourceClass','siteIds','coordinates','name','id'].includes(key))canonical[key]=value;electrical.append(element('p','ga-muted','Kanonik model değerleri; kaynak dönüşümleri ve baz bilgisi aşağıdadır.'));addAttributes(electrical,canonical);quality.append(element('h4','','Kaynak alanları'));if(entity.sourceRefs)addAttributes(quality,entity.sourceRefs);else quality.append(element('p','ga-muted','SOURCE_UNAVAILABLE · kaynak alan izleri bu kayıtta yok.'));}
     if(raw){quality.append(element('h4','','Ham DGS alanları · birimler yalnız kaynakta doğrulanır'));addAttributes(quality,raw.attributes);}else quality.append(element('p','ga-muted','Ham kaynak ayrıntıları yükleniyor veya mevcut değil.'));
     const overlay=createSldResultOverlay(ctx,mode.value as SldMode),entry=overlay.entries.get(keyOf(selected.sourceClass,selected.id));results.append(element('p','ga-result-context',`${overlay.phase} · ${entry?.status??overlay.status} · ${entry?.method??overlay.method}`));if(entry)addAttributes(results,entry.values);else results.append(element('p','ga-muted','— · Bu ekipman için güncel sayısal sonuç yok.'));
     const issues=stationData?.graph.issues.filter(i=>i.sourceId===selected!.id)??[];if(issues.length)addAttributes(quality,{KaynakSorunları:issues});
@@ -270,6 +272,12 @@ export function createSldView(ctx: AppContext): Feature {
     const actions=element('div','ga-actions');actions.append(resetButton);
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
+      if(key==='switchState'){
+        quickSwitch.hidden=false;quickSwitch.dataset.switchId=entity.id;quickSwitch.append(element('strong','',`${name} · ${entity.id} · ${active?'Kapalı':'Açık'}`),element('p','ga-muted','Yerel senaryo simülasyonu'));
+        quickSwitch.title='Yalnız yerel senaryo değişir; fiziksel işletme komutu gönderilmez. Kapalı konum enerjilenme kanıtı değildir.';
+        const buttons=element('div','ga-actions');buttons.append(actionButton('Aç',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton('Kapat',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton('Değiştir + Senaryo Full AC hesapla',()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)),actionButton('Manevra kartını kapat',()=>{quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}));
+        for(const button of buttons.querySelectorAll('button'))button.disabled=ctx.busy;quickSwitch.append(buttons);quickSwitch.onkeydown=e=>{if(e.key==='Escape'){quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}};diagramHost.append(quickSwitch);
+      }
       actions.append(actionButton(key==='switchState'?'Senaryoda kapat':'Senaryoda servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Senaryoda aç':'Senaryoda servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + Senaryo Full AC hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
       }
       actions.append(actionButton('Haritada göster',()=>ctx.select(entity.id,entity.sourceClass,'map')));

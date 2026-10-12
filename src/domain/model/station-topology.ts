@@ -9,7 +9,7 @@ export interface BusSection { id:string;name:string;voltageKv:number;groupId:str
 export interface Feeder { id:string;name:string;sourceClass:string;voltageKv:number;terminalIds:string[];busSectionIds:string[];switchIds:string[];equipmentKeys:string[] }
 export interface StationTopologyGraph {
   siteId:string;busSections:BusSection[];feeders:Feeder[];terminals:Bus[];
-  switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:'breaker'|'isolator'|'switch';bayId:string|null;cubicleId?:string;equipmentId?:string;stateKnown:boolean}[];
+  switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:'breaker'|'isolator'|'switch';bayId:string|null;cubicleId?:string;equipmentId?:string;sourceOrder?:number;stateKnown:boolean}[];
   equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string}[];
   voltageLevels:number[];sourceFeederCount:number;unresolvedEndpoints:number;
   connections:StationConnection[];issues:StationIssue[];counters:Record<StationIssueKind|'diagramUnresolvedTotal',number>;
@@ -25,7 +25,8 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
   const sectionIds=new Set(busSections.map(b=>b.id)),rawSwitches=new Map(source.switches.map(s=>[s.id,s])),cubicles=new Map(source.cubicles.map(c=>[c.id,c]));
   const switches=network.switches.filter(s=>s.siteIds.includes(siteId)).map(s=>{
     const raw=rawSwitches.get(s.id),direct=String(raw?.attributes.fold_id??''),cub=cubicles.get(direct),terminal=cub?rawTerms.get(String(cub.attributes.fold_id??'')):null,parent=terminal?String(terminal.attributes.fold_id??''):direct,usage=String(raw?.attributes.aUsage??'').toLowerCase();
-    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,kind:usage==='cbk'?'breaker' as const:usage==='dct'?'isolator' as const:'switch' as const,bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
+    const order=raw?.attributes.iorder;const sourceOrder=order!=null&&Number.isInteger(Number(order))&&Number(order)>=0?Number(order):undefined;
+    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,kind:usage==='cbk'?'breaker' as const:usage==='dct'?'isolator' as const:'switch' as const,bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,...(sourceOrder===undefined?{}:{sourceOrder}),stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
   }).sort((a,b)=>a.id.localeCompare(b.id));
   const equipment:StationTopologyGraph['equipment']=[];
   const append=(items:readonly Entity[],kind:string)=>{for(const e of items){const ends='from'in e&&'to'in e?[String(e.from),String(e.to)]:'bus'in e?[String(e.bus)]:[];if(!ends.some(t=>termById.get(t)?.siteIds.includes(siteId)))continue;equipment.push({id:e.id,name:e.name,sourceClass:e.sourceClass,terminals:ends,kind});}};
