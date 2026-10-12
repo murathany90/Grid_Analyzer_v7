@@ -4,7 +4,7 @@ import {assignYtbsSlot,resolveBarArrangements} from './ytbs-slotting';
 export type Point=readonly [number,number];
 export interface PortPosition {x:number;y:number;terminalId:string;semantics:'busbar-section'|'bay-terminal'|'equipment-terminal';direction?:-1|0|1;slot?:string}
 export interface WireSegment {points:Point[];terminalId:string;contact:Point;side:'FROM'|'TO'}
-export interface SwitchSlot {sw:StationTopologyGraph['switches'][number];a:PortPosition|undefined;b:PortPosition|undefined;x:number;y:number;rotation?:number;contactFrom:Point;contactTo:Point;wires:WireSegment[];points:Point[];ordering:'NATIVE_ENDPOINTS'|'CUBICLE_ATTACHMENT'|'SOURCE_ORDER_UNAVAILABLE'}
+export interface SwitchSlot {sw:StationTopologyGraph['switches'][number];a:PortPosition|undefined;b:PortPosition|undefined;x:number;y:number;rotation?:number;contactFrom:Point;contactTo:Point;wires:WireSegment[];points:Point[];ordering:'NATIVE_ENDPOINTS'|'CUBICLE_ATTACHMENT'|'NATIVE_SOURCE_ORDER'|'SOURCE_ORDER_UNAVAILABLE'}
 export interface EquipmentPort {terminalId:string;side:number;point:Point;wires:WireSegment[];boundaryKv:number|null}
 export interface EquipmentGeometry {equipment:StationTopologyGraph['equipment'][number];x:number;y:number;direction:-1|1;ports:EquipmentPort[];nativePorts:PortPosition[];boundary:boolean}
 /** Orthogonal paths terminate at physical contacts; the renderer consumes them unchanged. */
@@ -31,7 +31,7 @@ export function buildSwitchDeviceChain(graph:StationTopologyGraph,ports:Map<stri
   if(!ordered&&a){for(const [i,sw]of switches.entries())routes.push({sw,a,b:a,x:a.x+50+i*36,y:a.y+36,contactFrom:[a.x+50+i*36,a.y+24],contactTo:[a.x+50+i*36,a.y+48],wires:[],points:[],ordering:'SOURCE_ORDER_UNAVAILABLE'});continue;}
   if(a&&port){const sign=port.point[1]<a.y?-1:1;let start=pt(a);switches.sort((a,b)=>a.sourceId.localeCompare(b.sourceId));
    switches.sort((a,b)=>(a.sourceOrder??0)-(b.sourceOrder??0));
-   for(const [i,sw]of switches.entries()){const x=port.point[0],y=a.y+sign*(28+i*38),half=sw.kind==='breaker'?8:sw.kind==='isolator'?12:9,cf:Point=[x,y-sign*half],ct:Point=[x,y+sign*half];routes.push({sw,a,b:a,x,y,contactFrom:cf,contactTo:ct,wires:[wire(start,cf,sw.from,'FROM')],points:routeOrthogonalEdges(start,cf),ordering:switches.length===1?'CUBICLE_ATTACHMENT':'SOURCE_ORDER_UNAVAILABLE'});start=ct;}
+   for(const [i,sw]of switches.entries()){const x=port.point[0],y=a.y+sign*(28+i*38),half=sw.kind==='breaker'?8:sw.kind==='isolator'?12:9,cf:Point=[x,y-sign*half],ct:Point=[x,y+sign*half];routes.push({sw,a,b:a,x,y,contactFrom:cf,contactTo:ct,wires:[wire(start,cf,sw.from,'FROM')],points:routeOrthogonalEdges(start,cf),ordering:switches.length===1?'CUBICLE_ATTACHMENT':'NATIVE_SOURCE_ORDER'});start=ct;}
    port.wires=[wire(start,port.point,port.terminalId,port.side===1?'TO':'FROM')];
   }else for(const sw of switches)routes.push({sw,a,b:a,x:a?.x??0,y:a?.y??0,contactFrom:[a?.x??0,a?.y??0],contactTo:[a?.x??0,a?.y??0],wires:[],points:[],ordering:'SOURCE_ORDER_UNAVAILABLE'});
  }

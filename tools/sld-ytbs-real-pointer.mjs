@@ -1,6 +1,6 @@
 /** Private real model acceptance. Reuses a snapshot; only the explicit maneuver performs Full AC. */
 import {readFile,writeFile,mkdir} from 'node:fs/promises';import {resolve} from 'node:path';import {createServer} from 'vite';import {chromium} from 'playwright';import assert from 'node:assert/strict';
-const [fixturePath,resultPath,appRoot=process.cwd(),label='CURRENT',output='local-benchmark-results/sld-fix-20261013']=process.argv.slice(2);
+const [fixturePath,resultPath,appRoot=process.cwd(),label='CURRENT',output='local-benchmark-results/sld-fix-20261013',mode]=process.argv.slice(2);
 if(!fixturePath||!resultPath)throw Error('Supply private source projections and the existing genuine result snapshot.');
 const f=await readFile(fixturePath),d=await readFile(resultPath),out=resolve(output);await mkdir(out,{recursive:true});
 const server=await createServer({root:resolve(appRoot),logLevel:'error',server:{host:'127.0.0.1',port:5462,strictPort:true,watch:{ignored:['**/local-benchmark-results/**','**/.local-fixtures/**','**/dist-portable/**']}},plugins:[{name:'private-pointer',configureServer(v){v.middlewares.use((req,res,next)=>{const data=req.url==='/private-fixtures'?f:req.url==='/private-results'?d:null;if(!data)return next();res.writeHead(200,{'Content-Type':'application/json','Content-Length':data.length});res.end(data);});}}]});await server.listen();
@@ -19,7 +19,7 @@ try{
  const selector=label==='CURRENT'?`[data-switch-hit="${target.id}"]`:`g[data-physical-switch="${target.sourceClass}|${target.sourceId}"]`;await p.locator(selector).click();
  proof.realPointer=true;proof.targetGeometry=await p.locator(selector).boundingBox();proof.visibleImmediate=await p.getByRole('region',{name:'Hızlı manevra',exact:true}).isVisible();
  await p.locator('.ga-sld-diagram').screenshot({path:resolve(out,label+'-REAL-POINTER.png')});
- if(label==='CURRENT'){
+ if(label==='CURRENT'&&mode!=='--capture-only'){
   assert.equal(proof.visibleImmediate,true);const quick=p.getByRole('region',{name:'Hızlı manevra',exact:true});for(const name of ['Aç','Kapat','Değiştir + Senaryo Full AC hesapla','Kaynağa dön'])assert.equal(await quick.getByRole('button',{name,exact:true}).isVisible(),true);proof.panelGeometry=await quick.boundingBox();
   await p.getByLabel('SLD görünüm modu',{exact:true}).selectOption('LF');assert.ok(await p.locator('[data-result-status]').count()>0);
   await quick.getByRole('button',{name:'Aç',exact:true}).click();await p.waitForFunction(id=>document.querySelector(`[data-switch-hit="${id}"]`)?.parentElement.dataset.state==='OPEN',target.id);assert.match(await p.locator('svg').textContent(),/STALE/);assert.equal(await p.locator('[data-result-status]').count(),0);proof.staleAfterOpen=true;
@@ -27,5 +27,5 @@ try{
   proof.fullAc=await p.evaluate(()=>{const r=ctx.resultStore.get('scenario','powerFlow');return {status:r.status,identity:r.identity,selectedHash:ctx.scenario.selected.scenarioHash,settings:ctx.analysisSettings.value,statusText:ctx.status};});assert.equal(proof.fullAc.identity.scenarioHash,proof.fullAc.selectedHash);assert.equal(await p.evaluate(()=>JSON.stringify(ctx.network)),before);proof.nativeImmutable=true;
   await p.locator('.ga-sld-diagram').screenshot({path:resolve(out,'CURRENT-REAL-FULL-AC.png')});await quick.getByRole('button',{name:'Kaynağa dön',exact:true}).click();await p.evaluate(()=>ctx.selectScenario('B0'));assert.equal(await p.evaluate(()=>ctx.scenario.selectedId),'B0');assert.equal(await p.evaluate(()=>JSON.stringify(ctx.network)),before);proof.restored=true;
  }
- if(label==='CURRENT')assert.deepEqual(proof.errors,[]);await writeFile(resolve(out,label+'-pointer-private-proof.json'),JSON.stringify(proof,null,2));console.log(JSON.stringify({label,visibleImmediate:proof.visibleImmediate,stale:proof.staleAfterOpen,fullAc:proof.fullAc?.status,immutable:proof.nativeImmutable,restored:proof.restored,errors:proof.errors}));
+ if(label==='CURRENT')assert.deepEqual(proof.errors,[]);await writeFile(resolve(out,label+(mode==='--capture-only'?'-capture-private-proof.json':'-pointer-private-proof.json')),JSON.stringify(proof,null,2));console.log(JSON.stringify({label,visibleImmediate:proof.visibleImmediate,stale:proof.staleAfterOpen,fullAc:proof.fullAc?.status,immutable:proof.nativeImmutable,restored:proof.restored,errors:proof.errors}));
 }finally{await b.close();await server.close();}
