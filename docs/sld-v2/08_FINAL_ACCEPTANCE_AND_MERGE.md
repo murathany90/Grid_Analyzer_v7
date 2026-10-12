@@ -17,7 +17,11 @@ Uygulama zinciri: 93fcd73 (native topoloji/port/overlay/UI), 19a3fe9 (portable),
 | Exact feature CI | SUCCESS; 7b660d0a8c2c6ba9cb3a6b0afb095e3a9b1d2ad0; [38313119790](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313119790) |
 | Main FF / ayrı main CI | SUCCESS; c8ee28b → aynı 7b660d0; [38313537307](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313537307) |
 
-Portable: dist-portable/GridAnalyzer_v7.html, 1.721.359 byte. SHA-256: 57dca2d1e0649e568e58f8469a5b5a82f09cb66bfed6ea10972f34f6575ea65e.
+Portable: dist-portable/GridAnalyzer_v7.html, 1.722.554 byte. SHA-256: 6bdeeadbabd7750aeba1e960d97c168eb3c5632ba7bce30029c0c19a2611d03b.
+
+Son UI kontrolünde LF/N1/SC mod geçişinin önceki aile metriğini taşıdığı gerçek browser assertion'ıyla üretildi. 7ddc466b6d11e48b6a1d9966867702f23bdbfd36 düzeltmesi aile metrik belleği/defaultlarını, LF'ye dönüşte geçerli aktif senaryo rolünü ve eski benchmarkMap'in temizlenmesini ekler. Aynı aileye tıklamak seçili metriği değiştirmez. Yeni kontrol PASS, 457/457 yeniden PASS; aşağıdaki CI kayıtları ilk entegrasyona aittir, bu ek düzeltmenin exact feature/main CI'ı ayrıca doğrulanır.
+
+68345e1f800ce58721e3394101e14870e0b3b93a akış okunu yerel native terminalin pf/pt işaretine bağlar, iç hatların iki ucunu korur ve Δ işaretlerini gerçek akış yönünden ayırır. Güncel SN3/SN4 render ve whole-network topoloji kabulü PASS; hesap motorları değişmedi.
 
 Değişen kaynaklar: src/domain/model/station-topology.ts; src/features/sld/{sld-renderer,sld-view,physical-layout,result-overlay,navigation,symbols,transformer-presentation}.ts; src/features/inventory/inventory-view.ts; src/styles/ui-workspace.css. Ayrıca package.json E2E zinciri, sld-v2-engineering unit testleri, v702 kaynak metadata fixture'ı, sld-browser-smoke / sld-real-ui / sld-real-acceptance araçları ve mimari/kabul belgeleri güncellendi.
 

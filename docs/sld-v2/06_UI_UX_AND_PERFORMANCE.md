@@ -8,8 +8,8 @@ M1301, aynı SN3/source/result verisi, aynı teknik checkbox olayı, iki warmup 
 
 | Ölçüm | c8ee28b | SLD V2 |
 |---|---:|---:|
-| Median redraw | 1,5 ms | 5,8 ms |
-| Max redraw | 2,0 ms | 8,3 ms |
+| Median redraw | 1,5 ms | 3,2 ms |
+| Max redraw | 2,0 ms | 3,7 ms |
 | Normal mod SVG elemanı | 407 | 548 |
 | Farklı fiziksel anahtar | 31 | 50 |
 
