@@ -1,6 +1,6 @@
 # Final engineering acceptance
 
-Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3cf86268f94cd846c2f48cf0cd67857f11ae2a6`. New work: `feat/engineering-n1-iec60909-validation`. Electrical/UI portable source `e514e2b`; acceptance tools `d3f2add`. Final exact commit/CI and main receipt are recorded in report 15.
+Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3cf86268f94cd846c2f48cf0cd67857f11ae2a6`. New work: `feat/engineering-n1-iec60909-validation`. Electrical/UI portable source `872bf86`; acceptance tools `d3f2add`. Final exact commit/CI and main receipt are recorded in report 15.
 
 ## Actual acceptance matrix
 
@@ -30,9 +30,9 @@ Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3
 
 ## Portable receipt
 
-`dist-portable/GridAnalyzer_v7.html`: **1,694,322 bytes**. Raw SHA-256:
+`dist-portable/GridAnalyzer_v7.html`: **1,694,524 bytes**. Raw SHA-256:
 
-`03a1c60eb52ac747221ddc36b8c5fe99e8c78e386186b4af01ec4b31d6451b44`
+`fee5ae1f0d4dec642f95803ea6aec6c18676266b4dfad98b9ee08ad88324de56`
 
 Source, committed blob and rebuild are byte-identical and LF-only. SN3 fresh calculation ran the earlier `d5e8b10` portable (recorded in report 12); the final change is presentation only. The final portable was separately built, byte-checked and tested offline; fresh SN4 results verify the final UI without relabeling/recomputing all prior models.
 

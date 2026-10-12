@@ -33,7 +33,7 @@ Native source gaps block selected SC faults. The separate user-authorized diagno
 
 SN3 real-worker/portable run and SN7 Node run were performed at `d5e8b10`; SN3 artifact SHA-256 `79d7054d7316bf7c1637365c149dde22c080b3244bc5f75a7dbe83258297862f`. SN4 fresh full run was at `f9f8621`; after the residual gate fix, only its two affected POSTs were re-solved at `d5e8b10`. Their entire numerical map snapshots are byte-hash identical before/after; residuals 2.3940605053951458e-8 and 3.0006503948243335e-7 MW. No import/LF/SC was unnecessarily repeated.
 
-The final later change is SC batch presentation, not any electrical equation. Final source/portable/UI/CI provenance is recorded in reports 13–15. SN3's BASE residual and 4077/5140 cardinality match the prior main acceptance exactly; protected LF/DC numerical sources have no diff from `a3cf862`.
+The final later change is SC batch and tab presentation, not any electrical equation. Final source/portable/UI/CI provenance is recorded in reports 13–15. SN3's BASE residual and 4077/5140 cardinality match the prior main acceptance exactly; protected LF/DC numerical sources have no diff from `a3cf862`.
 
 The real UI helper initially exposed a caller-provenance mismatch: Node LF identities omitted Application's active-settings hash and source-context hash. The helper now uses the official identity helpers. SN4 LF was re-solved only to obtain a genuine Application-compatible result, without rewriting an old identity or bypassing the stale gate. The complete buses/branches/generator numerical hash remains identical. The 169 MB genuine snapshot is served through same-origin loopback HTTP rather than one oversized CDP message; data/catalog are not reduced.
 

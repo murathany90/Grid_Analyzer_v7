@@ -1,6 +1,6 @@
 # UI and performance acceptance
 
-UI changes: `22b55a1`, `5ddd97a`; final electrical/UI portable build `e514e2b`. Acceptance helper provenance/large-input transport fix: `d3f2add`. Exact final software CI/merge is recorded in report 15.
+UI changes: `22b55a1`, `5ddd97a`; final electrical/UI portable build `872bf86`. Acceptance helper provenance/large-input transport fix: `d3f2add`. Exact final software CI/merge is recorded in report 15.
 
 ## Behavior and reproduction
 
@@ -15,6 +15,8 @@ Fresh SN3 portable rendering exposed a batch provenance defect: no selected phys
 New SN3 portable/worker results are rendered at 390, 768, 1366, 1440, 1600 and 1920 px: no document overflow, at most 50 table rows; private screenshots are visually inspected. The final batch fix is separately verified by `tools/engineering-real-ui.mjs` using the **freshly computed SN4** snapshots: LF/N-1/SC at all six widths (18 checks), no page errors or calculation requests. This does not repeat a model import or a calculation to measure rendering. Full actual 6,368-terminal data and original long/Türkçe identifiers remain intact.
 
 The helper's initial 169 MB CDP response failed. Same-origin Vite HTTP transport fixed that acceptance-tool problem without reducing the dataset. It also found that the Node caller's LF options identity lacked official Application settings/source hashes. The caller was corrected and LF re-solved, not relabeled; the full numerical hash stayed identical. Neither workaround relaxes production identity checks.
+
+Final actual screenshot review also reproduced an empty SC metric selector after N-1→SC: the prior family's metric persisted across tabs. Analysis tabs now retain each family's own metric and initialize a supported default. A same-family click preserves the existing form/selection; unrelated map selection is cleared on an explicit family switch. The E2E helper asserts that SC remains `ikssKa` across all six tab-switch sequences. No solver or numerical result is changed.
 
 ## Measured performance and limits
 
