@@ -71,6 +71,15 @@ format and keep it separate from DGS source data.
 
 ## Implementation status
 
+SLD V2 remains a derived view, with local scenario actions rather than permanent
+model edits. The current station renderer uses native terminal ports and one
+symbol per physical switch. `physical-layout.ts` owns presentation positions;
+`result-overlay.ts` projects existing results through model/scenario/method and
+source identity gates. Cross-station history uses native line endpoints. Raw
+equipment responses are scoped to their model hash, so delayed responses from
+an earlier model cannot populate the current details card. See `docs/sld-v2/`
+for the source audit, limitations and acceptance evidence.
+
 This is a design note only. The current SLD renderer displays a derived station
 view; model-editing commands, layout persistence and SLD undo/redo are not
 implemented.
