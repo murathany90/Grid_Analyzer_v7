@@ -8,6 +8,8 @@ Implementation commits: `0f02b13` and `83d65e1`; portable code snapshot `d5e8b10
 
 This extends **verification coverage**, not the set of LF equations. Local/remote voltage, supported self-cubicle droop, source-bounded Q sharing/PV→PQ and sourced adjustable-load P balancing remain the existing models. Q/PF/tan(phi) station modes, automatic bus selection, general cubicle/boundary droop, generator distributed slack/P bounds, OLTC, automatic shunts and SVC/STATCOM control laws remain unsupported or partial. They are not silently mapped to voltage or single-reference control.
 
+Final gate review additionally found local PV sources outside stations with missing/reversed Q bounds could receive CONTROL_VERIFIED. When reactive-limit control is requested, those sources now require valid finite ordered bounds; otherwise fidelity is PARTIAL. The actual local-PV positive/negative test proves that strict validation refuses missing bounds while explicit diagnostics keep the unchanged voltage equation. This only closes a verification gap, not a numerical-engine change.
+
 Owned PowerFactory 2024 Station Controller reference §2.1 (printed p1, PDF p5, visually inspected) distinguishes terminal voltage control from cubicle/boundary Q/PF/tan(phi) measurements. The canonical model lacks complete measurement/actuator semantics for those modes. Static Generator and Static Var System references were also inventoried locally. No unsourced controller equation is added.
 
 ## Independent physical references

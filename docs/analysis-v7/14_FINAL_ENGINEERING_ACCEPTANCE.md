@@ -1,6 +1,6 @@
 # Final engineering acceptance
 
-Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3cf86268f94cd846c2f48cf0cd67857f11ae2a6`. New work: `feat/engineering-n1-iec60909-validation`. Electrical/UI portable source `872bf86`; acceptance tools `d3f2add`. Final exact commit/CI and main receipt are recorded in report 15.
+Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3cf86268f94cd846c2f48cf0cd67857f11ae2a6`. New work: `feat/engineering-n1-iec60909-validation`. Electrical/UI portable source `8eb2858`; acceptance tools `d3f2add`. Final exact commit/CI and main receipt are recorded in report 15.
 
 ## Actual acceptance matrix
 
@@ -19,7 +19,7 @@ Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3
 | PF comparison | NOT_COMPARABLE | available 24.0.7 references, zero certified comparable observations; no parity percentage |
 | UI/UX | PASS scoped | six viewport sizes; synthetic interactions plus actual fresh results; SC empty/batch/blocked states corrected |
 | Performance | PASS scoped | bounded 50-row rendering; actual 6368 rows and unchanged numeric snapshots; no new speedup claimed |
-| All unit/regression tests | PASS | **437 total/pass, 0 fail/cancelled/skipped**; original 422 preserved +15 |
+| All unit/regression tests | PASS | **438 total/pass, 0 fail/cancelled/skipped**; original 422 preserved +16 |
 | Three E2E suites | PASS | browser-smoke, PF-benchmark, map/lightning; cancellation, timeout recovery, exports, geometry |
 | Standard / portable build | PASS | both built from final source |
 | Raw portable byte gate / offline | PASS | git blob == rebuild, LF-only, exact HTML offline worker/import smoke |
@@ -30,9 +30,9 @@ Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3
 
 ## Portable receipt
 
-`dist-portable/GridAnalyzer_v7.html`: **1,694,524 bytes**. Raw SHA-256:
+`dist-portable/GridAnalyzer_v7.html`: **1,695,154 bytes**. Raw SHA-256:
 
-`fee5ae1f0d4dec642f95803ea6aec6c18676266b4dfad98b9ee08ad88324de56`
+`557101f8b6ec3393d76ab2b7b2690b5c19b907e4d9e4e14562caae8140ebfc16`
 
 Source, committed blob and rebuild are byte-identical and LF-only. SN3 fresh calculation ran the earlier `d5e8b10` portable (recorded in report 12); the final change is presentation only. The final portable was separately built, byte-checked and tested offline; fresh SN4 results verify the final UI without relabeling/recomputing all prior models.
 

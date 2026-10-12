@@ -1,6 +1,6 @@
 # UI and performance acceptance
 
-UI changes: `22b55a1`, `5ddd97a`; final electrical/UI portable build `872bf86`. Acceptance helper provenance/large-input transport fix: `d3f2add`. Exact final software CI/merge is recorded in report 15.
+UI changes: `22b55a1`, `5ddd97a`; final electrical/UI portable build `8eb2858`. Acceptance helper provenance/large-input transport fix: `d3f2add`. Exact final software CI/merge is recorded in report 15.
 
 ## Behavior and reproduction
 
