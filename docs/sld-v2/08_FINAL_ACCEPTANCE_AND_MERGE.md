@@ -14,12 +14,12 @@ Uygulama zinciri: 93fcd73 (native topoloji/port/overlay/UI), 19a3fe9 (portable),
 | Git HEAD ham portable blob = rebuild | PASS; mevcut byte kapısı korunur |
 | Portable offline browser | PASS; gerçek CPU worker / import / analiz / export / cancellation akışları |
 | Gerçek kaynak topoloji / SN3-SN4 sunum | PASS; 07 raporundaki kapsam ve sınırlar |
-| Exact feature CI | SUCCESS; 7b660d0a8c2c6ba9cb3a6b0afb095e3a9b1d2ad0; [38313119790](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313119790) |
-| Main FF / ayrı main CI | SUCCESS; c8ee28b → aynı 7b660d0; [38313537307](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313537307) |
+| Exact feature CI | SUCCESS; a00e9538557c2c66ccc7a9900361d342e2392307; [38316340946](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38316340946) |
+| Main FF / ayrı main CI | SUCCESS; 0e1a3ed → aynı a00e953; [38316610185](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38316610185) |
 
 Portable: dist-portable/GridAnalyzer_v7.html, 1.722.554 byte. SHA-256: 6bdeeadbabd7750aeba1e960d97c168eb3c5632ba7bce30029c0c19a2611d03b.
 
-Son UI kontrolünde LF/N1/SC mod geçişinin önceki aile metriğini taşıdığı gerçek browser assertion'ıyla üretildi. 7ddc466b6d11e48b6a1d9966867702f23bdbfd36 düzeltmesi aile metrik belleği/defaultlarını, LF'ye dönüşte geçerli aktif senaryo rolünü ve eski benchmarkMap'in temizlenmesini ekler. Aynı aileye tıklamak seçili metriği değiştirmez. Yeni kontrol PASS, 457/457 yeniden PASS; aşağıdaki CI kayıtları ilk entegrasyona aittir, bu ek düzeltmenin exact feature/main CI'ı ayrıca doğrulanır.
+Son UI kontrolünde LF/N1/SC mod geçişinin önceki aile metriğini taşıdığı gerçek browser assertion'ıyla üretildi. 7ddc466b6d11e48b6a1d9966867702f23bdbfd36 düzeltmesi aile metrik belleği/defaultlarını, LF'ye dönüşte geçerli aktif senaryo rolünü ve eski benchmarkMap'in temizlenmesini ekler. Aynı aileye tıklamak seçili metriği değiştirmez. Yeni kontrol PASS, 457/457 yeniden PASS; üstteki güncel exact feature/main CI kayıtları son UI düzeltmelerini de doğrular.
 
 68345e1f800ce58721e3394101e14870e0b3b93a akış okunu yerel native terminalin pf/pt işaretine bağlar, iç hatların iki ucunu korur ve Δ işaretlerini gerçek akış yönünden ayırır. Güncel SN3/SN4 render ve whole-network topoloji kabulü PASS; hesap motorları değişmedi.
 
@@ -29,7 +29,7 @@ Korunan sınırlar: ototrafo sınıflandırması kaynakta doğrulanmadı; 3W ele
 
 Mevcut LF/DC/N1/SC motor kaynakları değişmedi. Başlangıçtaki 438 test silinmedi/skip edilmedi/gevşetilmedi. v702 fixture yalnız yeni StationTopologyGraph kaynak metadata alanlarıyla genişletildi; tüm eski assertions korunur.
 
-GitHub PR bağlantısı 403 Resource not accessible by integration döndürdü. Promptun açık fallback yetkisi kullanıldı: fetch ile main c8ee28b ve feature 7b660d0 doğrulandı, ancestry başarılı, main --ff-only ile güncellendi ve pushlandı. Aynı SHA için ayrı head_branch=main CI SUCCESS doğrulandı. Motor kaynaklarında baseline'a göre diff yok; portable hash aynıdır.
+GitHub PR bağlantısı 403 Resource not accessible by integration döndürdü. Promptun açık fallback yetkisi kullanıldı. İlk kabul c8ee28b → 7b660d0 [feature CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313119790) / [main CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313537307) ile geçti; ilk belge commitinin [main CI'ı](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38313950572) da SUCCESS. Son düzeltmeler mevcut main 0e1a3ed'den ilerleyen aynı feature zincirinde yapıldı. Fetch/ancestry kapısı ve exact feature CI sonrasında 0e1a3ed → a00e953 --ff-only uygulanıp pushlandı. a00e953 için ayrı head_branch=main CI SUCCESS doğrulandı. Motor kaynaklarında baseline'a göre diff yok; feature/main portable hash'i aynıdır.
 
 Dal/tag silinmedi, force push/reset kullanılmadı. Korunan uzak dallar: main, feat/sld-v2-engineering-topology, codex/analysis-v7-evidence-hardening, feat/analysis-ui-native-n1-iec60909-2016, feat/engineering-n1-iec60909-validation. pf-parity-v2-validated tag'i korunur. Feature SHA main'in atasıdır.
 
