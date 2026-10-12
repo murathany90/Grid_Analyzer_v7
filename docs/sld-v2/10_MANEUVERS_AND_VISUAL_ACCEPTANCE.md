@@ -23,7 +23,7 @@ Yerel `local-benchmark-results/sld-fix-20261013/BEFORE_AFTER_COMPARISON.html` in
 | maneuverScenarioWorks | PASS | Gerçek SN3 STALE → worker Full AC → exact senaryo kimliği → B0 |
 | realPointerWorks | PASS | Fare, Enter/Space ve mobil dokunma |
 | nonRegression | PASS | Eski 457 + yeni 17 = 474 test; solver diff’i yok |
-| CI | Exact HEAD kapısı | Feature push sonrasında current SHA/run sonucu kapanış kaydında doğrulanır |
+| CI | PASS | Uygulama `1cab73f` exact [38322226820](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38322226820); portable ham bayt kapısı dahil SUCCESS |
 
 ## Korunan sınırlar ve entegrasyon
 
@@ -32,3 +32,5 @@ Yerel `local-benchmark-results/sld-fix-20261013/BEFORE_AFTER_COMPARISON.html` in
 IEC 60909-0:2016 BLOCKED, 3W hesap UNSUPPORTED ve N-1 gerçek kontrol fidelity PARTIAL sınırları korunur. Bu görsel onarım normatif IEC tamamlanması, PF paritesi veya tam N-1 kontrol kapsamı sağlamaz.
 
 Yeni görev açıkça otomatik main entegrasyonu yetkisi vermiyor. Feature dalı, artifact ve exact CI kabulü tamamlandıktan sonra kullanıcı bu görselleri ve manevra akışını incelemelidir. Kullanıcının yeni görsel/senaryo kabulü ve main entegrasyonu onayı olmadan main’e merge/fast-forward/push yapılmaz. Dal veya tag silinmez.
+
+Kapanış belge commit’i uygulama/portable baytlarını değiştirmez. Son feature HEAD, onun ayrı CI sonucu ve değişmeyen main SHA’sı yerel `FINAL_RECEIPT.json` / `FINAL_ACCEPTANCE.md` ile görev kapanışında kaydedilir. Kullanıcı kabulü bekleyen statü `READY_FOR_VISUAL_ACCEPTANCE` olup main entegrasyonu tamamlanmış sayılmaz.
