@@ -194,6 +194,7 @@ export function createSldView(ctx: AppContext): Feature {
   let resultRevision=0,lastResultRefs:unknown[]=[];
   let detailTab='Genel';
   const stationCache = new Map<string, StationData>();
+  const equipmentSourceCache=new Map<string,CatalogRow>();
   const renderer = new SvgSldRenderer();
   const history=new SldNavigationHistory(),back=actionButton('Önceki TM’ye dön',()=>{const previous=history.back();if(!previous)return;siteSelect.value=previous.siteId;scope=previous.scope;selectedBayId=previous.bayId;selected={id:previous.lineId,sourceClass:'ElmLne'};ctx.selection={...selected};lastContextSelection=keyOf('ElmLne',previous.lineId);lastRenderKey='';ctx.notify();void render();});back.disabled=true;toolbar.append(back);
   const redraw=()=>{lastRenderKey='';void render();};
@@ -208,6 +209,7 @@ export function createSldView(ctx: AppContext): Feature {
     if (hash !== networkHash) {
       networkHash = hash; networkIndex = network ? buildNetworkIndex(network, ctx) : null;
       stationCache.clear(); stationData = null; selectedBayId = ''; regionalPage = 0; selected = null; lastContextSelection = '';
+      equipmentSourceCache.clear();
       history.clear();
       siteOptionsHash = '';
     }
@@ -237,7 +239,7 @@ export function createSldView(ctx: AppContext): Feature {
     if (lines.some(item => item.id === previous)) lineSelect.value = previous;
   }
   function findEntity(id: string, sourceClass: string): Entity | undefined { return networkIndex?.entities.get(keyOf(sourceClass, id)); }
-  function findRaw(id: string, sourceClass: string): CatalogRow | undefined { return stationData?.rawByKey.get(keyOf(sourceClass, id)); }
+  function findRaw(id: string, sourceClass: string): CatalogRow | undefined { return stationData?.rawByKey.get(keyOf(sourceClass, id))??equipmentSourceCache.get(keyOf(sourceClass,id)); }
   function addAttributes(holder: HTMLElement, attributes: Readonly<Record<string, unknown>>): void {
     const dl = element('dl', 'ga-attribute-grid');
     for (const [name, value] of Object.entries(attributes)) {
@@ -287,7 +289,8 @@ export function createSldView(ctx: AppContext): Feature {
     // Render immediately so the selected symbol is emphasized; the parent shell
     // may also call render after the context notification, which is deduplicated.
     void render();
-    if(!findRaw(id,sourceClass)&&ctx.network?.classCounts[sourceClass])void fetchCatalogAll(ctx,sourceClass,{search:id}).then(async page=>{const row=page.rows.find(r=>r.id===id);if(!row||!stationData)return;stationData.rawByKey.set(keyOf(sourceClass,id),row);const typeId=String(row.attributes.typ_id??'');if(typeId&&sourceClass==='ElmTr2'){const types=await fetchCatalogAll(ctx,'TypTr2',{search:typeId});const type=types.rows.find(r=>r.id===typeId);if(type)stationData.rawByKey.set(keyOf('TypTr2',typeId),type);}if(selected?.id===id)renderDetail();}).catch(()=>{});
+    const sourceModelHash=ctx.network?.modelHash;
+    if(!findRaw(id,sourceClass)&&ctx.network?.classCounts[sourceClass])void fetchCatalogAll(ctx,sourceClass,{search:id}).then(async page=>{const row=page.rows.find(r=>r.id===id);if(!row||ctx.network?.modelHash!==sourceModelHash)return;equipmentSourceCache.set(keyOf(sourceClass,id),row);const typeId=String(row.attributes.typ_id??'');if(typeId&&sourceClass==='ElmTr2'&&!findRaw(typeId,'TypTr2')){const types=await fetchCatalogAll(ctx,'TypTr2',{search:typeId});if(ctx.network?.modelHash!==sourceModelHash)return;const type=types.rows.find(r=>r.id===typeId);if(type)equipmentSourceCache.set(keyOf('TypTr2',typeId),type);}if(selected?.id===id&&selected.sourceClass===sourceClass)renderDetail();}).catch(()=>{});
   }
   function filteredFeeders(data:StationData):Feeder[]{const q=baySearch.value.toLocaleLowerCase('tr-TR');return data.graph.feeders.filter(f=>voltageMatches(f.voltageKv,ctx.filters.voltages)&&(!q||(f.name+' '+f.id).toLocaleLowerCase('tr-TR').includes(q))&&(!bayGroup.value||String(data.baysById.get(f.id)?.attributes.fold_id||'')===bayGroup.value));}
   function drawFeederPicker(data:StationData):void {
