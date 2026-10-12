@@ -23,8 +23,8 @@ Baseline main `9b1eee94d5ef4548716611fc5447f07727c41d51`; baseline hardening `a3
 | Three E2E suites | PASS | browser-smoke, PF-benchmark, map/lightning; cancellation, timeout recovery, exports, geometry |
 | Standard / portable build | PASS | both built from final source |
 | Raw portable byte gate / offline | PASS | git blob == rebuild, LF-only, exact HTML offline worker/import smoke |
-| Exact feature CI | PENDING at this report's initial commit | report 15 contains observed exact CI and integration receipt |
-| Main integration | NOT_MERGED at this report's initial commit | conditionally authorized; report 15 records actual outcome |
+| Exact feature CI | PASS | exact `e4eee80`, [feature CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38288839177) |
+| Main integration | MERGED | fast-forward `e4eee80`, [separate successful main CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38289317851); recording commit receives its own CI |
 
 `npm ci`, typecheck, lint (294 source files), unit tests, Chromium installation, three E2E suites, standard/portable builds and raw-byte tool ran successfully. `npm run test:full` was invoked: its exact `control1/*.json` fixture set is absent, so **NOT_RUN / SOURCE_UNAVAILABLE** (not a passed full-model test). Separate new genuine ZIP-based acceptance is documented in report 12; this is not hidden as the old fixture suite's success. No private JSON is copied into tracked `control1` or validation reports.
 
