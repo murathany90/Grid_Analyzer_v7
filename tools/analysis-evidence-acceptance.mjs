@@ -53,6 +53,7 @@ window.ready=true;
       for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
         await workspace.getByRole('button',{name:label,exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' '+width);
         const statuses=await workspace.locator('.ga-analysis-layout:visible .ga-study-verdict strong').allTextContents();assert.ok(statuses.every(s=>!/_/.test(s)),statuses.join());
+        if(label==='Kısa Devre Analizi')assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'ikssKa');
       }
       proof.geometry.push({width,rows:await sc.locator('.ga-study-table tbody tr').count(),overflow:false});assert.ok(proof.geometry.at(-1).rows<=50);
     }
