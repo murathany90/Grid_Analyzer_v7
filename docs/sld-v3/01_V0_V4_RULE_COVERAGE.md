@@ -1,6 +1,6 @@
 # SLD V3 · V0/V4 kaynak ve kapsam
 
-2026-10-13. Kaynak listesi ve tip durumu ayrı kavramlardır. **30/30 fider, 13/13 bara ve 22/22 sembol katalog/matris kapsamı %100**. 30 açık beyanlı sentetik tipte ad/bileşen koruması test edilir; bu, 30 gerçek fiziksel şablonun doğrulandığı anlamına gelmez. Gerçek örneklerde iki kesin trafo işlevi (2/30, %6,7) DGS i_auto ile doğrulanır. 13 bara tipinin tamamının exact V0 şekil/alt cihaz şablonu doğrulanmış değildir (0/13 tam şablon kabulü); kaynak graph görüntüsü kullanılmaktadır.
+2026-10-13. Kaynak listesi ve tip durumu ayrı kavramlardır. **30/30 fider, 13/13 bara ve 22/22 sembol katalog/matris kapsamı %100**. 30 açık beyanlı sentetik tipte ad/bileşen koruması test edilir; bu, 30 gerçek fiziksel şablonun doğrulandığı anlamına gelmez. Gerçek örneklerde oto / standart iki sargı ayrımı DGS i_auto ile doğrulanır. Bu iki cihaz türü, 30 V0 fiderin tam fiziksel şablon kabul yüzdesi değildir; tüm alt cihazlarıyla doğrulanmış V0 fider şablon sayısı 0/30 kalır. 13 bara tipinin tamamının exact V0 şekil/alt cihaz şablonu doğrulanmış değildir (0/13 tam şablon kabulü); kaynak graph görüntüsü kullanılmaktadır.
 
 V4 sayfa 1, V0 altı çalışma sayfası esas alınmıştır. Bağımsız expected tablo tests/helpers/sld-v3-source-golden.ts içinde ayrı tutulur; expected konumlar physicalStationLayout sonucundan üretilmez.
 
