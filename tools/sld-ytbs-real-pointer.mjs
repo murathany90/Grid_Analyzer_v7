@@ -20,7 +20,19 @@ try{
  const selector=label==='CURRENT'?`[data-switch-hit="${target.id}"]`:`g[data-physical-switch="${target.sourceClass}|${target.sourceId}"]`;await p.locator(selector).click();
  proof.realPointer=true;proof.targetGeometry=await p.locator(selector).boundingBox();proof.visibleImmediate=await p.getByRole('region',{name:'Hızlı manevra',exact:true}).isVisible();
  await p.locator('.ga-sld-diagram').screenshot({path:resolve(out,label+'-REAL-POINTER.png')});
- if(label==='CURRENT'&&mode!=='--capture-only'){
+ if(mode==='--feeder-batch'){
+  await p.getByLabel('SLD görünüm modu',{exact:true}).selectOption('LF');assert.ok(await p.locator('[data-result-status]').count()>0);
+  await p.locator('.ga-sld-feeder-menu summary').click();const previous=await p.evaluate(()=>ctx.scenario.snapshots.length);
+  proof.feeder=await p.evaluate(async id=>{const {feederOperation}=await import('/src/features/sld/feeder-operation.ts'),g=fixture.fixtures.find(f=>f.site.id==='M1583').graph,plan=feederOperation(g,g.feeders.find(f=>f.id===id));return {ready:plan.ready,ids:plan.switches.map(s=>s.id),kinds:plan.switches.map(s=>s.kind),protected:plan.excludedSwitchIds};},target.bayId);
+  assert.equal(proof.feeder.ready,true);assert.equal(proof.feeder.kinds.filter(k=>k==='breaker').length,1);assert.equal(proof.feeder.ids.length,3);
+  await p.screenshot({path:resolve(out,'V33-REAL-FEEDER-COMMANDS.png')});await p.getByRole('button',{name:'Fider Aç',exact:true}).click();await p.waitForFunction(ids=>ids.every(id=>ctx.scenario.current.switchState[id]===false),proof.feeder.ids);
+  assert.equal(await p.evaluate(()=>ctx.scenario.snapshots.length),previous+1);assert.match(await p.locator('svg').textContent(),/STALE/);assert.equal(await p.locator('[data-result-status]').count(),0);proof.staleAfterOpen=true;
+  assert.deepEqual(await p.evaluate(()=>Object.keys(ctx.scenario.current.switchState).sort()),[...proof.feeder.ids].sort());await p.screenshot({path:resolve(out,'V33-REAL-FEEDER-OPEN-STALE.png')});
+  await p.getByRole('button',{name:'Senaryo Full AC hesapla',exact:true}).click();await p.waitForFunction(()=>!ctx.busy&&ctx.resultStore.get('scenario','powerFlow')?.converged);
+  proof.fullAc=await p.evaluate(()=>{const r=ctx.resultStore.get('scenario','powerFlow');return {status:r.status,identity:r.identity,selectedHash:ctx.scenario.selected.scenarioHash,statusText:ctx.status};});assert.equal(proof.fullAc.identity.scenarioHash,proof.fullAc.selectedHash);assert.equal(await p.evaluate(()=>JSON.stringify(ctx.network)),before);proof.nativeImmutable=true;
+  await p.screenshot({path:resolve(out,'V33-REAL-FEEDER-FULL-AC.png')});await p.getByRole('button',{name:'Fider Kapat',exact:true}).click();assert.deepEqual(await p.evaluate(()=>ctx.scenario.current.switchState),{});await p.evaluate(()=>ctx.selectScenario('B0'));assert.equal(await p.evaluate(()=>ctx.scenario.selectedId),'B0');proof.restored=true;
+ }
+ if(label==='CURRENT'&&mode!=='--capture-only'&&mode!=='--feeder-batch'){
   assert.equal(proof.visibleImmediate,true);const quick=p.getByRole('region',{name:'Hızlı manevra',exact:true});for(const name of ['Aç','Kapat','Değiştir + Senaryo Full AC hesapla','Kaynağa dön'])assert.equal(await quick.getByRole('button',{name,exact:true}).isVisible(),true);proof.panelGeometry=await quick.boundingBox();
   await p.getByLabel('SLD görünüm modu',{exact:true}).selectOption('LF');assert.ok(await p.locator('[data-result-status]').count()>0);
   await quick.getByRole('button',{name:'Aç',exact:true}).click();await p.waitForFunction(id=>document.querySelector(`[data-switch-hit="${id}"]`)?.parentElement.dataset.state==='OPEN',target.id);assert.match(await p.locator('svg').textContent(),/STALE/);assert.equal(await p.locator('[data-result-status]').count(),0);proof.staleAfterOpen=true;await p.locator('.ga-sld-diagram').screenshot({path:resolve(out,label+'-REAL-OPEN.png')});

@@ -16,7 +16,7 @@ export function drawSwitchSymbol(parent:SVGElement,code:SwitchSymbolCode,x:numbe
  add('circle',{cx:0,cy:6,r:1.6,fill:color});
  if(d.bridge.length){line(d.bridge,{'data-conducting-bridge':'CLOSED'});add('circle',{cx:0,cy:-6,r:1.6,fill:color});}
  if(d.blade.length){line(d.blade,{'data-switch-blade':'OPEN'});line([[-2.5,-8.5],[2.5,-3.5]]);line([[-2.5,-3.5],[2.5,-8.5]]);}
- if(d.partial){add('rect',{x:-10,y:-7,width:20,height:14,fill:'var(--sld-paper, #102033)',stroke:color,'stroke-dasharray':'2 2','data-symbol-partial':'true'});const t=add('text',{x:0,y:4,fill:color,'font-size':11,'text-anchor':'middle'});t.textContent='?';}
+ if(d.partial){add('rect',{x:-10,y:-7,width:20,height:14,fill:'var(--sld-paper, #102033)',stroke:color,'data-symbol-partial':'true'});const t=add('text',{x:0,y:4,fill:color,'font-size':11,'text-anchor':'middle'});t.textContent='?';}
  return g;
 }
 /** SVG library only. Callers must have a physical source reference before placing any device. */

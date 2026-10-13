@@ -220,6 +220,15 @@ export class Application implements AppContext {
     else this.scenario.setStatus(key,id,value,source);
     this.scenarioUpdated();if(calculate)await this.run('powerFlow','scenario');
   }
+  async setFeederStatus(switchIds:readonly string[],value:boolean|'source',calculate=false){
+    if(!this.network||this.busy||!switchIds.length)return;
+    const ids=new Set(switchIds),members=this.network.switches.filter(s=>ids.has(s.id));
+    if(members.length!==ids.size||members.some(s=>!s.inService)){this.setMessage('Fider manevrası engeli: kaynak cihaz eksik veya servis dışı.');return;}
+    this.scenario.commandSource='SLD_FEEDER';const revision=this.scenario.revision;
+    this.scenario.setSwitchStates(members.map(s=>({id:s.id,source:s.closed})),value);
+    if(this.scenario.revision!==revision)this.scenarioUpdated();
+    if(calculate)await this.run('powerFlow','scenario');
+  }
   clearModel(){this.powerFactoryReference=null;this.comparisonOutage=null;this.benchmark=null;this.benchmarkReadiness=null;this.benchmarkMap=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.scContext=null;this.cancel();this.source.cancel();this.network=null;this.powerFactoryControlContextHash=null;this.powerFactoryControlContextNumericFile=null;this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.modelQualityAnalysisScope=null;this.n1Result=null;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.selection=null;this.scenario=new ScenarioStore();this.resultStore.clear();this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.status='Model bellekten temizlendi.';this.notify();}
   resetScenario(){void this.selectScenario('B0');}
   undoScenario(){const parent=this.scenario.selected.parentId;if(parent)void this.selectScenario(parent);}

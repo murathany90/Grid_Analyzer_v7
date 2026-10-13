@@ -72,6 +72,7 @@ export interface AppContext {
   catalog(query: CatalogQuery): Promise<CatalogPage>;
   select(id: string, sourceClass: string, view?: string): void;
   setStatus(key: StatusKey, id: string, value: boolean, source: boolean, calculate?: boolean): Promise<void>;
+  setFeederStatus(switchIds:readonly string[],value:boolean|'source',calculate?:boolean):Promise<void>;
   setBusStatus(termIds: readonly string[], value: boolean | 'source', calculate?: boolean): Promise<void>;
   clearModel(): void;
   resetScenario(): void; undoScenario(): void;

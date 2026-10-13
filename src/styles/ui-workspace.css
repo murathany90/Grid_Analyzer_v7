@@ -76,6 +76,11 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
 .ga-sld-view .ga-sld-toolbar { flex:none;gap:5px;position:relative;z-index:4; }
 .ga-sld-view .ga-sld-toolbar>select { flex:0 1 205px;min-width:125px;font-size:12px;padding:6px; }
 .ga-sld-view .ga-sld-toolbar>select:first-child { flex-basis:235px; }
+.ga-sld-view .ga-sld-toolbar>select[aria-label="SLD YTM filtresi"] { flex-basis:145px; }
+.ga-sld-feeder-menu { position:relative;min-width:0; }
+.ga-sld-feeder-menu>summary { cursor:pointer;padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;line-height:20px; }
+.ga-sld-feeder-menu[open] .ga-sld-feeder-commands { position:absolute;left:0;top:100%;width:min(550px,80vw);background:#132a3c;border:1px solid var(--border);border-radius:6px;padding:12px;box-shadow:0 8px 24px #0009; }
+@media(max-width:700px) { .ga-sld-feeder-menu[open] .ga-sld-feeder-commands { position:fixed;left:5vw;top:20vh;width:90vw;max-height:65vh;overflow:auto; } }
 .ga-sld-view .ga-sld-toolbar button { padding:6px 9px;font-size:12px;min-height:34px; }
 .ga-sld-workspace { display:flex;flex:1;min-width:0;min-height:0;gap:8px;position:relative; }
 .ga-sld-canvas { flex:1;min-width:0;min-height:0;position:relative; }

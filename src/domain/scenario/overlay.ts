@@ -76,6 +76,12 @@ export class ScenarioStore {
     if (value === source) delete values[id]; else values[id] = value;
     this.replace({ ...this.value, energizations, [key]: values, ...(key==='busOrTerminalStatus'?{restoredTerminals:this.value.restoredTerminals.filter(term=>term!==id)}:{}) });
   }
+  setSwitchStates(switches:readonly {id:string;source:boolean}[],value:boolean|'source'):void {
+    const states={...this.value.switchState};let energizations=this.value.energizations;
+    for(const sw of switches){energizations=this.releaseOwnership('switchState',sw.id,energizations);const desired=value==='source'?sw.source:value;if(desired===sw.source)delete states[sw.id];else states[sw.id]=desired;}
+    if(JSON.stringify(states)===JSON.stringify(this.value.switchState)&&JSON.stringify(energizations)===JSON.stringify(this.value.energizations))return;
+    this.replace({...this.value,energizations,switchState:states});
+  }
   private releaseOwnership(key: StatusKey,id: string, operations=this.value.energizations) {
     const next=structuredClone(operations||{});
     for(const op of Object.values(next)) {
