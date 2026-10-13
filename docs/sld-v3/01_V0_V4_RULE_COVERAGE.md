@@ -98,3 +98,5 @@ Kaynak SHA-256:
 - Tek Hat Şeması Çizim Kuralları_T30.10.2024_V4.pdf: `b94c0504f85a66c54eb08091be03f8cac6cdd6631a07c77c71b2d9058932328f`
 - Tek Hat Şeması Çizim Kuralları_T28.03.2024_V0.xlsx: `7689bbf892ba8c88d7c43c5f0074d89df4f5be12a7b20c8c3e7b3673c574c301`
 - DIgSILENT DGS_Documentation.pdf s.61 B.1.8 (ElmTr2.i_auto): `3d099845f11a2cd450cd4cfbe7fe563d58b78e291d4cf11051dd4d6076140468`. s.66 StaSwitch on_off/iUse açıklaması; iorder seri sırası tanımı bulunmadı.
+
+2026-10-13 görsel ret sonrası düzeltme: kart overview kaldırıldı; connectedStationLayout gerçek bara ve cihaz kontak sayfası üretir. Bay ile ortak buildSwitchDeviceChain/gövde paketleme/rotalama korunur. Önceki katalog kapsama oranları fiziksel kart çıktısının kabulü değildir. Güncel görseller ve sınırlar 02/04/06 belgelerindedir.

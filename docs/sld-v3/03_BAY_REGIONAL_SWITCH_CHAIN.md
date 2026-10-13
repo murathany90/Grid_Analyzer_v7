@@ -13,3 +13,5 @@ Regional her paralel FID'yi ayrı path, etiket, hit hedefi ve seçilebilir satı
 Geometri modlar arasında source graph/gerilim/compact/focus anahtarıyla tekrar kullanılır. Kaynak graph değişince cache sahibi de değişir. Sonuç numarası, durum, N1/SC yöntemi veya STALE bilgisi geometri cache’ine konmaz.
 
 Bay yatay yön seçeneği ortak kontak geometrisinin SVG dönüşümüyle korunur. Kaynak FID ve yerel source port koordinatları aynı kalır; görüntü ve flow okları birlikte döner, etiketler dik kalır. 30 sentetik tipte yatay bay seçeneği de kontrol edilir.
+
+2026-10-13 görsel ret sonrası düzeltme: kart overview kaldırıldı; connectedStationLayout gerçek bara ve cihaz kontak sayfası üretir. Bay ile ortak buildSwitchDeviceChain/gövde paketleme/rotalama korunur. Önceki katalog kapsama oranları fiziksel kart çıktısının kabulü değildir. Güncel görseller ve sınırlar 02/04/06 belgelerindedir.
