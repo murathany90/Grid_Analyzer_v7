@@ -7,3 +7,5 @@ Gerçek SN3 mevcut canonical/cache snapshot'ı yeniden kullanıldı; yeni model 
 LF/DC/N1/SC solver, model parser, hesap settings/evidence/parity kapıları değiştirilmedi. Numerik nonregresyonun kanıtı mevcut 474 test + yeni hedefli testlerdir. SLD yöntemi sonucu görüntüler; hesap başlamamış veya STALE sonucu sıfıra çevirmez. Seçili gerçek AC sonucu olmayan N-1 POST değeri üretilmez. N-1 PARTIAL ve SC IEC 2016 BLOCKED/diagnostic statüleri korunur. Yeni normative IEC/PF paritesi veya bağımsız sayısal N-1 tam kabulü iddiası yoktur.
 
 Tam kabul kapıları ve portable ham byte eşitliği handoff belgesinde kapanacaktır. Gerçek private kaynak/result dosyaları public commit'e alınmaz.
+
+Tam E2E ilk PF heartbeat kapısında filename-only yükleme durumu görüldü. Hedefli UI düzeltmesi süre/byte göstergesini 0,0 s itibarıyla başlatır; 1 s interval, worker iptali ve yükleme sonrası recovery korunur. Testin 1100 ms kontrolü, koşulları ve sayısal eşikleri değiştirilmedi; hata mesajına tanısal durum eklendi. Solver/worker hesap kodu değişmedi.

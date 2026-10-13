@@ -1,6 +1,6 @@
 # Beş gerçek istasyon · ALL-VIEW görsel kabul paketi
 
-SN3 ZIP SHA-256 `854b098802a0a6c4a45c03b9702fd9b891225dc96c876781a283c488ccc607a7`; canonical model hash `f58d958269fd31a95da0203dd0db50db589bac3faec36690bf059e7293943ce6`. KALE JES kaynak site ID'si **M1555**. M1583 Hotamış, M1301 İç Anadolu DGKÇ, M56 Davutpaşa, M38 Bursa Sanayi aynı mevcut B0 sonucu/settings ile görüntülendi. Yeni import veya analiz render kabulüne dahil değildir.
+SN3 ZIP SHA-256 `854b098802a0a6c4a45c03b9702fd9b891225dc96c876781a283c488ccc607a7`; canonical model hash `f58d958269fd31a95da0203dd0db50db589bac3faec36690bf059e7293943ce6`. KALE JES kaynak site ID'si **M1555**. M1583 Hotamış, M1301 İç Anadolu DGKÇ, M56 Davutpaşa, M38 Koyluköy aynı mevcut B0 sonucu/settings ile görüntülendi. Yeni import veya analiz render kabulüne dahil değildir.
 
 Aday: 155 PNG + SVG çiftinde 5 TM × 3 kapsam × 7 mod, dört viewport ve 7 modda tüm fiziksel istasyon ayrıntısı; ayrıca 153 fiderin gerçek DOM ölçümü. Toplam **308 ölçüm satırı**. MAIN 120 çift; BASE 45 çift. c8ee28b'de LF/N1/SC/işletme/compact modları yoktur: NOT_AVAILABLE/MODE_NOT_IMPLEMENTED_IN_REFERENCE, başarılı ekran gibi kopyalanmaz. Aynı fider odağında üç sürüm de kaynak fixture'ın ilk native FID'sini seçer; farklı fider P95'leri karşılaştırılmaz.
 
