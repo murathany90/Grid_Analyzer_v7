@@ -55,9 +55,9 @@ function applyN1Overlay(root:SVGSVGElement,d:SldDiagram):void{
     if(outage)for(const line of groupElement.querySelectorAll<SVGPathElement>('path[data-connection]'))line.setAttribute('stroke-dasharray',dashes);
     if(component)groupElement.setAttribute('data-n1-island',component.componentId);
     const title=groupElement.querySelector('title');if(title)title.textContent+=`\n${label}${component?` · ${component.componentId} · ${component.references.map(row=>row.name).join(', ')||'YOK'} · ${component.hasLocalGeneration?`Yerel üretim var (${component.generatorCount} jeneratör, ${component.generationMw.toFixed(1)} MW)`:''}`:''}${impact?` · Baz ${impact.baseFlowMw.toFixed(1)} MW · N-1 ${impact.postFlowMw==null?'—':impact.postFlowMw.toFixed(1)+' MW'} · ΔP ${impact.deltaPMw==null?'—':impact.deltaPMw.toFixed(1)+' MW'} · Kapasite ${impact.capacityMva==null?'—':impact.capacityMva.toFixed(1)+' MVA'}`:''}`;
-    const bounds=groupElement.getBBox(),badgeWidth=Math.min(210,Math.max(68,label.length*6+14)),badge=svg('g',{'pointer-events':'none','aria-hidden':'true',...(component?{'data-n1-island':component.componentId}:{})},groupElement),x=bounds.x+bounds.width-badgeWidth/2,y=bounds.y-11;
+    const bounds=groupElement.getBBox(),badgeWidth=Math.min(210,Math.max(68,label.length*6+14)),badge=svg('g',{'data-n1-badge':'true','pointer-events':'none','aria-hidden':'true',...(component?{'data-n1-island':component.componentId}:{})},groupElement),x=bounds.x+bounds.width-badgeWidth/2,y=bounds.y-11;
     svg('rect',{x,y,width:badgeWidth,height:18,rx:4,fill:color||'#496879',stroke:outage?'#f2f5f7':'#b5d0dc','stroke-width':outage?1:0.7},badge);
-    text(badge,x+badgeWidth/2,y+12,shorten(label,34),9,'#fff','middle');
+    text(badge,x+badgeWidth/2,y+12,shorten(label,34),9,'#fff','middle');if(d.scope==='bay'&&d.orientation==='horizontal')badge.setAttribute('transform',`rotate(-90 ${x+badgeWidth/2} ${y+9})`);
   }
 }
 function path(parent:SVGElement,points:readonly (readonly[number,number])[],color:string,dash='',width=2){return svg('path',{d:points.map((p,i)=>`${i?'L':'M'}${p[0]},${p[1]}`).join(' '),fill:'none',stroke:color,'stroke-width':width,'stroke-dasharray':dash,'data-connection':'orthogonal'},parent);}
@@ -106,7 +106,7 @@ function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geom
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   if(d.graph&&d.scope==='station'&&(d.lod==='overview'||d.lod!=='detail'&&(d.graph.voltageLevels.length>1||d.graph.feeders.length>12||d.graph.switches.length>40))){overview(root,d,select);return;}
   if(!d.graph)return;const graph=d.graph,layout=stationGeometry(graph,d);root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod='detail';
-  text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${graph.sourceFeederCount} kaynak fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
+  text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${d.scope==='bay'?graph.feeders.length:graph.sourceFeederCount} ${d.scope==='bay'?'seçili':'kaynak'} fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
   const palette=(kv:number,state:boolean)=>d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
   const equipment=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
   const overlay=(g:SVGGElement,key:string,x:number,y:number,side:'FROM'|'TO'='FROM',axis:readonly[number,number]=[0,1])=>{
@@ -163,7 +163,9 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
 function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
  if(!d.graph||!d.selectedBay)return;let cache=focusGraphs.get(d.graph);if(!cache){cache=new Map();focusGraphs.set(d.graph,cache);}let graph=cache.get(d.selectedBay.id);if(!graph){graph=feederFocusGraph(d.graph,d.selectedBay.id);cache.set(d.selectedBay.id,graph);}
  station(root,{...d,graph,lod:'detail'},select);root.dataset.lod='focus';
- text(root,24,76,'Fider odağı · kaynak terminal / cubicle / kontak zinciri',11,muted);
+ if(d.orientation==='horizontal'){const [,,width,height]=root.getAttribute('viewBox')!.split(' ').map(Number),body=svg('g',{'data-bay-orientation':'horizontal',transform:`translate(${height} 0) rotate(90)`});for(const child of [...root.children]){if(child.tagName==='text'&&(Number(child.getAttribute('y'))<80||Number(child.getAttribute('y'))>=height-40)){if(Number(child.getAttribute('y'))>=height-40)child.setAttribute('y',String(width-(height-Number(child.getAttribute('y')))));continue;}body.append(child);}root.append(body);root.setAttribute('viewBox',`0 0 ${height} ${width}`);for(const t of root.querySelectorAll<SVGTextElement>(':scope > text')){const full=t.textContent??'';let n=full.length;while(t.getComputedTextLength()>height-48&&n>8)t.textContent=shorten(full,--n);if(n<full.length)svg('title',{},t).textContent=full;}}
+
+ text(root,24,76,d.orientation==='horizontal'?'Fider odağı · native kontaklar':'Fider odağı · kaynak terminal / cubicle / kontak zinciri',11,muted);
 }
 function regional(root:SVGSVGElement,d:SldDiagram,select:Select):void {
  const neighbors=d.regionalSites.filter(s=>s.id!==d.station.id).slice(d.page*12,(d.page+1)*12),rows=neighbors.map(site=>({site,items:d.regionalBranches.filter(e=>e.fromSiteId===site.id||e.toSiteId===site.id)})),height=Math.max(400,100+rows.reduce((n,r)=>n+Math.max(1,r.items.length)*48+38,0));root.setAttribute('viewBox',`0 0 1100 ${height}`);root.dataset.lod='regional';text(root,24,28,`${d.station.name} · bölgesel bağlantılar`,19);
@@ -177,14 +179,14 @@ export class SvgSldRenderer {
   zoom(factor:number){if(!this.root)return;const[x,y,w,h]=this.box(),nextW=Math.max(this.fitBox[2]/12,Math.min(this.fitBox[2]*2,w/factor)),nextH=nextW*h/w;this.root.setAttribute('viewBox',[x+(w-nextW)/2,y+(h-nextH)/2,nextW,nextH].join(' '));}
   exportSvg():string|null{return this.root?new XMLSerializer().serializeToString(fullDiagramClone(this.root,this.fitBox)):null;}
   fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
-  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),w=Math.max(320,b.width+80),h=Math.max(220,b.height+80);this.root!.setAttribute('viewBox',[b.x+b.width/2-w/2,b.y+b.height/2-h/2,w,h].join(' '));}
+  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),matrix=this.root!.getScreenCTM()!.inverse().multiply(g.getScreenCTM()!),corners=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix)),left=Math.min(...corners.map(p=>p.x)),top=Math.min(...corners.map(p=>p.y)),width=Math.max(...corners.map(p=>p.x))-left,height=Math.max(...corners.map(p=>p.y))-top,w=Math.max(320,width+80),h=Math.max(220,height+80);this.root!.setAttribute('viewBox',[left+width/2-w/2,top+height/2-h/2,w,h].join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {
     const key=[d.station.id,d.scope,d.lod,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
     const root=svg('svg',{xmlns:NS,viewBox:'0 0 1240 600',width:'100%',height:540,role:'img','aria-label':`${d.station.name} ${d.scope==='bay'?d.selectedBay?.name||'fider':d.scope==='regional'?'bölgesel':'TM genel'} tek hat şeması`,class:'ga-sld-svg',preserveAspectRatio:'xMidYMid meet'});
     const available=Math.max(280,Math.min(740,innerHeight-Math.max(0,host.getBoundingClientRect().top)-24));d.overviewSize={width:Math.max(360,host.clientWidth||1200),height:available};
     root.style.background='#102033';root.style.touchAction='none';root.style.display='block';root.style.width='100%';root.style.height=available+'px';
-    const oldFit=this.fitBox;host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);applyN1Overlay(root,d);this.fitBox=this.box();if(previous&&oldFit[2]===this.fitBox[2]&&oldFit[3]===this.fitBox[3])root.setAttribute('viewBox',previous.join(' '));
+    const oldFit=this.fitBox;host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);applyN1Overlay(root,d);for(const t of root.querySelectorAll<SVGTextElement>('[data-bay-orientation] text'))if(!t.closest('[data-n1-badge]'))t.setAttribute('transform',`rotate(-90 ${t.getAttribute('x')??0} ${t.getAttribute('y')??0})`);this.fitBox=this.box();if(previous&&oldFit[2]===this.fitBox[2]&&oldFit[3]===this.fitBox[3])root.setAttribute('viewBox',previous.join(' '));
     let drag:{x:number;y:number;box:number[]}|null=null,moved=false;
     root.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,box:this.box()};moved=false;};
     root.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>4){moved=true;root.setPointerCapture(e.pointerId);}if(!moved)return;const r=root.getBoundingClientRect(),scale=Math.min(r.width/drag.box[2],r.height/drag.box[3]);root.setAttribute('viewBox',[drag.box[0]-dx/scale,drag.box[1]-dy/scale,drag.box[2],drag.box[3]].join(' '));};

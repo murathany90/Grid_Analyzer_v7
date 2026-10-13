@@ -11,3 +11,5 @@ Regional her paralel FID'yi ayrı path, etiket, hit hedefi ve seçilebilir satı
 44 yeni bağımsız test: katalog/slot tablosu, source auto kanıtı, raw iorder reddi, 220 profil sınırı, yoğun genel bakış, paylaşılan bay portları, 0/1/2/3 dönüş ve visibility fallback. Mevcut zincir/filtre/3W testleri korunmuştur. Kamu browser kabulü: 30 açık beyanlı sentetik tip × 3 kapsam × 7 mod = 630 çizim; bağımsız DOM glyph sınırları, paralel FID ve gezinme callback'i.
 
 Geometri modlar arasında source graph/gerilim/compact/focus anahtarıyla tekrar kullanılır. Kaynak graph değişince cache sahibi de değişir. Sonuç numarası, durum, N1/SC yöntemi veya STALE bilgisi geometri cache’ine konmaz.
+
+Bay yatay yön seçeneği ortak kontak geometrisinin SVG dönüşümüyle korunur. Kaynak FID ve yerel source port koordinatları aynı kalır; görüntü ve flow okları birlikte döner, etiketler dik kalır. 30 sentetik tipte yatay bay seçeneği de kontrol edilir.
