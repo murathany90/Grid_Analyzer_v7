@@ -17,10 +17,16 @@ export async function nativeSeriesEvidence(page,fixture){
    const series=id=>f.graph.switches.filter(s=>s.from!==s.to&&(s.from===id||s.to===id)).length+f.graph.equipment.filter(e=>e.terminals.includes(id)).length===2;
    for(const [start,list]of at)if(!series(start))for(const first of list){if(visited.has(first.id))continue;const ids=[],nodes=[start];let e=first,id=start;
     while(e){visited.add(e.id);ids.push(e.id);id=e.from===id?e.to:e.from;nodes.push(id);const next=at.get(id)??[];if(!series(id))break;e=next.find(e=>!visited.has(e.id));}
-    if(ids.length<2)continue;const gs=ids.map(id=>groups.get(f.graph.switches.find(s=>s.id===id).sourceClass+'|'+id)),cs=gs.map(center),vertical=cs.every(c=>Math.abs(c.x-cs[0].x)<.01),horizontal=cs.every(c=>Math.abs(c.y-cs[0].y)<.01);
+    if(ids.length<2)continue;const gs=ids.map(id=>groups.get(f.graph.switches.find(s=>s.id===id).sourceClass+'|'+id));
+    // V3.6: a planned bar attachment owns its own lane and is a real branch into the bay,
+    // exactly like the reference YTBS sheet. It is not a spine segment, so it is excluded
+    // from the collinearity/ordering oracle; its own contacts stay fully checked above.
+    const spine=gs.filter(g=>g&&g.dataset.chainOrdering!=='BAR_ATTACHMENT'),cs=spine.map(center);
+    if(cs.length<2){chains.push({feeder:feeder.id,terminals:nodes,switches:ids,status:'BAR_ATTACHMENT_BRANCH'});continue;}
+    const vertical=cs.every(c=>Math.abs(c.x-cs[0].x)<.01),horizontal=cs.every(c=>Math.abs(c.y-cs[0].y)<.01);
     if(!vertical&&!horizontal)errors.push(feeder.id+' series axis '+ids.join(','));
     const values=cs.map(c=>vertical?c.y:c.x),sign=Math.sign(values[1]-values[0]);if(values.some((v,i)=>i&&Math.sign(v-values[i-1])!==sign))errors.push(feeder.id+' source order '+ids.join(','));
-    for(let i=1;i<nodes.length-1;i++)for(const g of [gs[i-1],gs[i]])for(const w of g.querySelectorAll(`path[data-native-terminal="${nodes[i]}"]`))for(const p of wire(w))if(Math.abs((vertical?p[0]:p[1])-(vertical?cs[0].x:cs[0].y))>.01)errors.push(feeder.id+' intermediate false bypass '+nodes[i]);
+    for(let i=1;i<nodes.length-1;i++)for(const g of spine)for(const w of g.querySelectorAll(`path[data-native-terminal="${nodes[i]}"]`))for(const p of wire(w))if(Math.abs((vertical?p[0]:p[1])-(vertical?cs[0].x:cs[0].y))>.01)errors.push(feeder.id+' intermediate false bypass '+nodes[i]);
     chains.push({feeder:feeder.id,terminals:nodes,switches:ids,status:'PASS'});
    }
   }

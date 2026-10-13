@@ -6,6 +6,12 @@ import {nativeBarCircuit} from './bar-circuit';
 export const feederAreaUnits=(kv:number)=>kv>36?4:1;
 /** Horizontal pitch between the real busbar attachments of one bay. */
 export const ANCHOR_STEP=22;
+/** V3.6 bay corridor: every real rail of one bay owns its own vertical lane inside the
+ *  bay cell, and every lane leaves the rail band on a collector drawn outside the group. */
+export const LANE_STEP=32;
+export const LANE_PAD=12;
+/** Lane x of one real rail of one bay. `near` is the rail index nearest the bay itself. */
+export const barLaneX=(spine:number,index:number,near:number)=>spine+(index-near)*LANE_STEP;
 /** Measured source demand of one physical bay. Only real attachments reserve space;
  *  a packing weight, a voltage class or a name never widens a cell. */
 export interface FeederCellDemand{barAnchors:number;branchRoots:number;parallelWindings:number;circuitSwitches:number}
@@ -13,7 +19,7 @@ export const cellDemand=(p:Partial<FeederCellDemand>={}):FeederCellDemand=>({bar
 /** Width of one invisible cell: symbol clearance, the real busbar anchor spread, the
  *  real off-spine branch lanes and the wrapped caption actually drawn for this voltage. */
 export function feederCellWidth(slot:YtbsSlot,demand:Partial<FeederCellDemand>={}){const d=cellDemand(demand),hv=slot.feeder.voltageKv>40,spine=40;
- return Math.ceil(Math.max(hv?118:84,spine+Math.max(0,d.barAnchors-1)*ANCHOR_STEP,spine+d.branchRoots*46,40+Math.max(0,d.parallelWindings-1)*74,40+d.circuitSwitches*42)/4)*4;}
+ return Math.ceil(Math.max(hv?118:84,Math.max(0,d.barAnchors-1)*LANE_STEP+40,spine+d.branchRoots*46,40+Math.max(0,d.parallelWindings-1)*74,40+d.circuitSwitches*42)/4)*4;}
 /** Real source attachments of one bay, measured exactly as the renderer draws them. */
 export function feederCellDemandOf(graph:StationTopologyGraph,feeder:Feeder,sections:ReadonlySet<string>):FeederCellDemand{
  const main=feederDrawingPath(graph,feeder),nodes=(main?.terminals??[]).filter(id=>!sections.has(id)),placed=new Set(nodes),internal=graph.switches.filter(s=>feeder.switchIds.includes(s.id)&&s.from!==s.to&&!sections.has(s.from)&&!sections.has(s.to));
