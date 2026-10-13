@@ -223,6 +223,7 @@ export function createSldView(ctx: AppContext): Feature {
   window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',fullscreenChange);window.addEventListener('keydown',escape);
   // Options only reveal existing controls; opening them must not reset the SVG viewport.
   advanced.ontoggle=()=>{advancedSummary.setAttribute('aria-expanded',String(advanced.open));};
+  feederMenu.ontoggle=()=>{if(feederMenu.open)quickSwitch.hidden=true;else renderDetail();};
   resizeFrame=requestAnimationFrame(()=>{sizeWorkspace();redraw();});
   baySearch.oninput=()=>{if(stationData)drawFeederPicker(stationData);};bayGroup.onchange=()=>{if(stationData)drawFeederPicker(stationData);};
   bayPicker.onchange=()=>{const feeder=stationData?.graph.feeders.find(f=>f.id===bayPicker.value);if(!feeder)return;selectedBayId=feeder.id;selectEquipment(feeder.sourceClass==='ElmBay'?feeder.id:feeder.id.slice(feeder.id.indexOf('|')+1),feeder.sourceClass);};
@@ -297,7 +298,7 @@ export function createSldView(ctx: AppContext): Feature {
     const actions=element('div','ga-actions');actions.append(resetButton);
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
-      if(key==='switchState'){
+      if(key==='switchState'&&!feederMenu.open){
         quickSwitch.hidden=false;quickSwitch.dataset.switchId=entity.id;quickSwitch.append(element('strong','',`${name} · ${entity.id} · ${active?'Kapalı':'Açık'}`),element('p','ga-muted','Yerel senaryo simülasyonu'));
         quickSwitch.title='Yalnız yerel senaryo değişir; fiziksel işletme komutu gönderilmez. Kapalı konum enerjilenme kanıtı değildir.';
         const buttons=element('div','ga-actions');buttons.append(actionButton('Aç',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton('Kapat',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton('Değiştir + Senaryo Full AC hesapla',()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)),actionButton('Manevra kartını kapat',()=>{quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}));
