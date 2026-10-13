@@ -13,6 +13,7 @@ import {calculationEngineLabel,calculationSessionStatus} from '../../ui/componen
 import {createSldResultOverlay,type SldMode} from './result-overlay';
 import {oppositeStation,SldNavigationHistory} from './navigation';
 import {selectedN1Presentation} from '../../map/layer-policy';
+import {sourceSwitchKind} from '../../domain/model/switch-usage';
 
 interface NetworkIndex {
   network: CanonicalNetwork;
@@ -127,7 +128,7 @@ function classifySwitch(row: CatalogRow, switchIndex: Map<string, Switch>, ctx: 
   const switchEntity = switchIndex.get(row.id);
   const sourceClosed = bool(row.attributes.on_off);
   const usage = field(row, 'aUsage').toLocaleLowerCase('en-US');
-  const kind = usage === 'cbk' ? 'breaker' : usage === 'dct' ? 'isolator' : 'other';
+  const kind = sourceSwitchKind(usage);
   return { id: row.id, name: row.name || row.id, sourceClass: switchEntity?.sourceClass==='StaSwitch'?'StaSwitch':'ElmCoup', kind,
     from: switchEntity?.from || null, to: switchEntity?.to || null, modelClosed: sourceClosed,
     closed: ctx.scenario.current.switchState[row.id] ?? sourceClosed, inService: switchEntity?.inService ?? !bool(row.attributes.outserv),stateKnown:Object.hasOwn(ctx.scenario.current.switchState,row.id)||([0,1,true,false,'0','1'] as unknown[]).includes(row.attributes.on_off) };

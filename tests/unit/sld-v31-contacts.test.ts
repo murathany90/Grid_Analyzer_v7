@@ -43,7 +43,9 @@ test('Real 400/33 winding retains both FIDs, sits below HV, and clears unrelated
  const before=structuredClone(f.n),g=f.graph(),p=stationOverviewPage(g,allVoltageBands()),t=p.equipment.find(e=>e.equipment.id==='DIRECT')!;
  assert.deepEqual(t.equipment.terminals,['Ht','Lt']);assert.deepEqual(t.ports.map(p=>p.terminalId),['Ht','Lt']);
  assert.ok(t.y>Math.max(...p.sections.filter(b=>b.section.voltageKv===400).map(b=>b.y)));
- const lv=t.ports.find(p=>p.side===1)!;assert.ok(lv.corridor!>Math.max(...p.sections.map(b=>b.x2)));
+ // V3.2 permits the closest external side; the zero-intersection and native
+ // winding assertions below retain the original electrical safety requirement.
+ const lv=t.ports.find(p=>p.side===1)!;assert.ok(lv.corridor!<Math.min(...p.sections.map(b=>b.x1))||lv.corridor!>Math.max(...p.sections.map(b=>b.x2)));
  for(const w of lv.wires){assert.equal(obstacleIntersections(w.points,p.sections.map(b=>({id:b.section.id,x1:b.x1,x2:b.x2,y1:b.y-.1,y2:b.y+.1}))),0);assert.deepEqual(w.points.at(-1),lv.point);}
  assert.equal(new Set(p.routes.map(r=>r.sw.sourceClass+'|'+r.sw.sourceId)).size,g.switches.length);assert.deepEqual(f.n,before);
 });

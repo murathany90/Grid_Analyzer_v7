@@ -11,11 +11,12 @@ import {stationOverviewPage} from './page-layout';
 import type {SldMode,SldResultOverlay} from './result-overlay';
 import {sldFlowAtPort} from './result-overlay';
 import {engineeringSymbol,drawSwitchSymbol} from './symbols';
+import type {SourceSwitchKind} from '../../domain/model/switch-usage';
 export type SldScope='station'|'bay'|'regional';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
 export interface SldTerminal {id:string;name:string;bayId:string;external:boolean;equipment:readonly SldEquipment[]}
-export interface SldSwitch {id:string;name:string;sourceClass:'ElmCoup'|'StaSwitch';kind:'breaker'|'isolator'|'other';from:string|null;to:string|null;modelClosed:boolean;closed:boolean;inService:boolean;stateKnown?:boolean}
+export interface SldSwitch {id:string;name:string;sourceClass:'ElmCoup'|'StaSwitch';kind:SourceSwitchKind|'other';from:string|null;to:string|null;modelClosed:boolean;closed:boolean;inService:boolean;stateKnown?:boolean}
 export interface SldRegionalBranch extends SldEquipment {fromSiteId:string;toSiteId:string}
 export interface SldDiagram {
   scope:SldScope;orientation:'horizontal'|'vertical';station:Site;selectedId:string|null;groups:readonly SldBusGroup[];equipment:readonly SldEquipment[];
@@ -64,7 +65,7 @@ function path(parent:SVGElement,points:readonly (readonly[number,number])[],colo
 function symbol(parent:SVGElement,x:number,y:number,cls:string,color:string,closed:boolean|null=true,kind='breaker'){
   if(cls==='ElmTr2')engineeringSymbol(parent,'transformer2w',x,y,color);
   else if(cls==='ElmTr3')engineeringSymbol(parent,'transformer3w',x,y,color);
-  else if(cls==='ElmCoup'||cls==='StaSwitch')drawSwitchSymbol(parent,kind==='breaker'?'KE-01':kind==='isolator'?'GENERIC_DISCONNECTOR':'UNSPECIFIED',x,y,color,closed);
+  else if(cls==='ElmCoup'||cls==='StaSwitch')drawSwitchSymbol(parent,kind==='breaker'?'KE-01':kind==='isolator'||kind==='load-break-disconnector'?'GENERIC_DISCONNECTOR':'UNSPECIFIED',x,y,color,closed);
   else if(cls==='ElmLne'){svg('path',{d:`M${x},${y-16} L${x},${y} M${x-6},${y-6} L${x},${y} L${x+6},${y-6}`,fill:'none',stroke:color,'stroke-width':2},parent);}
   else if(cls==='ElmSym'||cls==='ElmGenStat')engineeringSymbol(parent,'generator',x,y,color);
   else if(cls==='ElmLod')engineeringSymbol(parent,'load',x,y,color);
@@ -113,11 +114,11 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     if(!a&&!b&&graph.terminals.some(t=>t.id===sw.from)&&graph.terminals.some(t=>t.id===sw.to))continue;
     const known=sw.stateKnown||Object.hasOwn(d.scenario.switchState,sw.id),closed=item.closed??false,state=!item.inService?'OUT_OF_SERVICE':!known?'UNKNOWN':closed?'CLOSED':'OPEN';
     const color=state==='UNKNOWN'?d.settings.colorNoResult:!item.inService?d.settings.colorOut:item.sourceClosed!=null&&item.sourceClosed!==closed?(closed?d.settings.colorScenarioOn:d.settings.colorScenarioOff):palette(graph.terminals.find(t=>t.id===sw.from)?.vnKv??0,closed),g=group(root,sw.id,sw.sourceClass,item.name,select,`${sw.kind} · ${state} · ${sw.from} → ${sw.to}`);
-    g.dataset.sourceUsage=sw.sourceUsage??'';g.dataset.physicalSwitch=`${sw.sourceClass}|${sw.sourceId}`;g.dataset.from=sw.from;g.dataset.to=sw.to;g.dataset.state=state;g.dataset.semantic=sw.from===sw.to?'cubicle-switch':sw.kind;g.dataset.bay=sw.bayId??'';g.dataset.cubicle=sw.cubicleId??'';
-    g.dataset.contactFrom=route.contactFrom.join(',');g.dataset.contactTo=route.contactTo.join(',');g.dataset.chainOrdering=route.ordering;
+    g.dataset.deviceKind=sw.kind;g.dataset.sourceUsage=sw.sourceUsage??'';g.dataset.physicalSwitch=`${sw.sourceClass}|${sw.sourceId}`;g.dataset.from=sw.from;g.dataset.to=sw.to;g.dataset.state=state;g.dataset.semantic=sw.from===sw.to?'cubicle-switch':sw.kind;g.dataset.bay=sw.bayId??'';g.dataset.cubicle=sw.cubicleId??'';
+    g.dataset.contactIn=g.dataset.contactFrom=route.contactFrom.join(',');g.dataset.contactOut=g.dataset.contactTo=route.contactTo.join(',');g.dataset.inline=String(route.inline===true);g.dataset.chainOrdering=route.ordering;
     if(!route.wires.length){if(a||b)text(g,x+20,y,'Kaynak zincir sırası/uç çözümlenemedi',9,muted);else continue;}
     for(const w of route.wires){const line=path(g,w.points,color,item.inService?'':'6 4');line.dataset.nativeTerminal=w.terminalId;line.dataset.contactSide=w.side;}for(const p of [a,b])if(p?.semantics==='busbar-section')svg('circle',{cx:p.x,cy:p.y,r:2.5,fill:color,'data-junction':p.terminalId},g);
-    const glyph=svg('g',{'data-device-glyph':g.dataset.physicalSwitch!,transform:`rotate(${route.rotation??0} ${x} ${y})`},g);symbol(glyph,x,y,sw.sourceClass,color,known?closed:null,sw.sourceUsage==='sdc'?'isolator':sw.kind);
+    const glyph=svg('g',{'data-device-glyph':g.dataset.physicalSwitch!,transform:`rotate(${route.rotation??0} ${x} ${y})`},g);symbol(glyph,x,y,sw.sourceClass,color,known?closed:null,sw.kind);
     // A real hit target remains usable independently of thin strokes and label geometry.
     svg('rect',{x:x-14,y:y-17,width:28,height:34,fill:'transparent','pointer-events':'all','data-switch-hit':sw.id},g);
     if(state==='UNKNOWN')text(g,x+12,y+3,'?',10,color);if(d.selectedId===sw.id)svg('circle',{cx:x,cy:y,r:19,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);if(d.technical)text(g,x+16,y-7,sw.id,8,muted);

@@ -13,6 +13,8 @@ export async function nativeSld31Evidence(page,fixture){
    for(const p of declared)if(!contacts.some(c=>Math.hypot(c.x-p[0],c.y-p[1])<.01))errors.push('Detached contact '+g.dataset.id);
    const sw=f.graph.switches.find(s=>s.sourceClass+'|'+s.sourceId===g.dataset.physicalSwitch),usage=String((f.raw[sw.sourceClass]??[]).find(r=>r.id===sw.sourceId)?.attributes.aUsage??'').toLowerCase(),profile=g.querySelector('[data-switch-profile]')?.dataset.switchProfile;
    const want=usage==='cbk'?'KE-01':['dct','sdc'].includes(usage)?'GENERIC_DISCONNECTOR':'UNSPECIFIED';if(profile!==want)errors.push('Unproved subtype '+g.dataset.id);
+   const kind={cbk:'breaker',dct:'isolator',sdc:'load-break-disconnector',swt:'load-switch'}[usage]??'switch';if(g.dataset.deviceKind!==kind)errors.push('DGS kind mismatch '+g.dataset.id);
+   if(g.dataset.from!==sw.from||g.dataset.to!==sw.to)errors.push('Changed native endpoints '+g.dataset.id);
   }
   const actualEquipment=equipment.map(g=>g.dataset.class+'|'+g.dataset.id),nativeEquipment=new Set(f.graph.equipment.map(e=>e.sourceClass+'|'+e.id));
   for(const k of nativeEquipment)if(actualEquipment.filter(e=>e===k).length!==1)errors.push('Equipment coverage '+k);

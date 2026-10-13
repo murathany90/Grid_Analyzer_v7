@@ -1,5 +1,6 @@
 import type { CanonicalNetwork, Bus, Entity } from './network';
 import { voltageMatches, type VoltageBand } from './voltage-band';
+import {sourceSwitchKind,type SourceSwitchKind} from './switch-usage';
 export interface StationSourceRow { id:string;name:string;attributes:Readonly<Record<string,unknown>>;sourceClass?:string }
 export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[] }
 export type StationIssueKind='invalidSwitchEndpoints'|'unresolvedFeederTerminals'|'unresolvedEquipmentConnections'|'missingCubicleReferences'|'ambiguousBusSections'|'unsupportedEquipmentConnections';
@@ -9,7 +10,7 @@ export interface BusSection { id:string;name:string;voltageKv:number;groupId:str
 export interface Feeder { id:string;name:string;sourceClass:string;voltageKv:number;terminalIds:string[];busSectionIds:string[];switchIds:string[];equipmentKeys:string[];sourceFunction?:string }
 export interface StationTopologyGraph {
   siteId:string;busSections:BusSection[];feeders:Feeder[];terminals:Bus[];
-  switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:'breaker'|'isolator'|'switch';bayId:string|null;cubicleId?:string;equipmentId?:string;sourceOrder?:number;stateKnown:boolean;sourceUsage?:string}[];
+  switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:SourceSwitchKind;bayId:string|null;cubicleId?:string;equipmentId?:string;sourceOrder?:number;stateKnown:boolean;sourceUsage?:string}[];
   equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string;autoTransformer?:boolean;typeEvidence?:string}[];
   voltageLevels:number[];sourceFeederCount:number;unresolvedEndpoints:number;
   connections:StationConnection[];issues:StationIssue[];counters:Record<StationIssueKind|'diagramUnresolvedTotal',number>;
@@ -27,7 +28,7 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
     const raw=rawSwitches.get(s.id),direct=String(raw?.attributes.fold_id??''),cub=cubicles.get(direct),terminal=cub?rawTerms.get(String(cub.attributes.fold_id??'')):null,parent=terminal?String(terminal.attributes.fold_id??''):direct,usage=String(raw?.attributes.aUsage??'').toLowerCase();
     // Available DIgSILENT DGS documentation does not define iorder as device sequence.
     // Preserve raw fields in the catalog, but never turn an arbitrary integer into a chain.
-    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,sourceUsage:usage,kind:usage==='cbk'?'breaker' as const:usage==='dct'?'isolator' as const:'switch' as const,bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
+    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,sourceUsage:usage,kind:sourceSwitchKind(usage),bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
   }).sort((a,b)=>a.id.localeCompare(b.id));
   const equipment:StationTopologyGraph['equipment']=[];
   const append=(items:readonly Entity[],kind:string)=>{for(const e of items){const ends='from'in e&&'to'in e?[String(e.from),String(e.to)]:'bus'in e?[String(e.bus)]:[];if(!ends.some(t=>termById.get(t)?.siteIds.includes(siteId)))continue;equipment.push({id:e.id,name:e.name,sourceClass:e.sourceClass,terminals:ends,kind});}};
