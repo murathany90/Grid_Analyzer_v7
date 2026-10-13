@@ -46,6 +46,7 @@ test('Source virtual load / LSZ connections occupy their own straight cells afte
  const graph=buildStationTopologyGraph(n,'S',f.source),before=structuredClone(graph),p=connectedStationLayout(graph,allVoltageBands()),virtual=p.equipment.filter(e=>['VL0','VL1','VG'].includes(e.equipment.id));assert.equal(virtual.length,3);
  for(const e of virtual){assert.equal(e.straightModelSpine,true);assert.equal(e.x,e.nativePorts[0].x);assert.ok(e.ports[0].wires.every(w=>w.points.every(pt=>pt[0]===e.x)));assert.ok([...p.compartments.values()].some(c=>c.model&&c.axis===e.x));}
  assert.deepEqual(graph,before);
+ const cells=[...p.compartments.values()].filter(c=>c.direction===1&&c.units===1);assert.equal(new Set(cells.map(c=>c.titleY)).size,1,'Model and physical outgoing feeders share the reserved caption baseline');
 });
 test('Hop-over marks only non-electrical interior crossings, preserving real native joins and endpoints',()=>{
  const horizontal={terminalId:'A',points:[[0,20],[80,20]] as const},vertical={terminalId:'B',points:[[40,0],[40,40]] as const};assert.deepEqual(wireCrossings([horizontal,vertical]),[{x:40,y:20,vertical:false,wire:0,other:1}]);
