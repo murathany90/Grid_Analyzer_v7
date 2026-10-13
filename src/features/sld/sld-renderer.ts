@@ -3,7 +3,7 @@ import type { CatalogRow } from '../../app/contracts';
 import { layoutStation, feederSwitchPaths, stationTerminalLinks, type StationTopologyGraph } from '../../domain/model/station-topology';
 import type { VoltageBand } from '../../domain/model/voltage-band';
 import type { ScenarioOverlay } from '../../domain/scenario/overlay';
-import type { Settings } from '../../persistence/settings';
+import {defaultSettings,type Settings} from '../../persistence/settings';
 import type { N1SelectedDetail } from '../../domain/n1';
 import {islandColor} from '../../map/island-map';
 import {physicalStationLayout,feederFocusGraph} from './physical-layout';
@@ -30,7 +30,7 @@ export interface SldDiagram {
 type Select=(id:string,sourceClass:string)=>void;
 const NS='http://www.w3.org/2000/svg',ink='#e0edf2',muted='#9bb3c1',normal='#90d4df';
 function svg<K extends keyof SVGElementTagNameMap>(tag:K,attrs:Record<string,string|number>,parent?:SVGElement):SVGElementTagNameMap[K]{const n=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))n.setAttribute(k,String(v));parent?.append(n);return n;}
-function text(parent:SVGElement,x:number,y:number,label:string,size=12,color=ink,anchor='start'){const n=svg('text',{x,y,fill:color,'font-size':size,'font-family':'system-ui, sans-serif','text-anchor':anchor},parent);n.textContent=label;return n;}
+function text(parent:SVGElement,x:number,y:number,label:string,size=12,color=ink,anchor='start'){const paper=(parent instanceof SVGSVGElement?parent:parent.ownerSVGElement)?.dataset.paper==='true';const n=svg('text',{x,y,fill:paper?(color===ink?'#182833':color===muted?'#526776':color):color,'font-size':size,'font-family':'system-ui, sans-serif','text-anchor':anchor},parent);n.textContent=label;return n;}
 const shorten=(s:string,n=23)=>s.length>n?s.slice(0,n-1)+'…':s;
 function group(parent:SVGElement,id:string,cls:string,name:string,select:Select,detail=''){const g=svg('g',{'data-id':id,'data-class':cls,role:'button',tabindex:0,'aria-label':name},parent);svg('title',{},g).textContent=`${name}\n${cls} · ${id}${detail?'\n'+detail:''}`;g.onclick=e=>{e.stopPropagation();select(id,cls);};g.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();select(id,cls);}};return g;}
 function stateStyle(d:SldDiagram,source:boolean,current:boolean){return {color:source!==current?(current?d.settings.colorScenarioOn:d.settings.colorScenarioOff):current?normal:d.settings.colorOut,dash:current?'':'6 4'};}
@@ -65,55 +65,47 @@ function symbol(parent:SVGElement,x:number,y:number,cls:string,color:string,clos
   if(cls==='ElmTr2')engineeringSymbol(parent,'transformer2w',x,y,color);
   else if(cls==='ElmTr3')engineeringSymbol(parent,'transformer3w',x,y,color);
   else if(cls==='ElmCoup'||cls==='StaSwitch'){
-    if(kind==='isolator'){svg('rect',{x:x-10,y:y-12,width:20,height:24,fill:'#102033'},parent);const blade=path(parent,[[x,y+12],[closed?x:x+9,closed?y-12:y-5]],color);blade.removeAttribute('data-connection');blade.dataset.switchBlade=closed?'CLOSED':'OPEN';svg('circle',{cx:x,cy:y-12,r:2,fill:color},parent);svg('circle',{cx:x,cy:y+12,r:2,fill:color},parent);}
-    else if(kind==='breaker'){svg('rect',{x:x-7,y:y-8,width:14,height:16,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);if(!closed){const blade=path(parent,[[x,y+6],[x+5,y-3]],color);blade.removeAttribute('data-connection');blade.dataset.switchBlade='OPEN';}}
-    else svg('path',{d:`M${x},${y-9} L${x+8},${y} L${x},${y+9} L${x-8},${y} Z`,fill:closed?color:'#102033',stroke:color,'stroke-width':2},parent);
+    if(kind==='isolator'){svg('rect',{x:x-10,y:y-12,width:20,height:24,fill:'var(--sld-paper, #102033)'},parent);const blade=path(parent,[[x,y+12],[closed?x:x+9,closed?y-12:y-5]],color);blade.removeAttribute('data-connection');blade.dataset.switchBlade=closed?'CLOSED':'OPEN';svg('circle',{cx:x,cy:y-12,r:2,fill:color},parent);svg('circle',{cx:x,cy:y+12,r:2,fill:color},parent);}
+    else if(kind==='breaker'){svg('rect',{x:x-7,y:y-8,width:14,height:16,fill:closed?color:'var(--sld-paper, #102033)',stroke:color,'stroke-width':2},parent);if(!closed){const blade=path(parent,[[x,y+6],[x+5,y-3]],color);blade.removeAttribute('data-connection');blade.dataset.switchBlade='OPEN';}}
+    else svg('path',{d:`M${x},${y-9} L${x+8},${y} L${x},${y+9} L${x-8},${y} Z`,fill:closed?color:'var(--sld-paper, #102033)',stroke:color,'stroke-width':2},parent);
   }
   else if(cls==='ElmLne'){svg('path',{d:`M${x},${y-16} L${x},${y} M${x-6},${y-6} L${x},${y} L${x+6},${y-6}`,fill:'none',stroke:color,'stroke-width':2},parent);}
   else if(cls==='ElmSym'||cls==='ElmGenStat')engineeringSymbol(parent,'generator',x,y,color);
   else if(cls==='ElmLod')engineeringSymbol(parent,'load',x,y,color);
-  else{svg('circle',{cx:x,cy:y,r:12,stroke:color,fill:'#102033','stroke-width':2},parent);text(parent,x,y+4,cls==='ElmShnt'?'Ş':'G',11,color,'middle');}
+  else{svg('circle',{cx:x,cy:y,r:12,stroke:color,fill:'var(--sld-paper, #102033)','stroke-width':2},parent);text(parent,x,y+4,cls==='ElmShnt'?'Ş':'G',11,color,'middle');}
 }
 function wrappedText(parent:SVGElement,x:number,y:number,label:string,limit=18,size=10,color=ink){
   const words=label.split(/\s+/);let first='';while(words.length&&(!first||first.length+words[0].length+1<=limit)){first+=(first?' ':'')+words.shift();}
-  text(parent,x,y,shorten(first,limit),size,color,'middle');if(words.length)text(parent,x,y+14,shorten(words.join(' '),limit),size,color,'middle');
+  text(parent,x,y,shorten(first,limit),size,color,'middle');if(words.length)text(parent,x,y+20,shorten(words.join(' '),limit),size,color,'middle');
+}
+/** Labels may move; electrical ports and conductors never move to accommodate text. */
+function clearFeederLabel(root:SVGSVGElement,g:SVGGElement){
+ const inverse=root.getScreenCTM()!.inverse(),world=(e:SVGGraphicsElement)=>{const r=e.getBoundingClientRect(),a=new DOMPoint(r.left,r.top).matrixTransform(inverse),b=new DOMPoint(r.right,r.bottom).matrixTransform(inverse);return {left:a.x,right:b.x,top:a.y,bottom:b.y};},others=[...root.querySelectorAll<SVGGraphicsElement>('[data-device-glyph],text')].filter(e=>!g.contains(e)).map(world),box=root.viewBox.baseVal;
+ const hit=(a:ReturnType<typeof world>,b:ReturnType<typeof world>)=>a.left<b.right+3&&a.right>b.left-3&&a.top<b.bottom+3&&a.bottom>b.top-3;
+ for(const [dx,dy]of [[0,0],...Array.from({length:8},(_,i)=>i+1).flatMap(n=>[[0,n*40],[0,-n*40],[-n*24,0],[n*24,0]])]){g.setAttribute('transform',`translate(${dx} ${dy})`);const captions=[...g.querySelectorAll('text')].map(world);if(captions.some(b=>b.left<10||b.right>box.width-10||b.top<65||b.bottom>box.height-45))continue;if(!captions.some(c=>others.some(o=>hit(c,o))))return;}
+ throw Error('SLD_FEEDER_LABEL_PACKING_UNRESOLVED: '+g.dataset.feederMarker);
 }
 export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SVGSVGElement {
   const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
 }
 function voltageColor(d:SldDiagram,kv:number){return kv>=300?d.settings.color400:kv>=180?d.settings.color220:kv>=100?d.settings.color154:kv>=50?d.settings.color66:d.settings.colorLow;}
-function overview(root:SVGSVGElement,d:SldDiagram,select:Select):void {
- if(!d.graph)return;const graph=d.graph,page=stationOverviewPage(graph,d.voltageBands,d.overviewSize?.width,d.overviewSize?.height);root.setAttribute('viewBox',`0 0 ${page.width} ${page.height}`);root.dataset.lod='overview';root.dataset.sourceDeviceCount=String(new Set([...page.tiles.flatMap(t=>t.representedKeys),...page.unassignedSwitches.map(s=>s.sourceClass+'|'+s.sourceId)]).size);root.dataset.omittedFeeders='0';
- text(root,14,23,d.station.name+' · Genel bakış',17);text(root,page.width-14,page.width<500?36:23,`${page.tiles.length} fider · odak için seçin`,11,muted,'end');
- for(const [i,s]of page.unassignedSwitches.entries()){const x=14+(i%page.cols)*(page.tileWidth+page.gap),y=42+Math.floor(i/page.cols)*22,g=group(root,s.id,s.sourceClass,'Bağımsız kaynak anahtarı · '+s.sourceId,select,`${s.from} → ${s.to} · native ElmBay ataması yok; tam istasyon ayrıntısında fiziksel kontakları görülebilir`);g.dataset.unassignedDevice=s.sourceClass+'|'+s.sourceId;svg('rect',{x,y,width:page.tileWidth,height:18,rx:3,fill:'#183247',stroke:'#ffd27e'},g);text(g,x+4,y+12,shorten(s.sourceId,page.width<500?4:14),9,'#ffd27e');}
- for(const panel of page.panels){svg('rect',{x:panel.x,y:panel.y,width:panel.width,height:panel.height,rx:6,fill:'#142a3b',stroke:'#496879'},root);text(root,panel.x+9,panel.y+17,`${panel.kv} kV · ${panel.sourceProfile}`,11,voltageColor(d,panel.kv));
-  const divider=svg('g',{'data-semantic':'page-divider','data-not-electrical-edge':'true'},root);svg('path',{d:`M${panel.x+9},${panel.axisY+7} H${panel.x+panel.width-9}`,fill:'none',stroke:'#708a9a','stroke-dasharray':'2 6'},divider);text(divider,panel.x+9,panel.axisY+18,`A ↑ / B ↓ · kaynak bara: ${shorten(panel.barIds.join(' / ')||'BARASIZ',Math.max(10,Math.floor(panel.width/6)-32))}`,9,muted);
-  for(const tile of panel.tiles){const {slot,x,y,width,height}=tile,f=slot.feeder,cls=f.sourceClass,id=cls==='ElmBay'?f.id:f.id.slice(f.id.indexOf('|')+1),g=group(root,id,cls,f.name+' · '+f.id,()=>{if(d.onFocusFeeder)d.onFocusFeeder(f.id);else select(id,cls);},`${slot.slot} · ${slot.typeName??slot.role} · ${slot.typeStatus??'SOURCE_GRAPH'}\nBaralar: ${f.busSectionIds.join(',')}\nNative cihazlar: ${tile.representedKeys.join(',')}`);
-   g.dataset.feederMarker=f.id;g.dataset.representedKeys=tile.representedKeys.join(';');g.dataset.ytbsSlot=slot.slot;g.dataset.ytbsSide=slot.side??'N';g.dataset.panelAxis=String(panel.axisY);g.dataset.typeStatus=slot.typeStatus??'SOURCE_GRAPH';
-   const entry=[...f.equipmentKeys,...f.terminalIds.map(id=>'ElmTerm|'+id)].map(k=>d.overlay?.entries.get(k)).find(e=>e),status=entry?.status??d.overlay?.status,alarm=entry?.alarm,color=alarm?'#ff746f':slot.side?voltageColor(d,panel.kv):'#ffd27e';g.dataset.resultStatus=status??'NOT_RUN';
-   svg('rect',{x,y,width,height,rx:4,fill:'#102033',stroke:color,'stroke-width':1.2},g);
-   const mobile=page.width<500;const chars=Math.max(5,Math.floor((width-12)/6.1)),label=shorten(f.name,chars);if(mobile){text(g,x+width/2,y+height*.72,f.id.replace(/^[^|]+\|/,'').slice(-4),9,color,'middle');}else {text(g,x+6,y+Math.min(15,height*.44),label,Math.min(11,Math.max(9,height*.3)),ink);text(g,x+6,y+Math.min(30,height*.86),`${f.id.replace(/^[^|]+\|/,'')} · ${slot.side?slot.slot:'?'}`,9,color);}
-   if(height>42&&!mobile){const summary=d.showResults!==false&&entry?entry.lines[0]:`${f.switchIds.length} anahtar · ${slot.typeName??slot.role}`;text(g,x+6,y+height-6,shorten(summary??'',chars+2),9,muted);}
-   if(d.selectedId===id)svg('rect',{x:x-2,y:y-2,width:width+4,height:height+4,rx:4,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);
-  }
- }
- if(['LF','N1','SC'].includes(d.mode??'')){const label=`${d.mode} ${d.overlay?.phase??''} · ${d.overlay?.status??'NOT_RUN'} · ${d.overlay?.method??'NOT_RUN'}`,status=text(root,14,page.height-4,shorten(label,Math.max(25,Math.floor(page.width/6))),10,muted);svg('title',{},status).textContent=label;root.dataset.methodStatus=d.overlay?.status??'NOT_RUN';}
-}
+const defaultPalette=defaultSettings();
+function paperVoltageColor(d:SldDiagram,kv:number){const key=kv>=300?'color400':kv>=180?'color220':kv>=100?'color154':kv>=50?'color66':'colorLow';return d.settings[key]!==defaultPalette[key]?d.settings[key]:kv>=300?'#d62f2f':kv>=180?'#7151ab':kv>=100?'#254a6e':kv>=50?'#287783':'#25813a';}
 // Native station graphs are immutable cached source projections; result/scenario labels are never cached.
 const geometryCache=new WeakMap<StationTopologyGraph,Map<string,ReturnType<typeof physicalStationLayout>>>();
 const focusGraphs=new WeakMap<StationTopologyGraph,Map<string,StationTopologyGraph>>();
-function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const key=[...d.voltageBands].sort().join(',')+'|'+(d.mode==='compact')+'|'+(d.scope==='bay');let layout=cache.get(key);if(!layout){layout=physicalStationLayout(graph,d.voltageBands,d.mode==='compact',d.scope==='bay');cache.set(key,layout);}return layout;}
+function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const key=[...d.voltageBands].sort().join(',')+'|'+(d.mode==='compact')+'|'+(d.scope==='bay')+'|'+(d.scope==='station'&&d.lod!=='detail');let layout=cache.get(key);if(!layout){layout=d.scope==='station'&&d.lod!=='detail'?stationOverviewPage(graph,d.voltageBands):physicalStationLayout(graph,d.voltageBands,d.mode==='compact',d.scope==='bay');cache.set(key,layout);}return layout;}
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  if(d.graph&&d.scope==='station'&&(d.lod==='overview'||d.lod!=='detail'&&(d.graph.voltageLevels.length>1||d.graph.feeders.length>12||d.graph.switches.length>40))){overview(root,d,select);return;}
-  if(!d.graph)return;const graph=d.graph,layout=stationGeometry(graph,d);root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod='detail';
+  if(!d.graph)return;const graph=d.graph,layout=stationGeometry(graph,d),overview=d.scope==='station'&&d.lod!=='detail';root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod=overview?'overview':'detail';root.dataset.omittedFeeders='0';root.dataset.methodStatus=d.overlay?.status??'NOT_RUN';
+  if(overview){root.dataset.paper='true';root.style.background='#fff';root.style.setProperty('--sld-paper','#fff');}
   text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${d.scope==='bay'?graph.feeders.length:graph.sourceFeederCount} ${d.scope==='bay'?'seçili':'kaynak'} fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
-  const palette=(kv:number,state:boolean)=>d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
+  const palette=(kv:number,state:boolean)=>overview?(state?(d.colorMode==='state'?'#25813a':paperVoltageColor(d,kv)):d.settings.colorOut!==defaultPalette.colorOut?d.settings.colorOut:'#ef7b16'):d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
   const equipment=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
   const overlay=(g:SVGGElement,key:string,x:number,y:number,side:'FROM'|'TO'='FROM',axis:readonly[number,number]=[0,1])=>{
     const entry=d.overlay?.entries.get(key);if(!entry)return;
     g.dataset.resultStatus=entry.status;g.dataset.resultMethod=entry.method;
     const title=g.querySelector('title');if(title)title.textContent+=`\n${entry.status} · ${entry.method}\n`+Object.entries(entry.values).map(([k,v])=>`${k}: ${v??'—'}`).join('\n');
-    if(d.showResults!==false)entry.lines.forEach((line,i)=>text(g,x,y+i*14,line,9,entry.alarm?'#ff746f':ink,'middle'));
+    if(d.showResults!==false&&(!overview||key.startsWith('ElmTr')||g.dataset.semantic==='busbar-section'))(overview?entry.lines.slice(0,1):entry.lines).forEach((line,i)=>text(g,x,y+i*14,line,9,entry.alarm?'#ff746f':ink,'middle'));
     const direction=sldFlowAtPort(entry,side);
     if(d.showArrows!==false&&direction!==null&&direction!==0){const sign=direction>0?1:-1,vx=axis[0]*sign,vy=axis[1]*sign,cx=x+18,cy=y-20,ex=cx+vx*8,ey=cy+vy*8,change=d.overlay?.phase==='CHANGE';svg('path',{d:`M${cx-vx*8},${cy-vy*8} L${ex},${ey} M${ex-vx*6-vy*6},${ey-vy*6+vx*6} L${ex},${ey} L${ex-vx*6+vy*6},${ey-vy*6-vx*6}`,fill:'none',stroke:normal,'data-flow-side':side,'data-flow-direction':change?(sign>0?'INCREASED_INJECTION':'DECREASED_INJECTION'):sign>0?'LOCAL_OUTBOUND':'LOCAL_INBOUND'},g);if(change)text(g,cx+12,cy+3,'Δ',9,normal);}
   };
@@ -124,7 +116,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   for(const route of layout.routes){const {sw,a,b,x,y}=route,item=equipment.get(`${sw.sourceClass}|${sw.id}`);if(!item)continue;
     if(!a&&!b&&graph.terminals.some(t=>t.id===sw.from)&&graph.terminals.some(t=>t.id===sw.to))continue;
     const known=sw.stateKnown||Object.hasOwn(d.scenario.switchState,sw.id),closed=item.closed??false,state=!item.inService?'OUT_OF_SERVICE':!known?'UNKNOWN':closed?'CLOSED':'OPEN';
-    const color=state==='UNKNOWN'?d.settings.colorNoResult:!item.inService?d.settings.colorOut:palette(graph.terminals.find(t=>t.id===sw.from)?.vnKv??0,closed),g=group(root,sw.id,sw.sourceClass,item.name,select,`${sw.kind} · ${state} · ${sw.from} → ${sw.to}`);
+    const color=state==='UNKNOWN'?d.settings.colorNoResult:!item.inService?d.settings.colorOut:item.sourceClosed!=null&&item.sourceClosed!==closed?(closed?d.settings.colorScenarioOn:d.settings.colorScenarioOff):palette(graph.terminals.find(t=>t.id===sw.from)?.vnKv??0,closed),g=group(root,sw.id,sw.sourceClass,item.name,select,`${sw.kind} · ${state} · ${sw.from} → ${sw.to}`);
     g.dataset.physicalSwitch=`${sw.sourceClass}|${sw.sourceId}`;g.dataset.from=sw.from;g.dataset.to=sw.to;g.dataset.state=state;g.dataset.semantic=sw.from===sw.to?'cubicle-switch':sw.kind;g.dataset.bay=sw.bayId??'';g.dataset.cubicle=sw.cubicleId??'';
     g.dataset.contactFrom=route.contactFrom.join(',');g.dataset.contactTo=route.contactTo.join(',');g.dataset.chainOrdering=route.ordering;
     if(!route.wires.length){if(a||b)text(g,x+20,y,'Kaynak zincir sırası/uç çözümlenemedi',9,muted);else continue;}
@@ -146,15 +138,19 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     }else if(e.kind==='line'&&ports.length===2){g.dataset.nativeFrom=e.terminals[0];g.dataset.nativeTo=e.terminals[1];flowAxis=[ports[1].x>=ports[0].x?1:-1,0];wrappedText(g,x,y-18,e.name,24,10);
     }else if(e.kind==='line'){
       g.dataset.exitDirection=geo.direction<0?'UP':'DOWN';const remoteId=flowSide==='FROM'?item.toSiteId:item.fromSiteId,remote=d.regionalSites.find(s=>s.id===remoteId);
-      svg('path',{d:`M${x},${y-geo.direction*16} L${x},${y} M${x-7},${y-geo.direction*8} L${x},${y} L${x+7},${y-geo.direction*8}`,fill:'none',stroke:color,'stroke-width':2},g);wrappedText(g,x,y+geo.direction*27,remote?.name??e.name,24,10);text(g,x,y+geo.direction*45,e.id,9,muted,'middle');
-    }else {symbol(g,x,y,e.sourceClass,color);wrappedText(g,x,y+26,e.name,24,10);}
+      svg('path',{d:`M${x},${y-geo.direction*16} L${x},${y} M${x-7},${y-geo.direction*8} L${x},${y} L${x+7},${y-geo.direction*8}`,fill:'none',stroke:color,'stroke-width':2},g);if(!overview){wrappedText(g,x,y+geo.direction*27,remote?.name??e.name,24,10);text(g,x,y+geo.direction*45,e.id,9,muted,'middle');}
+    }else {symbol(g,x,y,e.sourceClass,color);if(!overview)wrappedText(g,x,y+26,e.name,24,10);}
     svg('rect',{x:x-15,y:y-20,width:30,height:40,fill:'transparent','pointer-events':'all','data-equipment-hit':e.id},g);
     if(d.selectedId===e.id)svg('circle',{cx:x,cy:y,r:21,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);
     if(d.overlay?.outageKey===`${e.sourceClass}|${e.id}`){g.dataset.outage='true';text(g,x,y-25,'N-1 KESİNTİ',10,'#ff746f','middle');}
     overlay(g,`${e.sourceClass}|${e.id}`,x,y+70,flowSide,flowAxis);
   }
   for(const g of root.querySelectorAll<SVGGElement>('[data-equipment-center]')){const glyph=g.querySelector('[data-symbol]')??[...g.children].find(n=>n.tagName==='path'&&!n.hasAttribute('data-connection'));if(glyph)glyph.setAttribute('data-device-glyph',g.dataset.class+'|'+g.dataset.id);}
-  for(const slot of layout.slots){const p=layout.feeders.find(p=>p.feeder.id===slot.feeder.id)!;text(root,p.x,p.busYs.length?(slot.side==='A'?Math.min(...p.busYs)-22:Math.max(...p.busYs)+22):p.y,slot.side?`${slot.slot}${slot.block?' · blok '+(slot.block+1):''}`:slot.slot,9,muted,'middle');}
+  for(const slot of layout.slots){const p=layout.feeders.find(p=>p.feeder.id===slot.feeder.id)!;
+    if(overview){const f=p.feeder,cls=f.sourceClass,id=cls==='ElmBay'?f.id:f.id.slice(f.id.indexOf('|')+1),keys=[...f.switchIds.map(id=>{const s=graph.switches.find(s=>s.id===id)!;return s.sourceClass+'|'+s.sourceId;}),...f.equipmentKeys],g=group(root,id,cls,f.name,()=>d.onFocusFeeder?d.onFocusFeeder(f.id):select(id,cls),`${slot.typeName??slot.role} · ${slot.typeStatus??'SOURCE_GRAPH'} · ${slot.slot}\nNative cihazlar: ${keys.join(',')}`);g.dataset.feederMarker=f.id;g.dataset.representedKeys=keys.join(';');g.dataset.ytbsSlot=slot.slot;g.dataset.ytbsSide=slot.side??'N';
+      const ownEquipment=f.sourceClass!=='ElmBay'?layout.equipment.find(e=>e.equipment.id===id&&e.equipment.sourceClass===cls):null;const lx=ownEquipment?.x??p.x,ly=ownEquipment?ownEquipment.y+35:p.y;const nativeName=f.name.startsWith(d.station.name+' ')?f.name.slice(d.station.name.length+1):f.name;const name=nativeName.replace(/^\d+\s*kV\s*/i,'').replace(/ EIH FIDERI$/,'').replace(/ PRIMER FIDERI$/,' PR.').replace(/ SEKONDER FIDERI$/,' SEK.');wrappedText(g,lx,ly,name,f.voltageKv<=40?12:17,11);text(g,lx,ly+44,f.id.replace(/^[^|]+\|/,''),9,muted,'middle');clearFeederLabel(root,g);
+    }else text(root,p.x,p.busYs.length?(slot.side==='A'?Math.min(...p.busYs)-22:Math.max(...p.busYs)+22):p.y,slot.side?`${slot.slot}${slot.block?' · blok '+(slot.block+1):''}`:slot.slot,9,muted,'middle');
+  }
   for(const p of layout.feeders){const issues=graph.issues.filter(i=>i.sourceId===p.feeder.id);if(!issues.length)continue;const g=group(root,p.feeder.id,p.feeder.sourceClass,p.feeder.name,select,issues.map(i=>i.reason).join('\n'));g.dataset.unresolved='true';text(g,p.x,p.y+25,'Uç belirsiz · '+p.feeder.name,9,'#ffd27e','middle');}
   text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · cubicle ${graph.counters.missingCubicleReferences} · ${layout.slots.filter(s=>!s.side).length} sınıflanamayan fider · ${layout.routes.filter(r=>r.ordering==='SOURCE_ORDER_UNAVAILABLE').length} belirsiz cihaz sırası`,11,muted);
   if(d.overlay&&['LF','N1','SC'].includes(d.mode??''))text(root,24,layout.height-35,`${d.mode} ${d.overlay.phase} · ${d.overlay.status} · ${d.overlay.method}`,10,muted);
@@ -170,7 +166,7 @@ function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
 function regional(root:SVGSVGElement,d:SldDiagram,select:Select):void {
  const neighbors=d.regionalSites.filter(s=>s.id!==d.station.id).slice(d.page*12,(d.page+1)*12),rows=neighbors.map(site=>({site,items:d.regionalBranches.filter(e=>e.fromSiteId===site.id||e.toSiteId===site.id)})),height=Math.max(400,100+rows.reduce((n,r)=>n+Math.max(1,r.items.length)*48+38,0));root.setAttribute('viewBox',`0 0 1100 ${height}`);root.dataset.lod='regional';text(root,24,28,`${d.station.name} · bölgesel bağlantılar`,19);
  let top=65;for(const {site,items}of rows){const size=Math.max(1,items.length)*48+30;svg('rect',{x:20,y:top,width:1050,height:size,rx:5,fill:'#142a3b',stroke:'#496879'},root);text(root,35,top+20,`${site.name} · ${items.length} ayrı native bağlantı`,12);
-  for(const [i,e]of items.entries()){const y=top+43+i*48,g=group(root,e.id,e.sourceClass,e.name,select,`${e.id} · ${d.station.id} ↔ ${site.id}`),style=equipmentState(d,e);g.dataset.regionalBranch=e.id;path(g,[[40,y],[1020,y]],style.color,style.dash);svg('rect',{x:480,y:y-14,width:40,height:28,fill:'#102033',stroke:style.color},g);text(g,58,y-7,shorten(e.name,48)+' · '+e.id,11);const entry=d.overlay?.entries.get(e.sourceClass+'|'+e.id);if(entry&&d.showResults!==false){g.dataset.resultStatus=entry.status;text(g,550,y-7,shorten(entry.lines[0]??entry.status,58),10,muted);}svg('rect',{x:475,y:y-17,width:50,height:34,fill:'transparent','pointer-events':'all','data-equipment-hit':e.id},g);}
+  for(const [i,e]of items.entries()){const y=top+43+i*48,g=group(root,e.id,e.sourceClass,e.name,select,`${e.id} · ${d.station.id} ↔ ${site.id}`),style=equipmentState(d,e);g.dataset.regionalBranch=e.id;path(g,[[40,y],[1020,y]],style.color,style.dash);svg('rect',{x:480,y:y-14,width:40,height:28,fill:'var(--sld-paper, #102033)',stroke:style.color},g);text(g,58,y-7,shorten(e.name,48)+' · '+e.id,11);const entry=d.overlay?.entries.get(e.sourceClass+'|'+e.id);if(entry&&d.showResults!==false){g.dataset.resultStatus=entry.status;text(g,550,y-7,shorten(entry.lines[0]??entry.status,58),10,muted);}svg('rect',{x:475,y:y-17,width:50,height:34,fill:'transparent','pointer-events':'all','data-equipment-hit':e.id},g);}
   const target=group(root,site.id,'ElmSite','Karşı TM: '+site.name,()=>{if(d.onNavigateSite)d.onNavigateSite(site.id,items[0]?.id);else select(site.id,'ElmSite');});svg('rect',{x:860,y:top+4,width:180,height:24,rx:4,fill:'#214255'},target);text(target,950,top+21,'Karşı TM: '+shorten(site.name,18),10,ink,'middle');top+=size+10;
  }
 }
@@ -178,15 +174,18 @@ export class SvgSldRenderer {
   private root:SVGSVGElement|null=null;private fitBox=[0,0,1200,600];private key='';
   zoom(factor:number){if(!this.root)return;const[x,y,w,h]=this.box(),nextW=Math.max(this.fitBox[2]/12,Math.min(this.fitBox[2]*2,w/factor)),nextH=nextW*h/w;this.root.setAttribute('viewBox',[x+(w-nextW)/2,y+(h-nextH)/2,nextW,nextH].join(' '));}
   exportSvg():string|null{return this.root?new XMLSerializer().serializeToString(fullDiagramClone(this.root,this.fitBox)):null;}
-  fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
-  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),matrix=this.root!.getScreenCTM()!.inverse().multiply(g.getScreenCTM()!),corners=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix)),left=Math.min(...corners.map(p=>p.x)),top=Math.min(...corners.map(p=>p.y)),width=Math.max(...corners.map(p=>p.x))-left,height=Math.max(...corners.map(p=>p.y))-top,w=Math.max(320,width+80),h=Math.max(220,height+80);this.root!.setAttribute('viewBox',[left+width/2-w/2,top+height/2-h/2,w,h].join(' '));}
+  fit(){if(!this.root)return;this.root.setAttribute('viewBox',this.fitBox.join(' '));this.root.style.minWidth='';this.root.style.height=this.root.dataset.viewportHeight+'px';this.root.parentElement!.scrollTop=0;}
+  readable(){if(!this.root)return;const host=this.root.parentElement!,width=this.root.dataset.paper==='true'&&host.clientWidth<900?this.fitBox[2]:host.clientWidth;this.root.style.minWidth=width>host.clientWidth?width+'px':'';this.root.setAttribute('viewBox',this.fitBox.join(' '));this.root.style.height=Math.max(Number(this.root.dataset.viewportHeight),this.fitBox[3]*width/this.fitBox[2])+'px';host.scrollTop=0;}
+  focus(id:string,sourceClass:string){if(this.root?.dataset.paper==='true'){this.root.style.height=this.root.dataset.viewportHeight+'px';this.root.style.minWidth='';this.root.parentElement!.scrollTop=0;}const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),matrix=this.root!.getScreenCTM()!.inverse().multiply(g.getScreenCTM()!),corners=[[b.x,b.y],[b.x+b.width,b.y],[b.x,b.y+b.height],[b.x+b.width,b.y+b.height]].map(([x,y])=>new DOMPoint(x,y).matrixTransform(matrix)),left=Math.min(...corners.map(p=>p.x)),top=Math.min(...corners.map(p=>p.y)),width=Math.max(...corners.map(p=>p.x))-left,height=Math.max(...corners.map(p=>p.y))-top,w=Math.max(320,width+80),h=Math.max(220,height+80);this.root!.setAttribute('viewBox',[left+width/2-w/2,top+height/2-h/2,w,h].join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {
-    const key=[d.station.id,d.scope,d.lod,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
+    const previousWidth=this.root?.dataset.viewportWidth,previousHeight=this.root?.style.height,previousMinWidth=this.root?.style.minWidth,previousScroll=host.scrollTop;const key=[d.station.id,d.scope,d.lod,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
     const root=svg('svg',{xmlns:NS,viewBox:'0 0 1240 600',width:'100%',height:540,role:'img','aria-label':`${d.station.name} ${d.scope==='bay'?d.selectedBay?.name||'fider':d.scope==='regional'?'bölgesel':'TM genel'} tek hat şeması`,class:'ga-sld-svg',preserveAspectRatio:'xMidYMid meet'});
     const available=Math.max(280,Math.min(740,innerHeight-Math.max(0,host.getBoundingClientRect().top)-24));d.overviewSize={width:Math.max(360,host.clientWidth||1200),height:available};
     root.style.background='#102033';root.style.touchAction='none';root.style.display='block';root.style.width='100%';root.style.height=available+'px';
     const oldFit=this.fitBox;host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);applyN1Overlay(root,d);for(const t of root.querySelectorAll<SVGTextElement>('[data-bay-orientation] text'))if(!t.closest('[data-n1-badge]'))t.setAttribute('transform',`rotate(-90 ${t.getAttribute('x')??0} ${t.getAttribute('y')??0})`);this.fitBox=this.box();if(previous&&oldFit[2]===this.fitBox[2]&&oldFit[3]===this.fitBox[3])root.setAttribute('viewBox',previous.join(' '));
+    root.dataset.viewportWidth=String(host.clientWidth);root.dataset.viewportHeight=String(available);host.style.maxHeight=available+'px';host.style.overflow='auto';host.style.display='block';
+    if(root.dataset.paper==='true'){this.readable();if(previous){root.setAttribute('viewBox',previous.join(' '));if(previousWidth===root.dataset.viewportWidth){root.style.height=previousHeight??root.style.height;root.style.minWidth=previousMinWidth??'';host.scrollTop=previousScroll;}}}else root.style.minWidth='';
     let drag:{x:number;y:number;box:number[]}|null=null,moved=false;
     root.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,box:this.box()};moved=false;};
     root.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>4){moved=true;root.setPointerCapture(e.pointerId);}if(!moved)return;const r=root.getBoundingClientRect(),scale=Math.min(r.width/drag.box[2],r.height/drag.box[3]);root.setAttribute('viewBox',[drag.box[0]-dx/scale,drag.box[1]-dy/scale,drag.box[2],drag.box[3]].join(' '));};

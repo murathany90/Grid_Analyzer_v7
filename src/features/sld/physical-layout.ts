@@ -114,6 +114,62 @@ export function physicalStationLayout(graph:StationTopologyGraph,bands:ReadonlyS
  base.height=Math.max(focus?280:400,focus?0:top,...base.sections.map(p=>p.y+70),...equipment.map(e=>e.y+80),...routes.map(r=>r.y+55));base.width=Math.max(base.width,...[...ports.values()].map(p=>p.x+100),...base.sections.map(p=>p.x2+70),...routes.map(r=>r.x+50));
  return {...base,ports,routes,equipment,slots,slotMap,transformers:equipment.filter(e=>e.equipment.kind==='transformer').map(e=>({equipment:e.equipment,ports:e.nativePorts}))};
 }
+/** Connected engineering sheet. Repeated rails reference the same native section; no feeder cards. */
+export function connectedStationLayout(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>){
+ const width=1440,left=160,right=1370,step=40,ports=new Map<string,PortPosition>(),sections=new Set(graph.busSections.map(b=>b.id)),terminal=new Map(graph.terminals.map(t=>[t.id,t]));
+ const slots=graph.voltageLevels.filter(kv=>voltageMatches(kv,bands)).flatMap(kv=>assignYtbsSlot(graph,graph.feeders.filter(f=>f.voltageKv===kv))),slotMap=new Map(slots.map(s=>[s.feeder.id,s]));
+ const base:StationLayout={width,height:0,sections:[],feeders:[],levels:[],omitted:0,pageCount:1},barLanes=new Map<string,number>(),barOffsets=new Map<string,number>();let top=100;
+ for(const kv of graph.voltageLevels.filter(kv=>voltageMatches(kv,bands))){
+  const bars=graph.busSections.filter(b=>b.voltageKv===kv),own=slots.filter(s=>s.feeder.voltageKv===kv),groups=kv>40?[bars]:[...new Set(bars.map(b=>b.groupId))].map(id=>bars.filter(b=>b.groupId===id));if(!groups.length)groups.push([]);
+  const consumed=new Set<string>();
+  for(const [groupIndex,groupBars]of groups.entries()){
+   const ownSlots=own.filter(s=>!consumed.has(s.feeder.id)&&(s.feeder.busSectionIds.some(id=>groupBars.some(b=>b.id===id))||!s.feeder.busSectionIds.length&&groupIndex===0));ownSlots.forEach(s=>consumed.add(s.feeder.id));
+   // Unknown function stays unknown. Its actual native switch graph is still drawn below its rails.
+   const upper=ownSlots.filter(s=>s.side==='A').sort((a,b)=>a.column-b.column||a.feeder.id.localeCompare(b.feeder.id)),lower=ownSlots.filter(s=>s.side!=='A').sort((a,b)=>a.side===b.side?a.column-b.column||a.feeder.id.localeCompare(b.feeder.id):a.side?-1:1),capacity=kv>40?7:14;
+   const blocks=Math.max(1,Math.ceil(upper.length/capacity),Math.ceil(lower.length/capacity));
+   for(let block=0;block<blocks;block++){
+    const us=upper.slice(block*capacity,(block+1)*capacity),ds=lower.slice(block*capacity,(block+1)*capacity),parts=[...us,...ds];
+    const internalRanks=(f:typeof graph.feeders[number])=>{
+     const ids=f.terminalIds.filter(id=>!sections.has(id)&&terminal.get(id)?.vnKv===kv),edges=graph.switches.filter(s=>f.switchIds.includes(s.id)&&s.from!==s.to),barDegree=(id:string)=>edges.filter(s=>(s.from===id&&sections.has(s.to))||(s.to===id&&sections.has(s.from))).length;
+     const root=ids.slice().sort((a,b)=>barDegree(b)-barDegree(a)||a.localeCompare(b))[0],distance=new Map<string,number>();if(root){distance.set(root,1);const q=[root];for(let i=0;i<q.length;i++)for(const e of edges){if(sections.has(e.from)||sections.has(e.to))continue;const next=e.from===q[i]?e.to:e.to===q[i]?e.from:null;if(next&&ids.includes(next)&&!distance.has(next)){distance.set(next,distance.get(q[i])!+1);q.push(next);}}}for(const id of ids)if(!distance.has(id))distance.set(id,Math.max(1,...distance.values())+1);return distance;
+    };
+    const ranks=new Map(parts.map(s=>[s.feeder.id,internalRanks(s.feeder)])),extent=(ss:typeof parts)=>Math.max(0,...ss.map(s=>Math.max(1,...ranks.get(s.feeder.id)!.values())*step+110)),up=extent(us),down=extent(ds),barY=top+up+20,lastY=barY+Math.max(0,groupBars.length-1)*28;
+    base.levels.push({kv,y:barY});
+    for(const [i,b]of groupBars.entries()){const p={section:b,x1:left-28,x2:right,y:barY+i*28,reference:ports.has(b.id)};base.sections.push(p);if(!ports.has(b.id))ports.set(b.id,{x:p.x1,y:p.y,terminalId:b.id,semantics:'busbar-section'});}
+    for(const s of parts){const upSide=us.includes(s),siblings=upSide?us:ds,index=siblings.indexOf(s),pitch=kv>40?164:80,x=left+64+index*pitch+(upSide?0:kv>40?82:0),sign=upSide?-1:1,origin=upSide?barY:lastY,rankCounts=new Map<number,number>(),distance=ranks.get(s.feeder.id)!;
+     for(const [id,depth]of distance){if(ports.has(id))continue;const n=rankCounts.get(depth)??0;rankCounts.set(depth,n+1);ports.set(id,{x:x+n*48,y:origin+sign*(depth*step+18),terminalId:id,semantics:graph.equipment.some(e=>e.terminals.includes(id))?'equipment-terminal':'bay-terminal',direction:sign,slot:s.slot});}
+     for(const id of s.feeder.switchIds){const sw=graph.switches.find(e=>e.id===id)!,bar=groupBars.find(b=>b.id===sw.from||b.id===sw.to);if(!bar)continue;const n=groupBars.indexOf(bar);barLanes.set(sw.id,x+(n-(groupBars.length-1)/2)*32);barOffsets.set(sw.id,barY+n*28-ports.get(bar.id)!.y);}
+     const labelY=origin+sign*(Math.max(1,...distance.values())*step+92);base.feeders.push({feeder:s.feeder,x,y:labelY,busYs:groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)).map(b=>barY+groupBars.indexOf(b)*28)});
+    }
+    top=lastY+down+70;
+   }
+  }
+ }
+ // A barless GSU/generator component follows its actual HV winding. Preserve every branch
+ // and the common native terminal; a shared generator node is not a physical busbar.
+ for(const e of graph.equipment.filter(e=>e.kind==='transformer'&&e.terminals.length===2)){
+  const a=ports.get(e.terminals[0]),b=ports.get(e.terminals[1]),kv=terminal.get(e.terminals[1])?.vnKv;if(!a||!b||graph.busSections.some(s=>s.voltageKv===kv))continue;
+  const distance=new Map([[b.terminalId,0]]),q=[b.terminalId];for(let i=0;i<q.length;i++)for(const sw of graph.switches){const next=sw.from===q[i]?sw.to:sw.to===q[i]?sw.from:null;if(next&&ports.has(next)&&terminal.get(next)?.vnKv===kv&&!distance.has(next)){distance.set(next,distance.get(q[i])!+1);q.push(next);}}
+  const rows=new Map<number,number>();for(const [id,depth]of distance){const p=ports.get(id)!,n=rows.get(depth)??0;rows.set(depth,n+1);p.x=a.x+n*48;p.y=a.y+200+depth*step;p.direction=1;}
+  for(const f of base.feeders.filter(f=>f.feeder.voltageKv===kv&&f.feeder.terminalIds.some(id=>distance.has(id)))){const own=f.feeder.terminalIds.map(id=>ports.get(id)!).filter(Boolean),incoming=f.feeder.terminalIds.includes(b.terminalId);f.x=a.x+(incoming?-92:0);f.y=incoming?Math.min(...own.map(p=>p.y))+68:Math.max(...own.map(p=>p.y))+38;}
+ }
+ // Source terminals outside ElmBay ownership are retained, not assigned a fictitious bay.
+ let orphan=0;for(const t of graph.terminals.filter(t=>voltageMatches(t.vnKv,bands)&&!ports.has(t.id)))ports.set(t.id,{x:left+64+(orphan%12)*98,y:top+Math.floor(orphan++/12)*90,terminalId:t.id,semantics:'equipment-terminal',direction:1});
+ const equipment:EquipmentGeometry[]=[];
+ for(const e of graph.equipment){
+  const visible=e.terminals.map(id=>ports.get(id)).filter((p):p is PortPosition=>!!p);if(!visible.length)continue;
+  const owner=base.feeders.find(f=>f.feeder.equipmentKeys.includes(e.sourceClass+'|'+e.id)),native=visible.map(p=>p.semantics==='busbar-section'?{...p,x:owner?.x??p.x}:p),transformer=e.kind==='transformer'||e.kind==='transformer3w',direction=native[0].direction===-1?-1:1,parallel=graph.equipment.filter(o=>o.terminals[0]===e.terminals[0]&&(transformer?o.kind==='transformer':o.kind!=='transformer'&&o.kind!=='transformer3w')),offset=(parallel.indexOf(e)-(parallel.length-1)/2)*64;
+  let x=native[0].x+offset,y=native[0].y+direction*54;if(!transformer&&parallel.length>1){x=native[0].x+(parallel.indexOf(e)-(parallel.length-1)/2)*140;y=native[0].y+direction*64;}
+  if(transformer&&native.length>1){y=(native[0].y+native[1].y)/2;x=native[0].x+offset;}
+  const boundary=transformer&&native.length<e.terminals.length,contactOffset=e.kind==='line'?16:e.kind==='generator'?13:e.kind==='load'?14:12;
+  const leads:EquipmentPort[]=native.map(p=>{const side=e.terminals.indexOf(p.terminalId),point:Point=boundary?[x,y]:transformer?[x+(side===2?26:0),y+(side===0?-18:side===1?18:0)]:[x,y-direction*contactOffset];return {terminalId:p.terminalId,side,point,wires:[wire(pt(p),point,p.terminalId,side===1?'TO':'FROM')],boundaryKv:boundary?(terminal.get(e.terminals.find(id=>!ports.has(id))??'')?.vnKv??null):null};});
+  equipment.push({equipment:e,x,y,direction,ports:leads,nativePorts:native,boundary});
+ }
+ const barObstacles:GlyphBox[]=base.sections.map((b,i)=>({id:'BAR|'+b.section.id+'|'+i,x1:b.x1,x2:b.x2,y1:b.y-3,y2:b.y+3})),protectedPorts=new Map(ports);for(const sw of graph.switches)for(const id of [sw.from,sw.to])if(sections.has(id)&&ports.has(id)){const p=ports.get(id)!;protectedPorts.set(sw.id+'|'+id,{...p,x:barLanes.get(sw.id)??ports.get(id===sw.from?sw.to:sw.from)?.x??p.x,y:p.y+(barOffsets.get(sw.id)??0)});}
+ separateEquipment(equipment,protectedPorts,barObstacles);const routes=buildSwitchDeviceChain(graph,ports,barLanes,equipment,barOffsets);separateSwitches(routes,equipment,barObstacles);
+ base.height=Math.max(top+60,...[...ports.values()].map(p=>p.y+80),...equipment.map(e=>e.y+100),...routes.map(r=>r.y+70));base.width=Math.max(width,...routes.map(r=>r.x+50),...[...ports.values()].map(p=>p.x+60));
+ return {...base,ports,routes,equipment,slots,slotMap,transformers:equipment.filter(e=>e.equipment.kind==='transformer').map(e=>({equipment:e.equipment,ports:e.nativePorts}))};
+}
 /** Bay focus uses the same source/port/contact renderer; other winding ends stay explicit boundaries. */
 export function feederFocusGraph(graph:StationTopologyGraph,id:string):StationTopologyGraph {
  const f=graph.feeders.find(f=>f.id===id);if(!f)return {...graph,feeders:[],switches:[],equipment:[],terminals:[],busSections:[],voltageLevels:[]};

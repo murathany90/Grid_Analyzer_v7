@@ -4,8 +4,8 @@ export function engineeringSymbol(parent:SVGElement,kind:EngineeringSymbol,x:num
   const ns='http://www.w3.org/2000/svg',g=document.createElementNS(ns,'g');g.setAttribute('data-symbol',kind);g.setAttribute('transform',`translate(${x} ${y})`);parent.append(g);
   const add=(tag:string,attrs:Record<string,string|number>)=>{const e=document.createElementNS(ns,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,String(v));g.append(e);return e;};
   const p=(d:string)=>add('path',{d,fill:'none',stroke:color,'stroke-width':2});
-  const circle=(cx:number,cy:number,r=11)=>add('circle',{cx,cy,r,fill:'#102033',stroke:color,'stroke-width':2});
-  if(kind==='breaker')add('rect',{x:-7,y:-8,width:14,height:16,fill:closed?color:'#102033',stroke:color,'stroke-width':2});
+  const circle=(cx:number,cy:number,r=11)=>add('circle',{cx,cy,r,fill:'var(--sld-paper, #102033)',stroke:color,'stroke-width':2});
+  if(kind==='breaker')add('rect',{x:-7,y:-8,width:14,height:16,fill:closed?color:'var(--sld-paper, #102033)',stroke:color,'stroke-width':2});
   else if(kind==='disconnector'||kind==='earth-switch'){p(`M0 11 L${closed?0:9} -11`);if(kind==='earth-switch')p('M0 11 V18 M-9 18 H9 M-6 22 H6 M-3 26 H3');}
   else if(kind==='transformer2w'||kind==='autotransformer'||kind==='transformer3w'){circle(0,-7);circle(0,7);if(kind==='autotransformer')p('M-16 17 L16 -17 M10 -17 H16 V-11');if(kind==='transformer3w')circle(15,0);}
   else if(kind==='current-transformer'){circle(0,0,8);p('M0 -16 V16');}
