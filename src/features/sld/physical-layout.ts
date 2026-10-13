@@ -5,7 +5,7 @@ import {optimizedOrthogonalRoute,obstacleIntersections,type RoutingOptions} from
 import {feederDrawingPath} from './feeder-drawing-graph';
 import {nearestSideCorridor} from './side-corridor';
 import {nativeBarCircuit} from './bar-circuit';
-import {packFeederRows,feederCellWidth,feederAreaUnits,isModelFeeder} from './feeder-packing';
+import {packFeederRows,feederCellWidth,feederAreaUnits,isModelFeeder,partitionFeederSides,feederCellDemandOf,ANCHOR_STEP} from './feeder-packing';
 export interface FeederCompartment {x1:number;x2:number;y1:number;y2:number;axis:number;direction:-1|1;titleY:number;flowY:number;equipmentY:number;units:number;model:boolean}
 export type Point=readonly [number,number];
 export interface PortPosition {x:number;y:number;terminalId:string;semantics:'busbar-section'|'bay-terminal'|'equipment-terminal';direction?:-1|0|1;slot?:string;railY?:number;seriesRank?:number;seriesFeeder?:string}
@@ -54,7 +54,7 @@ function separateSwitches(routes:SwitchSlot[],equipment:EquipmentGeometry[],bars
  // turn a proven series device into a side branch to make a layout check pass.
  const order=[...routes.filter(r=>r.inline),...routes.filter(r=>!r.inline)];
  for(const r of order){if(!r.a&&!r.b)continue;const hx=Math.abs(r.rotation??0)===90?18:14,hy=Math.abs(r.rotation??0)===90?11:18,id=r.sw.sourceClass+'|'+r.sw.sourceId,box={id,x1:r.x-hx,x2:r.x+hx,y1:r.y-hy,y2:r.y+hy};let p:{x:number;y:number};
-  if(r.inline){if(occupied.some(o=>intersects(box,o)))throw Error('SLD_SERIAL_AXIS_UNRESOLVED: '+id+' / '+occupied.filter(o=>intersects(box,o)).map(o=>o.id).join(','));occupied.push(box);p={x:r.x,y:r.y};}else p=freePosition(r.x,r.y,hx,hy,occupied,id,true);
+  if(r.inline){if(occupied.some(o=>intersects(box,o)))throw Error('SLD_SERIAL_AXIS_UNRESOLVED: '+id+' @'+JSON.stringify([r.x,r.y]));occupied.push(box);p={x:r.x,y:r.y};}else p=freePosition(r.x,r.y,hx,hy,occupied,id,true);
   const dx=p.x-r.x,dy=p.y-r.y;if(!dx&&!dy)continue;r.x=p.x;r.y=p.y;r.contactFrom=[r.contactFrom[0]+dx,r.contactFrom[1]+dy];r.contactTo=[r.contactTo[0]+dx,r.contactTo[1]+dy];
   if(r.ordering==='NATIVE_ENDPOINTS'&&r.a&&r.b){const cf:Point=[Math.sign(r.contactFrom[0]-r.x),Math.sign(r.contactFrom[1]-r.y)],ct:Point=[Math.sign(r.contactTo[0]-r.x),Math.sign(r.contactTo[1]-r.y)];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM',{endNormal:cf}),wire(r.contactTo,pt(r.b),r.sw.to,'TO',{startNormal:ct})];r.points=r.wires.flatMap(w=>w.points);}
  }
@@ -174,36 +174,49 @@ export function physicalStationLayout(graph:StationTopologyGraph,bands:ReadonlyS
 export function connectedStationLayout(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>,flowLabels=false){
  const left=160,step=48,ports=new Map<string,PortPosition>(),sections=new Set(graph.busSections.map(b=>b.id)),terminal=new Map(graph.terminals.map(t=>[t.id,t])),compartments=new Map<string,FeederCompartment>();
  const slots=graph.voltageLevels.filter(kv=>voltageMatches(kv,bands)).flatMap(kv=>assignYtbsSlot(graph,graph.feeders.filter(f=>f.voltageKv===kv))),slotMap=new Map(slots.map(s=>[s.feeder.id,s]));
- const base:StationLayout={width:640,height:0,sections:[],feeders:[],levels:[],omitted:0,pageCount:1},barLanes=new Map<string,number>(),barOffsets=new Map<string,number>(),anchors=new Map<string,{x:number;feeder:string}[]>();let top=78;
+ const base:StationLayout={width:640,height:0,sections:[],feeders:[],levels:[],omitted:0,pageCount:1},barLanes=new Map<string,number>(),barOffsets=new Map<string,number>(),anchors=new Map<string,{x:number;feeder:string;left:number;width:number}[]>();let top=78;
  for(const kv of graph.voltageLevels.filter(kv=>voltageMatches(kv,bands))){
   const bars=graph.busSections.filter(b=>b.voltageKv===kv),own=slots.filter(s=>s.feeder.voltageKv===kv),groups=kv>40?[bars]:[...new Set(bars.map(b=>b.groupId))].map(id=>bars.filter(b=>b.groupId===id));if(!groups.length)groups.push([]);
   const consumed=new Set<string>();
   for(const [groupIndex,groupBars]of groups.entries()){
    const ownSlots=own.filter(s=>!consumed.has(s.feeder.id)&&(s.feeder.busSectionIds.some(id=>groupBars.some(b=>b.id===id))||!s.feeder.busSectionIds.length&&groupIndex===0));ownSlots.forEach(s=>consumed.add(s.feeder.id));
-   // Unknown function stays unknown. Its actual native switch graph is still drawn below its rails.
-   const branchCounts=new Map(ownSlots.map(s=>[s.feeder.id,feederDrawingPath(graph,s.feeder)?.branchSwitchIds.length??0])),packed=packFeederRows(ownSlots,branchCounts),upper=packed.flatMap(r=>r.upper).filter(s=>kv>36||s.role==='transformer-incoming'),lower=[...packed.flatMap(r=>r.lower),...packed.flatMap(r=>r.upper).filter(s=>kv<=36&&s.role!=='transformer-incoming')],rows=[{upper,lower,upperWidth:upper.reduce((n,s)=>n+feederCellWidth(s,branchCounts.get(s.feeder.id)),0),lowerWidth:lower.reduce((n,s)=>n+feederCellWidth(s,branchCounts.get(s.feeder.id)),0)}];
-   for(const [block,row]of rows.entries()){
-    const us=row.upper,ds=row.lower,parts=[...us,...ds],right=left+Math.max(160,row.upperWidth,row.lowerWidth+(us.length?44:0))+72;
+// Unknown function stays unknown. Its actual native switch graph is still drawn below its rails.
+    // One physical rail per real bus group: packing rows are never re-stacked into a second rail.
+    const demands=new Map(ownSlots.map(s=>[s.feeder.id,feederCellDemandOf(graph,s.feeder,sections)]));
+    const {upper:us,lower:ds}=partitionFeederSides(ownSlots,demands),parts=[...us,...ds];
     const internalRanks=(f:typeof graph.feeders[number])=>{
      const ids=f.terminalIds.filter(id=>!sections.has(id)&&terminal.get(id)?.vnKv===kv),edges=graph.switches.filter(s=>f.switchIds.includes(s.id)&&s.from!==s.to),barDegree=(id:string)=>edges.filter(s=>(s.from===id&&sections.has(s.to))||(s.to===id&&sections.has(s.from))).length;
      const root=ids.slice().sort((a,b)=>barDegree(b)-barDegree(a)||a.localeCompare(b))[0],distance=new Map<string,number>();if(root){distance.set(root,1);const q=[root];for(let i=0;i<q.length;i++)for(const e of edges){if(sections.has(e.from)||sections.has(e.to))continue;const next=e.from===q[i]?e.to:e.to===q[i]?e.from:null;if(next&&ids.includes(next)&&!distance.has(next)){distance.set(next,distance.get(q[i])!+1);q.push(next);}}}for(const id of ids)if(!distance.has(id))distance.set(id,Math.max(1,...distance.values())+1);return distance;
     };
-    const ranks=new Map(parts.map(s=>[s.feeder.id,internalRanks(s.feeder)])),extent=(ss:typeof parts,padding=flowLabels?240:110)=>Math.max(0,...ss.map(s=>Math.max(1,...ranks.get(s.feeder.id)!.values())*step+padding)),up=extent(us,flowLabels?226:148),down=extent(ds),barY=top+up+20,lastY=barY+Math.max(0,groupBars.length-1)*64;
+    const ranks=new Map(parts.map(s=>[s.feeder.id,internalRanks(s.feeder)])),extent=(ss:typeof parts,padding=flowLabels?240:110)=>Math.max(0,...ss.map(s=>Math.max(1,...ranks.get(s.feeder.id)!.values())*step+padding)),up=extent(us,flowLabels?226:148),down=extent(ds),maxAnchors=Math.max(1,...parts.map(s=>(demands.get(s.feeder.id)??{barAnchors:0}).barAnchors)),barY=top+up+20,railGap=groupBars.length>1?40+20*maxAnchors:0,lastY=barY+(groupBars.length-1)*railGap;
     base.levels.push({kv,y:barY});
-    for(const [i,b]of groupBars.entries()){const p={section:b,x1:left,x2:right,y:barY+i*64};base.sections.push(p);ports.set(b.id,{x:p.x1,y:p.y,terminalId:b.id,semantics:'busbar-section'});}
-    for(const s of parts){const upSide=us.includes(s),siblings=upSide?us:ds,index=siblings.indexOf(s),cellWidth=feederCellWidth(s,branchCounts.get(s.feeder.id)),cellLeft=left+20+(!upSide&&us.length?44:0)+siblings.slice(0,index).reduce((n,s)=>n+feederCellWidth(s,branchCounts.get(s.feeder.id)),0),sign=upSide?-1:1,origin=upSide?barY:lastY,rankCounts=new Map<number,number>(),distance=ranks.get(s.feeder.id)!;let x=cellLeft+cellWidth/2-12;
-     const main=feederDrawingPath(graph,s.feeder),barEdges=graph.switches.filter(sw=>s.feeder.switchIds.includes(sw.id)&&sections.has(sw.from)!==sections.has(sw.to));const offsets=barEdges.map(sw=>({bar:sections.has(sw.from)?sw.from:sw.to,offset:main?.switchIds.includes(sw.id)?0:48*(barEdges.filter(e=>!main?.switchIds.includes(e.id)).indexOf(sw)+1)}));if(!offsets.length)offsets.push(...s.feeder.busSectionIds.map(bar=>({bar,offset:0})));
-     while(offsets.some(a=>(anchors.get(a.bar)??[]).some(b=>b.feeder!==s.feeder.id&&Math.abs(b.x-x-a.offset)<14)))x+=16;
-     for(const a of offsets)anchors.set(a.bar,[...(anchors.get(a.bar)??[]),{x:x+a.offset,feeder:s.feeder.id}]);
+    // One atomic plan: measured widths, then every real busbar anchor of every feeder.
+    // An anchor clash moves the whole remaining tail; it never shifts one drawn contact.
+    const plan:{slot:typeof us[number];side:-1|1;width:number;left:number;axis:number}[]=[];
+    for(const [list,side]of[[us,-1],[ds,1]]as const){let cursor=left+20+(side===1&&us.length?44:0);for(const slot of list){const width=feederCellWidth(slot,demands.get(slot.feeder.id));plan.push({slot,side,width,left:cursor,axis:cursor+width/2-12});cursor+=width;}}
+    const barIndex=new Map(groupBars.map((b,i)=>[b.id,i])),levelBars=new Set(bars.map(b=>b.id)),anchorsOf=(entry:typeof plan[number])=>{const seen=new Map<string,number>();
+     for(const id of entry.slot.feeder.switchIds){const sw=graph.switches.find(e=>e.id===id);if(!sw)continue;for(const end of [sw.from,sw.to]){if(!sections.has(end)||!levelBars.has(end))continue;const n=barIndex.get(end);seen.set(end,entry.axis+(n==null?0:n-(groupBars.length-1)/2)*ANCHOR_STEP);}}
+     return seen;};
+    // One atomic reservation per real rail, including a rail of a sibling group that a
+    // proven bus coupler reaches. A clash moves the whole cell that follows; it never
+    // nudges a drawn contact, a symbol or a section after the fact.
+    for(const entry of plan){for(let guard=0;guard<=plan.length+2;guard++){let hit:number|null=null;
+      for(const [bar,x]of anchorsOf(entry))for(const u of (anchors.get(bar)??[]).map(a=>a.x))if(Math.abs(u-x)<ANCHOR_STEP){hit=(u-x>=0?u-x:x-u)+ANCHOR_STEP;break;}else continue;if(hit!=null){entry.left+=hit;entry.axis=entry.left+entry.width/2-12;break;}}
+     for(const [bar,x]of anchorsOf(entry))anchors.set(bar,[...(anchors.get(bar)??[]),{x,feeder:entry.slot.feeder.id,left:entry.left,width:entry.width}]);}
+    const right=Math.max(left+200,Math.max(...plan.map(e=>e.left+e.width)))+56;
+    for(const [i,b]of groupBars.entries()){const p={section:b,x1:left,x2:right,y:barY+i*railGap};base.sections.push(p);ports.set(b.id,{x:p.x1,y:p.y,terminalId:b.id,semantics:'busbar-section'});}
+    for(const entry of plan){const s=entry.slot,upSide=entry.side<0,siblings=upSide?us:ds,sign=entry.side,origin=upSide?barY:lastY,rankCounts=new Map<number,number>(),distance=ranks.get(s.feeder.id)!,x=entry.axis;
      for(const [id,depth]of distance){if(ports.has(id))continue;const n=rankCounts.get(depth)??0;rankCounts.set(depth,n+1);ports.set(id,{x:x+n*48,y:origin+sign*(depth*step+18),terminalId:id,semantics:graph.equipment.some(e=>e.terminals.includes(id))?'equipment-terminal':'bay-terminal',direction:sign,slot:s.slot});}
-     for(const id of s.feeder.switchIds){const sw=graph.switches.find(e=>e.id===id)!,bar=groupBars.find(b=>b.id===sw.from||b.id===sw.to);if(!bar)continue;const n=groupBars.indexOf(bar);barLanes.set(sw.id,x+(n-(groupBars.length-1)/2)*32);barOffsets.set(sw.id,barY+n*64-ports.get(bar.id)!.y);}
-     const labelDepth=Math.max(1,...siblings.flatMap(s=>[...ranks.get(s.feeder.id)!.values()])),labelY=origin+sign*(labelDepth*step+(upSide?(flowLabels?225:147):112));base.feeders.push({feeder:s.feeder,x,y:labelY,busYs:groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)).map(b=>barY+groupBars.indexOf(b)*64)});
-     compartments.set(s.feeder.id,{x1:cellLeft,x2:cellLeft+cellWidth,y1:upSide?top:origin+20,y2:upSide?origin-20:origin+down+40,axis:x,direction:sign,titleY:labelY,flowY:labelY+56,equipmentY:labelY+76,units:feederAreaUnits(kv),model:isModelFeeder(s)});
+     for(const id of s.feeder.switchIds){const sw=graph.switches.find(e=>e.id===id)!,bar=sections.has(sw.from)?sw.from:sections.has(sw.to)?sw.to:null;if(!bar||!levelBars.has(bar))continue;const n=barIndex.get(bar);
+      // A proven coupler onto a sibling group keeps that rail's own y; its lane is still reserved.
+      if(n==null){barLanes.set(sw.id,x);barOffsets.set(sw.id,0);continue;}
+      barLanes.set(sw.id,x+(n-(groupBars.length-1)/2)*ANCHOR_STEP);barOffsets.set(sw.id,barY+n*railGap-ports.get(bar)!.y);}
+     const labelDepth=Math.max(1,...siblings.flatMap(t=>[...ranks.get(t.feeder.id)!.values()])),labelY=origin+sign*(labelDepth*step+(upSide?(flowLabels?225:147):112));base.feeders.push({feeder:s.feeder,x,y:labelY,busYs:groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)).map(b=>barY+groupBars.indexOf(b)*railGap)});
+     compartments.set(s.feeder.id,{x1:entry.left,x2:entry.left+entry.width,y1:upSide?top:origin+20,y2:upSide?origin-20:origin+down+40,axis:x,direction:sign,titleY:labelY,flowY:labelY+56,equipmentY:labelY+76,units:feederAreaUnits(kv),model:isModelFeeder(s)});
     }
     top=lastY+down+44;
    }
   }
- }
  // A barless GSU/generator component follows its actual HV winding. Preserve every branch
  // and the common native terminal; a shared generator node is not a physical busbar.
  for(const e of graph.equipment.filter(e=>e.kind==='transformer'&&e.terminals.length===2)){
