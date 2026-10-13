@@ -75,3 +75,7 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
 .ga-sld-detail-panels .ga-attribute { min-width:0; overflow-wrap:anywhere; }
 .ga-sld-view .ga-actions { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:600px) { .ga-sld-view .ga-toolbar select { min-width:0; flex-basis:45%; } .ga-sld-detail-tabs button { flex:1 1 40%; } }
+
+.ga-sld-control-options { margin:6px 0; min-width:0; }
+.ga-sld-control-options summary { cursor:pointer; padding:6px 0; font-size:12px; }
+.ga-sld-control-options .ga-toolbar { margin:4px 0; }

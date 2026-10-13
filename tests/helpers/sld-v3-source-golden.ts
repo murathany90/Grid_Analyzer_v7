@@ -1,0 +1,7 @@
+/** Independent transcription, reviewed against V4 p.1 / V0 C22:C51,C57:C69.
+ * Expected values must not be generated from the production layout or catalog. */
+export const feederNames=[
+ 'BANK','BANK OTOTRANSFORMATÖR','BANK TRANSFORMATÖR','BARA YÜKSELTME/BÖLÜMLEYİCİ','BARA YÜKSELTME/BÖLÜMLEYİCİ + ÖLÇÜ','GRUP','HAT','HAT + GRUP','HAT+BANK','HAT+BANK+OTOTRANSFORMATÖR','HAT+OTOTRANSFORMATÖR','HAT+REAKTÖR','HAT+TRANSFORMATÖR','KABLO','KAPASİTÖR','KAPASİTÖR BANK','KUPLAJ','OTOPRODÜKTÖR','OTOTRANSFORMATÖR','ÖLÇÜ','ÖLÇÜ+BARA TOPRAK','REAKTÖR','TRANSFER','TRANSFER+KUPLAJ','TRANSFORMATÖR','TRANSFORMATÖR GRUP','YARDIMCI KAYNAK','YARDIMCI SERVİS','YARDIMCI SERVİS + ÖLÇÜ','YEDEK HAT/KABLO'
+] as const;
+export const barNames=['(ÜÇ) BARALI SİSTEM','BARASIZ SİSTEM','BİR BUÇUK KESİCİLİ SİSTEM','BYPASSLI TEK BARALI SİSTEM','ÇİFT BARA + TRANSFER BARALI SİSTEM','ÇİFT BARALI SİSTEM','KARE BARA SİSTEMİ','PARÇALI ÇİFT BARA + TRANSFER BARALI SİSTEM','PARÇALI ÇİFT BARALI SİSTEM','PARÇALI TEK BARA + TRANSFER BARALI SİSTEM','PARÇALI TEK BARALI SİSTEM','TEK BARA + TRANSFER BARALI SİSTEM','TEK BARALI SİSTEM'] as const;
+export const slotGolden={line400:['1A','2A','3A','4A','5A','6A','7A'],auto400:['1B','2B','3B'],coupler400:['4B','5B'],primary400:['6B','7B'],incoming154:['1A','2A','3A','6A','7A'],line154:['4A','5A','4B','5B','6B','7B'],primary154:['1B','2B','3B'],incomingMV:['1A','2A'],downMV:['1B','2B','3B','4B','5B','6B','7B','8B','9B','10B','11B','12B','13B','14B']} as const;

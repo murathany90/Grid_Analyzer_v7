@@ -114,7 +114,7 @@ async function fetchStationData(ctx: AppContext, network: CanonicalNetwork, site
   for (const row of terminals) { const parent = field(row, 'fold_id'); const list = terminalsByBay.get(parent) || []; list.push(row); terminalsByBay.set(parent, list); }
   for (const row of cubicles) { const terminal = field(row, 'fold_id'); const list = cubiclesByTerminal.get(terminal) || []; list.push(row); cubiclesByTerminal.set(terminal, list); }
   for (const row of switches) { const direct=field(row,'fold_id'),cub=cubicles.find(c=>c.id===direct),term=cub?terminals.find(t=>t.id===field(cub,'fold_id')):null;const parent=term?field(term,'fold_id'):direct; const list = switchesByBay.get(parent) || []; list.push(row); switchesByBay.set(parent, list); }
-  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats,unsupportedEquipment}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
+  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats,unsupportedEquipment,transformers:twoWinding}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
     terminalsByBay, cubiclesByTerminal, switchesByBay, substatsById: new Map(substats.map(row => [row.id, row.name || row.id])) };
 }
 
@@ -165,13 +165,14 @@ export function createSldView(ctx: AppContext): Feature {
   const voltageFilter=createVoltageFilter(ctx,'SLD gerilim grupları'),technical=element('input');technical.type='checkbox';const technicalLabel=element('label','ga-check','Teknik görünüm');technicalLabel.append(technical);
   const downloadButton = element('button', 'ga-button', 'SVG indir'); downloadButton.type = 'button';
   const mode=element('select'),colorMode=element('select');mode.setAttribute('aria-label','SLD görünüm modu');colorMode.setAttribute('aria-label','SLD renk temeli');
+  const lod=element('select');lod.setAttribute('aria-label','SLD ayrıntı düzeyi');lod.append(new Option('Otomatik genel bakış / odak','auto'),new Option('Tüm fiderler — genel bakış','overview'),new Option('Fiziksel cihaz ayrıntısı','detail'));
   for(const [value,label]of [['ytbs','YTBS klasik'],['technical','Teknik tek hat'],['LF','Güç akışı'],['N1','N-1 analiz'],['SC','Kısa devre sonuç'],['operation','Bara / anahtar işletme'],['compact','Kompakt görünüm']])mode.append(new Option(label,value));
   colorMode.append(new Option('Gerilim renkleri','voltage'),new Option('İşletme durum renkleri','state'));
   colorMode.title='Gerilim rengi anma kV sınıfını gösterir; enerjilenme kanıtı değildir. Anahtar konumu, servis durumu, senaryo ve analiz alarmı ayrı katmanlardır.';
   const resultsToggle=element('input'),arrowsToggle=element('input');resultsToggle.type=arrowsToggle.type='checkbox';resultsToggle.checked=arrowsToggle.checked=true;
   const resultsLabel=element('label','ga-check','Sonuç etiketleri'),arrowsLabel=element('label','ga-check','Akış okları');resultsLabel.append(resultsToggle);arrowsLabel.append(arrowsToggle);
   const resetButton = element('button', 'ga-button', 'Seçimi temizle'); resetButton.type = 'button';
-  toolbar.append(siteSelect, scopeSelect,mode,colorMode, layoutSelect, downloadButton,technicalLabel,resultsLabel,arrowsLabel);
+  toolbar.append(siteSelect, scopeSelect,mode,lod,colorMode, layoutSelect, downloadButton,technicalLabel,resultsLabel,arrowsLabel);
   const lineBar = element('div', 'ga-toolbar');
   const lineSelect = element('select'); lineSelect.setAttribute('aria-label', 'TM ile ilişkili hat');
   lineBar.append(lineSelect);
@@ -199,9 +200,14 @@ export function createSldView(ctx: AppContext): Feature {
   const renderer = new SvgSldRenderer();
   const history=new SldNavigationHistory(),back=actionButton('Önceki TM’ye dön',()=>{const previous=history.back();if(!previous)return;siteSelect.value=previous.siteId;scope=previous.scope;selectedBayId=previous.bayId;selected={id:previous.lineId,sourceClass:'ElmLne'};ctx.selection={...selected};lastContextSelection=keyOf('ElmLne',previous.lineId);lastRenderKey='';ctx.notify();void render();});back.disabled=true;toolbar.append(back);
   const redraw=()=>{lastRenderKey='';void render();};
+  lod.onchange=redraw;
   const familyMetrics:Partial<Record<'LF'|'N1'|'SC',string>>={},defaultMetrics={LF:'pFromMw',N1:'postLoadingPercent',SC:'ikssKa'};
   mode.onchange=()=>{if(['LF','N1','SC'].includes(mode.value)){const family=mode.value as 'LF'|'N1'|'SC';if(family!==ctx.resultView.analysis){familyMetrics[ctx.resultView.analysis]=ctx.resultView.metric;ctx.resultView.analysis=family;ctx.resultView.metric=familyMetrics[family]??defaultMetrics[family];ctx.resultView.source='GA';ctx.benchmarkMap=null;if(family==='LF'){ctx.resultStore.role=ctx.scenario.selectedId==='B0'?'base':'scenario';ctx.resultView.phase=ctx.resultStore.role==='base'?'BASE':'POST';}else ctx.resultView.phase='POST';}}technical.checked=mode.value==='technical';ctx.notify();redraw();};colorMode.onchange=resultsToggle.onchange=arrowsToggle.onchange=redraw;
   toolbar.append(actionButton('Sığdır',()=>renderer.fit()),actionButton('Yakınlaştır +',()=>renderer.zoom(1.3)),actionButton('Uzaklaştır −',()=>renderer.zoom(1/1.3)),actionButton('Seçili ekipmana odaklan',()=>{if(selected)renderer.focus(selected.id,selected.sourceClass);}));
+  const advanced=element('details','ga-sld-control-options'),advancedSummary=element('summary','','Görünüm seçenekleri'),advancedToolbar=element('div','ga-toolbar');advanced.open=innerWidth>=900;advanced.append(advancedSummary,advancedToolbar,voltageFilter.element);advancedToolbar.append(colorMode,layoutSelect,downloadButton,technicalLabel,resultsLabel,arrowsLabel);toolbar.after(advanced);
+  let resizeFrame=0,wideViewport=innerWidth>=900;
+  const resize=()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{const wide=innerWidth>=900;if(wide!==wideViewport){advanced.open=wide;wideViewport=wide;}redraw();});};
+  window.addEventListener('resize',resize);advanced.ontoggle=redraw;
   baySearch.oninput=()=>{if(stationData)drawFeederPicker(stationData);};bayGroup.onchange=()=>{if(stationData)drawFeederPicker(stationData);};technical.onchange=()=>{lastRenderKey='';void render();};
   bayPicker.onchange=()=>{const feeder=stationData?.graph.feeders.find(f=>f.id===bayPicker.value);if(!feeder)return;selectedBayId=feeder.id;selectEquipment(feeder.sourceClass==='ElmBay'?feeder.id:feeder.id.slice(feeder.id.indexOf('|')+1),feeder.sourceClass);};
 
@@ -268,7 +274,7 @@ export function createSldView(ctx: AppContext): Feature {
     if(raw){quality.append(element('h4','','Ham DGS alanları · birimler yalnız kaynakta doğrulanır'));addAttributes(quality,raw.attributes);}else quality.append(element('p','ga-muted','Ham kaynak ayrıntıları yükleniyor veya mevcut değil.'));
     const overlay=createSldResultOverlay(ctx,mode.value as SldMode),entry=overlay.entries.get(keyOf(selected.sourceClass,selected.id));results.append(element('p','ga-result-context',`${overlay.phase} · ${entry?.status??overlay.status} · ${entry?.method??overlay.method}`));if(entry)addAttributes(results,entry.values);else results.append(element('p','ga-muted','— · Bu ekipman için güncel sayısal sonuç yok.'));
     const issues=stationData?.graph.issues.filter(i=>i.sourceId===selected!.id)??[];if(issues.length)addAttributes(quality,{KaynakSorunları:issues});
-    if(entity?.sourceClass==='ElmTr2'){const t=entity as Transformer2W;quality.append(element('p','ga-muted',`İki sargı kanonik model · ototrafo türü kaynakta doğrulanmadı · faz ${t.sourceRefs?.phase?.map(r=>r.field).join(',')??'—'} · tap ${t.tapResolution??'—'}`));const type=raw?findRaw(String(raw.attributes.typ_id??''),'TypTr2'):null;if(type){electrical.append(element('h4','','Ham TypTr2 · anma gerilimleri işletme barasından farklı olabilir'));addAttributes(electrical,type.attributes);}}
+    if(entity?.sourceClass==='ElmTr2'){const t=entity as Transformer2W;quality.append(element('p','ga-muted',`İki sargı kanonik model · ${raw?.attributes.i_auto===1?'OTOTRANSFORMATÖR · DGS i_auto=1 (belge s.61)':raw?.attributes.i_auto===0?'İki sargılı · DGS i_auto=0':'UNVERIFIED_TYPE · i_auto kanıtı yok'} · faz ${t.sourceRefs?.phase?.map(r=>r.field).join(',')??'—'} · tap ${t.tapResolution??'—'}`));const type=raw?findRaw(String(raw.attributes.typ_id??''),'TypTr2'):null;if(type){electrical.append(element('h4','','Ham TypTr2 · anma gerilimleri işletme barasından farklı olabilir'));addAttributes(electrical,type.attributes);}}
     const actions=element('div','ga-actions');actions.append(resetButton);
     if(entity){const key:StatusKey|null=entity.sourceClass==='ElmLne'?'lineStatus':entity.sourceClass==='ElmTr2'?'transformerStatus':entity.sourceClass==='ElmTerm'?'busOrTerminalStatus':['ElmCoup','StaSwitch'].includes(entity.sourceClass)?'switchState':null;
       if(key){const source=key==='switchState'?(entity as Switch).closed:entity.inService,active=ctx.scenario.current[key][entity.id]??(key==='busOrTerminalStatus'?ctx.scenario.current.restoredTerminals.includes(entity.id)||source:source);
@@ -338,7 +344,7 @@ export function createSldView(ctx: AppContext): Feature {
   function makeRenderKey(network: CanonicalNetwork | null, site: Site | null): string {
     const refs=[ctx.resultStore.active,ctx.hybridResult,ctx.scResult,ctx.scContext,ctx.n1AcResults,ctx.n1Result];if(refs.some((r,i)=>r!==lastResultRefs[i])){resultRevision++;lastResultRefs=refs;}
     return JSON.stringify([network?.modelHash || '', ctx.view, site?.id || '', scope, regionalPage, selectedBayId,
-      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature(),ctx.selectedN1CandidateId,ctx.selectedN1IslandId,ctx.n1DetailLoading,mode.value,colorMode.value,resultsToggle.checked,arrowsToggle.checked,resultRevision,ctx.resultView,ctx.analysisSettings.value,ctx.resultStore.role,ctx.powerFactoryControlContextHash]);
+      selected?.sourceClass || '', selected?.id || '', scope==='bay'?layoutSelect.value:'vertical',technical.checked,lod.value,[...ctx.filters.voltages],ctx.settings.value,effectiveSignature(),ctx.selectedN1CandidateId,ctx.selectedN1IslandId,ctx.n1DetailLoading,mode.value,colorMode.value,resultsToggle.checked,arrowsToggle.checked,resultRevision,ctx.resultView,ctx.analysisSettings.value,ctx.resultStore.role,ctx.powerFactoryControlContextHash]);
   }
   async function render(): Promise<void> {
     if (ctx.view !== 'sld') { request++; return; }
@@ -384,6 +390,8 @@ export function createSldView(ctx: AppContext): Feature {
     } else { stationData = null; bayToolbar.hidden = true; }
     scopeSelect.value=scope;layoutSelect.hidden=scope!=='bay';
     const diagram = makeDiagram(network, site, data);
+    diagram.lod=lod.value as 'auto'|'overview'|'detail';diagram.onFocusFeeder=id=>{selectedBayId=id;scope='bay';lastRenderKey='';void render();};
+    diagram.onNavigateSite=(id,lineId)=>{history.push({siteId:siteSelect.value,lineId:lineId??'',scope,bayId:selectedBayId});siteSelect.value=id;selectedBayId='';selected=null;ctx.selection=null;lastRenderKey='';void render();};
     regionalPager.hidden=scope!=='regional';
     if(scope==='regional'){
       const pages=Math.max(1,Math.ceil((diagram.regionalSites.length-1)/12));regionalPage=Math.min(regionalPage,pages-1);diagram.page=regionalPage;
@@ -412,7 +420,7 @@ export function createSldView(ctx: AppContext): Feature {
     const xml = renderer.exportSvg();if(!xml)return;
     const site = currentSite(); downloadText(xml, `YTBS_SLD_${site?.id || 'TM'}.svg`, 'image/svg+xml;charset=utf-8');
   });
-  const unsubscribe = () => {};
+  const unsubscribe = () => {window.removeEventListener('resize',resize);cancelAnimationFrame(resizeFrame);};
   if (ctx.view === 'sld') void render();
   return { element: root, render: () => { void render(); }, dispose: unsubscribe };
 }

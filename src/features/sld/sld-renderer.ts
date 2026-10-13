@@ -6,7 +6,8 @@ import type { ScenarioOverlay } from '../../domain/scenario/overlay';
 import type { Settings } from '../../persistence/settings';
 import type { N1SelectedDetail } from '../../domain/n1';
 import {islandColor} from '../../map/island-map';
-import {physicalStationLayout} from './physical-layout';
+import {physicalStationLayout,feederFocusGraph} from './physical-layout';
+import {stationOverviewPage} from './page-layout';
 import type {SldMode,SldResultOverlay} from './result-overlay';
 import {sldFlowAtPort} from './result-overlay';
 import {engineeringSymbol} from './symbols';
@@ -23,6 +24,8 @@ export interface SldDiagram {
   graph:StationTopologyGraph|null;voltageBands:ReadonlySet<VoltageBand>;page:number;technical:boolean;scenario:ScenarioOverlay;settings:Settings;
   n1Detail:N1SelectedDetail|null;selectedN1IslandId:string|null;
   mode?:SldMode;overlay?:SldResultOverlay;showResults?:boolean;showArrows?:boolean;colorMode?:'voltage'|'state';
+  lod?:'auto'|'overview'|'detail';overviewSize?:{width:number;height:number};onFocusFeeder?:(id:string)=>void;
+  onNavigateSite?:(siteId:string,lineId?:string)=>void;
 }
 type Select=(id:string,sourceClass:string)=>void;
 const NS='http://www.w3.org/2000/svg',ink='#e0edf2',muted='#9bb3c1',normal='#90d4df';
@@ -79,8 +82,30 @@ export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SV
   const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
 }
 function voltageColor(d:SldDiagram,kv:number){return kv>=300?d.settings.color400:kv>=180?d.settings.color220:kv>=100?d.settings.color154:kv>=50?d.settings.color66:d.settings.colorLow;}
+function overview(root:SVGSVGElement,d:SldDiagram,select:Select):void {
+ if(!d.graph)return;const graph=d.graph,page=stationOverviewPage(graph,d.voltageBands,d.overviewSize?.width,d.overviewSize?.height);root.setAttribute('viewBox',`0 0 ${page.width} ${page.height}`);root.dataset.lod='overview';root.dataset.sourceDeviceCount=String(new Set([...page.tiles.flatMap(t=>t.representedKeys),...page.unassignedSwitches.map(s=>s.sourceClass+'|'+s.sourceId)]).size);root.dataset.omittedFeeders='0';
+ text(root,14,23,d.station.name+' · Genel bakış',17);text(root,page.width-14,page.width<500?36:23,`${page.tiles.length} fider · odak için seçin`,11,muted,'end');
+ for(const [i,s]of page.unassignedSwitches.entries()){const x=14+(i%page.cols)*(page.tileWidth+page.gap),y=42+Math.floor(i/page.cols)*22,g=group(root,s.id,s.sourceClass,'Bağımsız kaynak anahtarı · '+s.sourceId,select,`${s.from} → ${s.to} · native ElmBay ataması yok; tam istasyon ayrıntısında fiziksel kontakları görülebilir`);g.dataset.unassignedDevice=s.sourceClass+'|'+s.sourceId;svg('rect',{x,y,width:page.tileWidth,height:18,rx:3,fill:'#183247',stroke:'#ffd27e'},g);text(g,x+4,y+12,shorten(s.sourceId,page.width<500?4:14),9,'#ffd27e');}
+ for(const panel of page.panels){svg('rect',{x:panel.x,y:panel.y,width:panel.width,height:panel.height,rx:6,fill:'#142a3b',stroke:'#496879'},root);text(root,panel.x+9,panel.y+17,`${panel.kv} kV · ${panel.sourceProfile}`,11,voltageColor(d,panel.kv));
+  const divider=svg('g',{'data-semantic':'page-divider','data-not-electrical-edge':'true'},root);svg('path',{d:`M${panel.x+9},${panel.axisY+7} H${panel.x+panel.width-9}`,fill:'none',stroke:'#708a9a','stroke-dasharray':'2 6'},divider);text(divider,panel.x+9,panel.axisY+18,`A ↑ / B ↓ · kaynak bara: ${shorten(panel.barIds.join(' / ')||'BARASIZ',Math.max(10,Math.floor(panel.width/6)-32))}`,9,muted);
+  for(const tile of panel.tiles){const {slot,x,y,width,height}=tile,f=slot.feeder,cls=f.sourceClass,id=cls==='ElmBay'?f.id:f.id.slice(f.id.indexOf('|')+1),g=group(root,id,cls,f.name+' · '+f.id,()=>{if(d.onFocusFeeder)d.onFocusFeeder(f.id);else select(id,cls);},`${slot.slot} · ${slot.typeName??slot.role} · ${slot.typeStatus??'SOURCE_GRAPH'}\nBaralar: ${f.busSectionIds.join(',')}\nNative cihazlar: ${tile.representedKeys.join(',')}`);
+   g.dataset.feederMarker=f.id;g.dataset.representedKeys=tile.representedKeys.join(';');g.dataset.ytbsSlot=slot.slot;g.dataset.ytbsSide=slot.side??'N';g.dataset.panelAxis=String(panel.axisY);g.dataset.typeStatus=slot.typeStatus??'SOURCE_GRAPH';
+   const entry=[...f.equipmentKeys,...f.terminalIds.map(id=>'ElmTerm|'+id)].map(k=>d.overlay?.entries.get(k)).find(e=>e),status=entry?.status??d.overlay?.status,alarm=entry?.alarm,color=alarm?'#ff746f':slot.side?voltageColor(d,panel.kv):'#ffd27e';g.dataset.resultStatus=status??'NOT_RUN';
+   svg('rect',{x,y,width,height,rx:4,fill:'#102033',stroke:color,'stroke-width':1.2},g);
+   const mobile=page.width<500;const chars=Math.max(5,Math.floor((width-12)/6.1)),label=shorten(f.name,chars);if(mobile){text(g,x+width/2,y+height*.72,f.id.replace(/^[^|]+\|/,'').slice(-4),9,color,'middle');}else {text(g,x+6,y+Math.min(15,height*.44),label,Math.min(11,Math.max(9,height*.3)),ink);text(g,x+6,y+Math.min(30,height*.86),`${f.id.replace(/^[^|]+\|/,'')} · ${slot.side?slot.slot:'?'}`,9,color);}
+   if(height>42&&!mobile){const summary=d.showResults!==false&&entry?entry.lines[0]:`${f.switchIds.length} anahtar · ${slot.typeName??slot.role}`;text(g,x+6,y+height-6,shorten(summary??'',chars+2),9,muted);}
+   if(d.selectedId===id)svg('rect',{x:x-2,y:y-2,width:width+4,height:height+4,rx:4,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);
+  }
+ }
+ if(['LF','N1','SC'].includes(d.mode??'')){const label=`${d.mode} ${d.overlay?.phase??''} · ${d.overlay?.status??'NOT_RUN'} · ${d.overlay?.method??'NOT_RUN'}`,status=text(root,14,page.height-4,shorten(label,Math.max(25,Math.floor(page.width/6))),10,muted);svg('title',{},status).textContent=label;root.dataset.methodStatus=d.overlay?.status??'NOT_RUN';}
+}
+// Native station graphs are immutable cached source projections; result/scenario labels are never cached.
+const geometryCache=new WeakMap<StationTopologyGraph,Map<string,ReturnType<typeof physicalStationLayout>>>();
+const focusGraphs=new WeakMap<StationTopologyGraph,Map<string,StationTopologyGraph>>();
+function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const key=[...d.voltageBands].sort().join(',')+'|'+(d.mode==='compact')+'|'+(d.scope==='bay');let layout=cache.get(key);if(!layout){layout=physicalStationLayout(graph,d.voltageBands,d.mode==='compact',d.scope==='bay');cache.set(key,layout);}return layout;}
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  if(!d.graph)return;const graph=d.graph,layout=physicalStationLayout(graph,d.voltageBands,d.mode==='compact');root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);
+  if(d.graph&&d.scope==='station'&&(d.lod==='overview'||d.lod!=='detail'&&(d.graph.voltageLevels.length>1||d.graph.feeders.length>12||d.graph.switches.length>40))){overview(root,d,select);return;}
+  if(!d.graph)return;const graph=d.graph,layout=stationGeometry(graph,d);root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod='detail';
   text(root,24,30,d.station.name,21);text(root,24,52,`${graph.busSections.length} bara · ${graph.sourceFeederCount} kaynak fider · ${graph.switches.length} fiziksel anahtar`,12,muted);
   const palette=(kv:number,state:boolean)=>d.colorMode==='state'?(state?normal:d.settings.colorOut):voltageColor(d,kv);
   const equipment=new Map(d.equipment.map(e=>[`${e.sourceClass}|${e.id}`,e]));
@@ -93,7 +118,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     if(d.showArrows!==false&&direction!==null&&direction!==0){const sign=direction>0?1:-1,vx=axis[0]*sign,vy=axis[1]*sign,cx=x+18,cy=y-20,ex=cx+vx*8,ey=cy+vy*8,change=d.overlay?.phase==='CHANGE';svg('path',{d:`M${cx-vx*8},${cy-vy*8} L${ex},${ey} M${ex-vx*6-vy*6},${ey-vy*6+vx*6} L${ex},${ey} L${ex-vx*6+vy*6},${ey-vy*6-vx*6}`,fill:'none',stroke:normal,'data-flow-side':side,'data-flow-direction':change?(sign>0?'INCREASED_INJECTION':'DECREASED_INJECTION'):sign>0?'LOCAL_OUTBOUND':'LOCAL_INBOUND'},g);if(change)text(g,cx+12,cy+3,'Δ',9,normal);}
   };
   for(const p of layout.sections){const b=p.section,current=d.scenario.busOrTerminalStatus[b.id]??(d.scenario.restoredTerminals.includes(b.id)||b.inService),g=group(root,b.id,'ElmTerm',b.name,select,`${b.voltageKv} kV · ${current?'Serviste':'Servis dışı'}`);
-    path(g,[[p.x1,p.y],[p.x2,p.y]],d.selectedId===b.id?'#ffe382':palette(b.voltageKv,current),current?'':'6 4',4);text(g,24,p.y+4,shorten(b.name,28),11);g.dataset.port=b.id;g.dataset.semantic='busbar-section';overlay(g,`ElmTerm|${b.id}`,p.x2-120,p.y-8);
+    path(g,[[p.x1,p.y],[p.x2,p.y]],d.selectedId===b.id?'#ffe382':palette(b.voltageKv,current),current?'':'6 4',4);text(g,24,p.y+4,shorten(b.name,28)+(p.reference?' · devam':''),11);if(p.reference){g.removeAttribute('data-id');g.dataset.sourceReference=b.id;}else g.dataset.port=b.id;g.dataset.semantic='busbar-section';overlay(g,`ElmTerm|${b.id}`,p.x2-120,p.y-8);
   }
   for(const [id,p]of layout.ports){if(p.semantics==='busbar-section')continue;const term=graph.terminals.find(t=>t.id===id)!,g=group(root,id,'ElmTerm',term.name,select,`${term.vnKv} kV · ${id}`);g.dataset.port=id;g.dataset.semantic=p.semantics;g.dataset.ytbsSlot=p.slot??'';svg('circle',{cx:p.x,cy:p.y,r:3,fill:palette(term.vnKv,term.inService)},g);if(d.technical)text(g,p.x+7,p.y-4,id,8,muted);overlay(g,`ElmTerm|${id}`,p.x,p.y+16);}
   for(const route of layout.routes){const {sw,a,b,x,y}=route,item=equipment.get(`${sw.sourceClass}|${sw.id}`);if(!item)continue;
@@ -104,7 +129,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     g.dataset.contactFrom=route.contactFrom.join(',');g.dataset.contactTo=route.contactTo.join(',');g.dataset.chainOrdering=route.ordering;
     if(!route.wires.length){if(a||b)text(g,x+20,y,'Kaynak zincir sırası/uç çözümlenemedi',9,muted);else continue;}
     for(const w of route.wires){const line=path(g,w.points,color,item.inService?'':'6 4');line.dataset.nativeTerminal=w.terminalId;line.dataset.contactSide=w.side;}
-    const glyph=svg('g',{transform:`rotate(${route.rotation??0} ${x} ${y})`},g);symbol(glyph,x,y,sw.sourceClass,color,closed,sw.kind);
+    const glyph=svg('g',{'data-device-glyph':g.dataset.physicalSwitch!,transform:`rotate(${route.rotation??0} ${x} ${y})`},g);symbol(glyph,x,y,sw.sourceClass,color,closed,sw.kind);
     // A real hit target remains usable independently of thin strokes and label geometry.
     svg('rect',{x:x-14,y:y-17,width:28,height:34,fill:'transparent','pointer-events':'all','data-switch-hit':sw.id},g);
     if(state==='UNKNOWN')text(g,x+12,y+3,'?',10,color);if(d.selectedId===sw.id)svg('circle',{cx:x,cy:y,r:19,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);if(d.technical)text(g,x+16,y-7,sw.id,8,muted);
@@ -117,7 +142,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     if(geo.boundary){g.dataset.boundary='true';g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1]??'';
       const kv=geo.ports[0].boundaryKv;svg('path',{d:`M${x-7},${y-geo.direction*7} L${x},${y} L${x+7},${y-geo.direction*7}`,fill:'none',stroke:color,'stroke-width':2},g);text(g,x,y+geo.direction*28,`Diğer gerilim seviyesine devam: ${kv??'—'} kV`,10,ink,'middle');text(g,x,y+geo.direction*43,e.id,9,muted,'middle');
     }else if(e.kind==='transformer'||e.kind==='transformer3w'){
-      symbol(g,x,y,e.sourceClass,color);g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1]??'';text(g,x+24,y-5,shorten(e.name,26),10);text(g,x+24,y+12,`${item.voltageKv??'—'}/${item.lvKv??'—'} kV · ${item.ratingMva??'—'} MVA`,9,muted);if(e.kind==='transformer3w')text(g,x+24,y+27,'PARTIAL · hesap UNSUPPORTED',9,'#ffd27e');flowAxis=[0,1];
+      if(e.autoTransformer)engineeringSymbol(g,'autotransformer',x,y,color);else symbol(g,x,y,e.sourceClass,color);g.dataset.transformerType=e.autoTransformer===true?'AUTOTRANSFORMER':e.autoTransformer===false?'TWO_WINDING':'UNVERIFIED_TYPE';g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1]??'';text(g,x+24,y-5,shorten(e.name,26),10);text(g,x+24,y+12,`${item.voltageKv??'—'}/${item.lvKv??'—'} kV · ${item.ratingMva??'—'} MVA`,9,muted);if(e.kind==='transformer3w')text(g,x+24,y+27,'PARTIAL · hesap UNSUPPORTED',9,'#ffd27e');flowAxis=[0,1];
     }else if(e.kind==='line'&&ports.length===2){g.dataset.nativeFrom=e.terminals[0];g.dataset.nativeTo=e.terminals[1];flowAxis=[ports[1].x>=ports[0].x?1:-1,0];wrappedText(g,x,y-18,e.name,24,10);
     }else if(e.kind==='line'){
       g.dataset.exitDirection=geo.direction<0?'UP':'DOWN';const remoteId=flowSide==='FROM'?item.toSiteId:item.fromSiteId,remote=d.regionalSites.find(s=>s.id===remoteId);
@@ -128,51 +153,38 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     if(d.overlay?.outageKey===`${e.sourceClass}|${e.id}`){g.dataset.outage='true';text(g,x,y-25,'N-1 KESİNTİ',10,'#ff746f','middle');}
     overlay(g,`${e.sourceClass}|${e.id}`,x,y+70,flowSide,flowAxis);
   }
-  for(const slot of layout.slots){const p=layout.feeders.find(p=>p.feeder.id===slot.feeder.id)!;text(root,p.x,p.busYs.length?(slot.side==='A'?Math.min(...p.busYs)-22:Math.max(...p.busYs)+22):p.y,slot.side?`${slot.slot}${slot.block?' · blok '+(slot.block+1):''}`:'UNCLASSIFIED_SLOT',9,muted,'middle');}
+  for(const g of root.querySelectorAll<SVGGElement>('[data-equipment-center]')){const glyph=g.querySelector('[data-symbol]')??[...g.children].find(n=>n.tagName==='path'&&!n.hasAttribute('data-connection'));if(glyph)glyph.setAttribute('data-device-glyph',g.dataset.class+'|'+g.dataset.id);}
+  for(const slot of layout.slots){const p=layout.feeders.find(p=>p.feeder.id===slot.feeder.id)!;text(root,p.x,p.busYs.length?(slot.side==='A'?Math.min(...p.busYs)-22:Math.max(...p.busYs)+22):p.y,slot.side?`${slot.slot}${slot.block?' · blok '+(slot.block+1):''}`:slot.slot,9,muted,'middle');}
   for(const p of layout.feeders){const issues=graph.issues.filter(i=>i.sourceId===p.feeder.id);if(!issues.length)continue;const g=group(root,p.feeder.id,p.feeder.sourceClass,p.feeder.name,select,issues.map(i=>i.reason).join('\n'));g.dataset.unresolved='true';text(g,p.x,p.y+25,'Uç belirsiz · '+p.feeder.name,9,'#ffd27e','middle');}
   text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · cubicle ${graph.counters.missingCubicleReferences} · ${layout.slots.filter(s=>!s.side).length} sınıflanamayan fider · ${layout.routes.filter(r=>r.ordering==='SOURCE_ORDER_UNAVAILABLE').length} belirsiz cihaz sırası`,11,muted);
   if(d.overlay&&['LF','N1','SC'].includes(d.mode??''))text(root,24,layout.height-35,`${d.mode} ${d.overlay.phase} · ${d.overlay.status} · ${d.overlay.method}`,10,muted);
 }
 
 function bay(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  const terminals=[...d.terminals].sort((a,b)=>a.id.localeCompare(b.id)),adj=new Map(terminals.map(t=>[t.id,[] as string[]]));
-  for(const s of d.switches)if(s.from&&s.to&&adj.has(s.from)&&adj.has(s.to)){adj.get(s.from)!.push(s.to);adj.get(s.to)!.push(s.from);}
-  const levels=new Map<string,number>(),roots=terminals.filter(t=>d.graph?.busSections.some(b=>b.id===t.id)),queue=(roots.length?roots:terminals.slice(0,1)).map(t=>t.id);for(const id of queue)levels.set(id,0);
-  for(let i=0;i<queue.length;i++)for(const id of adj.get(queue[i])!.sort())if(!levels.has(id)){levels.set(id,levels.get(queue[i])!+1);queue.push(id);}
-  for(const t of terminals)if(!levels.has(t.id))levels.set(t.id,0);
-  const groups=new Map<number,typeof terminals>();for(const t of terminals){const level=levels.get(t.id)!;groups.set(level,[...(groups.get(level)||[]),t]);}
-  const horizontal=d.orientation==='horizontal',depth=Math.max(0,...levels.values()),lanes=Math.max(1,...[...groups.values()].map(g=>g.length));
-  const width=horizontal?Math.max(900,260+depth*210):Math.max(900,lanes*240+180),height=horizontal?Math.max(480,lanes*170+180):Math.max(480,depth*150+210);
-  root.setAttribute('viewBox',`0 0 ${width} ${height}`);text(root,24,31,d.selectedBay?.name||'Fider',20);text(root,24,53,`${terminals.length} terminal · ${d.switches.length} kaynak anahtar · ${d.unresolvedSwitches} çözülemeyen uç`,12,muted);
-  const pos=new Map<string,[number,number]>();for(const[level,rows]of groups)rows.forEach((t,i)=>pos.set(t.id,horizontal?[150+level*210,120+i*170]:[210+i*240,105+level*150]));
-  for(const s of d.switches){const a=pos.get(s.from||''),b=pos.get(s.to||'');if(!a||!b)continue;const state=!s.inService?'OUT_OF_SERVICE':s.stateKnown===false?'UNKNOWN':s.closed?'CLOSED':'OPEN',g=group(root,s.id,s.sourceClass,s.name,select,`${s.kind} · ${state}`),style=stateStyle(d,s.modelClosed,s.closed),color=!s.inService?d.settings.colorOut:s.stateKnown===false?d.settings.colorNoResult:style.color;g.dataset.physicalSwitch=`${s.sourceClass}|${s.id}`;g.dataset.state=state;
-    const midY=(a[1]+b[1])/2,midX=(a[0]+b[0])/2,points:[number,number][]=horizontal?[[a[0],a[1]],[midX,a[1]],[midX,b[1]],[b[0],b[1]]]:[[a[0],a[1]],[a[0],midY],[b[0],midY],[b[0],b[1]]];path(g,points,color,s.closed?style.dash:'5 4');
-    const x=horizontal?midX:a[0],y=horizontal?a[1]:midY;symbol(g,x,y,s.sourceClass,color,s.closed,s.kind);text(g,x+16,y-5,shorten(`${s.kind==='breaker'?'Kesici':s.kind==='isolator'?'Ayırıcı':'Anahtar'} ${s.name}`,27),10,color);if(d.technical)text(g,x+16,y+10,s.id,9,muted);
-  }
-  for(const t of terminals){const[x,y]=pos.get(t.id)!,g=group(root,t.id,'ElmTerm',t.name,select),isBus=d.graph?.busSections.some(b=>b.id===t.id),source=d.graph?.terminals.find(b=>b.id===t.id)?.inService??true,current=d.scenario.busOrTerminalStatus[t.id]??(d.scenario.restoredTerminals.includes(t.id)||source),style=stateStyle(d,source,current);if(isBus)path(g,[[x-66,y],[x+66,y]],style.color,style.dash,5);else svg('circle',{cx:x,cy:y,r:4,fill:style.color},g);text(g,x-15,y-11,shorten(t.name,24),11,ink,'end');if(d.technical)text(g,x-15,y+12,t.id,9,muted,'end');
-    t.equipment.slice(0,3).forEach((e,i)=>{const sx=x+115+i*100,sy=y+42,style=equipmentState(d,e),eg=group(root,e.id,e.sourceClass,e.name,select);path(eg,[[x,y],[sx,y],[sx,sy]],style.color,style.dash);symbol(eg,sx,sy,e.sourceClass,style.color);text(eg,sx,sy+25,shorten(e.name,17),10,ink,'middle');});
-  }
+ if(!d.graph||!d.selectedBay)return;let cache=focusGraphs.get(d.graph);if(!cache){cache=new Map();focusGraphs.set(d.graph,cache);}let graph=cache.get(d.selectedBay.id);if(!graph){graph=feederFocusGraph(d.graph,d.selectedBay.id);cache.set(d.selectedBay.id,graph);}
+ station(root,{...d,graph,lod:'detail'},select);root.dataset.lod='focus';
+ text(root,24,76,'Fider odağı · kaynak terminal / cubicle / kontak zinciri',11,muted);
 }
 function regional(root:SVGSVGElement,d:SldDiagram,select:Select):void {
-  const neighbors=d.regionalSites.filter(s=>s.id!==d.station.id).slice(d.page*12,(d.page+1)*12),height=Math.max(440,100+neighbors.length*55),cy=height/2;root.setAttribute('viewBox',`0 0 1100 ${height}`);
-  text(root,24,30,`${d.station.name} · bölgesel bağlantılar`,20);text(root,24,52,`${neighbors.length}/${d.regionalSites.length-1} komşu gösteriliyor · yalnız TM ve hat bağlantıları`,12,muted);
-  const rootGroup=group(root,d.station.id,'ElmSite',d.station.name,select);svg('rect',{x:60,y:cy-24,width:245,height:48,rx:6,fill:'#214255',stroke:normal},rootGroup);text(rootGroup,76,cy+4,shorten(d.station.name,30),14);
-  neighbors.forEach((site,i)=>{const y=95+i*55,items=d.regionalBranches.filter(b=>b.fromSiteId===site.id||b.toSiteId===site.id),first=items[0];if(first){const style=equipmentState(d,first),g=group(root,first.id,first.sourceClass,first.name,select,items.map(e=>`${e.name} · ${e.id}`).join('\n'));path(g,[[305,cy],[370+i*12,cy],[370+i*12,y],[775,y]],style.color,style.dash);text(g,560,y-7,shorten(first.name,26)+(items.length>1?` +${items.length-1}`:''),10);}
-    const g=group(root,site.id,'ElmSite',site.name,select);svg('rect',{x:780,y:y-17,width:292,height:34,rx:5,fill:'#183247',stroke:normal},g);text(g,792,y+4,shorten(site.name,35),12);
-  });
+ const neighbors=d.regionalSites.filter(s=>s.id!==d.station.id).slice(d.page*12,(d.page+1)*12),rows=neighbors.map(site=>({site,items:d.regionalBranches.filter(e=>e.fromSiteId===site.id||e.toSiteId===site.id)})),height=Math.max(400,100+rows.reduce((n,r)=>n+Math.max(1,r.items.length)*48+38,0));root.setAttribute('viewBox',`0 0 1100 ${height}`);root.dataset.lod='regional';text(root,24,28,`${d.station.name} · bölgesel bağlantılar`,19);
+ let top=65;for(const {site,items}of rows){const size=Math.max(1,items.length)*48+30;svg('rect',{x:20,y:top,width:1050,height:size,rx:5,fill:'#142a3b',stroke:'#496879'},root);text(root,35,top+20,`${site.name} · ${items.length} ayrı native bağlantı`,12);
+  for(const [i,e]of items.entries()){const y=top+43+i*48,g=group(root,e.id,e.sourceClass,e.name,select,`${e.id} · ${d.station.id} ↔ ${site.id}`),style=equipmentState(d,e);g.dataset.regionalBranch=e.id;path(g,[[40,y],[1020,y]],style.color,style.dash);svg('rect',{x:480,y:y-14,width:40,height:28,fill:'#102033',stroke:style.color},g);text(g,58,y-7,shorten(e.name,48)+' · '+e.id,11);const entry=d.overlay?.entries.get(e.sourceClass+'|'+e.id);if(entry&&d.showResults!==false){g.dataset.resultStatus=entry.status;text(g,550,y-7,shorten(entry.lines[0]??entry.status,58),10,muted);}svg('rect',{x:475,y:y-17,width:50,height:34,fill:'transparent','pointer-events':'all','data-equipment-hit':e.id},g);}
+  const target=group(root,site.id,'ElmSite','Karşı TM: '+site.name,()=>{if(d.onNavigateSite)d.onNavigateSite(site.id,items[0]?.id);else select(site.id,'ElmSite');});svg('rect',{x:860,y:top+4,width:180,height:24,rx:4,fill:'#214255'},target);text(target,950,top+21,'Karşı TM: '+shorten(site.name,18),10,ink,'middle');top+=size+10;
+ }
 }
 export class SvgSldRenderer {
   private root:SVGSVGElement|null=null;private fitBox=[0,0,1200,600];private key='';
   zoom(factor:number){if(!this.root)return;const[x,y,w,h]=this.box(),nextW=Math.max(this.fitBox[2]/12,Math.min(this.fitBox[2]*2,w/factor)),nextH=nextW*h/w;this.root.setAttribute('viewBox',[x+(w-nextW)/2,y+(h-nextH)/2,nextW,nextH].join(' '));}
   exportSvg():string|null{return this.root?new XMLSerializer().serializeToString(fullDiagramClone(this.root,this.fitBox)):null;}
   fit(){this.root?.setAttribute('viewBox',this.fitBox.join(' '));}
-  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),w=Math.max(360,b.width+100),h=Math.max(260,b.height+100);this.root!.setAttribute('viewBox',[b.x+b.width/2-w/2,b.y+b.height/2-h/2,w,h].join(' '));}
+  focus(id:string,sourceClass:string){const g=[...this.root?.querySelectorAll<SVGGElement>('g[data-id][data-class]')??[]].find(g=>g.dataset.id===id&&g.dataset.class===sourceClass);if(!g)return;g.focus();const b=g.getBBox(),w=Math.max(320,b.width+80),h=Math.max(220,b.height+80);this.root!.setAttribute('viewBox',[b.x+b.width/2-w/2,b.y+b.height/2-h/2,w,h].join(' '));}
   private box(){return this.root!.getAttribute('viewBox')!.split(' ').map(Number);}
   render(host:HTMLElement,d:SldDiagram,select:Select):void {
-    const key=[d.station.id,d.scope,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
+    const key=[d.station.id,d.scope,d.lod,d.scope==='bay'?d.selectedBay?.id:'',d.scope==='bay'?d.orientation:'vertical',d.scope==='regional'?d.page:0,[...d.voltageBands].join(',')].join('|'),previous=this.root&&key===this.key?this.box():null;this.key=key;
     const root=svg('svg',{xmlns:NS,viewBox:'0 0 1240 600',width:'100%',height:540,role:'img','aria-label':`${d.station.name} ${d.scope==='bay'?d.selectedBay?.name||'fider':d.scope==='regional'?'bölgesel':'TM genel'} tek hat şeması`,class:'ga-sld-svg',preserveAspectRatio:'xMidYMid meet'});
-    root.style.background='#102033';root.style.touchAction='none';root.style.display='block';root.style.width='100%';root.style.height='clamp(360px,60vh,740px)';
-    host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);applyN1Overlay(root,d);this.fitBox=this.box();if(previous)root.setAttribute('viewBox',previous.join(' '));
+    const available=Math.max(280,Math.min(740,innerHeight-Math.max(0,host.getBoundingClientRect().top)-24));d.overviewSize={width:Math.max(360,host.clientWidth||1200),height:available};
+    root.style.background='#102033';root.style.touchAction='none';root.style.display='block';root.style.width='100%';root.style.height=available+'px';
+    const oldFit=this.fitBox;host.replaceChildren(root);this.root=root;if(d.scope==='regional')regional(root,d,select);else if(d.scope==='bay')bay(root,d,select);else station(root,d,select);applyN1Overlay(root,d);this.fitBox=this.box();if(previous&&oldFit[2]===this.fitBox[2]&&oldFit[3]===this.fitBox[3])root.setAttribute('viewBox',previous.join(' '));
     let drag:{x:number;y:number;box:number[]}|null=null,moved=false;
     root.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,box:this.box()};moved=false;};
     root.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>4){moved=true;root.setPointerCapture(e.pointerId);}if(!moved)return;const r=root.getBoundingClientRect(),scale=Math.min(r.width/drag.box[2],r.height/drag.box[3]);root.setAttribute('viewBox',[drag.box[0]-dx/scale,drag.box[1]-dy/scale,drag.box[2],drag.box[3]].join(' '));};

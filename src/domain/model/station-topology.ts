@@ -1,16 +1,16 @@
 import type { CanonicalNetwork, Bus, Entity } from './network';
 import { voltageMatches, type VoltageBand } from './voltage-band';
 export interface StationSourceRow { id:string;name:string;attributes:Readonly<Record<string,unknown>>;sourceClass?:string }
-export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[] }
+export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[] }
 export type StationIssueKind='invalidSwitchEndpoints'|'unresolvedFeederTerminals'|'unresolvedEquipmentConnections'|'missingCubicleReferences'|'ambiguousBusSections'|'unsupportedEquipmentConnections';
 export interface StationIssue {kind:StationIssueKind;sourceClass:string;sourceId:string;field:string;reference:string;reason:string}
 export interface StationConnection {key:string;sourceClass:string;sourceId:string;kind:'switch'|'equipment';terminals:string[];cubicleIds:string[]}
 export interface BusSection { id:string;name:string;voltageKv:number;groupId:string;groupName:string;inService:boolean }
-export interface Feeder { id:string;name:string;sourceClass:string;voltageKv:number;terminalIds:string[];busSectionIds:string[];switchIds:string[];equipmentKeys:string[] }
+export interface Feeder { id:string;name:string;sourceClass:string;voltageKv:number;terminalIds:string[];busSectionIds:string[];switchIds:string[];equipmentKeys:string[];sourceFunction?:string }
 export interface StationTopologyGraph {
   siteId:string;busSections:BusSection[];feeders:Feeder[];terminals:Bus[];
   switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:'breaker'|'isolator'|'switch';bayId:string|null;cubicleId?:string;equipmentId?:string;sourceOrder?:number;stateKnown:boolean}[];
-  equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string}[];
+  equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string;autoTransformer?:boolean;typeEvidence?:string}[];
   voltageLevels:number[];sourceFeederCount:number;unresolvedEndpoints:number;
   connections:StationConnection[];issues:StationIssue[];counters:Record<StationIssueKind|'diagramUnresolvedTotal',number>;
 }
@@ -25,12 +25,14 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
   const sectionIds=new Set(busSections.map(b=>b.id)),rawSwitches=new Map(source.switches.map(s=>[s.id,s])),cubicles=new Map(source.cubicles.map(c=>[c.id,c]));
   const switches=network.switches.filter(s=>s.siteIds.includes(siteId)).map(s=>{
     const raw=rawSwitches.get(s.id),direct=String(raw?.attributes.fold_id??''),cub=cubicles.get(direct),terminal=cub?rawTerms.get(String(cub.attributes.fold_id??'')):null,parent=terminal?String(terminal.attributes.fold_id??''):direct,usage=String(raw?.attributes.aUsage??'').toLowerCase();
-    const order=raw?.attributes.iorder;const sourceOrder=order!=null&&Number.isInteger(Number(order))&&Number(order)>=0?Number(order):undefined;
-    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,kind:usage==='cbk'?'breaker' as const:usage==='dct'?'isolator' as const:'switch' as const,bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,...(sourceOrder===undefined?{}:{sourceOrder}),stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
+    // Available DIgSILENT DGS documentation does not define iorder as device sequence.
+    // Preserve raw fields in the catalog, but never turn an arbitrary integer into a chain.
+    return {id:s.id,sourceId:s.sourceId,sourceClass:s.sourceClass,from:s.from,to:s.to,kind:usage==='cbk'?'breaker' as const:usage==='dct'?'isolator' as const:'switch' as const,bayId:bays.has(parent)?parent:null,cubicleId:s.cubicleId,equipmentId:s.equipmentId,stateKnown:([0,1,true,false,'0','1'] as unknown[]).includes(raw?.attributes.on_off)};
   }).sort((a,b)=>a.id.localeCompare(b.id));
   const equipment:StationTopologyGraph['equipment']=[];
   const append=(items:readonly Entity[],kind:string)=>{for(const e of items){const ends='from'in e&&'to'in e?[String(e.from),String(e.to)]:'bus'in e?[String(e.bus)]:[];if(!ends.some(t=>termById.get(t)?.siteIds.includes(siteId)))continue;equipment.push({id:e.id,name:e.name,sourceClass:e.sourceClass,terminals:ends,kind});}};
   append(network.lines,'line');append(network.transformers,'transformer');append(network.generators,'generator');append(network.loads,'load');append(network.shunts,'shunt');append(network.externalGrids,'externalGrid');append(network.seriesCompensators,'seriesCompensator');
+  for(const e of equipment.filter(e=>e.kind==='transformer')){const raw=source.transformers?.find(r=>r.id===e.id),value=raw?.attributes.i_auto;if(value===0||value===1||value===false||value===true){e.autoTransformer=Boolean(value);e.typeEvidence=`ElmTr2|${e.id}.i_auto · DGS Documentation B.1.8 (PDF p.61)`;}}
   for(const row of source.unsupportedEquipment??[]){const cls=row.sourceClass??'ElmTr3',fields=cls==='ElmTr3'?['bushv','busmv','buslv']:['bushv','buslv'],ends=fields.map(f=>String(cubicles.get(String(row.attributes[f]??''))?.attributes.fold_id??''));equipment.push({id:row.id,name:row.name,sourceClass:cls,terminals:ends,kind:cls==='ElmTr3'?'transformer3w':'transformer'});}
   equipment.sort(order);
   const feeders:Feeder[]=[];
@@ -38,7 +40,7 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
     const own=terminals.filter(t=>t.parentId===bay.id).map(t=>t.id),edges=switches.filter(s=>s.bayId===bay.id),ids=new Set([...own,...edges.flatMap(s=>[s.from,s.to]).filter(Boolean)]);
     const ownSet=new Set(own),attached=equipment.filter(e=>e.terminals.some(t=>ownSet.has(t)));
     const nominal=own.map(t=>termById.get(t)?.vnKv).find((v):v is number=>v!=null&&v>0)??[...ids].map(t=>termById.get(t)?.vnKv).find((v):v is number=>v!=null&&v>0)??0;
-    feeders.push({id:bay.id,name:bay.name,sourceClass:'ElmBay',voltageKv:nominal,terminalIds:[...ids].sort(),busSectionIds:[...ids].filter(id=>sectionIds.has(id)).sort(),switchIds:edges.map(s=>s.id),equipmentKeys:attached.map(e=>`${e.sourceClass}|${e.id}`)});
+    feeders.push({id:bay.id,name:bay.name,sourceClass:'ElmBay',voltageKv:nominal,terminalIds:[...ids].sort(),busSectionIds:[...ids].filter(id=>sectionIds.has(id)).sort(),switchIds:edges.map(s=>s.id),equipmentKeys:attached.map(e=>`${e.sourceClass}|${e.id}`),...(typeof bay.attributes.feederFunction==='string'?{sourceFunction:bay.attributes.feederFunction}:{})});
   }
   // Direct busbar equipment may have no ElmBay; retain it without inventing a bay or connection.
   const covered=new Set(feeders.flatMap(f=>f.equipmentKeys));
@@ -72,7 +74,7 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
   graph.counters.diagramUnresolvedTotal=graph.issues.length;
   return graph;
 }
-export interface StationLayout {width:number;height:number;sections:{section:BusSection;x1:number;x2:number;y:number}[];feeders:{feeder:Feeder;x:number;y:number;busYs:number[]}[];levels:{kv:number;y:number}[];omitted:number;pageCount:number}
+export interface StationLayout {width:number;height:number;sections:{section:BusSection;x1:number;x2:number;y:number;reference?:boolean}[];feeders:{feeder:Feeder;x:number;y:number;busYs:number[]}[];levels:{kv:number;y:number}[];omitted:number;pageCount:number}
 /** Full station by default; each nominal voltage owns its independent deterministic lanes. */
 export function layoutStation(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>,page=0,size=Infinity):StationLayout {
   const all=graph.feeders.filter(f=>voltageMatches(f.voltageKv,bands)),pages=Number.isFinite(size)?Math.max(1,Math.ceil(all.length/size)):1,shown=Number.isFinite(size)?all.slice(Math.min(page,pages-1)*size,(Math.min(page,pages-1)+1)*size):all;
