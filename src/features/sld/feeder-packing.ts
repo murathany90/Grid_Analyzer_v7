@@ -3,7 +3,7 @@ import type {YtbsSlot} from './ytbs-slotting';
 export const feederAreaUnits=(kv:number)=>kv>36?4:1;
 /** An invisible cell reserves actual branch lanes plus caption space. Units are
  * packing weights; minimum symbol clearance never shrinks with voltage. */
-export function feederCellWidth(slot:YtbsSlot,branchCount=0){return Math.max(feederAreaUnits(slot.feeder.voltageKv)*44,88+Math.min(branchCount,4)*24);}
+export function feederCellWidth(slot:YtbsSlot,branchCount=0){return Math.max(feederAreaUnits(slot.feeder.voltageKv)*44,88+Math.min(branchCount,4)*24,slot.role==='coupler'||slot.role==='transfer'?72+slot.feeder.switchIds.length*44:0,['autotransformer','transformer-primary','bank'].includes(slot.placementRole??slot.role)?240*Math.max(1,slot.feeder.equipmentKeys.filter(k=>k.startsWith('ElmTr')).length):0);}
 export function packFeederRows(slots:readonly YtbsSlot[],branchCounts:ReadonlyMap<string,number>,maxSpan=1180){
  const rows:{upper:YtbsSlot[];lower:YtbsSlot[];upperWidth:number;lowerWidth:number;upperUnits:number;lowerUnits:number}[]=[];
  const sorted=[...slots].sort((a,b)=>Number(isModelFeeder(a))-Number(isModelFeeder(b))||a.block-b.block||a.column-b.column||a.feeder.id.localeCompare(b.feeder.id));

@@ -14,7 +14,7 @@ import {createSldResultOverlay,type SldMode} from './result-overlay';
 import {oppositeStation,SldNavigationHistory} from './navigation';
 import {selectedN1Presentation} from '../../map/layer-policy';
 import {sourceSwitchKind} from '../../domain/model/switch-usage';
-import {feederOperation} from './feeder-operation';
+import {feederOperation,feederCommandIds} from './feeder-operation';
 
 interface NetworkIndex {
   network: CanonicalNetwork;
@@ -317,10 +317,10 @@ export function createSldView(ctx: AppContext): Feature {
   }
   function renderFeederCommands():void {
     const graph=stationData?.graph,feeder=graph?.feeders.find(f=>f.id===selectedBayId||selected&&(f.switchIds.includes(selected.id)||f.equipmentKeys.includes(keyOf(selected.sourceClass,selected.id))));feederMenu.hidden=!feeder;
-    if(!graph||!feeder)return;const plan=feederOperation(graph,feeder);feederCommands.replaceChildren(element('strong','',feeder.name));feederCommands.dataset.feederId=feeder.id;
+    if(!graph||!feeder)return;const effective=new Map(graph.switches.flatMap(s=>{const native=networkIndex?.switchesById.get(s.id);return native?[[s.id,{closed:ctx.scenario.current.switchState[s.id]??native.closed,inService:native.inService}] as const]:[];})),plan=feederOperation(graph,feeder,effective);feederCommands.replaceChildren(element('strong','',feeder.name));feederCommands.dataset.feederId=feeder.id;
     feederCommands.title='Yalnız kanıtlı ana devre işletilir. Alternatif bara ve bypass cihazları korunur. Yerel senaryo simülasyonu.';
     feederCommands.append(element('p','ga-muted',plan.ready?plan.switches.map(s=>`${s.kind==='breaker'?'Kesici':'Ayırıcı'} ${s.id}: ${(ctx.scenario.current.switchState[s.id]??networkIndex?.switchesById.get(s.id)?.closed)?'Kapalı':'Açık'}`).join(' · '):plan.reason??'—'));
-    const commands=element('div','ga-actions');for(const [label,value]of [['Fider Aç',false],['Fider Kapat',true],['Fider kaynağa dön','source']] as const){const button=actionButton(label,()=>void ctx.setFeederStatus(plan.switches.map(s=>s.id),value));button.disabled=!plan.ready||ctx.busy||plan.switches.some(s=>!networkIndex?.switchesById.get(s.id)?.inService);commands.append(button);}
+    const commands=element('div','ga-actions');for(const [label,value]of [['Fider Aç',false],['Fider Kapat',true],['Fider kaynağa dön','source']] as const){const button=actionButton(label,()=>void ctx.setFeederStatus(feederCommandIds(plan,value,networkIndex!.switchesById),value));button.disabled=!plan.ready||ctx.busy||plan.switches.some(s=>!networkIndex?.switchesById.get(s.id)?.inService);if(!plan.ready)button.title=plan.reason??'UNKNOWN';commands.append(button);}
     const calculate=actionButton('Senaryo Full AC hesapla',()=>void ctx.run('powerFlow','scenario'));calculate.disabled=ctx.busy;commands.append(calculate);feederCommands.append(commands);
   }
   function selectEquipment(id: string, sourceClass: string): void {

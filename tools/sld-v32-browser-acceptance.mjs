@@ -11,7 +11,7 @@ export async function sldV32BrowserAcceptance(page){
    new SvgSldRenderer().render(host,d,()=>{});if(host.querySelectorAll('[data-physical-switch]').length!==(orientation==='horizontal'?g.switches.filter(s=>s.bayId==='F').length:g.switches.length))throw Error('Native switch omitted: '+name);
    const main=name==='coupler'?[]:f.main,branches=name==='coupler'?[...f.main,...f.branches]:[...f.branches,...(name==='unknown-order'?g.switches.filter(s=>s.from===s.to).map(s=>({id:s.id,from:s.from,to:s.to,sourceClass:s.sourceClass,usage:s.sourceUsage,unresolved:true})):[])];
    return {orientation,fixture:{graph:g},feeders:[{id:'F',main,branches}]};
-  },{name,orientation});const proof=await verifySeriesSvg(page,golden);if(orientation==='vertical')await nativeSeriesEvidence(page,golden.fixture);if(name==='bypass'&&orientation==='vertical')assert.ok(proof.unrelatedRailCrossings>0,'Exercise actual unconnected rail crossings');count++;
+  },{name,orientation});const proof=await verifySeriesSvg(page,golden);if(orientation==='vertical')await nativeSeriesEvidence(page,golden.fixture);if(name==='bypass'&&orientation==='vertical')assert.equal(proof.unrelatedRailCrossings,0,'Foreign selector must detour outside real rails');count++;
   if(name==='breaker-line'&&orientation==='vertical'){
    // Recreate the reported defect while retaining source IDs, native endpoints,
    // fixed-contact attachment and inventory. The independent test must reject it.

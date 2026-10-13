@@ -17,7 +17,7 @@ export async function verifySeriesSvg(page,golden){
     for(const t of [edge.from,edge.to]){const p=paths.find(p=>p.terminal===t)?.p;if(!p){errors.push(edge.id+' missing lead '+t);continue;}const atStart=t===g.dataset.from,end=p.at(atStart?-1:0),source=p.at(atStart?0:-1);if(!contacts.some(c=>Math.hypot(c.x-end[0],c.y-end[1])<.01))errors.push(edge.id+' detached fixed contact');const native=term(t);if(native&&Math.hypot(native[0]-source[0],native[1]-source[1])>.01)errors.push(edge.id+' detached native terminal');}
     if(f.main.some(e=>e.id===edge.id)){
      centers.push({...center,id:edge.id});
-     const horizontal=gold.orientation==='horizontal';for(const path of paths)for(const p of path.p)if(Math.abs((horizontal?p[1]:p[0])-(horizontal?center.y:center.x))>.01)errors.push(edge.id+' false external bypass / off-axis conductor');
+     const horizontal=gold.orientation==='horizontal';for(const path of paths){const bar=node(path.terminal)?.dataset.semantic==='busbar-section';if(bar&&gold.orientation!=='horizontal')continue;for(const p of path.p)if(Math.abs((horizontal?p[1]:p[0])-(horizontal?center.y:center.x))>.01)errors.push(edge.id+' false external bypass / off-axis conductor');}
     }
     const fixed=contacts.map(c=>[c.x,c.y]),open=g.dataset.state==='OPEN';
     if(open){const midpoint=[center.x,center.y],radius=5;for(const p of root.querySelectorAll('path[data-connection]')){const q=coords(p);for(let i=1;i<q.length;i++){const a=q[i-1],b=q[i],vertical=Math.abs(a[0]-b[0])<.01;if(vertical?Math.abs(a[0]-midpoint[0])<radius&&Math.max(a[1],b[1])>midpoint[1]-radius&&Math.min(a[1],b[1])<midpoint[1]+radius:Math.abs(a[1]-midpoint[1])<radius&&Math.max(a[0],b[0])>midpoint[0]-radius&&Math.min(a[0],b[0])<midpoint[0]+radius)errors.push(edge.id+' open gap crossed');}}
@@ -29,14 +29,14 @@ export async function verifySeriesSvg(page,golden){
    const values=centers.map(c=>c[horizontal?'x':'y']),d=values.length>1?Math.sign(values[1]-values[0]):0;if(values.some((v,i)=>i&&Math.sign(v-values[i-1])!==d))errors.push(f.id+' source series order reversed');
    const actual=[...root.querySelectorAll('[data-physical-switch]')].filter(g=>g.dataset.bay===f.id).map(g=>g.dataset.id),expected=[...f.main,...f.branches].map(e=>e.id);if(actual.length!==expected.length||actual.some(id=>!expected.includes(id)))errors.push(f.id+' invented or omitted branch');
   }
-  // A real transfer lead crosses another rail in the bypass fixture. Coordinate
-  // coincidence is not a source relationship and cannot create a junction dot.
+  // A bar selector must now detour outside a foreign rail. A coincident crossing
+  // cannot be repaired by hiding a hop or deduplicating a false junction.
   let unrelatedRailCrossings=0;
   for(const wire of root.querySelectorAll('path[data-native-terminal]')){const p=coords(wire);for(const rail of root.querySelectorAll('[data-semantic="busbar-section"]')){const id=rail.dataset.id??rail.dataset.sourceReference;if(id===wire.dataset.nativeTerminal)continue;const q=coords(rail.querySelector('path[data-connection]'));for(let i=1;i<p.length;i++){
    const a=p[i-1],b=p[i];if(Math.abs(a[0]-b[0])>.01||!(q[0][1]>Math.min(a[1],b[1])+.01&&q[0][1]<Math.max(a[1],b[1])-.01)||a[0]<=Math.min(q[0][0],q[1][0])||a[0]>=Math.max(q[0][0],q[1][0]))continue;unrelatedRailCrossings++;
    for(const c of root.querySelectorAll('circle[data-junction]')){const v=point(c);if(Math.hypot(v.x-a[0],v.y-q[0][1])<.01)errors.push('False junction on unrelated rail '+id);}
   }}}
-  return {rows,errors,unrelatedRailCrossings};
+  if(gold.orientation!=='horizontal'&&unrelatedRailCrossings)errors.push('Foreign native conductors cross real rails: '+unrelatedRailCrossings);return {rows,errors,unrelatedRailCrossings};
  },golden);
  assert.deepEqual(proof.errors,[]);return proof;
 }

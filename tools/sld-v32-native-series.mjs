@@ -12,8 +12,11 @@ export async function nativeSeriesEvidence(page,fixture){
   }
   const bars=new Set(f.graph.busSections.map(b=>b.id));
   for(const feeder of f.graph.feeders){const edges=f.graph.switches.filter(s=>feeder.switchIds.includes(s.id)&&s.from!==s.to&&!bars.has(s.from)&&!bars.has(s.to)),at=new Map();for(const e of edges)for(const id of [e.from,e.to])at.set(id,[...(at.get(id)??[]),e]);const visited=new Set();
-   for(const [start,list]of at)if(list.length!==2)for(const first of list){if(visited.has(first.id))continue;const ids=[],nodes=[start];let e=first,id=start;
-    while(e){visited.add(e.id);ids.push(e.id);id=e.from===id?e.to:e.from;nodes.push(id);const next=at.get(id)??[];if(next.length!==2)break;e=next.find(e=>!visited.has(e.id));}
+   // A native line/winding or another bar selector is a real incidence. The
+   // switch-induced subgraph alone can falsely turn that fork into a series node.
+   const series=id=>f.graph.switches.filter(s=>s.from!==s.to&&(s.from===id||s.to===id)).length+f.graph.equipment.filter(e=>e.terminals.includes(id)).length===2;
+   for(const [start,list]of at)if(!series(start))for(const first of list){if(visited.has(first.id))continue;const ids=[],nodes=[start];let e=first,id=start;
+    while(e){visited.add(e.id);ids.push(e.id);id=e.from===id?e.to:e.from;nodes.push(id);const next=at.get(id)??[];if(!series(id))break;e=next.find(e=>!visited.has(e.id));}
     if(ids.length<2)continue;const gs=ids.map(id=>groups.get(f.graph.switches.find(s=>s.id===id).sourceClass+'|'+id)),cs=gs.map(center),vertical=cs.every(c=>Math.abs(c.x-cs[0].x)<.01),horizontal=cs.every(c=>Math.abs(c.y-cs[0].y)<.01);
     if(!vertical&&!horizontal)errors.push(feeder.id+' series axis '+ids.join(','));
     const values=cs.map(c=>vertical?c.y:c.x),sign=Math.sign(values[1]-values[0]);if(values.some((v,i)=>i&&Math.sign(v-values[i-1])!==sign))errors.push(feeder.id+' source order '+ids.join(','));

@@ -11,7 +11,7 @@ import type {ScenarioOverlay} from '../../domain/scenario/overlay';
 import {postResultAssembler} from '../../analysis/contingency-ac/post-results';
 import {scenarioLfComparison} from '../../domain/results/lf-comparison';
 export type SldMode='ytbs'|'technical'|'LF'|'N1'|'SC'|'operation'|'compact';
-export interface SldResultEntry {status:string;method:string;values:Record<string,number|string|null>;lines:string[];direction:number|null;alarm:boolean}
+export interface SldResultEntry {status:string;method:string;values:Record<string,number|string|null>;lines:string[];direction:number|null;alarm:boolean;validatedQuantities?:readonly string[]}
 export interface SldResultOverlay {status:string;method:string;phase:string;entries:Map<string,SldResultEntry>;outageKey:string|null}
 export const finite=(v:unknown):number|null=>typeof v==='number'&&Number.isFinite(v)?v:null;
 /** Positive endpoint injection leaves that physical terminal; TO is not guessed as -FROM. */
@@ -38,7 +38,8 @@ function buildSldResultOverlay(ctx:AppContext,mode:SldMode):SldResultOverlay {
   const base=ctx.resultStore.get('base','powerFlow'),scenario=ctx.resultStore.get('scenario','powerFlow');
   const role=ctx.resultStore.role==='base'?'base':'scenario',r=role==='base'?base:scenario;
   const installBranch=(key:string,values:Record<string,number|string|null>,status:string,method:string)=>{
-    const change=out.phase==='CHANGE',prefix=change?'Δ ':'';out.entries.set(key,{status,method,values,lines:[`${prefix}P/Q uç 1: ${fmt(values.pFromMw)} / ${fmt(values.qFromMvar)} MW/MVAr`,`${prefix}P/Q uç 2: ${fmt(values.pToMw)} / ${fmt(values.qToMvar)} MW/MVAr`,`${prefix}I: ${fmt(values.iFromA)} / ${fmt(values.iToA)} A · ${prefix}Yük ${fmt(values.loadingPercent)} ${change?'pp':'%'}`],direction:finite(values.pFromMw),alarm:!change&&(finite(values.loadingPercent)??0)>100});
+    const native=[...n.lines,...n.transformers].find(e=>`${e.sourceClass}|${e.id}`===key);values={...values,fromTerminal:native?.from??values.fromTerminal??null,toTerminal:native?.to??values.toTerminal??null};
+    const change=out.phase==='CHANGE',prefix=change?'Δ ':'';out.entries.set(key,{status,method,values,validatedQuantities:Object.keys(values).filter(k=>finite(values[k])!==null),lines:[`${prefix}P/Q uç 1: ${fmt(values.pFromMw)} / ${fmt(values.qFromMvar)} MW/MVAr`,`${prefix}P/Q uç 2: ${fmt(values.pToMw)} / ${fmt(values.qToMvar)} MW/MVAr`,`${prefix}I: ${fmt(values.iFromA)} / ${fmt(values.iToA)} A · ${prefix}Yük ${fmt(values.loadingPercent)} ${change?'pp':'%'}`],direction:finite(values.pFromMw),alarm:!change&&(finite(values.loadingPercent)??0)>100});
   };
   if(mode==='LF'){
     if(!sldLfCurrent(ctx,r,role)){out.status=r?'STALE':'NOT_RUN / STALE';return out;}
@@ -66,7 +67,7 @@ function buildSldResultOverlay(ctx:AppContext,mode:SldMode):SldResultOverlay {
   }else if(mode==='N1'){
     const p=selectedN1Presentation(ctx);out.status=p.status;out.method=p.method;
     const outage=p.post?.outage??p.recorded?.outage??p.hybrid?.outage;if(outage)out.outageKey=`${outage.sourceClass}|${outage.fid}`;
-    if(!p.post){if(p.candidate){out.outageKey=`${p.candidate.sourceClass}|${p.candidate.equipmentId}`;for(const b of p.candidate.topImpacts){const phase=out.phase,flow=phase==='BASE'||phase==='PRE'?b.baseFlowMw:phase==='CHANGE'?b.deltaPMw:b.postFlowMw,load=phase==='BASE'||phase==='PRE'?b.baseEstimatedLoadingPct:phase==='CHANGE'?b.postEstimatedLoadingPct===null||b.baseEstimatedLoadingPct===null?null:b.postEstimatedLoadingPct-b.baseEstimatedLoadingPct:b.postEstimatedLoadingPct;out.entries.set(`${b.sourceClass}|${b.equipmentId}`,{status:'DC_SCREENED · AC_UNVERIFIED',method:'GA_DC_SCREEN',values:{pFromMw:finite(flow),qFromMvar:null,voltageKv:null,currentA:null,estimatedLoadingPercent:finite(load)},lines:[`DC P ${fmt(flow)} MW · tahmini yük ${fmt(load)}%`,`Q / U / I: — · AC_UNVERIFIED`],direction:finite(flow),alarm:false});}}return out;}
+    if(!p.post){if(p.candidate){out.outageKey=`${p.candidate.sourceClass}|${p.candidate.equipmentId}`;for(const b of p.candidate.topImpacts){const native=[...n.lines,...n.transformers].find(e=>e.sourceClass===b.sourceClass&&e.id===b.equipmentId),phase=out.phase,flow=phase==='BASE'||phase==='PRE'?b.baseFlowMw:phase==='CHANGE'?b.deltaPMw:b.postFlowMw,load=phase==='BASE'||phase==='PRE'?b.baseEstimatedLoadingPct:phase==='CHANGE'?b.postEstimatedLoadingPct===null||b.baseEstimatedLoadingPct===null?null:b.postEstimatedLoadingPct-b.baseEstimatedLoadingPct:b.postEstimatedLoadingPct;out.entries.set(`${b.sourceClass}|${b.equipmentId}`,{status:'DC_SCREENED · AC_UNVERIFIED',method:'GA_DC_SCREEN',values:{fromTerminal:native?.from??null,toTerminal:native?.to??null,pFromMw:finite(flow),qFromMvar:null,voltageKv:null,currentA:null,estimatedLoadingPercent:finite(load)},lines:[`DC P ${fmt(flow)} MW · tahmini yük ${fmt(load)}%`,`Q / U / I: — · AC_UNVERIFIED`],direction:finite(flow),alarm:false});}}return out;}
     const selectedRole=ctx.scenario.selectedId==='B0'?'base':'scenario',selectedBase=ctx.resultStore.get(selectedRole,'powerFlow'),validBase=sldLfCurrent(ctx,selectedBase,selectedRole)?selectedBase:null;
     const pre=p.post.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost:validBase?postResultAssembler(n,validBase,p.post.post.branches[0]?.loading.season??'nominal'):null,preBranches=new Map((pre?.branches??[]).map(b=>[`${b.sourceClass}|${b.fid}`,b]));
     for(const b of p.post.post.branches){const key=`${b.sourceClass}|${b.fid}`,old=preBranches.get(key),values=sldBranchValues(b,b.loading.operationalPercent);

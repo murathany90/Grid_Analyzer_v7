@@ -222,7 +222,7 @@ export class Application implements AppContext {
   }
   async setFeederStatus(switchIds:readonly string[],value:boolean|'source',calculate=false){
     if(!this.network||this.busy||!switchIds.length)return;
-    const ids=new Set(switchIds),members=this.network.switches.filter(s=>ids.has(s.id));
+    const ids=new Set(switchIds),index=new Map(this.network.switches.map(s=>[s.id,s])),members=[...ids].flatMap(id=>index.has(id)?[index.get(id)!]:[]);
     if(members.length!==ids.size||members.some(s=>!s.inService)){this.setMessage('Fider manevrası engeli: kaynak cihaz eksik veya servis dışı.');return;}
     this.scenario.commandSource='SLD_FEEDER';const revision=this.scenario.revision;
     this.scenario.setSwitchStates(members.map(s=>({id:s.id,source:s.closed})),value);

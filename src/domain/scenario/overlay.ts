@@ -59,8 +59,8 @@ export class ScenarioStore {
   select(id:string):boolean{const record=this.records.get(id);if(!record)return false;this.selectedId=id;this.value=record.overlay;this.history=[];this.revision++;return true;}
   rename(id:string,name:string):void{const record=this.records.get(id);if(record&&name.trim()){this.records.set(id,Object.freeze({...record,name:name.trim().slice(0,100)}));this.revision++;}}
   branch(name?:string):ScenarioSnapshot{this.revision++;return this.record(this.value,name);}
-  private record(value:ScenarioOverlay,name?:string):ScenarioSnapshot{const parent=this.selected,id='S'+(++this.serial),timestamp=new Date().toISOString(),events:ManeuverEvent[]=[...parent.events];
-    for(const key of ['lineStatus','transformerStatus','switchState','busOrTerminalStatus','generatorDispatch','loadAdjustments'] as const){for(const equipmentId of new Set([...Object.keys(parent.overlay[key]),...Object.keys(value[key])])){const before=parent.overlay[key][equipmentId],after=value[key][equipmentId];if(JSON.stringify(before)!==JSON.stringify(after))events.push(Object.freeze({id:id+':'+events.length,order:events.length+1,source:this.commandSource,action:key,equipmentId,before,after,timestamp}));}}
+  private record(value:ScenarioOverlay,name?:string,switchOrder:readonly string[]=[]):ScenarioSnapshot{const parent=this.selected,id='S'+(++this.serial),timestamp=new Date().toISOString(),events:ManeuverEvent[]=[...parent.events];
+    for(const key of ['lineStatus','transformerStatus','switchState','busOrTerminalStatus','generatorDispatch','loadAdjustments'] as const){for(const equipmentId of new Set([...(key==='switchState'?switchOrder:[]),...Object.keys(parent.overlay[key]),...Object.keys(value[key])])){const before=parent.overlay[key][equipmentId],after=value[key][equipmentId];if(JSON.stringify(before)!==JSON.stringify(after))events.push(Object.freeze({id:id+':'+events.length,order:events.length+1,source:this.commandSource,action:key,equipmentId,before,after,timestamp}));}}
     const snapshot=Object.freeze({id,name:name||'Senaryo '+id,parentId:parent.id,modelHash:this.modelHash,studyCase:this.studyCase,createdAt:timestamp,scenarioHash:scenarioSignature(value),overlay:freezeOverlay(value),events:Object.freeze(events)});this.records.set(id,snapshot);this.selectedId=id;this.value=snapshot.overlay;return snapshot;}
 
   private history: ScenarioOverlay[] = [];
@@ -80,7 +80,7 @@ export class ScenarioStore {
     const states={...this.value.switchState};let energizations=this.value.energizations;
     for(const sw of switches){energizations=this.releaseOwnership('switchState',sw.id,energizations);const desired=value==='source'?sw.source:value;if(desired===sw.source)delete states[sw.id];else states[sw.id]=desired;}
     if(JSON.stringify(states)===JSON.stringify(this.value.switchState)&&JSON.stringify(energizations)===JSON.stringify(this.value.energizations))return;
-    this.replace({...this.value,energizations,switchState:states});
+    this.history.push(this.value);this.record({...this.value,energizations,switchState:states},undefined,switches.map(s=>s.id));this.revision++;
   }
   private releaseOwnership(key: StatusKey,id: string, operations=this.value.energizations) {
     const next=structuredClone(operations||{});

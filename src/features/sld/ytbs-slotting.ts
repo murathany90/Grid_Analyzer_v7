@@ -1,5 +1,6 @@
 import type {Feeder,StationTopologyGraph} from '../../domain/model/station-topology';
 import {V4_SLOTS,YTBS_SOURCE_CATALOG} from './ytbs-rule-catalog';
+import {nativeBarCircuit} from './bar-circuit';
 export type FeederRole='line'|'autotransformer'|'transformer-primary'|'transformer-incoming'|'coupler'|'transfer'|'compound'|'bank'|'measurement'|'generation'|'distribution'|'shunt'|'unknown';
 export type VoltageZone='400'|'154/66'|'MV'|'OTHER';
 export interface YtbsSlot {feeder:Feeder;role:FeederRole;zone:VoltageZone;slot:string;side:'A'|'B'|null;column:number;block:number;evidence:string[];typeName?:string;components?:string[];typeStatus?:string;placementRole?:FeederRole}
@@ -23,7 +24,7 @@ export function classifyFeederRole(graph:StationTopologyGraph,feeder:Feeder):{ro
  if(eq.some(e=>e.kind==='load'))return {role:'distribution',evidence};
  if(eq.some(e=>e.kind==='shunt'||e.kind==='seriesCompensator'))return {role:'shunt',evidence};
  const edges=graph.switches.filter(s=>feeder.switchIds.includes(s.id)&&s.from!==s.to);
- if(feeder.busSectionIds.length>=2){const seen=new Set([feeder.busSectionIds[0]]),q=[...seen];for(let i=0;i<q.length;i++)for(const s of edges){const next=s.from===q[i]?s.to:s.to===q[i]?s.from:null;if(next&&!seen.has(next)){seen.add(next);q.push(next);}}if(feeder.busSectionIds.slice(1).some(id=>seen.has(id)))return {role:'coupler',evidence:edges.map(s=>`${s.sourceClass}|${s.sourceId}`)};}
+ if(nativeBarCircuit(graph,feeder))return {role:'coupler',evidence:edges.map(s=>`${s.sourceClass}|${s.sourceId}`)};
  return {role:'unknown',evidence,typeStatus:'UNVERIFIED_TYPE'};
 }
 const a=[1,2,3,4,5,6,7].map(n=>n+'A'),b=[1,2,3,4,5,6,7].map(n=>n+'B');
