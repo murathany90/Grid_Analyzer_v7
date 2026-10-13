@@ -154,9 +154,8 @@ function createBayTerminals(index: NetworkIndex, station: StationData, bay: Cata
 export function createSldView(ctx: AppContext): Feature {
   const root = element('section', 'ga-feature ga-sld-view');
   const session=calculationSessionStatus(ctx);
-  const heading = element('div', 'ga-feature-heading');
-  heading.append(element('h2', '', 'Tek hat şeması'), element('p', 'ga-muted', 'DGS terminal ve ekipman referanslarından türetilen istasyon ve bölgesel şemalar.'));
-  const toolbar = element('div', 'ga-toolbar');
+  root.setAttribute('aria-label','Tek hat şeması');
+  const toolbar = element('div', 'ga-toolbar ga-sld-toolbar');
   const siteSelect = element('select'); siteSelect.setAttribute('aria-label', 'Trafo merkezi');
   const scopeSelect = element('select'); scopeSelect.setAttribute('aria-label', 'Şema kapsamı');
   scopeSelect.append(new Option('TM Genel — Tam İstasyon', 'station'), new Option('Fider / Bay ayrıntısı', 'bay'), new Option('Bölgesel bağlı TM–hat', 'regional'));
@@ -172,22 +171,27 @@ export function createSldView(ctx: AppContext): Feature {
   const resultsToggle=element('input'),arrowsToggle=element('input');resultsToggle.type=arrowsToggle.type='checkbox';resultsToggle.checked=arrowsToggle.checked=true;
   const resultsLabel=element('label','ga-check','Sonuç etiketleri'),arrowsLabel=element('label','ga-check','Akış okları');resultsLabel.append(resultsToggle);arrowsLabel.append(arrowsToggle);
   const resetButton = element('button', 'ga-button', 'Seçimi temizle'); resetButton.type = 'button';
-  toolbar.append(siteSelect, scopeSelect,mode,lod,colorMode, layoutSelect, downloadButton,technicalLabel,resultsLabel,arrowsLabel);
+  toolbar.append(siteSelect, scopeSelect,mode);
   const lineBar = element('div', 'ga-toolbar');
   const lineSelect = element('select'); lineSelect.setAttribute('aria-label', 'TM ile ilişkili hat');
   lineBar.append(lineSelect);
-  const notice = element('p', 'ga-notice', 'Şema otomatik yerleşimlidir; fiziksel PowerFactory sayfa düzenini temsil etmez. Senaryo işlemleri bu uygulamanın yerel model kopyasını etkiler.');
+  const sourceNotice = 'Kaynak model bağlantıları, otomatik yerleşim. Senaryo işlemleri yalnız yerel model kopyasını etkiler; fiziksel işletme komutu gönderilmez.';
   const bayToolbar = element('div', 'ga-toolbar');
   const baySearch=element('input'),bayGroup=element('select'),bayPicker=element('select');baySearch.type='search';baySearch.placeholder='Fider ara';baySearch.setAttribute('aria-label','Fider ara');bayGroup.setAttribute('aria-label','Fider grubu');bayPicker.setAttribute('aria-label','Fider seç');
   bayToolbar.append(baySearch,bayGroup,bayPicker);
   bayToolbar.hidden = true; lineBar.hidden = true;
-  const info = element('p', 'ga-muted');
+  const info = element('p', 'ga-muted ga-sld-status');info.title=sourceNotice;
   const regionalPager=element('div','ga-pager');regionalPager.hidden=true;
   const diagramHost = element('div', 'ga-sld-diagram');
+  const workspace=element('div','ga-sld-workspace'),canvasPane=element('div','ga-sld-canvas'),sidePanel=element('aside','ga-sld-side-panel');sidePanel.hidden=true;sidePanel.setAttribute('aria-label','Ekipman bilgisi ve analiz sonuçları');
+  canvasPane.append(diagramHost);workspace.append(canvasPane,sidePanel);
   const quickSwitch=element('section','ga-sld-quick-switch');quickSwitch.setAttribute('role','region');quickSwitch.setAttribute('aria-label','Hızlı manevra');quickSwitch.hidden=true;
   const detail = element('section', 'ga-detail', 'Bir bara, fider veya ekipman seçin.');
   const shared=createWorkspaceResults(ctx),resultPanel=element('details','ga-sld-results'),resultSummary=element('summary','','Analiz sonucu');resultPanel.append(resultSummary,shared.element);resultPanel.ontoggle=()=>{if(resultPanel.open)shared.render();};
-  root.append(heading, session.element, toolbar, voltageFilter.element, lineBar, notice,resultPanel, bayToolbar, info,regionalPager, diagramHost, detail);
+  const panelToggle=actionButton('Bilgi ve sonuçlar',()=>setPanel(sidePanel.hasAttribute('hidden')));panelToggle.setAttribute('aria-expanded','false');
+  const panelClose=actionButton('Paneli kapat',()=>setPanel(false));
+  sidePanel.append(panelClose,detail,resultPanel,session.element);
+  root.append(toolbar,regionalPager,workspace,info);
 
   let scope: SldScope = 'station', selectedBayId = '', regionalPage = 0;
   let networkIndex: NetworkIndex | null = null, networkHash = '', siteOptionsHash = '', stationData: StationData | null = null;
@@ -203,11 +207,21 @@ export function createSldView(ctx: AppContext): Feature {
   lod.onchange=redraw;
   const familyMetrics:Partial<Record<'LF'|'N1'|'SC',string>>={},defaultMetrics={LF:'pFromMw',N1:'postLoadingPercent',SC:'ikssKa'};
   mode.onchange=()=>{if(['LF','N1','SC'].includes(mode.value)){const family=mode.value as 'LF'|'N1'|'SC';if(family!==ctx.resultView.analysis){familyMetrics[ctx.resultView.analysis]=ctx.resultView.metric;ctx.resultView.analysis=family;ctx.resultView.metric=familyMetrics[family]??defaultMetrics[family];ctx.resultView.source='GA';ctx.benchmarkMap=null;if(family==='LF'){ctx.resultStore.role=ctx.scenario.selectedId==='B0'?'base':'scenario';ctx.resultView.phase=ctx.resultStore.role==='base'?'BASE':'POST';}else ctx.resultView.phase='POST';}}technical.checked=mode.value==='technical';ctx.notify();redraw();};colorMode.onchange=resultsToggle.onchange=arrowsToggle.onchange=redraw;
-  toolbar.append(actionButton('Okunabilir ölçek',()=>renderer.readable()),actionButton('Sığdır',()=>renderer.fit()),actionButton('Yakınlaştır +',()=>renderer.zoom(1.3)),actionButton('Uzaklaştır −',()=>renderer.zoom(1/1.3)),actionButton('Seçili ekipmana odaklan',()=>{if(selected)renderer.focus(selected.id,selected.sourceClass);}));
-  const advanced=element('details','ga-sld-control-options'),advancedSummary=element('summary','','Görünüm seçenekleri'),advancedToolbar=element('div','ga-toolbar');advanced.open=innerWidth>=900;advanced.append(advancedSummary,advancedToolbar,voltageFilter.element);advancedToolbar.append(colorMode,layoutSelect,downloadButton,technicalLabel,resultsLabel,arrowsLabel);toolbar.after(advanced);
-  let resizeFrame=0,wideViewport=innerWidth>=900;
-  const resize=()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{const wide=innerWidth>=900;if(wide!==wideViewport){advanced.open=wide;wideViewport=wide;}redraw();});};
-  window.addEventListener('resize',resize);advanced.ontoggle=redraw;
+  function compactButton(label:string,short:string,run:()=>void):HTMLButtonElement {const button=actionButton(short,run);button.setAttribute('aria-label',label);button.title=label;return button;}
+  back.textContent='←';back.setAttribute('aria-label','Önceki TM’ye dön');back.title='Önceki TM’ye dön';
+  toolbar.append(compactButton('Okunabilir ölçek','Detay',()=>renderer.readable()),actionButton('Sığdır',()=>renderer.fit()),compactButton('Yakınlaştır +','+',()=>renderer.zoom(1.3)),compactButton('Uzaklaştır −','−',()=>renderer.zoom(1/1.3)),compactButton('Seçili ekipmana odaklan','Odak',()=>{if(selected)renderer.focus(selected.id,selected.sourceClass);}));
+  const advanced=element('details','ga-sld-control-options'),advancedSummary=element('summary','','Seçenekler'),advancedToolbar=element('div','ga-toolbar');advancedSummary.setAttribute('aria-label','Görünüm seçenekleri');advanced.append(advancedSummary,advancedToolbar,voltageFilter.element,bayToolbar,lineBar);advancedToolbar.append(lod,colorMode,layoutSelect,downloadButton,technicalLabel,resultsLabel,arrowsLabel);toolbar.append(advanced,panelToggle);
+  let expanded=false,resizeFrame=0;
+  function sizeWorkspace():void {root.style.height=(expanded?innerHeight:Math.max(240,innerHeight-Math.max(0,root.getBoundingClientRect().top)-(document.querySelector('.ga-footer')?.getBoundingClientRect().height??8)-12))+'px';}
+  function setPanel(open:boolean):void {sidePanel.hidden=!open;panelToggle.setAttribute('aria-expanded',String(open));resize();}
+  const fullscreen=actionButton('Tam ekran',()=>{void (async()=>{if(document.fullscreenElement===root){await document.exitFullscreen();return;}if(expanded){expanded=false;root.classList.remove('ga-sld-expanded');fullscreen.textContent='Tam ekran';resize();return;}try{await root.requestFullscreen();}catch{expanded=true;root.classList.add('ga-sld-expanded');fullscreen.textContent='Tam ekrandan çık';resize();}})();});toolbar.append(fullscreen);
+  const fullscreenChange=()=>{expanded=document.fullscreenElement===root;fullscreen.textContent=expanded?'Tam ekrandan çık':'Tam ekran';resize();};
+  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&expanded&&!document.fullscreenElement){expanded=false;root.classList.remove('ga-sld-expanded');fullscreen.textContent='Tam ekran';resize();}};
+  const resize=()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{sizeWorkspace();redraw();});};
+  window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',fullscreenChange);window.addEventListener('keydown',escape);
+  // Options only reveal existing controls; opening them must not reset the SVG viewport.
+  advanced.ontoggle=()=>{advancedSummary.setAttribute('aria-expanded',String(advanced.open));};
+  resizeFrame=requestAnimationFrame(()=>{sizeWorkspace();redraw();});
   baySearch.oninput=()=>{if(stationData)drawFeederPicker(stationData);};bayGroup.onchange=()=>{if(stationData)drawFeederPicker(stationData);};technical.onchange=()=>{lastRenderKey='';void render();};
   bayPicker.onchange=()=>{const feeder=stationData?.graph.feeders.find(f=>f.id===bayPicker.value);if(!feeder)return;selectedBayId=feeder.id;selectEquipment(feeder.sourceClass==='ElmBay'?feeder.id:feeder.id.slice(feeder.id.indexOf('|')+1),feeder.sourceClass);};
 
@@ -282,7 +296,7 @@ export function createSldView(ctx: AppContext): Feature {
         quickSwitch.hidden=false;quickSwitch.dataset.switchId=entity.id;quickSwitch.append(element('strong','',`${name} · ${entity.id} · ${active?'Kapalı':'Açık'}`),element('p','ga-muted','Yerel senaryo simülasyonu'));
         quickSwitch.title='Yalnız yerel senaryo değişir; fiziksel işletme komutu gönderilmez. Kapalı konum enerjilenme kanıtı değildir.';
         const buttons=element('div','ga-actions');buttons.append(actionButton('Aç',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton('Kapat',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton('Değiştir + Senaryo Full AC hesapla',()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)),actionButton('Manevra kartını kapat',()=>{quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}));
-        for(const button of buttons.querySelectorAll('button'))button.disabled=ctx.busy;quickSwitch.append(buttons);quickSwitch.onkeydown=e=>{if(e.key==='Escape'){quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}};diagramHost.append(quickSwitch);
+        for(const button of buttons.querySelectorAll('button'))button.disabled=ctx.busy;quickSwitch.append(buttons);quickSwitch.onkeydown=e=>{if(e.key==='Escape'){quickSwitch.hidden=true;renderer.focus(entity.id,entity.sourceClass);}};canvasPane.append(quickSwitch);
       }
       actions.append(actionButton(key==='switchState'?'Senaryoda kapat':'Senaryoda servise al',()=>void ctx.setStatus(key,entity.id,true,source)),actionButton(key==='switchState'?'Senaryoda aç':'Senaryoda servis dışı',()=>void ctx.setStatus(key,entity.id,false,source)),actionButton(`Değiştir + Senaryo Full AC hesapla`,()=>void ctx.setStatus(key,entity.id,!active,source,true)),actionButton('Kaynağa dön',()=>void ctx.setStatus(key,entity.id,source,source)));
       }
@@ -300,7 +314,7 @@ export function createSldView(ctx: AppContext): Feature {
     if(selected?.id!==id||selected.sourceClass!==sourceClass)detailTab='Genel';
     const feeder=stationData?.graph.feeders.find(f=>sourceClass==='ElmBay'?f.id===id:f.equipmentKeys.includes(keyOf(sourceClass,id)));
     if(feeder&&scope==='bay')selectedBayId=feeder.id;
-    selected = { id, sourceClass }; ctx.select(id, sourceClass); renderDetail(); lastRenderKey = '';
+    selected = { id, sourceClass }; setPanel(true);ctx.select(id, sourceClass); renderDetail(); lastRenderKey = '';
     // Render immediately so the selected symbol is emphasized; the parent shell
     // may also call render after the context notification, which is deduplicated.
     void render();
@@ -406,6 +420,8 @@ export function createSldView(ctx: AppContext): Feature {
     else info.textContent = `${site.name} · ${data?.graph.busSections.length||0} bara bölümü · ${data?.bays.length||0} kaynak fider · ${data?.graph.terminals.length||0} terminal · yatay bara / dikey fider. Sürükle: kaydır · tekerlek: yakınlaştır.`;
     if(ctx.n1DetailLoading)info.textContent+=' · Seçili N-1 ayrıntısı hesaplanıyor…';
     else if(diagram.n1Detail)info.textContent+=` · N-1 kesinti: ${diagram.n1Detail.candidate.name} · ${diagram.n1Detail.outageIslands.length} ada · Kırmızı risk bandı >90%, sert limit aşımı >100%.`;
+    info.title=info.textContent+' '+sourceNotice;
+    info.textContent=`${site.name} · ${scope==='station'?`${data?.graph.busSections.length??0} bara · ${data?.graph.feeders.length??0} fider`:scope==='bay'?`${diagram.switches.length} anahtar`:`${diagram.regionalBranches.length} hat`} · ${ctx.scenario.selectedId} · ${calculationEngineLabel(ctx)} · ${diagram.overlay?.status??'NOT_RUN'}`;
     renderDetail();
     lastRenderKey=makeRenderKey(network,site);
   }
@@ -420,7 +436,7 @@ export function createSldView(ctx: AppContext): Feature {
     const xml = renderer.exportSvg();if(!xml)return;
     const site = currentSite(); downloadText(xml, `YTBS_SLD_${site?.id || 'TM'}.svg`, 'image/svg+xml;charset=utf-8');
   });
-  const unsubscribe = () => {window.removeEventListener('resize',resize);cancelAnimationFrame(resizeFrame);};
+  const unsubscribe = () => {window.removeEventListener('resize',resize);document.removeEventListener('fullscreenchange',fullscreenChange);window.removeEventListener('keydown',escape);cancelAnimationFrame(resizeFrame);};
   if (ctx.view === 'sld') void render();
   return { element: root, render: () => { void render(); }, dispose: unsubscribe };
 }
