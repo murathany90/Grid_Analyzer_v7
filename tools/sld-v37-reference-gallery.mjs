@@ -2,7 +2,7 @@ import {readFile,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {chromium} from 'playwright';
 const dir=resolve('local-benchmark-results/sld-v37-three-references'),browser=await chromium.launch({headless:true}),page=await browser.newPage();
-const fit=async(xml,box,width,height)=>{await page.setContent(xml);return page.locator('svg').evaluate((e,{box,width,height})=>{e.setAttribute('viewBox',box.join(' '));e.setAttribute('width',width);e.setAttribute('height',height);e.setAttribute('style',`width:${width}px;height:${height}px;background:#fff`);return new XMLSerializer().serializeToString(e);},{box,width,height});};
+const fit=async(xml,box,width,height)=>{await page.setContent(xml);return page.locator('svg').evaluate((e,{box,width,height})=>{e.setAttribute('viewBox',box.join(' '));e.setAttribute('width',width);e.setAttribute('height',height);e.setAttribute('style',`width:${width}px;height:${height}px;background:#fff;--sld-paper:#fff`);return new XMLSerializer().serializeToString(e);},{box,width,height});};
 try{
  const data=[['M937','KARAPINAR',9600,6200,[700,650,8100,4850]],['M1482','KAYAŞ',7800,10100,[800,650,6300,7450]],['M890','TEMELLİ',12600,10100,[700,650,11000,7300]]],panels=[];
  for(const [id,name,rw,rh,crop]of data){const xml=await readFile(resolve(dir,`AFTER-${id}.svg`),'utf8'),[,w,h]=xml.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/),ref=await readFile(`local-benchmark-results/sld-v34/YTBS-${id}.png`),refSvg=`<svg xmlns="http://www.w3.org/2000/svg"><image width="${rw}" height="${rh}" href="data:image/png;base64,${ref.toString('base64')}"/></svg>`;
