@@ -16,6 +16,7 @@ export function inspectPilotSvg(xml,graph,scope='400'){
  const errors=[],pilotErrors=[],record=(message,owner)=>{errors.push(message);if(pilotOwners.has(owner))pilotErrors.push(message);},ledger=[];
  for(const s of switches){const id=s['data-id'],source=native.get(id),own=paths.filter(p=>p.owner===id),a=own.find(p=>p.a['data-contact-side']==='FROM'),b=own.find(p=>p.a['data-contact-side']==='TO');
   if(!source||source.from!==s['data-from']||source.to!==s['data-to'])record('Source endpoint mismatch '+id,id);
+  if(s['data-chain-ordering']==='SOURCE_ORDER_UNAVAILABLE'){if(source?.from!==source?.to||a||b)record('Unresolved cubicle order invented a circuit '+id,id);continue;}
   for(const [p,terminal,contact,side]of[[a,source?.from,s['data-contact-in'],'FROM'],[b,source?.to,s['data-contact-out'],'TO']]){
    if(!p||!contact){record('Missing contact conductor '+id,id);continue;}
    const raw=p.a['data-source-conductor']??p.a.d,pts=[...raw.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map(m=>[+m[1],+m[2]]),node=side==='FROM'?pts[0]:pts.at(-1),tip=side==='FROM'?pts.at(-1):pts[0],rail=rails.find(r=>r.id===terminal);

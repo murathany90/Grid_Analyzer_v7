@@ -86,7 +86,11 @@ function clearFeederLabel(root:SVGSVGElement,g:SVGGElement){
  for(const line of root.querySelectorAll<SVGPathElement>('path[data-connection]')){const matrix=inverse.multiply(line.getScreenCTM()!),points=[...line.getAttribute('d')!.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map(m=>new DOMPoint(Number(m[1]),Number(m[2])).matrixTransform(matrix));for(let i=1;i<points.length;i++){const a=points[i-1],b=points[i];others.push({left:Math.min(a.x,b.x),right:Math.max(a.x,b.x),top:Math.min(a.y,b.y),bottom:Math.max(a.y,b.y)});}}
  const hit=(a:ReturnType<typeof world>,b:ReturnType<typeof world>)=>a.left<b.right+3&&a.right>b.left-3&&a.top<b.bottom+3&&a.bottom>b.top-3;
  for(const [dx,dy]of [[0,0],...Array.from({length:12},(_,i)=>i+1).flatMap(n=>[[0,n*40],[0,-n*40],[-n*24,0],[n*24,0],[-n*24,40],[n*24,40],[-n*24,-40],[n*24,-40]])]){g.setAttribute('transform',`translate(${dx} ${dy})`);const captions=[...g.querySelectorAll('text')].map(world);if(captions.some(b=>b.left<10||b.right>box.width-10||b.top<65||b.bottom>box.height-45))continue;if(!captions.some(c=>others.some(o=>hit(c,o))))return;}
- throw Error('SLD_LABEL_PACKING_UNRESOLVED: '+(g.dataset.feederMarker??g.dataset.equipmentCaption));
+ // Dense source-only components can exhaust the local caption area. Add a
+ // caption row to the sheet instead of losing the entire station drawing.
+ g.removeAttribute('transform');const own=world(g),dx=24-own.left,dy=box.height+24-own.top;
+ g.setAttribute('transform',`translate(${dx} ${dy})`);g.dataset.captionOverflow='true';
+ root.setAttribute('viewBox',`0 0 ${Math.max(box.width,own.right-own.left+48)} ${box.height+own.bottom-own.top+90}`);
 }
 export function fullDiagramClone(root:SVGSVGElement,fitBox:readonly number[]):SVGSVGElement {
   const clone=root.cloneNode(true) as SVGSVGElement;clone.setAttribute('viewBox',fitBox.join(' '));clone.setAttribute('width',String(fitBox[2]));clone.setAttribute('height',String(fitBox[3]));clone.style.width=fitBox[2]+'px';clone.style.height=fitBox[3]+'px';return clone;
@@ -185,10 +189,10 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   for(const p of layout.feeders){const issues=graph.issues.filter(i=>i.sourceId===p.feeder.id);if(!issues.length)continue;const g=group(root,p.feeder.id,p.feeder.sourceClass,p.feeder.name,select,issues.map(i=>i.reason).join('\n'));g.dataset.unresolved='true';text(g,p.x,p.y+25,'Uç belirsiz · '+p.feeder.name,9,'#ffd27e','middle');}
   if(bayReadouts&&!readoutCount){const f=graph.feeders[0],end=f?feederDrawingPath(graph,f)?.terminals.at(-1):null,entry=end?d.overlay?.entries.get('ElmTerm|'+end):null;if(entry){const readout=svg('g',{'data-bay-readout':'ElmTerm|'+end},root);text(readout,layout.width+18,110,'Fider terminali · '+end,10);entry.lines.forEach((line,i)=>text(readout,layout.width+18,132+i*16,line,9,muted));readoutCount++;}}
   if(bayReadouts)root.setAttribute('viewBox',`0 0 ${layout.width+280} ${Math.max(layout.height,readoutCount*112+190)}`);
-  text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · cubicle ${graph.counters.missingCubicleReferences} · ${layout.slots.filter(s=>!s.side).length} sınıflanamayan fider · ${layout.routes.filter(r=>r.ordering==='SOURCE_ORDER_UNAVAILABLE').length} belirsiz cihaz sırası`,11,muted);
+  text(root,24,root.viewBox.baseVal.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · cubicle ${graph.counters.missingCubicleReferences} · ${layout.slots.filter(s=>!s.side).length} sınıflanamayan fider · ${layout.routes.filter(r=>r.ordering==='SOURCE_ORDER_UNAVAILABLE').length} belirsiz cihaz sırası`,11,muted);
   if(d.overlay&&['LF','N1','SC'].includes(d.mode??''))text(root,24,layout.height-52,`${d.mode} ${d.overlay.phase} · ${d.overlay.status} · ${d.overlay.method}`,10,muted);
   const lines=[...root.querySelectorAll<SVGPathElement>('path[data-connection][data-native-terminal]')],conductors=lines.map(line=>({terminalId:line.dataset.nativeTerminal!,points:[...line.getAttribute('d')!.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map(m=>[Number(m[1]),Number(m[2])] as const)}));
-  const referenceRails=['M1482','M937','M890','M1555'].includes(graph.siteId)?layout.sections.map(s=>({id:s.section.id,x1:s.x1,x2:s.x2,y:s.y})):[];
+  const referenceRails=layout.sections.map(s=>({id:s.section.id,x1:s.x1,x2:s.x2,y:s.y}));
   const passes=new Map<number,ReturnType<typeof railPassPath>['passes']>();
   for(const [i,c]of conductors.entries()){
     const result=railPassPath(c.points,c.terminalId,referenceRails);if(!result.passes.length)continue;

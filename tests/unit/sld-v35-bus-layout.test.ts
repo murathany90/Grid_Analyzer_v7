@@ -52,13 +52,13 @@ test('Cell width follows real attachments, never a packing weight or a name',()=
  assert.ok(bare>=80,'a drawn bay still needs symbol and caption clearance');
 });
 
-test('Busbar rails are separated by the real attachment demand, not by one frozen constant',()=>{
+test('Reference busbar rails stay compact while attachment demand reserves independent feeder lanes',()=>{
  const f=ytbsFixture();for(const b of ['B1','B2','B3'])f.line(b,154);
  const g=f.graph(),p=connectedStationLayout(g,allVoltageBands());
  const groups=new Map<string,number[]>();
  for(const s of p.sections){const key=[s.section.voltageKv,s.x1,s.x2].join('|');groups.set(key,[...(groups.get(key)??[]),s.y]);}
  let measured=0;
- for(const ys of groups.values()){ys.sort((a,b)=>a-b);for(let i=1;i<ys.length;i++){assert.ok(ys[i]-ys[i-1]>20&&ys[i]-ys[i-1]<200,'rail gap must stay in a drawn, usable band');measured++;}}
+ for(const ys of groups.values()){ys.sort((a,b)=>a-b);for(let i=1;i<ys.length;i++){assert.equal(ys[i]-ys[i-1],18,'selectors occupy external cells rather than widening the rail bundle');measured++;}}
  assert.ok(measured>0,'the fixture must actually contain a multi-rail busbar group');
 });
 
