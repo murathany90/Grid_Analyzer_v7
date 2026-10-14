@@ -10,6 +10,8 @@ TM kimliğine bağlı çizim ayrımı kaldırıldı. Kayaş, Temelli, Karapınar
 - OTR kesici/ayırıcıları kaynak cihaz türünü, FID’yi, FROM/TO uçlarını ve açık/kapalı durumunu korur. Gerçek sargı uçları ve kaynakta mevcut seri zincirler birlikte gösterilir.
 - Yoğun merkezlerde yerleşim daha geniş hücrelerle yeniden denenir. Yazı sığmadığında pafta ve çerçeve büyür; bütün merkez kaybolmaz. Barasız GTR/jeneratör bileşenleri ayrı ama kompakt yerleşir.
 - Gerilim bilgisi olmayan TM’ler seçim listesinden saklanmaz. Kaynak terminal/ekipman bağlantısı bulunmayan merkezlerde açık bir veri eksikliği mesajı gösterilir.
+- Şönt reaktör, kapasitör bataryası, seri reaktör ve seri kapasitör ayrı sembol türleridir. Şönt sınıfı kanonik modelin kaynakla çözümlenen Q değerinden, seri eleman sınıfı çözümlenen X değerinden belirlenir; cihaz adı sınıflandırma kanıtı değildir. Geçersiz/belirsiz reaktif veri açıkça genel reaktif eşdeğer olarak gösterilir. Şöntün tek kaynak terminali korunur; kaynakta olmayan toprak veya nötr bağlantısı eklenmez.
+- Seri elemanların FROM/TO FID’leri iki ayrı sembol kontağına bağlanır; aynı kontaktan iki terminal çizerek elemanın görsel kısa devre olması engellenir. `ElmSind` kayıtları gerçek `bus1/bus2 → StaCubic.fold_id` uçlarıyla gösterilebilir; kanonik hesap desteği bulunmadığı paftada belirtilir. SN3 modelinde bu sınıfa ait kayıt yoktur; kural kaynak cubicle’ları içeren test modeliyle denetlenir.
 
 ## Gerçek model doğrulaması
 

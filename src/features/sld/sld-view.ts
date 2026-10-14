@@ -48,8 +48,8 @@ function equipmentRecord(entity: Entity, network: CanonicalNetwork, buses: Map<s
   const line = entity.sourceClass === 'ElmLne' ? entity as Line : null;
   const transformer = entity.sourceClass === 'ElmTr2' ? entity as Transformer2W : null;
   const switchEntity = entity.sourceClass === 'ElmCoup' || entity.sourceClass === 'StaSwitch' ? entity as Switch : null;
-  const busIds = line || transformer || switchEntity
-    ? [line?.from || transformer?.from || switchEntity?.from || '', line?.to || transformer?.to || switchEntity?.to || ''].filter(Boolean)
+  const busIds = 'from' in entity && 'to' in entity
+    ? [String(entity.from), String(entity.to)].filter(Boolean)
     : 'bus' in entity && typeof entity.bus === 'string' ? [entity.bus] : [];
   const siteIds = new Set(entity.siteIds);
   for (const busId of busIds) for (const siteId of buses.get(busId)?.siteIds || []) siteIds.add(siteId);
@@ -105,10 +105,10 @@ function buildNetworkIndex(network: CanonicalNetwork, ctx: AppContext): NetworkI
 }
 
 async function fetchStationData(ctx: AppContext, network: CanonicalNetwork, site: Site): Promise<StationData> {
-  const classes = ['ElmBay', 'ElmTerm', 'StaCubic', 'ElmCoup', 'ElmSubstat', 'StaSwitch', 'ElmTr3', 'ElmTr2'] as const;
+  const classes = ['ElmBay', 'ElmTerm', 'StaCubic', 'ElmCoup', 'ElmSubstat', 'StaSwitch', 'ElmTr3', 'ElmTr2', 'ElmSind'] as const;
   const results = await Promise.all(classes.map(async className => network.classCounts[className]
     ? (await fetchCatalogAll(ctx, className, { siteId: site.id })).rows : []));
-  const [bays, terminals, cubicles, couplers, substats, stationSwitches,threeWinding,twoWinding] = results;const switches=[...couplers,...stationSwitches];
+  const [bays, terminals, cubicles, couplers, substats, stationSwitches,threeWinding,twoWinding,seriesReactors] = results;const switches=[...couplers,...stationSwitches];
   const unsupportedEquipment=[...threeWinding.map(r=>({...r,sourceClass:'ElmTr3'})),...twoWinding.filter(r=>!network.transformers.some(t=>t.id===r.id&&network.buses.some(b=>b.id===t.from)&&network.buses.some(b=>b.id===t.to))).map(r=>({...r,sourceClass:'ElmTr2'}))];
   const rawByKey = new Map<string, CatalogRow>();
   classes.forEach((className, index) => results[index].forEach(row => rawByKey.set(keyOf(className, row.id), row)));
@@ -116,7 +116,7 @@ async function fetchStationData(ctx: AppContext, network: CanonicalNetwork, site
   for (const row of terminals) { const parent = field(row, 'fold_id'); const list = terminalsByBay.get(parent) || []; list.push(row); terminalsByBay.set(parent, list); }
   for (const row of cubicles) { const terminal = field(row, 'fold_id'); const list = cubiclesByTerminal.get(terminal) || []; list.push(row); cubiclesByTerminal.set(terminal, list); }
   for (const row of switches) { const direct=field(row,'fold_id'),cub=cubicles.find(c=>c.id===direct),term=cub?terminals.find(t=>t.id===field(cub,'fold_id')):null;const parent=term?field(term,'fold_id'):direct; const list = switchesByBay.get(parent) || []; list.push(row); switchesByBay.set(parent, list); }
-  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats,unsupportedEquipment,transformers:twoWinding}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
+  return { graph:buildStationTopologyGraph(network,site.id,{bays,terminals,cubicles,switches,substats,unsupportedEquipment,transformers:twoWinding,seriesReactors}),bays, terminals, cubicles, switches, substats, rawByKey, baysById: new Map(bays.map(row => [row.id, row])),
     terminalsByBay, cubiclesByTerminal, switchesByBay, substatsById: new Map(substats.map(row => [row.id, row.name || row.id])) };
 }
 

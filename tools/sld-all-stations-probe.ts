@@ -4,13 +4,13 @@ import {buildStationTopologyGraph,type StationSources} from '../src/domain/model
 import {connectedStationLayout} from '../src/features/sld/physical-layout';
 import {allVoltageBands} from '../src/domain/model/voltage-band';
 const {network,source}=await loadBenchmarkModel(new File([await readFile('.local-fixtures/powerfactory/SN3/20261007_1400_SN3_TR0.zip')],'SN3.zip'),(phase,info)=>console.log(phase,info));
-const classes=['ElmBay','ElmTerm','StaCubic','ElmCoup','StaSwitch','ElmSubstat','ElmTr2','ElmTr3'];
+const classes=['ElmBay','ElmTerm','StaCubic','ElmCoup','StaSwitch','ElmSubstat','ElmTr2','ElmTr3','ElmSind'];
 const report=[];const selected=[];const graphs=[];
 for(const site of network.sites){
  const raw=Object.fromEntries(classes.map(cls=>[cls,source.getEquipmentForSite(site.id,cls).map(r=>({id:String(r.FID),name:String(r.loc_name??r.FID),attributes:source.get(cls,r.FID)??r}))]));
  if(!raw.ElmTerm.length)continue;
- const seen=new Set(raw.StaCubic.map(r=>r.id));for(const r of [...raw.ElmCoup,...raw.StaSwitch,...raw.ElmTr2,...raw.ElmTr3])for(const field of ['bus1','bus2','bushv','busmv','buslv','fold_id']){const cid=String(r.attributes[field]??''),cub=source.get('StaCubic',cid);if(cub&&!seen.has(cid)){raw.StaCubic.push({id:cid,name:String(cub.loc_name??cid),attributes:cub});seen.add(cid);}}
- const sources:StationSources={bays:raw.ElmBay,terminals:raw.ElmTerm,cubicles:raw.StaCubic,switches:[...raw.ElmCoup,...raw.StaSwitch],substats:raw.ElmSubstat,transformers:raw.ElmTr2,unsupportedEquipment:raw.ElmTr3.map(r=>({...r,sourceClass:'ElmTr3'}))};
+ const seen=new Set(raw.StaCubic.map(r=>r.id));for(const r of [...raw.ElmCoup,...raw.StaSwitch,...raw.ElmTr2,...raw.ElmTr3,...raw.ElmSind])for(const field of ['bus1','bus2','bushv','busmv','buslv','fold_id']){const cid=String(r.attributes[field]??''),cub=source.get('StaCubic',cid);if(cub&&!seen.has(cid)){raw.StaCubic.push({id:cid,name:String(cub.loc_name??cid),attributes:cub});seen.add(cid);}}
+ const sources:StationSources={bays:raw.ElmBay,terminals:raw.ElmTerm,cubicles:raw.StaCubic,switches:[...raw.ElmCoup,...raw.StaSwitch],substats:raw.ElmSubstat,transformers:raw.ElmTr2,seriesReactors:raw.ElmSind,unsupportedEquipment:raw.ElmTr3.map(r=>({...r,sourceClass:'ElmTr3'}))};
  const graph=buildStationTopologyGraph(network,site.id,sources),modes=[];
  graphs.push({site,graph});
  if(process.argv.includes('--graphs-only'))continue;

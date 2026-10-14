@@ -1,8 +1,9 @@
 import type { CanonicalNetwork, Bus, Entity } from './network';
 import { voltageMatches, type VoltageBand } from './voltage-band';
 import {sourceSwitchKind,type SourceSwitchKind} from './switch-usage';
+import {shuntSymbol,seriesSymbol,type ReactiveSymbol} from './reactive-symbol';
 export interface StationSourceRow { id:string;name:string;attributes:Readonly<Record<string,unknown>>;sourceClass?:string }
-export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[] }
+export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[];seriesReactors?:readonly StationSourceRow[] }
 export type StationIssueKind='invalidSwitchEndpoints'|'unresolvedFeederTerminals'|'unresolvedEquipmentConnections'|'missingCubicleReferences'|'ambiguousBusSections'|'unsupportedEquipmentConnections';
 export interface StationIssue {kind:StationIssueKind;sourceClass:string;sourceId:string;field:string;reference:string;reason:string}
 export interface StationConnection {key:string;sourceClass:string;sourceId:string;kind:'switch'|'equipment';terminals:string[];cubicleIds:string[]}
@@ -11,7 +12,7 @@ export interface Feeder { id:string;name:string;sourceClass:string;voltageKv:num
 export interface StationTopologyGraph {
   siteId:string;busSections:BusSection[];feeders:Feeder[];terminals:Bus[];
   switches:{id:string;sourceId:string;sourceClass:string;from:string;to:string;kind:SourceSwitchKind;bayId:string|null;cubicleId?:string;equipmentId?:string;sourceOrder?:number;stateKnown:boolean;sourceUsage?:string}[];
-  equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string;autoTransformer?:boolean;typeEvidence?:string}[];
+  equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string;autoTransformer?:boolean;typeEvidence?:string;reactiveSymbol?:ReactiveSymbol;diagramOnly?:boolean}[];
   voltageLevels:number[];sourceFeederCount:number;unresolvedEndpoints:number;
   connections:StationConnection[];issues:StationIssue[];counters:Record<StationIssueKind|'diagramUnresolvedTotal',number>;
 }
@@ -33,6 +34,8 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
   const equipment:StationTopologyGraph['equipment']=[];
   const append=(items:readonly Entity[],kind:string)=>{for(const e of items){const ends='from'in e&&'to'in e?[String(e.from),String(e.to)]:'bus'in e?[String(e.bus)]:[];if(!ends.some(t=>termById.get(t)?.siteIds.includes(siteId)))continue;equipment.push({id:e.id,name:e.name,sourceClass:e.sourceClass,terminals:ends,kind});}};
   append(network.lines,'line');append(network.transformers,'transformer');append(network.generators,'generator');append(network.loads,'load');append(network.shunts,'shunt');append(network.externalGrids,'externalGrid');append(network.seriesCompensators,'seriesCompensator');
+  for(const e of equipment){if(e.kind==='shunt'){const shunt=network.shunts.find(s=>s.id===e.id)!;e.reactiveSymbol=shuntSymbol(shunt);e.typeEvidence=`${e.sourceClass}|${e.id} · ${shunt.stepProvenance??'canonical bPu'} · Q=${shunt.nominalQMvar??shunt.bPu}`;}else if(e.kind==='seriesCompensator'){const series=network.seriesCompensators.find(s=>s.id===e.id)!;e.reactiveSymbol=seriesSymbol(series);e.typeEvidence=`${e.sourceClass}|${e.id} · canonical xOhm=${series.xOhm}`;}}
+  for(const row of source.seriesReactors??[]){const ends=['bus1','bus2'].map(f=>String(cubicles.get(String(row.attributes[f]??''))?.attributes.fold_id??''));equipment.push({id:row.id,name:row.name,sourceClass:'ElmSind',terminals:ends,kind:'seriesCompensator',reactiveSymbol:'series-reactor',typeEvidence:`ElmSind|${row.id} · bus1/bus2 → StaCubic.fold_id`,diagramOnly:true});}
   for(const e of equipment.filter(e=>e.kind==='transformer')){const raw=source.transformers?.find(r=>r.id===e.id),value=raw?.attributes.i_auto;if(value===0||value===1||value===false||value===true){e.autoTransformer=Boolean(value);e.typeEvidence=`ElmTr2|${e.id}.i_auto · DGS Documentation B.1.8 (PDF p.61)`;}}
   for(const row of source.unsupportedEquipment??[]){const cls=row.sourceClass??'ElmTr3',fields=cls==='ElmTr3'?['bushv','busmv','buslv']:['bushv','buslv'],ends=fields.map(f=>String(cubicles.get(String(row.attributes[f]??''))?.attributes.fold_id??''));equipment.push({id:row.id,name:row.name,sourceClass:cls,terminals:ends,kind:cls==='ElmTr3'?'transformer3w':'transformer'});}
   equipment.sort(order);
@@ -70,6 +73,7 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
     if(!feederSwitchPaths(graph,f).length&&!f.busSectionIds.length&&!shared)issue('unresolvedFeederTerminals',f.sourceClass,f.id,'terminalIds',f.terminalIds.join(','),'Bara yolu veya ortak ekipman terminali çözümlenemedi');
   }
   for(const row of source.unsupportedEquipment??[])issue('unsupportedEquipmentConnections',row.sourceClass??'ElmTr3',row.id,'winding',String(row.attributes.bushv??''),'Canonical hesap bağlantısı desteklenmiyor; yalnız kaynak portları gösterilebilir');
+  for(const row of source.seriesReactors??[])issue('unsupportedEquipmentConnections','ElmSind',row.id,'bus1/bus2',String(row.attributes.bus1??''),'Seri reaktör kaynak portları gösterilir; kanonik hesap modeli desteklenmiyor');
   for(const terminal of terminals){const row=rawTerms.get(terminal.id);if(row?.attributes.iUsage==null&&!bays.has(terminal.parentId))issue('ambiguousBusSections','ElmTerm',terminal.id,'iUsage','','Bara/terminal kullanımı kaynakta yok; terminal kimliği korunur, bara tahmin edilmez');}
   for(const record of graph.issues)graph.counters[record.kind]++;
   graph.counters.diagramUnresolvedTotal=graph.issues.length;

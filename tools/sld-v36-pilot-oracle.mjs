@@ -30,6 +30,12 @@ export function inspectPilotSvg(xml,graph,scope='400'){
   }
  }
  // Every declared source centerline interval must exist in the visible same-net
+ for(const e of equipment.filter(e=>e['data-reactive-type'])){
+  const source=graph.equipment.find(s=>s.id===e['data-id']&&s.sourceClass===e['data-class']),contacts=JSON.parse(e['data-source-contacts']??'[]'),own=paths.filter(p=>p.owner===e['data-id']);
+  if(!source||source.reactiveSymbol!==e['data-reactive-type'])record('Reactive source type mismatch '+e['data-id'],e['data-id']);
+  for(const c of contacts){if(source?.terminals[c.side]!==c.terminal)record('Reactive source FID mismatch '+e['data-id'],e['data-id']);const path=own.find(p=>p.terminal===c.terminal),raw=path?.a['data-source-conductor']??path?.a.d??'',pts=[...raw.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map(m=>[+m[1],+m[2]]);if(!path||!near(pts.at(-1),c.point))record('Detached reactive contact '+e['data-id'],e['data-id']);}
+  if(source?.kind==='seriesCompensator'&&contacts.length===2&&near(contacts[0].point,contacts[1].point))record('Shorted reactive element contacts '+e['data-id'],e['data-id']);
+ }
  // union, apart from an independently validated optical rail passage.
  for(const p of paths.filter(p=>p.a['data-source-conductor']))for(const [a,b]of segmentsOf(p.a['data-source-conductor'])){
   const v=a[0]===b[0],axis=v?1:0,fixed=v?0:1,lo=Math.min(a[axis],b[axis]),hi=Math.max(a[axis],b[axis]),ranges=paths.filter(q=>q.terminal===p.terminal).flatMap(q=>q.segments).filter(([u,w])=>u[fixed]===a[fixed]&&w[fixed]===a[fixed]).map(([u,w])=>[Math.min(u[axis],w[axis]),Math.max(u[axis],w[axis])]);

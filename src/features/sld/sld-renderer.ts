@@ -155,6 +155,11 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     }else if(e.kind==='line'){
       g.dataset.exitDirection=geo.direction<0?'UP':'DOWN';const remoteId=flowSide==='FROM'?item.toSiteId:item.fromSiteId,remote=d.regionalSites.find(s=>s.id===remoteId);
       svg('path',{d:`M${x},${y-geo.direction*16} L${x},${y} M${x-7},${y-geo.direction*8} L${x},${y} L${x+7},${y-geo.direction*8}`,fill:'none',stroke:color,'stroke-width':2},g);if(!overview&&!bayReadouts){wrappedText(g,x,y+geo.direction*27,remote?.name??e.name,24,10);text(g,x,y+geo.direction*45,e.id,9,muted,'middle');}
+    }else if(e.reactiveSymbol){
+      const rotation=e.kind==='seriesCompensator'?geo.rotation??0:geo.direction<0?180:0,glyph=svg('g',{transform:`rotate(${rotation} ${x} ${y})`},g);
+      engineeringSymbol(glyph,e.reactiveSymbol,x,y,color);g.dataset.reactiveType=e.reactiveSymbol;g.dataset.typeEvidence=e.typeEvidence??'';g.dataset.nativeFrom=e.terminals[0];g.dataset.nativeTo=e.terminals[1]??'';g.dataset.sourceContacts=JSON.stringify(geo.ports.map(p=>({terminal:p.terminalId,side:p.side,point:p.point})));g.dataset.calculationSupport=e.diagramOnly?'UNSUPPORTED':'CANONICAL';
+      const caption=svg('g',{'data-equipment-caption':e.id},g);text(caption,x+24,y-5,shorten(e.name,26),10);text(caption,x+24,y+12,({'shunt-reactor':'Şönt reaktör','capacitor-bank':'Kapasitör bataryası','series-reactor':'Seri reaktör','series-capacitor':'Seri kapasitör','reactive-equivalent':'Reaktif eleman · tür doğrulanamadı'} as const)[e.reactiveSymbol],9,muted);
+      if(e.diagramOnly)text(caption,x+24,y+27,'Hesap modeli desteklenmiyor',9,muted);
     }else {symbol(g,x,y,e.sourceClass,color);if(!overview)wrappedText(g,x,y+26,e.name,24,10);}
     svg('rect',{x:x-15,y:y-20,width:30,height:40,fill:'transparent','pointer-events':'all','data-equipment-hit':e.id},g);
     if(d.selectedId===e.id)svg('circle',{cx:x,cy:y,r:21,fill:'none',stroke:'#ffe382','pointer-events':'none'},g);
@@ -165,7 +170,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   // A native bay endpoint is a feeder continuation, even when the export has no
   // ElmLne record. This arrow is presentation geometry, never fabricated gear.
   for(const f of layout.feeders){if(nativeBarCircuit(graph,f.feeder))continue;const main=feederDrawingPath(graph,f.feeder),end=main?.terminals.at(-1),p=end?layout.ports.get(end):null;if(!p||p.semantics==='busbar-section')continue;
-    const actual=layout.equipment.filter(e=>f.feeder.equipmentKeys.includes(e.equipment.sourceClass+'|'+e.equipment.id));if(actual.some(e=>['line','transformer','transformer3w'].includes(e.equipment.kind)))continue;
+    const actual=layout.equipment.filter(e=>f.feeder.equipmentKeys.includes(e.equipment.sourceClass+'|'+e.equipment.id));if(actual.some(e=>['line','transformer','transformer3w','shunt','seriesCompensator'].includes(e.equipment.kind)))continue;
     const sign=p.direction===-1?-1:1,x=p.x,y=p.y+sign*38,last=main?.switchIds.at(-1),g=svg('g',{'data-feeder-exit':f.feeder.id,'data-native-terminal':end!,'data-state-source':last??'UNKNOWN','data-exit-direction':sign<0?'UP':'DOWN'},root),conductor=[...root.querySelectorAll<SVGPathElement>('path[data-native-terminal]')].find(path=>path.dataset.nativeTerminal===end&&path.closest('[data-id]')?.getAttribute('data-id')===last),color=conductor?.getAttribute('stroke')??d.settings.colorNoResult;svg('title',{},g).textContent=`Ok rengi kaynak ana devre iletkenini izler: ${last??'UNKNOWN'}. Alternatif besleme nedeniyle enerji var/yok çıkarımı yapılmaz.`;
     path(g,[[x,p.y],[x,y]],color);svg('path',{d:`M${x-7},${y-sign*8} L${x},${y} L${x+7},${y-sign*8}`,stroke:color,'stroke-width':2,fill:'none'},g);
   }

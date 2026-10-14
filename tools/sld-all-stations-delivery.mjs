@@ -1,6 +1,6 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';import {createHash} from 'node:crypto';import {execFileSync} from 'node:child_process';import {zipSync} from 'fflate';import assert from 'node:assert/strict';
 const dir='local-benchmark-results/sld-all-stations',graphs=JSON.parse(await readFile(dir+'/graphs-private.json','utf8')),byId=new Map(graphs.map(f=>[f.site.id,f]));
-const rows=(await Promise.all(['browser-a-private.json','browser-b-private.json','browser-a-tail-private.json','browser-b-tail-private.json'].map(async p=>JSON.parse(await readFile(dir+'/'+p,'utf8'))))).flat();
+const rows=(await Promise.all(['browser-reactive-a-private.json','browser-reactive-b-private.json'].map(async p=>JSON.parse(await readFile(dir+'/'+p,'utf8'))))).flat();
 assert.equal(rows.length,graphs.length*2);assert.equal(new Set(rows.map(r=>r.site+'|'+r.labels)).size,rows.length);assert.ok(rows.every(r=>r.status==='PASS'));
 const selected=JSON.parse(await readFile(dir+'/selected-browser-private.json','utf8'));assert.equal(selected.length,22);assert.ok(selected.every(r=>r.status==='PASS'&&!r.oracle.errors.length&&!r.oracle.overlap.length&&!r.oracle.foreignTouches.length));
 const ids=[...new Set(selected.map(r=>r.site))],head=execFileSync('git',['rev-parse','HEAD']).toString().trim(),portable=await readFile('dist-portable/GridAnalyzer_v7.html'),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
