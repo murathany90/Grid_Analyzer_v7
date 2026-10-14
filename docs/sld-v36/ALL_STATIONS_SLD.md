@@ -23,9 +23,11 @@ Kalan 65 TM kaydında kaynak terminali yoktur. Bunlara cihaz veya bağlantı uyd
 
 Kayaş OTR kaynak sınırlaması devam eder: örneğin T5133’ün HV cubicle’ı `ft00-13064`, B89867 terminaline bağlıdır; C112442 ayırıcısının diğer ucu B102871’dir. Kaynakta sargı bu son uca bağlı değildir. Ad benzerliğiyle bağlantı değiştirilmedi; bu kaynak uçları ve durumları görünür bırakıldı. Referansla tam elektriksel eşleşme için eksik kaynak ilişkilerinin düzeltilmesi gerekir.
 
+Reaktif çizim denetimi ayrıca 104 gerçek merkezde 208 SVG'yi kapsar: 124 şönt reaktör, 15 kapasitör bataryası ve 15 seri kapasitör. Kaynak türü/terminali, ayrı seri kontaklar, görünür kaynak iletken kapsamı, açık kontakların köprülenmemesi ve yabancı iletken temasları birlikte kontrol edilir. Reaktif semboller artık `?` göstermez. Barasız devrelerin ortak iletkenleri de tek kez çizilir. Ortak HV terminali olan ayrı GSU LV adalarına ayrı geometri ayrılır. Sembol kontaklarına yaklaşım alanı başka devrelerin güzergâhına verilmez.
+
 ## Kontroller ve teslim
 
-584 birim/regresyon testi geçti; silinen veya atlanan test yok. Typecheck, lint, normal/portable build ve dört E2E geçti. Eski geometri kontrolleri yeni kompakt çizim sözleşmesine güncellendi; SVG `M` kesintileri gerçek kesinti olarak okunur ve bağımsız kaynak iletken kapsamı kontrolü eklenmiştir. Eski yatay kuplaj ve geniş bara aralığı beklentileri, kullanıcının istediği ortak referans düzeniyle değiştirilmiştir.
+584 mevcut test ile 5 yeni reaktif ekipman/GSU testi birlikte korundu; toplam 589 birim/regresyon testi geçti; silinen veya atlanan test yok. Typecheck, lint, normal/portable build ve dört E2E geçti. Eski geometri kontrolleri yeni kompakt çizim sözleşmesine güncellendi; SVG `M` kesintileri gerçek kesinti olarak okunur ve bağımsız kaynak iletken kapsamı kontrolü eklenmiştir. Eski yatay kuplaj ve geniş bara aralığı beklentileri, kullanıcının istediği ortak referans düzeniyle değiştirilmiştir.
 
 Portable dosya committed blob ile ham byte düzeyinde aynı ve LF satır sonlarıyla üretilir. Kod geliştirme dalına commit/push edilir; `main` birleştirilmez.
 
