@@ -17,5 +17,5 @@ for(let i=Number(option('--from','0'));i<Math.min(total,Number(option('--to',Str
 if(keep.has(site)){const oracle=inspectPilotSvg(xml,JSON.parse(graphs).find(f=>f.site.id===site).graph,'all');row.oracle=oracle;await writeFile(dir+'/AFTER-'+site+(labels?'-LF':'')+'.svg',xml);await page.locator('svg').screenshot({path:dir+'/UI-'+site+(labels?'-LF':'')+'.png'});}
 }catch(e){row={site,labels,status:'FAIL',error:e.message};}report.push(row);if(row.status==='FAIL')console.log(JSON.stringify(row));}
 if((i+1)%10===0){await writeFile(dir+'/'+reportName,JSON.stringify(report,null,2));console.log('rendered',i+1,'fail',report.filter(r=>r.status==='FAIL').length);}}
-await writeFile(dir+'/browser-private.json',JSON.stringify(report,null,2));console.log('rows',report.length,'fail',report.filter(r=>r.status==='FAIL').length);
+await writeFile(dir+'/'+reportName,JSON.stringify(report,null,2));console.log('rows',report.length,'fail',report.filter(r=>r.status==='FAIL').length);
 }finally{await browser.close();await server.close();}

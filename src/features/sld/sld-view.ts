@@ -247,7 +247,7 @@ export function createSldView(ctx: AppContext): Feature {
     if (!network) { siteSelect.replaceChildren(new Option('Model bekleniyor', '')); return; }
     const previous = siteSelect.value,area=areaSelect.value,areas=[...new Map(network.sites.map(s=>[s.areaId,s.areaName||s.areaId])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'tr'));
     areaSelect.replaceChildren(new Option('Tüm YTM’ler',''),...areas.filter(([id])=>id).map(([id,name])=>new Option(name,id)));areaSelect.value=area;
-    siteSelect.replaceChildren(...network.sites.filter(site=>(!area||site.areaId===area)&&site.voltages.some(v=>voltageMatches(v,ctx.filters.voltages))).slice().sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    siteSelect.replaceChildren(...network.sites.filter(site=>(!area||site.areaId===area)&&(!site.voltages.length||site.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)))).slice().sort((a, b) => a.name.localeCompare(b.name, 'tr'))
       .map(site => new Option(site.name, site.id)));
     siteSelect.value = [...siteSelect.options].some(o=>o.value===previous)?previous:siteSelect.options[0]?.value||'';
   }
