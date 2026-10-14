@@ -19,7 +19,7 @@ Kaynak JSON SHA-256: `f58d958269fd31a95da0203dd0db50db589bac3faec36690bf059e7293
 
 - Her sargı için raw cubicle/fold/obj, canonical terminal ve projeksiyon terminali karşılaştırılır. Eksik transformer veya değiştirilmiş port, eşleme kusuru olarak raporlanır; sayısal model sessizce düzeltilmez.
 - Kaynak yaprakları `graph.issues` sayısından ayrı envanter ve durum taşır. Doğrulanmış kaynak yaprağı hata sayısını yapay olarak artırmaz; eksik kanıt `INSUFFICIENT_SOURCE/UNKNOWN` kalır.
-- Eski “Bağımsız uç” metni yerine seçilebilir **Kaynak yaprağı** açıklaması, terminal FID'si ve kaynak/kalite panelinde raw kanıt vardır. Ekran altı doğrulanmış ve belirsiz yaprakları ayrı sayar.
+- Eski “Bağımsız uç” metni yerine doğrudan kaynak ucuna yerleşen, seçilebilir **ⓘ numaralı kaynak yaprağı göstergesi** vardır. Genel görünümde açıklaması ve sayısı alt satırda görünür; teknik görünüm FID'yi korur. Kaynak/kalite paneli raw kanıtı gösterir. Uçlar veya uyarılar silinmez; uzun yazıların başka sargıların yanında yüzmesi önlenir. Ekran altı doğrulanmış ve belirsiz yaprakları ayrı sayar.
 - Bütün TM'ler aynı algoritmayı kullanır. T5133, TM adı veya örnek ID'si üretim kodunda istisna seçmez. Açık kontaklar ve gerçek bypass korunur. LF/DC/N-1/SC denklemleri değişmedi.
 - Köprüler yalnız kaynak geometrisindeki adayın görünür yabancı iletkenlerde de karşılığı varsa çizilir. Gerçek kesişimler sırf hop sayısını azaltmak için gizlenmez; yoğunluk ve konum listesi ayrıca teslim edilir.
 
@@ -28,3 +28,5 @@ Kaynak JSON SHA-256: `f58d958269fd31a95da0203dd0db50db589bac3faec36690bf059e7293
 1.554 kaynak terminalli TM'de **3.700 trafo / 7.400 sargı** ham–canonical–projeksiyon eşleşmesi verdi. Bağımsız raporun 11 normal SVG'sindeki **50/50** yaprak ham DGS'de aynı sınıftadır. Bunlar sıfırlanacak hata hedefi değildir. Kayaş 9, Temelli 12 ve İç Anadolu 3 yaprağı korunur ve açıklanır. Küçükbakkalköy bankaları ayrıca denetlenir.
 
 Yerel teslim: `local-benchmark-results/sld-v37-source/`. Ham tam model, özel fixture ve kaynak tablo önbelleği Git'e eklenmez. CSV'ler, raw pilot kaydı, gerçek SVG/PNG yakın planlar, önce/sonra/YTBS galerisi ve exact-commit CI kaydı teslim paketindedir. Yazılım kapıları ile operatörün görsel kabulü ayrı raporlanır. Main'e merge yapılmaz.
+
+Ek kontrol: yerelde bulunan `20261012_1400_SN1_TR0.json` (SHA-256 `eb9219a19523184bd36fe9697e19fc4636eb8bb6d21c8c9062f69aa817a88fd1`) Kayaş pilotunu ve 50 kaynak yaprağını aynı bağlantılarla içerir. Ortak 7.398 sargı portu aynı FID uçlarındadır. SN3'teki T13158 bu ikinci snapshotta yoktur; iki eksik sargı satırı model farkıdır. Bu karşılaştırma ikinci bir sayısal LF/SC paritesi iddiası değildir.
