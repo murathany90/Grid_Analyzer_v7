@@ -20,6 +20,15 @@ export interface EquipmentGeometry {equipment:StationTopologyGraph['equipment'][
 /** Orthogonal paths terminate at physical contacts; the renderer consumes them unchanged. */
 export function routeOrthogonalEdges(start:Point,end:Point,options:RoutingOptions={}):Point[]{return optimizedOrthogonalRoute(start,end,options);}
 function wire(start:Point,end:Point,terminalId:string,side:'FROM'|'TO',options:RoutingOptions={}):WireSegment{return {points:routeOrthogonalEdges(start,end,options),terminalId,contact:end,side};}
+function segmentsTouch(a:Point,b:Point,c:Point,d:Point){
+ return Math.max(Math.min(a[0],b[0]),Math.min(c[0],d[0]))<=Math.min(Math.max(a[0],b[0]),Math.max(c[0],d[0]))+.01&&Math.max(Math.min(a[1],b[1]),Math.min(c[1],d[1]))<=Math.min(Math.max(a[1],b[1]),Math.max(c[1],d[1]))+.01;
+}
+/** Different source LV islands may share an HV node, never a drawn LV node. */
+function reserveGsuAxis(x:number,y:number,component:ReadonlyMap<string,number>,step:number,claimed:readonly PortPosition[]){
+ const ranks=new Map<number,number>(),relative=[...component].map(([id,depth])=>{const rank=ranks.get(depth)??0;ranks.set(depth,rank+1);return {id,x:rank*48,y:y+depth*step};});
+ for(let attempt=0;attempt<256;attempt++){const axis=x+attempt*128;if(relative.every(p=>claimed.every(c=>c.terminalId===p.id||Math.abs(axis+p.x-c.x)>=40||Math.abs(p.y-c.y)>=40)))return axis;}
+ throw Error('SLD_GSU_AXES_EXHAUSTED');
+}
 function simplifyConductor(points:Point[]):Point[]{const result:Point[]=[];for(const p of points){const last=result.at(-1);if(last&&last[0]===p[0]&&last[1]===p[1])continue;while(result.length>1){const a=result.at(-2)!,b=result.at(-1)!;if((b[0]-a[0])*(p[1]-b[1])!==(b[1]-a[1])*(p[0]-b[0])||(b[0]-a[0])*(p[0]-b[0])+(b[1]-a[1])*(p[1]-b[1])<=0)break;result.pop();}result.push(p);}return result.length===1?[result[0],result[0]]:result;}
 const pt=(p:PortPosition):Point=>[p.x,p.y];
 type GlyphBox={id:string;x1:number;x2:number;y1:number;y2:number};
@@ -86,7 +95,7 @@ function separateSwitches(routes:SwitchSlot[],equipment:EquipmentGeometry[],bars
    if(!hit.length&&!lanes.length)break;near=[...new Set([...near,...hit]),...lanes];points=routeOrthogonalEdges(start,end,{...options,obstacles:near,existing});}const unresolved=all.filter(o=>obstacleIntersections(points,[o])>0);if(unresolved.length)throw Error('SLD_ROUTE_BLOCKED: '+own+' '+JSON.stringify({start,end,options,hits:unresolved,blockedEnds:all.filter(o=>contains(o,start)||contains(o,end))}));return points;
  };
  for(const r of routes){for(const [i,w]of r.wires.entries()){if(!['NATIVE_ENDPOINTS','BAR_ATTACHMENT','INTERBUS_CIRCUIT'].includes(r.ordering))continue;const normal:Point=i===0?[Math.sign(r.contactFrom[0]-r.x),Math.sign(r.contactFrom[1]-r.y)]:[Math.sign(r.contactTo[0]-r.x),Math.sign(r.contactTo[1]-r.y)],a=w.points[0],b=w.points.at(-1)!,own=r.sw.sourceClass+'|'+r.sw.sourceId,bar=(i===0?r.a:r.b)?.semantics==='busbar-section';
-   if(bar){const native=i===0?a:b,contact=i===0?b:a,sign=Math.sign(contact[1]-native[1])||1,blockers=occupied.filter(o=>o.id!==own&&!o.id.startsWith('BAR|')&&!o.id.startsWith('PORT|')),length=[12,10,8].find(length=>obstacleIntersections([native,[native[0],native[1]+sign*length]],blockers)===0);if(length==null)throw Error('SLD_BAR_ESCAPE_BLOCKED: '+r.sw.id);const gap:Point=[native[0],native[1]+sign*length];w.points=i===0?[native,...avoid(gap,contact,own,{endNormal:normal},true,w.terminalId)]:[...avoid(contact,gap,own,{startNormal:normal},true,w.terminalId),native];}
+   if(bar){const native=i===0?a:b,contact=i===0?b:a,sign=Math.sign(contact[1]-native[1])||1,blockers=occupied.filter(o=>o.id!==own&&!o.id.startsWith('BAR|')&&!o.id.startsWith('PORT|')),length=[12,10,8].find(length=>{const escape:Point=[native[0],native[1]+sign*length];return obstacleIntersections([native,escape],blockers)===0&&accepted.filter(w=>w.terminal!==r.wires[i].terminalId).every(w=>w.points.slice(1).every((q,n)=>!segmentsTouch(native,escape,w.points[n],q)));});if(length==null)throw Error('SLD_BAR_ESCAPE_BLOCKED: '+r.sw.id);const gap:Point=[native[0],native[1]+sign*length];w.points=i===0?[native,...avoid(gap,contact,own,{endNormal:normal},true,w.terminalId)]:[...avoid(contact,gap,own,{startNormal:normal},true,w.terminalId),native];}
    else w.points=avoid(a,b,own,i===0?{endNormal:normal}:{startNormal:normal},true,w.terminalId);w.points=simplifyConductor(w.points);accepted.push({terminal:w.terminalId,points:w.points});}r.points=r.wires.flatMap(w=>w.points);}
  for(const e of equipment)for(const port of e.ports)for(const w of port.wires){const waypoints=(w.waypoints??[]).map(p=>{const clear=(q:Point)=>!occupied.some(o=>o.id!==e.equipment.id&&q[0]>=o.x1&&q[0]<=o.x2&&q[1]>=o.y1&&q[1]<=o.y2);if(clear(p))return p;for(let n=1;n<=64;n++)for(const sign of [1,-1]){const q:Point=[p[0],p[1]+sign*n*8];if(clear(q))return q;}throw Error('SLD_CORRIDOR_WAYPOINT_BLOCKED: '+e.equipment.id);});w.waypoints=waypoints;const tr=e.equipment.kind==='transformer'||e.equipment.kind==='transformer3w'||!!e.equipment.reactiveSymbol,normal:Point=e.equipment.reactiveSymbol?[Math.sign(port.point[0]-e.x),Math.sign(port.point[1]-e.y)]:port.side===0?[0,-1]:port.side===1?[0,1]:[1,0],stops=[w.points[0],...waypoints,w.points.at(-1)!],points:Point[]=[];for(let i=1;i<stops.length;i++){const segment=avoid(stops[i-1],stops[i],e.equipment.id,tr&&i===stops.length-1?{endNormal:normal}:{},true,w.terminalId);points.push(...segment.slice(i===1?0:1));accepted.push({terminal:w.terminalId,points:segment});}w.points=simplifyConductor(points);}
 }
@@ -188,11 +197,13 @@ export function physicalStationLayout(graph:StationTopologyGraph,bands:ReadonlyS
   top=lastBar+extent+90+Math.ceil(own.filter(s=>!s.side).length/7)*56+Math.max(0,...own.map(s=>s.block+(arrangementById.get(s.feeder.busSectionIds[0])??0)))*blockHeight;
  }
  // Barless generator/GSU components follow their source HV lead without inventing a bus.
+ const placedGsu=new Set<string>(),gsuClaims:PortPosition[]=[];
  for(const e of graph.equipment.filter(e=>e.kind==='transformer'&&e.terminals.length===2)){
   const a=ports.get(e.terminals[0]),b=ports.get(e.terminals[1]);if(!a||!b||graph.busSections.some(s=>s.voltageKv===terminal.get(b.terminalId)?.vnKv))continue;
   const component=new Map([[b.terminalId,0]]),q=[b.terminalId];for(let i=0;i<q.length;i++)for(const sw of graph.switches){const next=sw.from===q[i]?sw.to:sw.to===q[i]?sw.from:null;if(next&&ports.has(next)&&terminal.get(next)?.vnKv===terminal.get(b.terminalId)?.vnKv&&!component.has(next)){component.set(next,component.get(q[i])!+1);q.push(next);}}
-  const zone=base.levels.find(l=>l.kv===terminal.get(b.terminalId)?.vnKv);
-  const ranks=new Map<number,number>();for(const [id,depth]of component){const p=ports.get(id)!,rank=ranks.get(depth)??0;ranks.set(depth,rank+1);p.x=a.x+rank*40;p.y=(zone?.y??b.y)-64+depth*step;p.direction=1;}
+  if(placedGsu.has(b.terminalId))continue;
+  const zone=base.levels.find(l=>l.kv===terminal.get(b.terminalId)?.vnKv),anchor=reserveGsuAxis(a.x,(zone?.y??b.y)-64,component,step,gsuClaims);
+  const ranks=new Map<number,number>();for(const [id,depth]of component){const p=ports.get(id)!,rank=ranks.get(depth)??0;ranks.set(depth,rank+1);p.x=anchor+rank*48;p.y=(zone?.y??b.y)-64+depth*step;p.direction=1;placedGsu.add(id);gsuClaims.push(p);}
  }
  alignNativeSeries(graph,ports,barLanes,barOffsets,step,new Map(base.feeders.map(f=>[f.feeder.id,f.x])));
  const equipment:EquipmentGeometry[]=[];
@@ -295,11 +306,14 @@ function connectedStationLayoutAttempt(graph:StationTopologyGraph,bands:Readonly
   }
  // A barless GSU/generator component follows its actual HV winding. Preserve every branch
  // and the common native terminal; a shared generator node is not a physical busbar.
+ const placedGsu=new Set<string>(),gsuClaims:PortPosition[]=[];
  for(const e of graph.equipment.filter(e=>e.kind==='transformer'&&e.terminals.length===2)){
   const a=ports.get(e.terminals[0]),b=ports.get(e.terminals[1]),kv=terminal.get(e.terminals[1])?.vnKv;if(!a||!b||graph.busSections.some(s=>s.voltageKv===kv))continue;
   const distance=new Map([[b.terminalId,0]]),q=[b.terminalId];for(let i=0;i<q.length;i++)for(const sw of graph.switches){const next=sw.from===q[i]?sw.to:sw.to===q[i]?sw.from:null;if(next&&ports.has(next)&&terminal.get(next)?.vnKv===kv&&!distance.has(next)){distance.set(next,distance.get(q[i])!+1);q.push(next);}}
-  const rows=new Map<number,number>();for(const [id,depth]of distance){const p=ports.get(id)!,n=rows.get(depth)??0;rows.set(depth,n+1);p.x=a.x+n*48;p.y=Math.max(a.y+200,graph.busSections.some(s=>s.voltageKv<=40)?top+80:0)+depth*step;p.direction=1;}
-  for(const f of base.feeders.filter(f=>f.feeder.voltageKv===kv&&f.feeder.terminalIds.some(id=>distance.has(id)))){const own=f.feeder.terminalIds.map(id=>ports.get(id)!).filter(Boolean),incoming=f.feeder.terminalIds.includes(b.terminalId);f.x=a.x+(incoming?-92:0);f.y=incoming?Math.min(...own.map(p=>p.y))+68:Math.max(...own.map(p=>p.y))+38;}
+  if(placedGsu.has(b.terminalId))continue;
+  const origin=Math.max(a.y+200,graph.busSections.some(s=>s.voltageKv<=40)?top+80:0),anchor=reserveGsuAxis(a.x,origin,distance,step,gsuClaims);
+  const rows=new Map<number,number>();for(const [id,depth]of distance){const p=ports.get(id)!,n=rows.get(depth)??0;rows.set(depth,n+1);p.x=anchor+n*48;p.y=origin+depth*step;p.direction=1;placedGsu.add(id);gsuClaims.push(p);}
+  for(const f of base.feeders.filter(f=>f.feeder.voltageKv===kv&&f.feeder.terminalIds.some(id=>distance.has(id)))){const own=f.feeder.terminalIds.map(id=>ports.get(id)!).filter(Boolean),incoming=f.feeder.terminalIds.includes(b.terminalId);f.x=anchor+(incoming?-92:0);f.y=incoming?Math.min(...own.map(p=>p.y))+68:Math.max(...own.map(p=>p.y))+38;}
  }
  // Source terminals outside ElmBay ownership are retained, not assigned a fictitious bay.
  let orphan=0;for(const t of graph.terminals.filter(t=>voltageMatches(t.vnKv,bands)&&!ports.has(t.id)))ports.set(t.id,{x:left+64+(orphan%12)*98,y:top+Math.floor(orphan++/12)*90,terminalId:t.id,semantics:'equipment-terminal',direction:1});

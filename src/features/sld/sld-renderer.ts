@@ -206,7 +206,7 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     // Keep owner and source-terminal provenance alongside the full centerline.
     const line=lines[i];line.dataset.sourceConductor=line.getAttribute('d')!;line.dataset.railPasses=JSON.stringify(result.passes);line.setAttribute('d',result.d);passes.set(i,result.passes);
   }
-  if(referenceRails.length){const ledger:OwnedSegment[]=[],sharedLines=new Map<OwnedSegment,SVGPathElement>();
+  {const ledger:OwnedSegment[]=[],sharedLines=new Map<OwnedSegment,SVGPathElement>();
     for(const line of lines){
       const full=line.dataset.sourceConductor??line.getAttribute('d')!,owner=line.closest('[data-id]')?.getAttribute('data-id')??'',commands:string[]=[],references:OwnedSegment[]=[];let previous:Point|null=null;
       for(const m of line.getAttribute('d')!.matchAll(/([ML])([\d.-]+),([\d.-]+)/g)){const p:Point=[+m[2],+m[3]];if(m[1]==='L'&&previous){const claim=claimConductor(previous,p,line.dataset.nativeTerminal!,owner,ledger);for(const s of claim.fresh){commands.push(`M${s.a.join(',')} L${s.b.join(',')}`);sharedLines.set(s,line);}references.push(...claim.shared);}previous=p;}

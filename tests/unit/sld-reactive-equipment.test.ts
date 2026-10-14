@@ -41,3 +41,9 @@ test('Source-only series inductors use cubicle FIDs and disclose unsupported cal
  assert.notDeepEqual(connectedStationLayout(g,allVoltageBands()).equipment.find(e=>e.equipment.id==='IND')!.ports[0].point,connectedStationLayout(g,allVoltageBands()).equipment.find(e=>e.equipment.id==='IND')!.ports[1].point);
  f.source.seriesReactors=[{id:'BROKEN',name:'BROKEN',attributes:{bus1:'MISSING',bus2:'CB'}}];assert.ok(f.graph().issues.some(i=>i.sourceId==='BROKEN'&&i.kind==='unresolvedEquipmentConnections'));
 });
+
+test('Separate barless LV islands sharing an HV terminal never share drawn native coordinates',()=>{
+ const f=ytbsFixture();for(const n of [1,2]){f.term('GSU'+n,13.8,'FG'+n);f.term('GEN'+n,13.8,'FG'+n);f.sw('GCB'+n,'GSU'+n,'GEN'+n,'FG'+n,'cbk');f.n.transformers.push({...f.n.transformers[0],id:'TG'+n,sourceId:'TG'+n,from:'Ht',to:'GSU'+n,lvKv:13.8});}
+ const g=f.graph(),before=structuredClone(g),layout=connectedStationLayout(g,allVoltageBands()),points=['GSU1','GSU2','GEN1','GEN2'].map(id=>{const p=layout.ports.get(id)!;return p.x+','+p.y;});
+ assert.equal(new Set(points).size,4);assert.deepEqual(g,before);
+});
