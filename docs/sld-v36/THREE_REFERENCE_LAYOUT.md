@@ -49,4 +49,8 @@ node tools/sld-v37-reference-validation.mjs --labels
 
 Üç YTBS/yeni karşılaştırma HTML/PNG'si, dört gerçek AFTER SVG ve UI-FIT ekran görüntüsü, Kayaş 400/154 kV kuplaj-transfer ile A/B OTR 4× yakın planları, source/native/owner iletken CSV'si ve bağımsız ölçüm JSON'u teslim edilir.
 
-Yeni üç unit testi dar ray/dikey kuplaj/açık kontak, farklı nominal OG gruplarının aynı kotta ayrı yerleşimi ve OTR bağımsız uçlarını doğrular. Typecheck/lint ve standard/portable build kontrolleri yapılır; tam test/E2E/CI sonuçları nihai doğrulama dosyasındadır. Kullanıcının diğer yerel dosyaları commit'e alınmaz.
+Yeni üç unit testi dar ray/dikey kuplaj/açık kontak, farklı nominal OG gruplarının aynı kotta ayrı yerleşimi ve OTR bağımsız uçlarını doğrular. **578/578 unit/regression testi, 4/4 E2E, typecheck, mimari lint, standard/portable build PASS.** Hiçbir test skip edilmedi.
+
+Önceki iki genel SLD hatası da üretim kodunda giderildi: legacy kuplaj hücresi kendi sınırlarında kalır; kaynakta ElmBay'e atanmayan anahtara ayrı gerçek bara ankrajı ayrılır. Legacy native-uç sözleşmesi korunur; `fixedCell` geometrinin tekrar oynatılmasını önler. Strict no-crossing eski görünümde yabancı rayı geçen kol harici koridordan **gerçek son native düğüme** gider; omurgada açık kontağı dolanan upstream birleşim yoktur. Üç referans görünümünde kısa yerel optik geçişler kullanılır. Eski 13 native devre × 2 yön orakülü ve kasıtlı negatif arıza kontrolleri de geçer.
+
+Portable çıktısının ham byte SHA-256 değeri commit blobuyla eşittir, CRLF yoktur: `1b264d98db5a64917bb4a3b738ff45a608a765ed067542dc3734c7aa2b06f6f5`. Doğrulanan kaynak commit'i: `3d004dc8d97290fac04e66665d5d17a90a5edd2a`. [Kaynak commit CI](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38606763920) ve nihai HEAD CI sonucu teslim paketinin `FINAL_VALIDATION.md` dosyasındadır. Kullanıcının diğer yerel dosyaları commit'e alınmaz.
