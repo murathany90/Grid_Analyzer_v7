@@ -45,6 +45,9 @@ const portablePlugin:Plugin={
 
 export default defineConfig(({mode})=>({
   base:'./',
+  // Evidence galleries contain large embedded SVG/model strings. They are
+  // delivery files, not application entry points for dependency discovery.
+  optimizeDeps:{entries:['index.html']},
   build:{
     target:'es2022',
     outDir:mode==='portable'?'dist-portable':'dist',

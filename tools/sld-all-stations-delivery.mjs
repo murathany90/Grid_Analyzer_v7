@@ -1,7 +1,7 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';import {createHash} from 'node:crypto';import {execFileSync} from 'node:child_process';import {zipSync} from 'fflate';import assert from 'node:assert/strict';
 const dir='local-benchmark-results/sld-all-stations',graphs=JSON.parse(await readFile(dir+'/graphs-private.json','utf8')),byId=new Map(graphs.map(f=>[f.site.id,f]));
 let rows=(await Promise.all(['browser-reactive-final-a-prefix-private.json','browser-reactive-final-b-prefix-private.json','browser-reactive-final-a-tail-private.json','browser-reactive-final-b-tail-private.json'].map(async p=>JSON.parse(await readFile(dir+'/'+p,'utf8'))))).flat();
-const reactive=JSON.parse(await readFile(dir+'/reactive-browser-final-private.json','utf8'));
+const reactive=(await Promise.all(['reactive-final-a-private.json','reactive-final-b-private.json'].map(async p=>JSON.parse(await readFile(dir+'/'+p,'utf8'))))).flat();
 const repairs=JSON.parse(await readFile(dir+'/browser-repaired-private.json','utf8')),repaired=new Map([...repairs,...reactive].map(r=>[r.site+'|'+r.labels,r]));rows=rows.map(r=>repaired.get(r.site+'|'+r.labels)??r);
 assert.equal(rows.length,graphs.length*2);assert.equal(new Set(rows.map(r=>r.site+'|'+r.labels)).size,rows.length);assert.ok(rows.every(r=>r.status==='PASS'));
 await writeFile(dir+'/browser-final-private.json',JSON.stringify(rows,null,2));const pilotIds=new Set(['M1482','M937','M890','M1555','M1301','M535','M121','M911','M61','M640','M649']);const selected=rows.filter(r=>pilotIds.has(r.site));await writeFile(dir+'/selected-browser-private.json',JSON.stringify(selected,null,2));
