@@ -10,10 +10,10 @@ export interface FeederCompartment {x1:number;x2:number;y1:number;y2:number;axis
 export type Point=readonly [number,number];
 export interface PortPosition {x:number;y:number;terminalId:string;semantics:'busbar-section'|'bay-terminal'|'equipment-terminal';direction?:-1|0|1;slot?:string;railY?:number;seriesRank?:number;seriesFeeder?:string}
 export interface WireSegment {points:Point[];terminalId:string;contact:Point;side:'FROM'|'TO';waypoints?:Point[]}
-export interface SwitchSlot {sw:StationTopologyGraph['switches'][number];a:PortPosition|undefined;b:PortPosition|undefined;x:number;y:number;rotation?:number;inline?:boolean;contactFrom:Point;contactTo:Point;wires:WireSegment[];points:Point[];ordering:'NATIVE_ENDPOINTS'|'CUBICLE_ATTACHMENT'|'NATIVE_SOURCE_ORDER'|'SOURCE_ORDER_UNAVAILABLE'|'BAR_ATTACHMENT'|'INTERBUS_CIRCUIT'}
+export interface SwitchSlot {sw:StationTopologyGraph['switches'][number];a:PortPosition|undefined;b:PortPosition|undefined;x:number;y:number;rotation?:number;inline?:boolean;fixedCell?:boolean;contactFrom:Point;contactTo:Point;wires:WireSegment[];points:Point[];ordering:'NATIVE_ENDPOINTS'|'CUBICLE_ATTACHMENT'|'NATIVE_SOURCE_ORDER'|'SOURCE_ORDER_UNAVAILABLE'|'BAR_ATTACHMENT'|'INTERBUS_CIRCUIT'}
 /** V3.6 planned bar connection: the bay's own lane, its own collector outside the rail
  *  group and its own spine. A bar conductor may never leave this corridor. */
-export interface BayRailAttachment {laneX:number;spineX:number;collectorY:number;sign:-1|1;railY:number}
+export interface BayRailAttachment {laneX:number;spineX:number;collectorY:number;sign:-1|1;railY:number;localEntry?:boolean}
 export interface EquipmentPort {terminalId:string;side:number;point:Point;wires:WireSegment[];boundaryKv:number|null;corridor?:number}
 export interface EquipmentGeometry {equipment:StationTopologyGraph['equipment'][number];x:number;y:number;direction:-1|1;ports:EquipmentPort[];nativePorts:PortPosition[];boundary:boolean;straightModelSpine?:boolean;caption?:{x:number;y:number}}
 /** Orthogonal paths terminate at physical contacts; the renderer consumes them unchanged. */
@@ -59,7 +59,7 @@ function separateSwitches(routes:SwitchSlot[],equipment:EquipmentGeometry[],bars
  // turn a proven series device into a side branch to make a layout check pass.
  const order=[...routes.filter(r=>r.inline),...routes.filter(r=>!r.inline)];
  for(const r of order){if(!r.a&&!r.b)continue;const hx=Math.abs(r.rotation??0)===90?18:14,hy=Math.abs(r.rotation??0)===90?11:18,id=r.sw.sourceClass+'|'+r.sw.sourceId,box={id,x1:r.x-hx,x2:r.x+hx,y1:r.y-hy,y2:r.y+hy};let p:{x:number;y:number};
-  if(r.inline||r.ordering==='BAR_ATTACHMENT'){if(r.inline&&occupied.some(o=>intersects(box,o)))throw Error('SLD_SERIAL_AXIS_UNRESOLVED: '+id+' @'+JSON.stringify([r.x,r.y]));occupied.push(box);p={x:r.x,y:r.y};}else p=freePosition(r.x,r.y,hx,hy,occupied,id,true);
+  if(r.inline||r.fixedCell||r.ordering==='BAR_ATTACHMENT'){if((r.inline||r.fixedCell)&&occupied.some(o=>intersects(box,o)))throw Error('SLD_SERIAL_AXIS_UNRESOLVED: '+id+' @'+JSON.stringify([r.x,r.y])+' hits '+JSON.stringify(occupied.filter(o=>intersects(box,o))));occupied.push(box);p={x:r.x,y:r.y};}else p=freePosition(r.x,r.y,hx,hy,occupied,id,true);
   const dx=p.x-r.x,dy=p.y-r.y;if(!dx&&!dy)continue;r.x=p.x;r.y=p.y;r.contactFrom=[r.contactFrom[0]+dx,r.contactFrom[1]+dy];r.contactTo=[r.contactTo[0]+dx,r.contactTo[1]+dy];
   if(r.ordering==='NATIVE_ENDPOINTS'&&r.a&&r.b){const cf:Point=[Math.sign(r.contactFrom[0]-r.x),Math.sign(r.contactFrom[1]-r.y)],ct:Point=[Math.sign(r.contactTo[0]-r.x),Math.sign(r.contactTo[1]-r.y)];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM',{endNormal:cf}),wire(r.contactTo,pt(r.b),r.sw.to,'TO',{startNormal:ct})];r.points=r.wires.flatMap(w=>w.points);}
  }
@@ -110,6 +110,19 @@ const inline=sw.bayId!==null&&!parallel&&proven&&!!a&&!!b&&!bothBars&&(horizonta
    const planned=!bothBars&&(sections.has(sw.from)||sections.has(sw.to))?barAttachment.get(sw.id):undefined;
    // Plan a bar conductor only when its own bay really continues outward past the bay
    // collector. A sibling-group coupler keeps the evidence-driven general router.
+   if(planned?.localEntry&&a&&b){
+    const barFirst=sections.has(sw.from),bar=barFirst?a:b,other=barFirst?b:a,{laneX,collectorY,sign}=planned;
+    // All selector glyphs sit outside the rail band. Each tail meets its actual
+    // source node once, at that node's y; it never runs along the series spine.
+    const input:Point=[laneX,collectorY+sign*8],output:Point=[laneX,collectorY+sign*40],barPort:Point=[laneX,bar.y],node=pt(other);
+    const lead:Point[]=[barPort,input],tail:Point[]=[output,[laneX,other.y],node];
+    const cf=barFirst?input:output,ct=barFirst?output:input;
+    const wires:WireSegment[]=barFirst?
+     [{points:lead,terminalId:sw.from,contact:cf,side:'FROM'},{points:tail,terminalId:sw.to,contact:ct,side:'TO'}]:
+     [{points:[...tail].reverse(),terminalId:sw.from,contact:cf,side:'FROM'},{points:[...lead].reverse(),terminalId:sw.to,contact:ct,side:'TO'}];
+    routes.push({sw,a:{...a,x:barFirst?laneX:a.x},b:{...b,x:barFirst?b.x:laneX},x:laneX,y:collectorY+sign*24,rotation:barFirst?(sign<0?180:0):(sign<0?0:180),inline:false,contactFrom:cf,contactTo:ct,wires,points:wires.flatMap(w=>w.points),ordering:'BAR_ATTACHMENT'});
+    continue;
+   }
    if(planned&&a&&b&&((sections.has(sw.from)?b:a).y-planned.collectorY)*planned.sign>8){const bar=sections.has(sw.from)?a:b,other=sections.has(sw.from)?b:a,{laneX,spineX,collectorY,sign}=planned;
     const contactFrom:Point=[laneX,bar.y+sign*8],contactTo:Point=[laneX,bar.y+sign*40],barPort:Point=[laneX,bar.y],
      // Every planned conductor reaches its own proven native terminal. A second real rail
@@ -191,6 +204,7 @@ export function physicalStationLayout(graph:StationTopologyGraph,bands:ReadonlyS
 /** One native section owns one continuous rail. Density expands its occupied span,
  * never duplicates a physical FID on a continuation row. */
 export function connectedStationLayout(graph:StationTopologyGraph,bands:ReadonlySet<VoltageBand>,flowLabels=false){
+ const pilot=graph.siteId==='M1482'; // staged Kayaş 400 kV pilot; expand only after visual acceptance
  const left=160,step=48,ports=new Map<string,PortPosition>(),sections=new Set(graph.busSections.map(b=>b.id)),terminal=new Map(graph.terminals.map(t=>[t.id,t])),compartments=new Map<string,FeederCompartment>();
  const slots=graph.voltageLevels.filter(kv=>voltageMatches(kv,bands)).flatMap(kv=>assignYtbsSlot(graph,graph.feeders.filter(f=>f.voltageKv===kv))),slotMap=new Map(slots.map(s=>[s.feeder.id,s]));
  const base:StationLayout={width:640,height:0,sections:[],feeders:[],levels:[],omitted:0,pageCount:1},barLanes=new Map<string,number>(),barOffsets=new Map<string,number>(),anchors=new Map<string,{x:number;feeder:string;left:number;width:number}[]>(),barAttachment=new Map<string,BayRailAttachment>();let top=78;
@@ -207,14 +221,14 @@ export function connectedStationLayout(graph:StationTopologyGraph,bands:Readonly
      const ids=f.terminalIds.filter(id=>!sections.has(id)&&terminal.get(id)?.vnKv===kv),edges=graph.switches.filter(s=>f.switchIds.includes(s.id)&&s.from!==s.to),barDegree=(id:string)=>edges.filter(s=>(s.from===id&&sections.has(s.to))||(s.to===id&&sections.has(s.from))).length;
      const root=ids.slice().sort((a,b)=>barDegree(b)-barDegree(a)||a.localeCompare(b))[0],distance=new Map<string,number>();if(root){distance.set(root,1);const q=[root];for(let i=0;i<q.length;i++)for(const e of edges){if(sections.has(e.from)||sections.has(e.to))continue;const next=e.from===q[i]?e.to:e.to===q[i]?e.from:null;if(next&&ids.includes(next)&&!distance.has(next)){distance.set(next,distance.get(q[i])!+1);q.push(next);}}}for(const id of ids)if(!distance.has(id))distance.set(id,Math.max(1,...distance.values())+1);return distance;
     };
-    const ranks=new Map(parts.map(s=>[s.feeder.id,internalRanks(s.feeder)])),extent=(ss:typeof parts,padding=flowLabels?240:110)=>Math.max(0,...ss.map(s=>Math.max(1,...ranks.get(s.feeder.id)!.values())*step+padding)),up=extent(us,flowLabels?226:148),down=extent(ds),maxAnchors=Math.max(1,...parts.map(s=>(demands.get(s.feeder.id)??{barAnchors:0}).barAnchors)),barY=top+up+20,railGap=groupBars.length>1?40+20*maxAnchors:0,lastY=barY+(groupBars.length-1)*railGap;
+    const ranks=new Map(parts.map(s=>[s.feeder.id,internalRanks(s.feeder)])),extent=(ss:typeof parts,padding=flowLabels?240:110)=>Math.max(0,...ss.map(s=>Math.max(1,...ranks.get(s.feeder.id)!.values())*step+padding)),up=extent(us,flowLabels?226:148),down=extent(ds),maxAnchors=Math.max(1,...parts.map(s=>(demands.get(s.feeder.id)??{barAnchors:0}).barAnchors)),barY=top+up+20,railGap=groupBars.length>1?Math.max(pilot&&kv>=300?120:0,40+20*maxAnchors):0,lastY=barY+(groupBars.length-1)*railGap;
     base.levels.push({kv,y:barY});
     // One atomic plan: measured widths, then every real busbar anchor of every feeder.
     // An anchor clash moves the whole remaining tail; it never shifts one drawn contact.
     const plan:{slot:typeof us[number];side:-1|1;width:number;left:number;axis:number}[]=[];
-    for(const [list,side]of[[us,-1],[ds,1]]as const){let cursor=left+20+(side===1&&us.length?44:0);for(const slot of list){const width=feederCellWidth(slot,demands.get(slot.feeder.id));plan.push({slot,side,width,left:cursor,axis:cursor+width/2-12});cursor+=width;}}
+    for(const [list,side]of[[us,-1],[ds,1]]as const){let cursor=left+20+(side===1&&us.length?44:0);for(const slot of list){const bank=pilot&&kv>=300&&(demands.get(slot.feeder.id)?.parallelWindings??0)>1,width=bank?Math.max(340,feederCellWidth(slot,demands.get(slot.feeder.id))):feederCellWidth(slot,demands.get(slot.feeder.id));plan.push({slot,side,width,left:cursor,axis:cursor+width/2-12});cursor+=width;}}
     const barIndex=new Map(groupBars.map((b,i)=>[b.id,i])),levelBars=new Set(bars.map(b=>b.id)),anchorsOf=(entry:typeof plan[number])=>{const seen=new Map<string,number>();
-     const own=groupBars.filter(b=>entry.slot.feeder.busSectionIds.includes(b.id)),near=entry.side<0?0:own.length-1;
+     const own=groupBars.filter(b=>entry.slot.feeder.busSectionIds.includes(b.id)),main=feederDrawingPath(graph,entry.slot.feeder),near=pilot&&kv>=300?Math.max(0,own.findIndex(b=>b.id===main?.terminals[0])):entry.side<0?0:own.length-1;
      for(const id of entry.slot.feeder.switchIds){const sw=graph.switches.find(e=>e.id===id);if(!sw)continue;for(const end of [sw.from,sw.to]){if(!sections.has(end)||!levelBars.has(end))continue;
       const i=own.findIndex(b=>b.id===end);seen.set(end,i<0?entry.axis:barLaneX(entry.axis,i,near));}}
      return seen;};
@@ -233,10 +247,10 @@ export function connectedStationLayout(graph:StationTopologyGraph,bands:Readonly
       if(!barIndex.has(bar)){barLanes.set(sw.id,x);barOffsets.set(sw.id,0);
        if(!sections.has(other))barAttachment.set(sw.id,{laneX:x,spineX:x,collectorY:origin+sign*COLLECTOR_OFFSET,sign,railY:ports.get(bar)!.y});
        continue;}
-      const own=groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)),ownIndex=own.findIndex(b=>b.id===bar),near=upSide?0:own.length-1,
+      const own=groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)),ownIndex=own.findIndex(b=>b.id===bar),main=feederDrawingPath(graph,s.feeder),near=pilot&&kv>=300?Math.max(0,own.findIndex(b=>b.id===main?.terminals[0])):upSide?0:own.length-1,
        laneX=barLaneX(x,ownIndex<0?groupBars.findIndex(b=>b.id===bar):ownIndex,near),railY=barY+groupBars.findIndex(b=>b.id===bar)*railGap;
       barLanes.set(sw.id,laneX);barOffsets.set(sw.id,railY-ports.get(bar)!.y);
-      if(!sections.has(other)&&!nativeBarCircuit(graph,s.feeder))barAttachment.set(sw.id,{laneX,spineX:x,collectorY:origin+sign*COLLECTOR_OFFSET,sign,railY});}
+      if(!sections.has(other)&&!nativeBarCircuit(graph,s.feeder))barAttachment.set(sw.id,{laneX,spineX:x,collectorY:origin+sign*(pilot&&kv>=300?16:COLLECTOR_OFFSET),sign,railY,localEntry:pilot&&kv>=300});}
      const labelDepth=Math.max(1,...siblings.flatMap(t=>[...ranks.get(t.feeder.id)!.values()])),labelY=origin+sign*(labelDepth*step+(upSide?(flowLabels?225:147):112));base.feeders.push({feeder:s.feeder,x,y:labelY,busYs:groupBars.filter(b=>s.feeder.busSectionIds.includes(b.id)).map(b=>barY+groupBars.indexOf(b)*railGap)});
      compartments.set(s.feeder.id,{x1:entry.left,x2:entry.left+entry.width,y1:upSide?top:origin+20,y2:upSide?origin-20:origin+down+40,axis:x,direction:sign,titleY:labelY,flowY:labelY+56,equipmentY:labelY+76,units:feederAreaUnits(kv),model:isModelFeeder(s)});
     }
@@ -257,7 +271,7 @@ export function connectedStationLayout(graph:StationTopologyGraph,bands:Readonly
  const equipment:EquipmentGeometry[]=[];
  for(const e of graph.equipment){
   const visible=e.terminals.map(id=>ports.get(id)).filter((p):p is PortPosition=>!!p);if(!visible.length)continue;
-  const owner=base.feeders.find(f=>f.feeder.equipmentKeys.includes(e.sourceClass+'|'+e.id)),cell=owner?compartments.get(owner.feeder.id):null,native=visible.map(p=>{if(p.semantics!=='busbar-section')return p;const origin=cell?(cell.direction<0?cell.y2+20:cell.y1-20):p.y,rail=base.sections.filter(b=>b.section.id===p.terminalId).sort((a,b)=>Math.abs(a.y-origin)-Math.abs(b.y-origin))[0];return {...p,x:owner?.x??p.x,y:rail?.y??p.y,direction:cell?.direction??p.direction};}),transformer=e.kind==='transformer'||e.kind==='transformer3w',direction=native[0].direction===-1?-1:1,parallel=graph.equipment.filter(o=>o.terminals[0]===e.terminals[0]&&(transformer?o.kind==='transformer':o.kind!=='transformer'&&o.kind!=='transformer3w')),offset=(parallel.indexOf(e)-(parallel.length-1)/2)*(transformer?240:64);
+  const owner=base.feeders.find(f=>f.feeder.equipmentKeys.includes(e.sourceClass+'|'+e.id)),cell=owner?compartments.get(owner.feeder.id):null,native=visible.map(p=>{if(p.semantics!=='busbar-section')return p;const origin=cell?(cell.direction<0?cell.y2+20:cell.y1-20):p.y,rail=base.sections.filter(b=>b.section.id===p.terminalId).sort((a,b)=>Math.abs(a.y-origin)-Math.abs(b.y-origin))[0];return {...p,x:owner?.x??p.x,y:rail?.y??p.y,direction:cell?.direction??p.direction};}),transformer=e.kind==='transformer'||e.kind==='transformer3w',direction=native[0].direction===-1?-1:1,parallel=graph.equipment.filter(o=>o.terminals[0]===e.terminals[0]&&(transformer?o.kind==='transformer':o.kind!=='transformer'&&o.kind!=='transformer3w')),offset=(parallel.indexOf(e)-(parallel.length-1)/2)*(transformer?(pilot&&(owner?.feeder.voltageKv??0)>=300?160:240):64);
   let x=native[0].x+offset,y=native[0].y+direction*54;if(!transformer&&parallel.length>1){x=native[0].x+(parallel.indexOf(e)-(parallel.length-1)/2)*140;y=native[0].y+direction*64;}
   if(cell?.model&&native.length===1&&native[0].semantics==='busbar-section'){x=native[0].x;y=native[0].y+direction*64;}
   if(transformer&&native.length>1){const primary=base.feeders.find(f=>f.feeder.terminalIds.includes(e.terminals[0])&&f.feeder.voltageKv===terminal.get(e.terminals[0])?.vnKv),ends=primary?.feeder.terminalIds.filter(id=>!sections.has(id)).map(id=>ports.get(id)?.y).filter((v):v is number=>v!=null)??[native[0].y];y=Math.max(native[0].y,...ends)+56;x=native[0].x+offset;}
@@ -267,12 +281,18 @@ export function connectedStationLayout(graph:StationTopologyGraph,bands:Readonly
  }
  const barObstacles:GlyphBox[]=base.sections.map((b,i)=>({id:'BAR|'+b.section.id+'|'+i,x1:b.x1,x2:b.x2,y1:b.y-3,y2:b.y+3})),protectedPorts=new Map(ports);for(const sw of graph.switches)for(const id of [sw.from,sw.to])if(sections.has(id)&&ports.has(id)){const p=ports.get(id)!;protectedPorts.set(sw.id+'|'+id,{...p,x:barLanes.get(sw.id)??ports.get(id===sw.from?sw.to:sw.from)?.x??p.x,y:p.y+(barOffsets.get(sw.id)??0)});}
  separateEquipment(equipment,protectedPorts,barObstacles,buildSwitchDeviceChain(graph,ports,barLanes,equipment,barOffsets,barAttachment));let cable=0,leftCables=0,rightCables=0;for(const e of equipment.filter(e=>e.equipment.kind==='transformer'||e.equipment.kind==='transformer3w'))for(const port of e.ports){if(port.side!==1)continue;const native=e.nativePorts.find(p=>p.terminalId===port.terminalId)!,crossed=base.sections.filter(b=>b.y>Math.min(port.point[1],native.y)&&b.y<Math.max(port.point[1],native.y));if(!crossed.length)continue;const corridor=nearestSideCorridor(port.point[0],native.x,Math.min(...crossed.map(b=>b.x1)),Math.max(...crossed.map(b=>b.x2)),leftCables,rightCables);if(corridor.side==='LEFT')leftCables++;else rightCables++;port.corridor=corridor.x;for(const w of port.wires){const departure=e.y+58+cable*12,arrival=native.y-30-cable*12;w.waypoints=[[native.x,arrival],[port.corridor,arrival],[port.corridor,departure],[port.point[0],departure]];}cable++;}const routes=buildSwitchDeviceChain(graph,ports,barLanes,equipment,barOffsets,barAttachment);
- for(const f of base.feeders){const circuit=nativeBarCircuit(graph,f.feeder);if(!circuit)continue;const from=ports.get(circuit.terminals[0])!,to=ports.get(circuit.terminals.at(-1)!)!,between=base.sections.filter(b=>b.y>Math.min(from.y,to.y)&&b.y<Math.max(from.y,to.y)).sort((a,b)=>Math.abs(a.y-from.y)-Math.abs(b.y-from.y)),y=(from.y+(between[0]?.y??to.y))/2,first=f.x+34;
+ for(const f of base.feeders){const circuit=nativeBarCircuit(graph,f.feeder);if(!circuit)continue;const from=ports.get(circuit.terminals[0])!,to=ports.get(circuit.terminals.at(-1)!)!,between=base.sections.filter(b=>b.y>Math.min(from.y,to.y)&&b.y<Math.max(from.y,to.y)).sort((a,b)=>Math.abs(a.y-from.y)-Math.abs(b.y-from.y)),y=(from.y+(between[0]?.y??to.y))/2,local=pilot&&f.feeder.voltageKv>=300,first=local?compartments.get(f.feeder.id)!.x1+36:f.x+34;
   for(let i=1;i<circuit.terminals.length-1;i++){const p=ports.get(circuit.terminals[i])!;p.x=first+(i-.5)*44;p.y=y;p.direction=0;}
-  for(const [i,id]of circuit.switchIds.entries()){const r=routes.find(r=>r.sw.id===id)!;if(!r)continue;const sign=r.sw.from===circuit.terminals[i]?1:-1,x=first+i*44;r.a={...ports.get(r.sw.from)!};r.b={...ports.get(r.sw.to)!};if(r.a.semantics==='busbar-section')r.a.x=i===0?f.x:first+(circuit.switchIds.length-1)*44+34;if(r.b.semantics==='busbar-section')r.b.x=i===0?f.x:first+(circuit.switchIds.length-1)*44+34;
-   r.x=x;r.y=y;r.rotation=sign>0?-90:90;r.inline=true;r.ordering='INTERBUS_CIRCUIT';r.contactFrom=[x-sign*16,y];r.contactTo=[x+sign*16,y];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM'),wire(r.contactTo,pt(r.b),r.sw.to,'TO')];r.points=r.wires.flatMap(w=>w.points);
+  for(const [i,id]of circuit.switchIds.entries()){const r=routes.find(r=>r.sw.id===id)!;if(!r)continue;const sign=r.sw.from===circuit.terminals[i]?1:-1,x=first+i*44;r.a={...ports.get(r.sw.from)!};r.b={...ports.get(r.sw.to)!};if(r.a.semantics==='busbar-section')r.a.x=i===0?(local?first-28:f.x):first+(circuit.switchIds.length-1)*44+(local?28:34);if(r.b.semantics==='busbar-section')r.b.x=i===0?(local?first-28:f.x):first+(circuit.switchIds.length-1)*44+(local?28:34);
+   r.x=x;r.y=y;r.rotation=sign>0?-90:90;r.inline=true;r.fixedCell=local;r.ordering='INTERBUS_CIRCUIT';r.contactFrom=[x-sign*16,y];r.contactTo=[x+sign*16,y];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM'),wire(r.contactTo,pt(r.b),r.sw.to,'TO')];r.points=r.wires.flatMap(w=>w.points);
   }
-  const changed=new Set(circuit.terminals.slice(1,-1));for(const r of routes.filter(r=>f.feeder.switchIds.includes(r.sw.id)&&!circuit.switchIds.includes(r.sw.id))){if(!changed.has(r.sw.from)&&!changed.has(r.sw.to))continue;if(changed.has(r.sw.from))r.a={...ports.get(r.sw.from)!};if(changed.has(r.sw.to))r.b={...ports.get(r.sw.to)!};if(r.a&&r.b){const junction=changed.has(r.sw.from)?r.a:r.b,sign=changed.has(r.sw.from)?-1:1;r.x=junction.x-128;r.y=junction.y-14;r.rotation=sign>0?-90:90;r.inline=false;if(r.a.semantics==='busbar-section')r.a.x=r.x-32;if(r.b.semantics==='busbar-section')r.b.x=r.x-32;r.ordering='INTERBUS_CIRCUIT';r.contactFrom=[r.x-sign*16,r.y];r.contactTo=[r.x+sign*16,r.y];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM'),wire(r.contactTo,pt(r.b),r.sw.to,'TO')];}}
+  const changed=new Set(circuit.terminals.slice(1,-1));for(const r of routes.filter(r=>f.feeder.switchIds.includes(r.sw.id)&&!circuit.switchIds.includes(r.sw.id))){if(!changed.has(r.sw.from)&&!changed.has(r.sw.to))continue;if(changed.has(r.sw.from))r.a={...ports.get(r.sw.from)!};if(changed.has(r.sw.to))r.b={...ports.get(r.sw.to)!};if(r.a&&r.b){if(local){
+    const node=changed.has(r.sw.from)?r.a:r.b,bar=changed.has(r.sw.from)?r.b:r.a,barFirst=bar.terminalId===r.sw.from,dir=Math.sign(node.y-bar.y)||1;
+    if(bar.semantics!=='busbar-section')throw Error('SLD_INTERBUS_BRANCH_UNPROVEN: '+r.sw.id);
+    bar.x=node.x;r.x=node.x;r.y=(node.y+bar.y)/2;r.rotation=barFirst?(dir<0?180:0):(dir<0?0:180);r.inline=false;r.fixedCell=true;r.ordering='INTERBUS_CIRCUIT';
+    r.contactFrom=[r.x,r.y+(barFirst?-dir:dir)*16];r.contactTo=[r.x,r.y+(barFirst?dir:-dir)*16];
+    r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM'),wire(r.contactTo,pt(r.b),r.sw.to,'TO')];r.points=r.wires.flatMap(w=>w.points);continue;
+   }const junction=changed.has(r.sw.from)?r.a:r.b,sign=changed.has(r.sw.from)?-1:1;r.x=junction.x-128;r.y=junction.y-14;r.rotation=sign>0?-90:90;r.inline=false;if(r.a.semantics==='busbar-section')r.a.x=r.x-32;if(r.b.semantics==='busbar-section')r.b.x=r.x-32;r.ordering='INTERBUS_CIRCUIT';r.contactFrom=[r.x-sign*16,r.y];r.contactTo=[r.x+sign*16,r.y];r.wires=[wire(pt(r.a),r.contactFrom,r.sw.from,'FROM'),wire(r.contactTo,pt(r.b),r.sw.to,'TO')];}}
  }
  if(flowLabels){const occupied:GlyphBox[]=[...barObstacles,...routes.map(r=>({id:r.sw.id,x1:r.x-22,x2:r.x+22,y1:r.y-24,y2:r.y+24})),...equipment.map(e=>({id:e.equipment.id,x1:e.x-24,x2:e.x+24,y1:e.y-24,y2:e.y+24})),...equipment.flatMap(e=>e.ports.flatMap(p=>p.wires.flatMap(w=>(w.waypoints??[]).map(p=>({id:'WAYPOINT|'+e.equipment.id,x1:p[0]-18,x2:p[0]+18,y1:p[1]-18,y2:p[1]+18}))))),...[...ports.values()].map(p=>({id:p.terminalId,x1:p.x-18,x2:p.x+18,y1:p.y-18,y2:p.y+18})),...base.feeders.filter(f=>!['autotransformer','transformer-primary','bank'].includes(slotMap.get(f.feeder.id)?.placementRole??slotMap.get(f.feeder.id)?.role??'')).map(f=>({id:'FEEDER|'+f.feeder.id,x1:f.x-64,x2:f.x+64,y1:f.y-14,y2:f.y+136}))];for(const e of equipment.filter(e=>!e.boundary&&(e.equipment.kind==='transformer'||e.equipment.kind==='transformer3w'))){const box=freePosition(e.x+146,e.y+116,118,90,occupied,'LABEL|'+e.equipment.id,false,true);e.caption={x:box.x-118,y:box.y-90};barObstacles.push(occupied.at(-1)!);}}
  separateSwitches(routes,equipment,barObstacles);

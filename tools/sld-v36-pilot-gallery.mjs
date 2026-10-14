@@ -1,0 +1,19 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {chromium} from 'playwright';
+const out=resolve('local-benchmark-results/sld-v36-kayas-pilot'),browser=await chromium.launch({headless:true}),page=await browser.newPage();
+const normalize=async(xml,box,width,height)=>{await page.setContent(xml);return page.locator('svg').evaluate((svg,{box,width,height})=>{svg.setAttribute('viewBox',box.join(' '));svg.setAttribute('width',width);svg.setAttribute('height',height);svg.setAttribute('style',`width:${width}px;height:${height}px;background:#fff`);return new XMLSerializer().serializeToString(svg);},{box,width,height});};
+try{
+ const current=await readFile(resolve(out,'AFTER-M1482.svg'),'utf8'),old=await readFile(resolve(out,'BEFORE-PORTABLE-M1482.svg'),'utf8'),v36=await readFile('local-benchmark-results/sld-v36/USER-M1482-CURRENT.svg','utf8');
+ // All SVG closeups have exactly four CSS pixels per source SVG unit.
+ for(const [name,box]of [['400-BARS',[150,450,1120,330]],['COUPLER-TRANSFER',[890,465,410,310]],['BANK-A',[230,870,330,255]],['BANK-B',[570,870,330,255]]]){const [,,w,h]=box;await page.setViewportSize({width:w*4,height:h*4});await page.setContent(`<body style="margin:0">${await normalize(current,box,w*4,h*4)}</body>`);await page.screenshot({path:resolve(out,`CLOSEUP-4x-${name}.png`)});}
+ for(const id of ['M1482','M937','M890','M1555']){const xml=await readFile(resolve(out,`AFTER-${id}.svg`),'utf8'),[,w,h]=xml.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/),width=1400,height=Math.round(width*(+h)/(+w));await page.setViewportSize({width,height});await page.setContent(`<body style="margin:0">${await normalize(xml,[0,0,+w,+h],width,height)}</body>`);await page.screenshot({path:resolve(out,`RENDER-${id}.png`)});}
+ const reference=await readFile('local-benchmark-results/sld-v34/YTBS-M1482.png'),referenceSvg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="1500 700 4700 2550"><image width="7800" height="10100" href="data:image/png;base64,${reference.toString('base64')}"/></svg>`;
+ const scenes=[['YTBS REFERANS',referenceSvg,[1500,1300,4700,1900]],['ESKİ PORTABLE',old,[0,120,1786,1150]],['YENİ 400 kV PİLOT',current,[145,160,1170,1060]]],panels=[];
+ for(const [title,xml,box]of scenes)panels.push(`<section><h2>${title}</h2>${await normalize(xml,box,780,880)}</section>`);
+ const html=`<!doctype html><meta charset="utf-8"><title>Kayaş 400 kV pilot karşılaştırması</title><style>body{margin:0;background:#edf1f5;font:16px system-ui;color:#172b3e}main{display:flex;gap:12px;padding:12px}section{background:white}h2{font-size:20px;margin:12px}p{margin:12px}svg{display:block}</style><p>Üçlü genel görünüm: aynı panel boyutu. YTBS raster ile SVG için ortak fiziksel uzunluk birimi yoktur. 4× yakın plan SVG’ler ayrıca teslim edilmiştir.</p><main>${panels.join('')}</main><p>128 anahtar · 28 kaynak fider · 8 bara · 6 trafo. Pilot 400 kV PASS; tam istasyon PARTIAL. 154/33,6 kV görsel kabul bekliyor.</p>`;
+ await writeFile(resolve(out,'KAYAS-YTBS-ESKI-YENI.html'),html);await page.setViewportSize({width:2400,height:1020});await page.setContent(html);await page.screenshot({path:resolve(out,'KAYAS-YTBS-ESKI-YENI.png'),fullPage:true});
+ // Explicit equal native scale comparison between the two vector versions.
+ const panels2=[];for(const [title,xml]of [['V3.6 ÖNCE',v36],['400 kV PİLOT SONRA',current]])panels2.push(`<section><h2>${title} · 1 CSS px / SVG birim</h2>${await normalize(xml,[140,120,1210,1180],1210,1180)}</section>`);
+ await page.setViewportSize({width:2460,height:1280});await page.setContent(`<body style="margin:0;background:#edf1f5;font:18px system-ui"><main style="display:flex;gap:12px;padding:12px">${panels2.join('')}</main></body>`);await page.screenshot({path:resolve(out,'KAYAS-V36-PILOT-ESIT-OLCEK.png'),fullPage:true});
+}finally{await browser.close();}

@@ -6,7 +6,7 @@ import type { ScenarioOverlay } from '../../domain/scenario/overlay';
 import {defaultSettings,type Settings} from '../../persistence/settings';
 import type { N1SelectedDetail } from '../../domain/n1';
 import {islandColor} from '../../map/island-map';
-import {physicalStationLayout,feederFocusGraph} from './physical-layout';
+import {physicalStationLayout,feederFocusGraph,type Point} from './physical-layout';
 import {stationOverviewPage} from './page-layout';
 import type {SldMode,SldResultOverlay} from './result-overlay';
 import {sldFlowAtPort} from './result-overlay';
@@ -15,6 +15,8 @@ import type {SourceSwitchKind} from '../../domain/model/switch-usage';
 import {wireCrossings} from './wire-crossings';
 import {feederDrawingPath} from './feeder-drawing-graph';
 import {nativeBarCircuit} from './bar-circuit';
+import {railPassPath} from './rail-pass';
+import {claimConductor,type OwnedSegment} from './conductor-ledger';
 import {portResultRows,labelValues,resultNumber} from './result-labels';
 export type SldScope='station'|'bay'|'regional';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
@@ -186,7 +188,26 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   text(root,24,layout.height-17,`${graph.counters.diagramUnresolvedTotal} kaynak sorunu · uç ${graph.counters.invalidSwitchEndpoints} · cubicle ${graph.counters.missingCubicleReferences} · ${layout.slots.filter(s=>!s.side).length} sınıflanamayan fider · ${layout.routes.filter(r=>r.ordering==='SOURCE_ORDER_UNAVAILABLE').length} belirsiz cihaz sırası`,11,muted);
   if(d.overlay&&['LF','N1','SC'].includes(d.mode??''))text(root,24,layout.height-52,`${d.mode} ${d.overlay.phase} · ${d.overlay.status} · ${d.overlay.method}`,10,muted);
   const lines=[...root.querySelectorAll<SVGPathElement>('path[data-connection][data-native-terminal]')],conductors=lines.map(line=>({terminalId:line.dataset.nativeTerminal!,points:[...line.getAttribute('d')!.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map(m=>[Number(m[1]),Number(m[2])] as const)}));
+  const pilotRails=graph.siteId==='M1482'?layout.sections.filter(s=>s.section.voltageKv>=300).map(s=>({id:s.section.id,x1:s.x1,x2:s.x2,y:s.y})):[];
+  const passes=new Map<number,ReturnType<typeof railPassPath>['passes']>();
+  for(const [i,c]of conductors.entries()){
+    const result=railPassPath(c.points,c.terminalId,pilotRails);if(!result.passes.length)continue;
+    // Keep owner and source-terminal provenance alongside the full centerline.
+    const line=lines[i];line.dataset.sourceConductor=line.getAttribute('d')!;line.dataset.railPasses=JSON.stringify(result.passes);line.setAttribute('d',result.d);passes.set(i,result.passes);
+  }
+  if(pilotRails.length){const ledger:OwnedSegment[]=[],sharedLines=new Map<OwnedSegment,SVGPathElement>();
+    for(const line of lines){if((graph.terminals.find(t=>t.id===line.dataset.nativeTerminal)?.vnKv??0)<300)continue;
+      const full=line.dataset.sourceConductor??line.getAttribute('d')!,owner=line.closest('[data-id]')?.getAttribute('data-id')??'',commands:string[]=[],references:OwnedSegment[]=[];let previous:Point|null=null;
+      for(const m of line.getAttribute('d')!.matchAll(/([ML])([\d.-]+),([\d.-]+)/g)){const p:Point=[+m[2],+m[3]];if(m[1]==='L'&&previous){const claim=claimConductor(previous,p,line.dataset.nativeTerminal!,owner,ledger);for(const s of claim.fresh){commands.push(`M${s.a.join(',')} L${s.b.join(',')}`);sharedLines.set(s,line);}references.push(...claim.shared);}previous=p;}
+      if(references.length){line.dataset.sourceConductor=full;line.dataset.sharedConductors=JSON.stringify(references.map(s=>({terminal:s.terminalId,a:s.a,b:s.b,owner:s.owners[0]})));}
+      line.setAttribute('d',commands.join(' '));
+    }
+    for(const [s,line]of sharedLines)if(s.owners.length>1)line.dataset.conductorOwners=[...new Set([...(line.dataset.conductorOwners??'').split(';').filter(Boolean),...s.owners])].join(';');
+  }
   for(const jump of wireCrossings(conductors)){const {x,y,vertical}=jump,line=lines[jump.wire],g=svg('g',{'data-hop-over':'true','data-terminal-a':conductors[jump.wire].terminalId,'data-terminal-b':conductors[jump.other].terminalId,'pointer-events':'none'},root);
+    // A foreign rail crossing is already physically separated in the visible path.
+    // Do not add a second bridge glyph over that explicit local passage.
+    if([jump.wire,jump.other].some(i=>passes.get(i)?.some(p=>p.x===x&&p.y===y))){g.remove();continue;}
     svg('path',{d:vertical?`M${x},${y-7} L${x},${y+7}`:`M${x-7},${y} L${x+7},${y}`,stroke:overview?'#fff':'#102033','stroke-width':6,fill:'none'},g);
     svg('path',{d:vertical?`M${x},${y-7} C${x+10},${y-7} ${x+10},${y+7} ${x},${y+7}`:`M${x-7},${y} C${x-7},${y-10} ${x+7},${y-10} ${x+7},${y}`,stroke:line.getAttribute('stroke')!,fill:'none','stroke-width':2},g);
   }
