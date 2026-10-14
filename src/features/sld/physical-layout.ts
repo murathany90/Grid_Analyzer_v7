@@ -65,6 +65,12 @@ function freePosition(x:number,y:number,halfX:number,halfY:number,occupied:Glyph
 const COLLECTOR_OFFSET=40;
 const halfWidth=(e:EquipmentGeometry)=>e.equipment.kind==='transformer3w'?30:18;
 const halfHeight=(e:EquipmentGeometry)=>e.equipment.reactiveSymbol?28:19;
+function reserveBarlessHeader(base:StationLayout,ports:Map<string,PortPosition>){
+ if(base.sections.length||!ports.size)return 0;
+ const shift=Math.max(0,200-Math.min(...[...ports.values()].map(p=>p.y)));
+ if(shift){for(const p of ports.values())p.y+=shift;for(const f of base.feeders)f.y+=shift;for(const l of base.levels)l.y+=shift;}
+ return shift;
+}
 function separateEquipment(equipment:EquipmentGeometry[],ports:Map<string,PortPosition>,bars:GlyphBox[],switches:SwitchSlot[]=[]){const occupied:GlyphBox[]=[...bars,...switches.filter(r=>r.a||r.b).map(r=>({id:'SW|'+r.sw.id,x1:r.x-14,x2:r.x+14,y1:r.y-18,y2:r.y+18})),...[...ports.values()].map(p=>({id:'PORT|'+p.terminalId,x1:p.x-2,x2:p.x+2,y1:p.y-2,y2:p.y+2}))];for(const e of equipment){const p=freePosition(e.x,e.y,halfWidth(e),halfHeight(e),occupied,e.equipment.sourceClass+'|'+e.equipment.id,e.straightModelSpine),dx=p.x-e.x,dy=p.y-e.y;e.x=p.x;e.y=p.y;for(const port of e.ports){port.point=[port.point[0]+dx,port.point[1]+dy];const native=e.nativePorts.find(p=>p.terminalId===port.terminalId)!;port.wires=[wire(pt(native),port.point,port.terminalId,port.side===1?'TO':'FROM')];}}}
 function separateSwitches(routes:SwitchSlot[],equipment:EquipmentGeometry[],bars:GlyphBox[],railPasses=false){
  const occupied:GlyphBox[]=[...bars,...equipment.map(e=>({id:e.equipment.id,x1:e.x-halfWidth(e),x2:e.x+halfWidth(e),y1:e.y-halfHeight(e),y2:e.y+halfHeight(e)})),...[...equipment.flatMap(e=>e.nativePorts),...routes.flatMap(r=>[r.a,r.b].filter((p):p is PortPosition=>!!p))].map(p=>({id:'PORT|'+p.terminalId,x1:p.x-2,x2:p.x+2,y1:p.y-2,y2:p.y+2}))];
@@ -207,6 +213,7 @@ export function physicalStationLayout(graph:StationTopologyGraph,bands:ReadonlyS
   const ranks=new Map<number,number>();for(const [id,depth]of component){const p=ports.get(id)!,rank=ranks.get(depth)??0;ranks.set(depth,rank+1);p.x=anchor+rank*48;p.y=(zone?.y??b.y)-64+depth*step;p.direction=1;placedGsu.add(id);gsuClaims.push(p);}
  }
  alignNativeSeries(graph,ports,barLanes,barOffsets,step,new Map(base.feeders.map(f=>[f.feeder.id,f.x])));
+ reserveBarlessHeader(base,ports);
  const equipment:EquipmentGeometry[]=[];
  for(const e of graph.equipment){
   const visible=e.terminals.map(id=>ports.get(id)).filter((p):p is PortPosition=>!!p);if(!visible.length)continue;
@@ -329,6 +336,7 @@ function connectedStationLayoutAttempt(graph:StationTopologyGraph,bands:Readonly
   if(!old?.localEntry){const candidates=[baseLane,...Array.from({length:Math.max(1,Math.floor((rail.x2-rail.x1-48)/16)+1)},(_,i)=>rail.x1+24+i*16)].sort((a,b)=>Math.abs(a-wanted)-Math.abs(b-wanted));lane=candidates.find(x=>used.every(u=>Math.abs(u.x-x)>=32))??baseLane;}
   selectorLanes.set(key,[...used,{id:sw.id,x:lane}]);barLanes.set(sw.id,lane);barOffsets.set(sw.id,0);const f=graph.feeders.find(f=>f.switchIds.includes(sw.id));if(f&&nativeBarCircuit(graph,f))continue;barAttachment.set(sw.id,{laneX:lane,spineX:node.x,collectorY:origin+sign*16,sign,railY:rail.y,localEntry:true});
  }
+ const headerShift=reserveBarlessHeader(base,ports);if(headerShift)for(const cell of compartments.values()){cell.y1+=headerShift;cell.y2+=headerShift;cell.titleY+=headerShift;cell.flowY+=headerShift;cell.equipmentY+=headerShift;}
  const equipment:EquipmentGeometry[]=[];
  for(const e of graph.equipment){
   const visible=e.terminals.map(id=>ports.get(id)).filter((p):p is PortPosition=>!!p);if(!visible.length)continue;

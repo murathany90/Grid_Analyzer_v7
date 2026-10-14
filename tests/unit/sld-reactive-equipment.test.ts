@@ -26,6 +26,7 @@ test('Series equipment has two distinct contacts with original FROM/TO FIDs in b
   for(const [i,p]of e.ports.entries()){assert.equal(p.side,i);assert.equal(p.terminalId,['SERIES_A','SERIES_B'][i]);assert.deepEqual(p.wires[0].points[0],[e.nativePorts[i].x,e.nativePorts[i].y]);assert.deepEqual(p.wires[0].points.at(-1),p.point);}
  }
  assert.deepEqual(g,before);
+ f.n.buses=f.n.buses.filter(b=>['SERIES_A','SERIES_B'].includes(b.id));f.n.switches=[];f.n.transformers=[];const barless=f.graph(),sheet=connectedStationLayout(barless,allVoltageBands());assert.equal(barless.busSections.length,0);assert.ok([...sheet.ports.values()].every(p=>p.y>=200),'native series equipment overlaps the station heading');assert.deepEqual(sheet.equipment[0].equipment.terminals,['SERIES_A','SERIES_B']);
 });
 
 test('Shunt branches have one source contact on the symbol endpoint and no invented ground node',()=>{
