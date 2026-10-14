@@ -1,0 +1,16 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {loadBenchmarkModel} from '../src/importers/powerfactory-benchmark/model.ts';
+const dir='local-benchmark-results/sld-v37-source';await mkdir(dir,{recursive:true});
+const loaded=await loadBenchmarkModel(new File([await readFile('.local-fixtures/powerfactory/SN3/20261007_1400_SN3_TR0.zip')],'SN3.zip'),(phase,info)=>console.log(phase,info?.message));
+const {network,source,raw}=loaded;
+const classes=['ElmTr2','ElmTr3','StaCubic','ElmTerm','ElmCoup','StaSwitch','ElmBay'];
+const tables=Object.fromEntries(classes.map(cls=>{const t=raw[cls];return[cls,t?t.Values.map(v=>Object.fromEntries(t.Attributes.map((a,i)=>[a,v[i]??null]))):[]];}));
+const byClass=new Map(Object.entries(tables).map(([cls,rows])=>[cls,new Map(rows.map(r=>[String(r.FID),r]))]));
+const get=(cls,id)=>byClass.get(cls)?.get(id)??null;
+const pilot={modelSha256:loaded.modelJsonSha256,transformer:get('ElmTr2','T5133'),canonical:network.transformers.find(t=>t.id==='T5133'),switch:get('ElmCoup','C112442'),canonicalSwitch:network.switches.find(s=>s.id==='C112442'),cubicles:[],terminals:['B89867','B102871'].map(id=>get('ElmTerm',id))};
+const tr=pilot.transformer!,sw=pilot.switch!;pilot.cubicles=[...new Set(['bushv','buslv'].map(f=>String(tr[f])).concat(['bus1','bus2'].map(f=>String(sw[f]))))].map(id=>({raw:get('StaCubic',id),reader:source.get('StaCubic',id)}));
+const otherAttachments=tables.StaCubic.filter(r=>['B89867','B102871'].includes(String(r.fold_id)));Object.assign(pilot,{allCubiclesAtPilotTerminals:otherAttachments});
+await writeFile(dir+'/PILOT_RAW_DGS_CHAIN.json',JSON.stringify(pilot,null,2));
+await writeFile(dir+'/raw-tables-private.json',JSON.stringify(tables));await writeFile(dir+'/network-private.json',JSON.stringify(network));
+console.log(JSON.stringify(pilot,null,2));console.log('cached',Object.fromEntries(Object.entries(tables).map(([c,r])=>[c,r.length])));

@@ -1,0 +1,16 @@
+import {SaxesParser} from 'saxes';
+type Row=Record<string,unknown>;type Tables=Record<string,Row[]>;type Point=readonly[number,number];
+const near=(a:Point,b:Point)=>Math.hypot(a[0]-b[0],a[1]-b[1])<.01;
+/** Independent expected FIDs come directly from DGS tables, never SVG positions
+ * or the production audit helper. Glyph contours supply only drawn contacts. */
+export function sourceSvgOracle(xml:string,tables:Tables,canonical:{transformers:{id:string;from:string;to:string}[]}){
+ const cubs=new Map(tables.StaCubic.map(r=>[String(r.FID),r])),trs=new Map(tables.ElmTr2.map(r=>[String(r.FID),r])),parser=new SaxesParser(),stack:string[]=[],equipment=new Map<string,Record<string,string>>(),glyphs=new Map<string,Point>(),paths:{owner:string;terminal:string;d:string}[]=[],switches:Record<string,string>[]=[];
+ parser.on('opentag',tag=>{const a=tag.attributes as Record<string,string>,owner=a['data-id']??stack.at(-1)??'';stack.push(owner);if(a['data-equipment-center'])equipment.set(owner,a);if(a['data-physical-switch'])switches.push(a);if(a['data-symbol']==='autotransformer'||a['data-symbol']==='transformer2w'){const m=/translate\(([-\d.]+)[ ,]+([-\d.]+)\)/.exec(a.transform);if(m)glyphs.set(owner,[+m[1],+m[2]]);}if(tag.name==='path'&&a['data-connection']&&a['data-native-terminal'])paths.push({owner,terminal:a['data-native-terminal'],d:a.d});});parser.on('closetag',()=>stack.pop());parser.write(xml).close();
+ const errors:string[]=[],windings:Row[]=[],seen=new Set<string>();
+ for(const [id,e]of equipment){const raw=trs.get(id);if(!raw)continue;seen.add(id);const canon=canonical.transformers.find(t=>t.id===id);for(const [side,field,dataField]of [['HV','bushv','data-hv-terminal'],['LV','buslv','data-lv-terminal']] as const){const cubId=String(raw[field]??''),cub=cubs.get(cubId),expected=String(cub?.fold_id??''),actualCanonical=side==='HV'?canon?.from:canon?.to,projected=e[dataField],center=glyphs.get(id),contact:Point|null=center?[center[0],center[1]+(side==='HV'?-18:18)]:null;
+   const own=paths.filter(p=>p.owner===id&&p.terminal===expected),touch=contact&&own.some(p=>[...p.d.matchAll(/[ML]([-\d.]+),([-\d.]+)/g)].some(m=>near([+m[1],+m[2]],contact)));
+   let status='MATCH';if(!cub||!expected||String(cub.obj_id)!==id)status='INSUFFICIENT_SOURCE';else if(actualCanonical!==expected)status='IMPORT_MAPPING_MISMATCH';else if(projected!==expected)status='STATION_PROJECTION_MISMATCH';else if(!touch)status='LAYOUT_DRAWING_GAP';if(status!=='MATCH')errors.push(`${id}.${side}: ${status}`);windings.push({transformer_fid:id,winding_side:side,native_cubicle_fid:cubId,raw_fold_id:expected,canonical_terminal:actualCanonical,svg_terminal:projected,classification:status,evidence:`DGS ${id}.${field}=${cubId}; ${cubId}.fold_id=${expected}; visible glyph contact=${contact?.join(',')}; conductor touches=${!!touch}`});
+  }}
+ const rawSwitches=new Map(tables.ElmCoup.map(r=>[String(r.FID),r]));for(const s of switches){if(s['data-class']!=='ElmCoup')continue;const id=s['data-id'],raw=rawSwitches.get(id);if(!raw){errors.push('INSUFFICIENT_SOURCE '+id);continue;}const ends=['bus1','bus2'].map(f=>String(cubs.get(String(raw[f]))?.fold_id??''));if(ends[0]!==s['data-from']||ends[1]!==s['data-to'])errors.push('RAW_SWITCH_ENDPOINT_MISMATCH '+id);}
+ return{errors,windings,transformers:seen.size,switches:switches.length};
+}

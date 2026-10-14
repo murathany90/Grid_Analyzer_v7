@@ -2,8 +2,9 @@ import type { CanonicalNetwork, Bus, Entity } from './network';
 import { voltageMatches, type VoltageBand } from './voltage-band';
 import {sourceSwitchKind,type SourceSwitchKind} from './switch-usage';
 import {shuntSymbol,seriesSymbol,type ReactiveSymbol} from './reactive-symbol';
+import {auditStationSource,type StationSourceAudit} from './station-source-audit';
 export interface StationSourceRow { id:string;name:string;attributes:Readonly<Record<string,unknown>>;sourceClass?:string }
-export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[];seriesReactors?:readonly StationSourceRow[] }
+export interface StationSources { bays:readonly StationSourceRow[];terminals:readonly StationSourceRow[];switches:readonly StationSourceRow[];cubicles:readonly StationSourceRow[];substats:readonly StationSourceRow[];unsupportedEquipment?:readonly StationSourceRow[];transformers?:readonly StationSourceRow[];seriesReactors?:readonly StationSourceRow[];sourceEvidenceComplete?:boolean }
 export type StationIssueKind='invalidSwitchEndpoints'|'unresolvedFeederTerminals'|'unresolvedEquipmentConnections'|'missingCubicleReferences'|'ambiguousBusSections'|'unsupportedEquipmentConnections';
 export interface StationIssue {kind:StationIssueKind;sourceClass:string;sourceId:string;field:string;reference:string;reason:string}
 export interface StationConnection {key:string;sourceClass:string;sourceId:string;kind:'switch'|'equipment';terminals:string[];cubicleIds:string[]}
@@ -15,6 +16,7 @@ export interface StationTopologyGraph {
   equipment:{id:string;name:string;sourceClass:string;terminals:string[];kind:string;autoTransformer?:boolean;typeEvidence?:string;reactiveSymbol?:ReactiveSymbol;diagramOnly?:boolean}[];
   voltageLevels:number[];sourceFeederCount:number;unresolvedEndpoints:number;
   connections:StationConnection[];issues:StationIssue[];counters:Record<StationIssueKind|'diagramUnresolvedTotal',number>;
+  sourceAudit?:StationSourceAudit;
 }
 const order=(a:{name:string;id:string},b:{name:string;id:string})=>a.name.localeCompare(b.name,'tr')||a.id.localeCompare(b.id);
 /** Structural connectivity, including open switches. It is not an energized-bus reduction. */
@@ -75,6 +77,8 @@ export function buildStationTopologyGraph(network:CanonicalNetwork,siteId:string
   for(const row of source.unsupportedEquipment??[])issue('unsupportedEquipmentConnections',row.sourceClass??'ElmTr3',row.id,'winding',String(row.attributes.bushv??''),'Canonical hesap bağlantısı desteklenmiyor; yalnız kaynak portları gösterilebilir');
   for(const row of source.seriesReactors??[])issue('unsupportedEquipmentConnections','ElmSind',row.id,'bus1/bus2',String(row.attributes.bus1??''),'Seri reaktör kaynak portları gösterilir; kanonik hesap modeli desteklenmiyor');
   for(const terminal of terminals){const row=rawTerms.get(terminal.id);if(row?.attributes.iUsage==null&&!bays.has(terminal.parentId))issue('ambiguousBusSections','ElmTerm',terminal.id,'iUsage','','Bara/terminal kullanımı kaynakta yok; terminal kimliği korunur, bara tahmin edilmez');}
+  graph.sourceAudit=auditStationSource(graph,network,source);
+  for(const w of graph.sourceAudit.windings)if(w.classification==='IMPORT_MAPPING_MISMATCH'||w.classification==='STATION_PROJECTION_MISMATCH')issue('unresolvedEquipmentConnections',w.sourceClass,w.transformerId,w.side,w.rawTerminalId,`${w.classification}: ${w.evidence}`);
   for(const record of graph.issues)graph.counters[record.kind]++;
   graph.counters.diagramUnresolvedTotal=graph.issues.length;
   return graph;
