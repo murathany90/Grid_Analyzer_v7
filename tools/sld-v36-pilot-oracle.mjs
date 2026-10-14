@@ -2,7 +2,7 @@ import {SaxesParser} from 'saxes';
 const point=s=>s.split(',').map(Number),near=(a,b)=>a&&b&&Math.hypot(a[0]-b[0],a[1]-b[1])<.01;
 // Read actual SVG subpaths: an M is an optical break, never an inferred line.
 export function segmentsOf(d){let prior=null;const segments=[];for(const m of d.matchAll(/([ML])([\d.-]+),([\d.-]+)/g)){const p=[+m[2],+m[3]];if(m[1]==='L'&&prior&&!near(prior,p))segments.push([prior,p]);prior=p;}return segments;}
-export function inspectPilotSvg(xml,graph){
+export function inspectPilotSvg(xml,graph,scope='400'){
  const parser=new SaxesParser(),stack=[],paths=[],switches=[],ports=new Map(),leaves=[],hops=[],equipment=[];
  parser.on('opentag',tag=>{const a=tag.attributes,parent=stack.at(-1),owner=a['data-id']?a:parent?.owner,semantic=a['data-semantic']??parent?.semantic;stack.push({owner,semantic,attrs:a});
   if(a['data-physical-switch'])switches.push(a);
@@ -12,7 +12,7 @@ export function inspectPilotSvg(xml,graph){
   if(tag.name==='circle'&&parent?.attrs['data-port'])ports.set(parent.attrs['data-port'],[+a.cx,+a.cy]);
   if(tag.name==='path'&&a['data-connection']&&a['data-native-terminal'])paths.push({owner:owner?.['data-id'],semantic,a,terminal:a['data-native-terminal'],segments:segmentsOf(a.d)});
  });parser.on('closetag',()=>stack.pop());parser.write(xml).close();
- const rails=paths.filter(p=>p.semantic==='busbar-section').map(p=>({id:p.terminal,x1:p.segments[0][0][0],x2:p.segments[0][1][0],y:p.segments[0][0][1]})),native=new Map(graph.switches.map(s=>[s.id,s])),pilotOwners=new Set(graph.feeders.filter(f=>f.voltageKv>=300).flatMap(f=>f.switchIds)),pilotTerminals=new Set(graph.terminals.filter(t=>t.vnKv>=300).map(t=>t.id));
+ const rails=paths.filter(p=>p.semantic==='busbar-section').map(p=>({id:p.terminal,x1:p.segments[0][0][0],x2:p.segments[0][1][0],y:p.segments[0][0][1]})),native=new Map(graph.switches.map(s=>[s.id,s])),pilotOwners=new Set(graph.feeders.filter(f=>scope==='all'||f.voltageKv>=300).flatMap(f=>f.switchIds)),pilotTerminals=new Set(graph.terminals.filter(t=>scope==='all'||t.vnKv>=300).map(t=>t.id));
  const errors=[],pilotErrors=[],record=(message,owner)=>{errors.push(message);if(pilotOwners.has(owner))pilotErrors.push(message);},ledger=[];
  for(const s of switches){const id=s['data-id'],source=native.get(id),own=paths.filter(p=>p.owner===id),a=own.find(p=>p.a['data-contact-side']==='FROM'),b=own.find(p=>p.a['data-contact-side']==='TO');
   if(!source||source.from!==s['data-from']||source.to!==s['data-to'])record('Source endpoint mismatch '+id,id);
