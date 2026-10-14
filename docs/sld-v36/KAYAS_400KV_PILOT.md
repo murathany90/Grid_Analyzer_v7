@@ -56,6 +56,28 @@ node tools/sld-v36-kayas-pilot.mjs --labels
 - `independent-conductors.csv`, `source-leaves.csv`, `oracle-private.json`, `metrics-private.json`, test logları.
 - Başlangıçta değiştirilmiş portable dosya **build öncesinde** `USER-PORTABLE-BEFORE.html` olarak korundu. Kullanıcının diğer yerel dosyaları commit'e dahil edilmez.
 
-Hedefli 9 test PASS; typecheck ve mimari lint PASS. Diğer teslim kapıları nihai doğrulama logunda raporlanacaktır. `npm run test:full` kaynak `control1/*.json` bulunmadığından `SKIPPED / SOURCE_UNAVAILABLE` döndü; tam model hesabı PASS sayılmaz.
+## Teslim kapıları
+
+Kod commit'i `5dbe1ab1fc4c663e46d569b19b6eaaa19ff01805` uzak geliştirme dalına push edildi.
+
+| Kapı | Sonuç |
+|---|---|
+| Hedefli test | 9/9 PASS |
+| Bağımsız source/SVG orakülü | 400 kV pilot PASS; 3 negatif mutasyon reddedildi |
+| Typecheck / mimari lint | PASS |
+| Tam unit/regression | **573/575 PASS, 2 FAIL, 0 skip** |
+| E2E genel UI / PF benchmark / map lightning | 3/3 PASS |
+| E2E SLD | **FAIL**: `Foreign native conductors cross real rails: 1` |
+| Standard / portable build | PASS |
+| Committed portable ham byte eşitliği | PASS, CRLF yok |
+| Exact kod-HEAD CI | **FAIL**, unit/regression adımında 573/575; sonraki CI adımları çalışmadı |
+| Tam model hesabı (`test:full`) | **SKIPPED / SOURCE_UNAVAILABLE**, `control1/*.json` yok |
+| CURRENT LF / kullanıcı görsel kabulü | Bekliyor |
+
+İki unit hatası: `sld-v3-independent.test.ts` içindeki dense-sheet beklentisi (`INTERBUS_CIRCUIT` / `NATIVE_ENDPOINTS`) ve `SLD_BAR_ESCAPE_BLOCKED: UNASSIGNED`. **İkisi de 53ed79a başlangıç kaynaklarından ayrı dizinde yeniden üretildi.** Aynı başlangıçta SLD E2E foreign-rail hatası ve Temelli LF `SLD_LABEL_PACKING_UNRESOLVED: T5654` de yeniden üretildi. Eski testler silinmedi, skip edilmedi ve beklenen değerleri değiştirilmedi.
+
+Exact kod-HEAD CI: [run 38594412170](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/38594412170). Typecheck/lint başarılı, unit/regression başarısız. Yerel portable SHA-256 (commit blobuyla birebir): `94a8ab333d79274fe848a928e6d0d757ae02d58ad7d1ef33a8593afc6a066d38`.
+
+Geliştirme dalını mevcut feature dalına hedefleyen draft PR oluşturma girişimi GitHub bağlayıcısında `403 Resource not accessible by integration` döndü; PR oluşmadı. Commit/push ve CI doğrulaması tamamlandı.
 
 **154/33,6 kV yerleşimine geçiş ve main merge için kullanıcı görsel kabulü gereklidir.** Bu gereklilik uygulanması istenen promptun “Önce sadece Kayaş 400 kV ... Sonra 154 kV ve 33,6 kV bölgesine geç” ve “Başarılı pilot olmadan ... refactor'u yapma” kapısından gelir.
