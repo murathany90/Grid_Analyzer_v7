@@ -25,3 +25,9 @@ test('Source bank leaves remain independent of winding terminals and sit beyond 
  for(const id of ['leaf1','leaf2']){assert.ok(p.ports.get(id)!.x>Math.max(...windings.map(w=>w.x)));assert.ok(g.equipment.every(e=>!e.terminals.includes(id)));}
  assert.deepEqual(g,before);assert.equal(p.routes.length,g.switches.length);
 });
+
+test('HV transfer precedes coupler using captions only after the source circuit is proved',()=>{
+ const f=ytbsFixture();f.term('H2',400,'G400',true);f.sw('HC','H','H2','FHC','cbk');f.sw('HT','H','H2','FHT','cbk');
+ f.source.bays=f.source.bays.map(b=>({...b,name:b.id==='FHC'?'400 Kuplaj Fideri':b.id==='FHT'?'400 Transfer Fideri':b.name}));
+ const g=f.graph();g.siteId='M1482';const before=structuredClone(g),p=connectedStationLayout(g,allVoltageBands());assert.ok(p.feeders.find(f=>f.feeder.id==='FHT')!.x<p.feeders.find(f=>f.feeder.id==='FHC')!.x);assert.deepEqual(g,before);
+});

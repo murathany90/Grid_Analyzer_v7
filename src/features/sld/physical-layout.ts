@@ -230,7 +230,10 @@ export function connectedStationLayout(graph:StationTopologyGraph,bands:Readonly
     // One physical rail per real bus group: packing rows are never re-stacked into a second rail.
     const demands=new Map(ownSlots.map(s=>[s.feeder.id,feederCellDemandOf(graph,s.feeder,sections)]));
     const {upper:us,lower:ds}=partitionFeederSides(ownSlots,demands);
-    if(referenceStyle){for(let i=us.length-1;i>=0;i--)if(nativeBarCircuit(graph,us[i].feeder))ds.push(...us.splice(i,1));ds.sort(feederSideOrder);}
+    if(referenceStyle){for(let i=us.length-1;i>=0;i--)if(nativeBarCircuit(graph,us[i].feeder))ds.push(...us.splice(i,1));ds.sort(feederSideOrder);
+     // HV reference sheets place transfer before coupler. Caption/function is
+     // used only to order already-proven native circuits, never to create one.
+     if(kv>40){const cells=ds.filter(s=>nativeBarCircuit(graph,s.feeder)),rank=(s:typeof cells[number])=>s.role==='transfer'||/transfer/i.test(s.feeder.name)?0:1;cells.sort((a,b)=>rank(a)-rank(b)||feederSideOrder(a,b));let i=0;for(let j=0;j<ds.length;j++)if(nativeBarCircuit(graph,ds[j].feeder))ds[j]=cells[i++];}}
     const parts=[...us,...ds];
     const internalRanks=(f:typeof graph.feeders[number])=>{
      const ids=f.terminalIds.filter(id=>!sections.has(id)&&terminal.get(id)?.vnKv===f.voltageKv),edges=graph.switches.filter(s=>f.switchIds.includes(s.id)&&s.from!==s.to),barDegree=(id:string)=>edges.filter(s=>(s.from===id&&sections.has(s.to))||(s.to===id&&sections.has(s.from))).length;
