@@ -1,10 +1,11 @@
+import type {SwitchDrawingEvidence} from './station-switch-drawing';
 import type {CanonicalNetwork,Entity} from './network';
 import type {StationSources,StationTopologyGraph} from './station-topology';
 
 export type SourceClassification='MATCH'|'RAW_SOURCE_LEAF'|'IMPORT_MAPPING_MISMATCH'|'STATION_PROJECTION_MISMATCH'|'LAYOUT_DRAWING_GAP'|'INSUFFICIENT_SOURCE';
 export interface WindingSourceAudit {transformerId:string;sourceClass:string;side:'HV'|'MV'|'LV';cubicleId:string;rawTerminalId:string;canonicalTerminalId:string;projectedTerminalId:string;cubicleOwnerId:string;classification:SourceClassification;evidence:string}
 export interface SourceLeafAudit {terminalId:string;classification:SourceClassification;status:'SOURCE_LEAF_VERIFIED'|'MISMATCH'|'UNKNOWN';switchIds:string[];cubicleIds:string[];windings:WindingSourceAudit[];evidence:string}
-export interface StationSourceAudit {windings:WindingSourceAudit[];leaves:SourceLeafAudit[];status:'SOURCE_PARITY_VERIFIED'|'PARTIAL'|'MISMATCH'}
+export interface StationSourceAudit {switchDrawing?:SwitchDrawingEvidence[];windings:WindingSourceAudit[];leaves:SourceLeafAudit[];status:'SOURCE_PARITY_VERIFIED'|'PARTIAL'|'MISMATCH'}
 const ends=(e:Entity)=>'from'in e&&'to'in e?[String(e.from),String(e.to)]:'bus'in e?[String(e.bus)]:[];
 /** Source identities are checked, never repaired or merged by this audit. */
 export function auditStationSource(graph:StationTopologyGraph,network:CanonicalNetwork,source:StationSources):StationSourceAudit {

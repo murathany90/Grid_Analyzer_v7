@@ -194,7 +194,8 @@ export function createSldView(ctx: AppContext): Feature {
   const panelToggle=actionButton('Bilgi ve sonuçlar',()=>setPanel(sidePanel.hasAttribute('hidden')));panelToggle.setAttribute('aria-expanded','false');
   const panelClose=actionButton('Paneli kapat',()=>setPanel(false));
   sidePanel.append(panelClose,detail,resultPanel,session.element);
-  root.append(toolbar,regionalPager,workspace,info);
+  const drawingAudit=element('details','ga-sld-drawing-audit');drawingAudit.setAttribute('aria-label','SLD kaynak çizim denetimi');
+  root.append(toolbar,regionalPager,workspace,drawingAudit,info);
 
   let scope: SldScope = 'station', selectedBayId = '', regionalPage = 0;
   let networkIndex: NetworkIndex | null = null, networkHash = '', siteOptionsHash = '', stationData: StationData | null = null;
@@ -435,6 +436,7 @@ export function createSldView(ctx: AppContext): Feature {
     else info.textContent = `${site.name} · ${data?.graph.busSections.length||0} bara bölümü · ${data?.bays.length||0} kaynak fider · ${data?.graph.terminals.length||0} terminal · yatay bara / dikey fider. Sürükle: kaydır · tekerlek: yakınlaştır.`;
     if(ctx.n1DetailLoading)info.textContent+=' · Seçili N-1 ayrıntısı hesaplanıyor…';
     else if(diagram.n1Detail)info.textContent+=` · N-1 kesinti: ${diagram.n1Detail.candidate.name} · ${diagram.n1Detail.outageIslands.length} ada · Kırmızı risk bandı >90%, sert limit aşımı >100%.`;
+    drawingAudit.replaceChildren();drawingAudit.hidden=scope==='regional';const decisions=data?.graph.sourceAudit?.switchDrawing??[],listed=decisions.filter(r=>r.classification!=='DRAW_VERIFIED_PATH');drawingAudit.append(element('summary','',`SLD kaynak denetimi · ${listed.filter(r=>r.classification==='HIDE_NONFUNCTIONAL_SOURCE_LEAF').length} gizlenen · ${listed.filter(r=>r.classification==='REVIEW_UNRESOLVED').length} incelenecek`));for(const row of listed){const item=element('details'),summary=element('summary','',`${row.sourceClass} ${row.switchId} · ${row.from} ↔ ${row.to} · ${row.classification}`);item.append(summary,element('p','',row.reason),element('pre','',row.evidence));drawingAudit.append(item);}
     info.title=info.textContent+' '+sourceNotice;
     info.textContent=`${site.name} · ${scope==='station'?`${data?.graph.busSections.length??0} bara · ${data?.graph.feeders.length??0} fider`:scope==='bay'?`${diagram.switches.length} anahtar`:`${diagram.regionalBranches.length} hat`} · ${ctx.scenario.selectedId} · ${calculationEngineLabel(ctx)} · ${diagram.overlay?.status??'NOT_RUN'}`;
     renderDetail();

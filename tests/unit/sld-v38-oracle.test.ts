@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {sourceLeafCircuit} from '../helpers/sld-v38-circuits';
+import {inspectSwitchVisibility} from '../../tools/sld-v38-native-oracle.mjs';
+const raw=(f:ReturnType<typeof sourceLeafCircuit>)=>({StaCubic:f.source.cubicles.map(c=>({FID:c.id,...c.attributes})),ElmCoup:f.source.switches.map(s=>({FID:s.id,...s.attributes}))});
+const svg=(ids:string[],tail='')=>'<svg xmlns="http://www.w3.org/2000/svg">'+ids.map(id=>`<g data-id="${id}" data-physical-switch="ElmCoup|${id}"/>`).join('')+tail+'</svg>';
+test('Independent source oracle rejects hidden stub/terminal/icon remnants',()=>{const f=sourceLeafCircuit(),good=svg(['SW0','SW1','SW2']);assert.deepEqual(inspectSwitchVisibility(good,f.graph,raw(f)).errors,[]);for(const remnant of ['<g data-source-leaf-caption="LEAF"/>','<path data-native-terminal="LEAF"/>','<g data-id="LEAF_DS"/>'])assert.ok(inspectSwitchVisibility(svg(['SW0','SW1','SW2'],remnant),f.graph,raw(f)).errors.length);});
+test('Independent source oracle rejects erasing a real series device even with forged HIDE metadata',()=>{const f=sourceLeafCircuit();f.graph.sourceAudit!.switchDrawing!.find(r=>r.switchId==='SW1')!.classification='HIDE_NONFUNCTIONAL_SOURCE_LEAF';assert.ok(inspectSwitchVisibility(svg(['SW0','SW2']),f.graph,raw(f)).errors.some((e:string)=>e.includes('Functional path hidden between anchors')));});

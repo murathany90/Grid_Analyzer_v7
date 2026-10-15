@@ -8,10 +8,10 @@ type MutableNetwork={-readonly [K in keyof CanonicalNetwork]:CanonicalNetwork[K]
 /** Small source fixtures: the expected order below is authored with the circuit,
  * rather than derived from a renderer or layout helper. */
 export function sourceCircuit(name:CircuitName){
- const source:StationSources={bays:[{id:'F',name:'Source feeder',attributes:{}}],terminals:[],switches:[],cubicles:[],substats:[]},entity=(id:string,sourceClass:string)=>({id,sourceId:id,name:id,sourceClass,inService:true,siteIds:['S'],sourceRefs:{}});
+ const source:StationSources={bays:[{id:'F',name:'Source feeder',attributes:{}}],terminals:[],switches:[],cubicles:[],substats:[],sourceEvidenceComplete:true},entity=(id:string,sourceClass:string)=>({id,sourceId:id,name:id,sourceClass,inService:true,siteIds:['S'],sourceRefs:{}});
  const n:MutableNetwork={...acNetwork(2),modelHash:'PUBLIC_SLD32_'+name,buses:[],lines:[],transformers:[],switches:[],generators:[],loads:[],shunts:[],externalGrids:[],sites:[{...entity('S','ElmSite'),areaId:'A',areaName:'A',voltages:[400,154,33],lat:null,lon:null}]};
  const term=(id:string,kv=400,bar=false)=>{(n.buses as Bus[]).push({...entity(id,'ElmTerm'),vnKv:kv,parentId:bar?'G'+kv:'F'});source.terminals=[...source.terminals,{id,name:id,attributes:{fold_id:bar?'G'+kv:'F',iUsage:bar?0:1}}];};
- const edge=(id:string,usage:string,from:string,to:string,closed=true,cls='ElmCoup')=>{(n.switches as Switch[]).push({...entity(id,cls),from,to,closed});source.switches=[...source.switches,{id,name:id,attributes:{fold_id:'F',aUsage:usage,on_off:Number(closed)}}];return {id,usage,sourceClass:cls,from,to};};
+ const edge=(id:string,usage:string,from:string,to:string,closed=true,cls='ElmCoup')=>{(n.switches as Switch[]).push({...entity(id,cls),from,to,closed});const attrs:Record<string,unknown>={fold_id:'F',aUsage:usage,on_off:Number(closed)};if(cls==='ElmCoup'){attrs.bus1='A_'+id;attrs.bus2='B_'+id;source.cubicles=[...source.cubicles,...[[attrs.bus1,from],[attrs.bus2,to]].map(([key,terminal])=>({id:String(key),name:String(key),attributes:{fold_id:terminal,obj_id:id}}))];}source.switches=[...source.switches,{id,name:id,sourceClass:cls,attributes:attrs}];return {id,usage,sourceClass:cls,from,to};};
  term('BAR',400,true);const main:ReturnType<typeof edge>[]=[],branches:ReturnType<typeof edge>[]=[];
  const sequence=name==='isolator-breaker'||name==='open-isolator'?['dct','cbk']:['isolator-breaker-isolator','double-bar','transfer','bypass','branched-series'].includes(name)?['dct','cbk','dct']:['cbk'];
  let previous='BAR';for(const [i,usage]of sequence.entries()){const t='NODE'+i;term(t);main.push(edge('SW'+i,usage,previous,t,!(name==='open-isolator'&&i===0||name==='open-breaker'&&usage==='cbk')));previous=t;}
@@ -25,7 +25,7 @@ export function sourceCircuit(name:CircuitName){
  }else{
   (n.buses as Bus[]).push({...entity('REMOTE','ElmTerm'),siteIds:['OTHER'],vnKv:400,parentId:'REMOTE_GROUP'});
   (n.lines as Line[]).push({...acNetwork(2).lines[0],...entity('LINE','ElmLne'),from:previous,to:'REMOTE',vnKv:400});
-  if(name==='unknown-order'){const cub='CU';source.cubicles=[{id:cub,name:cub,attributes:{fold_id:previous,obj_id:'LINE'}}];for(const [i,usage]of ['cbk','dct'].entries()){const e=edge('UNKNOWN'+i,usage,previous,previous,true,'StaSwitch');n.switches=(n.switches as Switch[]).map(s=>s.id===e.id?{...s,cubicleId:cub,equipmentId:'LINE'}:s);source.switches=source.switches.map(s=>s.id===e.id?{...s,attributes:{...s.attributes,fold_id:cub,iorder:i+1}}:s);}}
+  if(name==='unknown-order'){const cub='CU';source.cubicles=[...source.cubicles,{id:cub,name:cub,attributes:{fold_id:previous,obj_id:'LINE'}}];for(const [i,usage]of ['cbk','dct'].entries()){const e=edge('UNKNOWN'+i,usage,previous,previous,true,'StaSwitch');n.switches=(n.switches as Switch[]).map(s=>s.id===e.id?{...s,cubicleId:cub,equipmentId:'LINE'}:s);source.switches=source.switches.map(s=>s.id===e.id?{...s,attributes:{...s.attributes,fold_id:cub,iorder:i+1}}:s);}}
  }
  n.classCounts={ElmBay:source.bays.length,ElmTerm:n.buses.length,ElmCoup:n.switches.filter(s=>s.sourceClass==='ElmCoup').length,StaSwitch:n.switches.filter(s=>s.sourceClass==='StaSwitch').length,StaCubic:source.cubicles.length,ElmLne:n.lines.length,ElmTr2:n.transformers.length};
  return {network:n,source,main,branches,graph:buildStationTopologyGraph(n,'S',source)};
