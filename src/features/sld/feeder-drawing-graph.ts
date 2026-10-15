@@ -6,7 +6,10 @@ export interface FeederDrawingPath {terminals:string[];switchIds:string[];branch
  * longer proven series path; equal paths use a stable source identity tie-break. */
 export function feederDrawingPath(graph:StationTopologyGraph,feeder:Feeder):FeederDrawingPath|null {
  const bars=new Set(feeder.busSectionIds),local=new Set(feeder.terminalIds),edges=graph.switches.filter(s=>feeder.switchIds.includes(s.id)&&s.from!==s.to&&local.has(s.from)&&local.has(s.to));
- let targets=[...new Set(graph.equipment.filter(e=>feeder.equipmentKeys.includes(e.sourceClass+'|'+e.id)).flatMap(e=>e.terminals).filter(id=>local.has(id)&&!bars.has(id)))];
+ const equipment=graph.equipment.filter(e=>feeder.equipmentKeys.includes(e.sourceClass+'|'+e.id)),primary=equipment.filter(e=>['line','transformer','transformer3w','seriesCompensator'].includes(e.kind));
+ // A connected auxiliary load must not move the line/winding series spine into
+ // its own fork. The branch stays present with its actual terminals and devices.
+ let targets=[...new Set((primary.length?primary:equipment).flatMap(e=>e.terminals).filter(id=>local.has(id)&&!bars.has(id)))];
  // A source bay may end at native switch terminals without a canonical branch
  // object (e.g. MV feeders or a coupler). Internal degree, not a name or a fake
  // equipment object, identifies the endpoints of these real source paths.
