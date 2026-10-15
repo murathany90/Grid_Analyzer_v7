@@ -1,12 +1,12 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {spawn} from 'node:child_process';
+import {createServer} from 'vite';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {assertStudyPanel,assertLongTooltip} from './map-panel-acceptance.mjs';
 
 const privatePath=process.env.GA_AUDIT_PRIVATE_CACHE,privateData=privatePath?await readFile(privatePath,'utf8'):null;
-const port=5372,server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{stdio:'ignore',windowsHide:true});
+const port=5372,server=await createServer({logLevel:'error',server:{host:'127.0.0.1',port,strictPort:true}});await server.listen();
 const css=['tokens','layout','catalog','components','map','analysis','responsive','benchmark','ui-workspace'].map(f=>`import '/src/styles/${f}.css';`).join('');
 const html=`<!doctype html><html lang="tr"><meta charset="utf-8"><body><main id="app"></main><script type="module">
 ${css}
@@ -52,4 +52,4 @@ try{
   assert.deepEqual(await page.evaluate(()=>window.solverRequests),[]);assert.deepEqual(proof.errors,[]);proof.status='PASS';
   if(privateData){const data=JSON.parse(privateData);await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/map-lightning-audit-'+data.tag+'-private.png'});await writeFile('local-benchmark-results/map-lightning-audit-'+data.tag+'-ui-private.json',JSON.stringify(proof,null,2));}
   console.log('MAP_LIGHTNING_AUDIT_BROWSER_SMOKE '+JSON.stringify(proof));
-}catch(e){if(page&&privateData)await page.screenshot({path:'local-benchmark-results/map-lightning-audit-failure-private.png'}).catch(()=>{});throw e;}finally{await browser?.close();server.kill('SIGTERM');}
+}catch(e){if(page&&privateData)await page.screenshot({path:'local-benchmark-results/map-lightning-audit-failure-private.png'}).catch(()=>{});throw e;}finally{await browser?.close();await server.close();}

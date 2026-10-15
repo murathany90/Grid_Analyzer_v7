@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import {createServer as createViteServer} from 'vite';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import {zipSync,strToU8} from 'fflate';
@@ -9,7 +9,8 @@ import { readFile,mkdir } from 'node:fs/promises';
 
 const port=5180,url=`http://127.0.0.1:${port}/`,portable=process.argv.includes('--portable');
 const artifact=portable?await readFile('dist-portable/GridAnalyzer_v7.html'):null;
-const server=portable?createServer((_req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(artifact);}).listen(port,'127.0.0.1'):spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{stdio:'ignore',windowsHide:true});
+const devServer=portable?null:await createViteServer({logLevel:'error',server:{host:'127.0.0.1',port,strictPort:true}});if(devServer)await devServer.listen();
+const server=devServer??createServer((_req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(artifact);}).listen(port,'127.0.0.1');
 const browser=await chromium.launch({headless:true});
 try{
   let ready=false;for(let i=0;i<80;i++){try{if((await fetch(url)).ok){ready=true;break;}}catch{}await delay(250);}if(!ready)throw Error('Benchmark smoke server unavailable');
@@ -98,4 +99,4 @@ try{
   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Benchmark mobile page overflows the viewport');
   if(portable){await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/portable-benchmark-mobile.png',fullPage:true});}
   if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: active model + independent reference / PF-only / LF / N1 partial + hybrid / CPU worker timeout + recovery / independent SC + diagnostic / export / signed canvas pixels + hybrid case / reduced JSON+OOXML stress / load cancellation+recovery / mobile');
-}finally{await browser.close();if('kill' in server)server.kill();else server.close();}
+}finally{await browser.close();await server.close();}
