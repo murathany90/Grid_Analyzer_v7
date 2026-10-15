@@ -1,5 +1,5 @@
 import {acNetwork} from './ac-network';
-import type {Bus,CanonicalNetwork,Switch,Line,Transformer2W} from '../../src/domain/model/network';
+import type {Bus,CanonicalNetwork,Switch,Line,Transformer2W,Load} from '../../src/domain/model/network';
 import {buildStationTopologyGraph,type StationSources} from '../../src/domain/model/station-topology';
 
 export const circuitNames=['breaker-line','isolator-breaker','isolator-breaker-isolator','double-bar','coupler','transfer','bypass','open-isolator','open-breaker','closed-breaker','unknown-order','hv-lv-corridor','branched-series'] as const;
@@ -17,6 +17,9 @@ export function sourceCircuit(name:CircuitName){
  let previous='BAR';for(const [i,usage]of sequence.entries()){const t='NODE'+i;term(t);main.push(edge('SW'+i,usage,previous,t,!(name==='open-isolator'&&i===0||name==='open-breaker'&&usage==='cbk')));previous=t;}
  if(name==='double-bar'||name==='transfer'||name==='bypass'){term('BAR2',400,true);branches.push(edge('ALTERNATE','dct','BAR2',name==='double-bar'?'NODE0':previous,false));}
  if(name==='branched-series')for(const id of ['A','B']){term('BRANCH'+id+'0');term('BRANCH'+id+'1');branches.push(edge('DS'+id+'0','dct',previous,'BRANCH'+id+'0'),edge('DS'+id+'1','dct','BRANCH'+id+'0','BRANCH'+id+'1'));}
+ // Both fork legs in this positive regression represent real equipment paths.
+ // A bare, unowned dead-end leg is covered separately by the V3.8 hide tests.
+ if(name==='branched-series')for(const id of ['A','B']){const loadId='BRANCH_LOAD_'+id,terminal='BRANCH'+id+'1';(n.loads as Load[]).push({...acNetwork(2).loads[0],...entity(loadId,'ElmLod'),bus:terminal});source.cubicles=[...source.cubicles,{id:'LOAD_CU_'+id,name:'Load cubicle',attributes:{fold_id:terminal,obj_id:loadId}}];}
  if(name==='coupler'){term('BAR2',400,true);branches.push(edge('END','dct',previous,'BAR2'));}
  else if(name==='hv-lv-corridor'){
   term('MIDDLE',154,true);term('LV',33,true);term('LT',33);source.bays=[...source.bays,{id:'FL',name:'Secondary feeder',attributes:{}}];n.buses=(n.buses as Bus[]).map(t=>t.id==='LT'?{...t,parentId:'FL'}:t);source.terminals=source.terminals.map(t=>t.id==='LT'?{...t,attributes:{...t.attributes,fold_id:'FL'}}:t);
