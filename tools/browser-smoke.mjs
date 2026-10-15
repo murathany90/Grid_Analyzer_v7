@@ -1,5 +1,5 @@
 import {mkdir,readFile} from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import {createServer} from 'vite';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import path from 'node:path';
@@ -19,7 +19,10 @@ visualRaw.ElmLne.Values.forEach((line,i)=>{const is400=line[0].startsWith('L400'
 for(const [id,bus] of [['UI_SPLIT_A','T154-PV'],['UI_SPLIT_B','T154-2']])visualRaw.StaCubic.Values.push(visualRaw.StaCubic.Attributes.map(k=>({FID:id,loc_name:id,fold_id:bus,obj_id:'UI_SPLIT'}[k]??'')));
 visualRaw.ElmCoup.Values.push(visualRaw.ElmCoup.Attributes.map(k=>({FID:'UI_SPLIT',loc_name:'Public synthetic open 154 kV coupler',fold_id:'B154',on_off:0,aUsage:0,bus1:'UI_SPLIT_A',bus2:'UI_SPLIT_B',outserv:0}[k]??'')));
 const port=5179,url=`http://127.0.0.1:${port}/`;
-const server=spawn(process.execPath,[path.join(root,'node_modules','vite','bin','vite.js'),'--host','127.0.0.1','--port',String(port),'--strictPort'],{cwd:root,stdio:'ignore',windowsHide:true});
+// Await the Vite server in this process, as the other browser suites do. A CLI
+// child can expose its index before its dependency startup completes on Windows.
+// Navigation and all acceptance timeouts/assertions below remain unchanged.
+const server=await createServer({root,logLevel:'error',server:{host:'127.0.0.1',port,strictPort:true}});await server.listen();
 let browser;
 try{
  let ready=false;for(let attempt=0;attempt<80;attempt++){try{const response=await fetch(url);if(response.ok){ready=true;break;}}catch{}await delay(250);}
@@ -175,5 +178,5 @@ try{
  if(errors.length)throw Error(`Browser JS errors: ${errors.join('; ')}`);
  console.log('Chromium smoke passed: load → quality audit/JSON → N-1 catalog/filter/selection/progress/result/CSV → Full AC/XLSX → PF mismatch comparison/XLSX/CSV → structured topology → map angle/island → settings → Lightning results → SLD.');
 }finally{
- await browser?.close();server.kill('SIGTERM');
+ await browser?.close();await server.close();
 }
