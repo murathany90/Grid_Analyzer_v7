@@ -7,10 +7,10 @@ export async function sldV32BrowserAcceptance(page){
    const {sourceCircuit}=await import('/tests/helpers/sld-v32-circuits.ts'),{SvgSldRenderer}=await import('/src/features/sld/sld-renderer.ts'),{allVoltageBands}=await import('/src/domain/model/voltage-band.ts');
    const f=sourceCircuit(name),g=f.graph,host=document.createElement('div');host.style.width='1440px';host.style.height='900px';document.querySelector('#app').replaceChildren(host);
    const equipment=[...g.equipment.map(e=>({id:e.id,name:e.name,sourceClass:e.sourceClass,busIds:e.terminals,siteIds:['S'],inService:true,voltageKv:400,lvKv:33})),...g.switches.map(s=>({id:s.id,name:s.id,sourceClass:s.sourceClass,busIds:[s.from,s.to],siteIds:['S'],inService:true,closed:f.network.switches.find(e=>e.id===s.id).closed}))];
-   const d={scope:orientation==='horizontal'?'bay':'station',station:f.network.sites[0],selectedId:null,orientation,groups:[],equipment,bays:f.source.bays,selectedBay:{id:'F',name:'Source feeder'},terminals:[],switches:[],regionalSites:[],regionalBranches:[],unresolvedSwitches:0,graph:g,voltageBands:allVoltageBands(),page:0,technical:false,scenario:{...ctx.scenario.current,switchState:{}},settings:ctx.settings.value,n1Detail:null,selectedN1IslandId:null,lod:'overview'};
-   new SvgSldRenderer().render(host,d,()=>{});if(host.querySelectorAll('[data-physical-switch]').length!==(orientation==='horizontal'?g.switches.filter(s=>s.bayId==='F').length:g.switches.length))throw Error('Native switch omitted: '+name);
+   const d={scope:'station',station:f.network.sites[0],selectedId:null,orientation,groups:[],equipment,bays:f.source.bays,selectedBay:{id:'F',name:'Source feeder'},terminals:[],switches:[],regionalSites:[],regionalBranches:[],unresolvedSwitches:0,graph:g,voltageBands:allVoltageBands(),page:0,technical:orientation==='horizontal',scenario:{...ctx.scenario.current,switchState:{}},settings:ctx.settings.value,n1Detail:null,selectedN1IslandId:null,lod:'overview'};
+   new SvgSldRenderer().render(host,d,()=>{});if(host.querySelectorAll('[data-physical-switch]').length!==g.switches.length)throw Error('Native switch omitted: '+name);
    const main=name==='coupler'?[]:f.main,branches=name==='coupler'?[...f.main,...f.branches]:[...f.branches,...(name==='unknown-order'?g.switches.filter(s=>s.from===s.to).map(s=>({id:s.id,from:s.from,to:s.to,sourceClass:s.sourceClass,usage:s.sourceUsage,unresolved:true})):[])];
-   return {orientation,fixture:{graph:g},feeders:[{id:'F',main,branches}]};
+   return {orientation:'vertical',fixture:{graph:g},feeders:[{id:'F',main,branches}]};
   },{name,orientation});const proof=await verifySeriesSvg(page,golden);if(orientation==='vertical')await nativeSeriesEvidence(page,golden.fixture);if(name==='bypass'&&orientation==='vertical')assert.equal(proof.unrelatedRailCrossings,0,'Foreign selector must detour outside real rails');count++;
   if(name==='breaker-line'&&orientation==='vertical'){
    // Recreate the reported defect while retaining source IDs, native endpoints,
@@ -19,5 +19,5 @@ export async function sldV32BrowserAcceptance(page){
    await assert.rejects(()=>verifySeriesSvg(page,golden),/off-axis|false external bypass/);
   }
  }
- assert.equal(count,26);console.log('SLD V3.2 P0 browser PASS: 13 independent native circuits × 2 orientations; actual fixed contacts, source order, inline series, open gaps, branched series and real bypasses.');
+ assert.equal(count,26);console.log('SLD V3.2 P0 browser PASS: 13 independent native circuits × normal/technical full-station views; actual fixed contacts, source order, inline series, open gaps, branched series and real bypasses.');
 }

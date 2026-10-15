@@ -152,7 +152,7 @@ bölgesel görünüm vardır. Fiderler 20 kayıt/sayfa; seçme, aç/kapa, servis
 haritaya gitme ve SVG indirme sağlanır. SVG doğal ölçekte, kaydırılabilir alandadır.
 Bölgesel görünüm en fazla 37 TM/85 dal; ekipman stubları sınırlı ve ek adet etiketlidir.
 Kaynak ucu çözülemeyen bağlantı uydurulmaz. Düzenleyici veya özgün PowerFactory
-sayfa yerleşimi değildir. [SLD editor roadmap](sld-editor-architecture.md).
+sayfa yerleşimi değildir. [SLD editor roadmap](SLD_DEVELOPMENT.md).
 
 ## 20. Analysis migration
 

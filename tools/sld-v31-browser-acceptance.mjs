@@ -37,12 +37,12 @@ export async function nativeSld31Evidence(page,fixture){
 }
 
 export async function sld31UiAcceptance(page,fullscreenPath){
- const options=page.locator('.ga-sld-control-options');if(await options.evaluate(e=>e.open))await options.locator('summary').click();
+ assert.equal(await page.getByLabel('Şema kapsamı',{exact:true}).count(),0);assert.equal(await page.locator('.ga-sld-view > .ga-toolbar').count(),1);
  const panel=page.locator('.ga-sld-side-panel');if(await panel.isVisible())await page.getByRole('button',{name:'Paneli kapat',exact:true}).click();
  await page.getByRole('button',{name:'Sığdır',exact:true}).click();await page.evaluate(()=>new Promise(requestAnimationFrame));
  const before=await page.locator('.ga-sld-diagram').boundingBox();assert.ok(before.height>page.viewportSize().height*.65,'Canvas consumes the remaining screen');
  const selected=await page.evaluate(()=>JSON.stringify(ctx.selection)),box=await page.locator('.ga-sld-svg').getAttribute('viewBox');
- await options.locator('summary').click();assert.ok(await page.getByRole('button',{name:'SVG indir',exact:true}).isVisible());await options.locator('summary').click();assert.equal(await page.locator('.ga-sld-svg').getAttribute('viewBox'),box);
+ await page.getByRole('button',{name:'SVG indir',exact:true}).scrollIntoViewIfNeeded();assert.ok(await page.getByRole('button',{name:'SVG indir',exact:true}).isVisible());assert.ok(await page.getByRole('button',{name:'PNG indir',exact:true}).isVisible());assert.equal(await page.locator('.ga-sld-svg').getAttribute('viewBox'),box);
  await page.getByRole('button',{name:'Bilgi ve sonuçlar',exact:true}).click();assert.ok(await panel.isVisible());await page.getByRole('button',{name:'Paneli kapat',exact:true}).click();assert.equal(await page.evaluate(()=>JSON.stringify(ctx.selection)),selected);
  await page.getByRole('button',{name:'Tam ekran',exact:true}).click();await page.waitForFunction(()=>document.fullscreenElement||document.querySelector('.ga-sld-expanded'));const full=await page.locator('.ga-sld-diagram').boundingBox();assert.ok(full.height>page.viewportSize().height*.8);
  if(fullscreenPath)await page.screenshot({path:fullscreenPath});

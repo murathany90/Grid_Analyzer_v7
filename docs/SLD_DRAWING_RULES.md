@@ -1,0 +1,51 @@
+# SLD drawing rules
+
+## Evidence and common behavior
+
+Every station follows the same rules. Never branch on station names/FIDs or reconstruct a circuit from a raster reference, feeder caption, proximity or voltage ratio. Source identity is sourceClass + sourceId. Raw DGS switch bus1/bus2 and winding bushv/busmv/buslv resolve through StaCubic.fold_id with matching obj_id; compare canonical and projected FIDs before drawing. A native source point, glyph contact and presentation waypoint are distinct concepts. A drawn crossing cannot create electrical connectivity.
+
+One physical switch has one symbol with its real FROM/TO contacts; retain breaker/disconnector/earth/unknown usage and OPEN/CLOSED/OUT_OF_SERVICE/UNKNOWN separately. i_auto=1 proves autotransformer. Missing source terminals stay explicit, never silently omit the station. Unknown fields remain unknown and contribute auditable PARTIAL counts. Models and solver inputs are immutable.
+
+## Bars, feeders and couplers
+
+Use one continuous physical rail per real bar-section FID, with unique native feeder attachments and horizontal bars / vertical feeder devices. Source iUsage must distinguish real bars from equipment/bay terminals. Missing iUsage cannot create a bar. V4 placement and V0 task catalogs guide slots, not extra equipment. Native double-bus selectors, single/double breaker, breaker-and-a-half, section, transfer and bypass circuits require actual source edges. Preserve open/parallel paths and forks.
+
+HV normal/transfer rails form a compact 18-unit bundle. Proven transfer/coupler chains occupy vertical cells outside the rail band; no horizontal breaker forces extra bar spacing. A true section breaker between adjacent MV islands stays in its real gap. Independent low-voltage source groups may share a visual y level (including 33.6/34.5 kV), but remain electrically distinct and at separate x ranges. Each feeder has source-demand width, its own reserved bar passage lanes, native junction and series spine. Do not flatten packed row demands, duplicate rails, put cards in place of conductors or route an ordinary selector around the station envelope.
+
+Proven series devices stay inline. Rank real branches outward from their actual fork, not backwards from a transformer. Protect real glyph bodies, ports and contact normals before routing. Packing may move presentation but must reconnect actual contacts; never transpose source endpoints. Cubicle from==to is an equipment attachment, not a bus merge. Only proven source order permits multi-device cubicle chains. Resolve contact/route conflicts or report them; no visual short around an open device.
+
+## Transformers and reactive equipment
+
+Use physical HV/LV/tertiary terminal IDs, native winding ports, independent parallel symbols and descending voltage regions. GSU/transformer-less MV equipment follows its connected source circuit; no remote shared imaginary bridge. Secondary leads crossing intermediate voltage groups use separate side corridors without foreign rail touches. Imported TypTr2 nominal ratings, actual connected bus voltage, tap and phase provenance are separate. Boundary winding filtering keeps its true continuation voltage, with no fake second winding. Three-winding geometry requires raw cubicles and does not imply solver support.
+
+For parallel bank windings sharing the same actual terminal FID and side, inset the common horizontal collector inside the existing rectangle by 8–16 units; connect it to the unchanged source junction with a short vertical neck. Keep source/glyph/contacts/rail/compartment/page bounds fixed. Reserve other bank planes, switch wires and obstacles. No safe inset means retain the proven route, not a new connection or larger feeder. Exclude physical sections, boundary windings, established LV side corridors and real cubicle chains. `data-bank-entry` is drawing provenance, not a device.
+
+Shunt reactor, capacitor bank, series reactor and series capacitor use distinct source-driven symbols. Shunts have their real single terminal; series devices have separate FROM/TO glyph contacts and native leads. Never join both sides to one glyph contact. ElmSind may be displayed from source cubicles with explicit unsupported numerical status. CT/VT, earth blades, surge devices, motors, generators and auxiliaries need their own source evidence. Unknown type stays `?` / PARTIAL, never fabricated equipment.
+
+## Conductors, crossings and labels
+
+Route orthogonally between immutable native/glyph endpoints; reserve glyphs, ports, bars and foreign accepted nets. Presentation corridor waypoints must avoid foreign conductors, including endpoints; search both axes to escape long collinear corridors. Same-terminal connections are permitted. Do not discard a conflict because it occurs at an artificial waypoint.
+
+A true insulated foreign-rail passage uses distinct SVG M/L subpaths with visible gaps; the bar remains continuous. A wire crossing is not a junction dot. Shared same-terminal intervals are drawn once with complete ownership/source metadata. Different terminal FIDs must never share visible collinear conductors or touch at false endpoints. Oracle checks must parse M subpath gaps, prove every source-conductor interval remains visibly represented, verify native contacts and reject deliberate open-gap bridge mutations. Metadata counts alone are insufficient.
+
+Keep captions/results clear of glyphs, conductors and each other. Source names remain in accessible titles; shortened labels are presentation only. Overflow captions may extend saved fit bounds and frame together, never get clipped or hide a feeder. Measure dense page dimensions and 4× crops; fit scale cannot promise readable text for every device. Readable scale, native feeder/equipment focus and filtering remain available. No tiny-font or omitted-equipment workaround qualifies as acceptance.
+
+## Visibility, color and results
+
+Only HIDE_NONFUNCTIONAL_SOURCE_LEAF may remove a raw dead-end branch from the SLD projection. Independently check all incident edges/cubicle owners and stop at equipment, physical bars or a proven breaker-bearing outlet. Closed state does not make a leaf functional, nor may open state hide a real route. No hidden contact, wire, dot, terminal caption or replacement icon remains. Every FID/classification/reason remains accessible in the audit panel. Ambiguous ownership/state/order stays visible REVIEW_UNRESOLVED and blocks unsafe batch commands.
+
+Voltage colors are nominal classes, not energization evidence. Custom palette, physical device position, service state, scenario changes and analysis alarms are separate. Native exit arrows follow conductor/state color. LF flow arrows use real local FROM/TO injection signs and current identity; losses are not forced to zero. Missing/stale/DC-only quantities remain absent, not plausible numbers. SC/N1 fidelity gates remain unchanged. P/Q/U/I short readouts and complete tooltip/detail values must use the same source terminal and result snapshot.
+
+## Full station UI and exports
+
+Application scope is always station. Feeder selection emphasizes/focuses the same complete sheet and opens real source/operation/result details; it does not switch scope. Opposite-TM navigation uses actual line terminal owners (never names) and preserves selected FID, scenario and history. Opposite winding focus uses the other native terminal. Map/inventory/analyses share canonical selection.
+
+All controls occupy one horizontal row with horizontal scrolling, not wrapping or a hidden options/second toolbar. Provide YTM/TM/view/voltage/palette/results/arrows, feeder selection, history, fit/readable/zoom/focus, SVG/PNG, optional side panel and fullscreen. Keep native accessible hit targets, tooltips, keyboard/touch and maximized drawing height. Closing details or fullscreen preserves selection. Source-audit technical text belongs in the side panel; exact visible status and tooltip remain synchronized.
+
+SVG and PNG export use the complete saved fit viewBox, not the currently zoomed viewport. The full sheet, frame, current colors, Unicode labels, open contacts, source identity and scenario/analysis state must agree. PNG uses a white canvas and self-contained SVG Blob → Image → canvas → PNG Blob. Default scale 2×; cap dimension at 16,384 and area at 32 MP by uniform scaling of the complete page, show explicit scale-reduction notice, never crop. Revoke both SVG/PNG object URLs and expose image/canvas/blob errors. Test file:// offline with zero network dependencies and inspect dimensions/background/colored content/Unicode SVG source.
+
+## Acceptance
+
+Run all existing source/geometry/unit/regression tests and four E2E suites without skips or relaxed thresholds, plus normal/portable builds and committed raw-byte provenance. Freshly render all 1,554 SN3 terminal-bearing stations in technical/LF label modes and retain all 65 explicit missing-source views. Check independent raw winding/visibility, immutable inputs, exact FID inventory, hidden remnants, genuine glyph contacts, open gap, foreign-net joins, caption bounds and dense hop regions. The 12 critical real stations and raw/reference input hashes are recorded in [SLD development](SLD_DEVELOPMENT.md).
+
+Compare real full SVG/PNG sheets and 4× bar/coupler/bank corridors against YTBS references. Original reference pixels are geometry guidance only; retain data-supported differences. A render/inventory PASS is separate from strict electrical geometry and human visual acceptance. A remaining critical false connection blocks main integration and branch deletion. Record source-only PARTIAL independently and retain all FID evidence.

@@ -79,8 +79,6 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
 .ga-sld-view .ga-sld-toolbar>select[aria-label="SLD YTM filtresi"] { flex-basis:145px; }
 .ga-sld-feeder-menu { position:relative;min-width:0; }
 .ga-sld-feeder-menu>summary { cursor:pointer;padding:6px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;line-height:20px; }
-.ga-sld-feeder-menu[open] .ga-sld-feeder-commands { position:absolute;left:0;top:100%;width:min(550px,80vw);background:#132a3c;border:1px solid var(--border);border-radius:6px;padding:12px;box-shadow:0 8px 24px #0009; }
-@media(max-width:700px) { .ga-sld-feeder-menu[open] .ga-sld-feeder-commands { position:fixed;left:5vw;top:20vh;width:90vw;max-height:65vh;overflow:auto; } }
 .ga-sld-view .ga-sld-toolbar button { padding:6px 9px;font-size:12px;min-height:34px; }
 .ga-sld-workspace { display:flex;flex:1;min-width:0;min-height:0;gap:8px;position:relative; }
 .ga-sld-canvas { flex:1;min-width:0;min-height:0;position:relative; }
@@ -90,30 +88,29 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
 .ga-sld-side-panel .ga-detail { padding:8px;margin:8px 0;max-height:none;overflow:visible; }
 .ga-sld-side-panel .ga-sld-results { margin:8px 0; }
 .ga-sld-view .ga-sld-status { flex:none;margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:20px; }
-.ga-sld-view .ga-sld-control-options { margin:0;position:relative; }
-.ga-sld-control-options>summary { padding:6px 9px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;line-height:20px; }
-.ga-sld-control-options[open] { position:static; }
-.ga-sld-control-options[open]>*:not(summary) { position:relative;background:#132a3c;padding:8px;margin:0; }
-.ga-sld-control-options[open] { background:#132a3c; }
-.ga-sld-control-options[open]>summary { background:#214255; }
-.ga-sld-control-options[open]>.ga-toolbar { display:flex; }
-.ga-sld-control-options[open]>[hidden] { display:none; }
-.ga-sld-control-options[open] { max-width:100%; }
 .ga-sld-view:fullscreen,.ga-sld-view.ga-sld-expanded { background:var(--bg,#081725);padding:8px;box-sizing:border-box;width:100%; }
 .ga-sld-view.ga-sld-expanded { position:fixed;inset:0;z-index:1000;height:100dvh; }
-@media (min-width:900px) {
-  .ga-sld-control-options[open] { position:absolute;right:0;top:0;width:min(650px,100%);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px #0009; }
-  .ga-sld-control-options[open]>summary { width:max-content;margin-left:auto; }
-}
+
 @media (max-width:899px) {
   .ga-sld-side-panel { position:absolute;right:0;top:0;bottom:0;width:min(340px,calc(100% - 20px));z-index:3;box-shadow:0 8px 24px #0009; }
   .ga-sld-view .ga-sld-toolbar>select { flex:1 1 120px;min-width:100px; }
-  .ga-sld-control-options[open] { position:absolute;top:100%;right:0;width:min(650px,100%);max-height:65dvh;overflow:auto;box-shadow:0 8px 24px #0009; }
 }
 .ga-sld-detail-panels .ga-attribute { min-width:0; overflow-wrap:anywhere; }
 .ga-sld-view .ga-actions { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:600px) { .ga-sld-view .ga-toolbar select { min-width:0; flex-basis:45%; } .ga-sld-detail-tabs button { flex:1 1 40%; } }
 
-.ga-sld-control-options { margin:6px 0; min-width:0; }
-.ga-sld-view .ga-sld-control-options>summary { cursor:pointer; padding:6px 9px; font-size:12px; }
-.ga-sld-control-options .ga-toolbar { margin:4px 0; }
+/* One physical toolbar row at every width. The SVG retains the remaining height. */
+.ga-sld-view .ga-sld-toolbar { flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;white-space:nowrap;min-width:0;max-width:100%;padding-bottom:5px;scrollbar-width:thin; }
+.ga-sld-view .ga-sld-toolbar>* { flex:0 0 auto; }
+.ga-sld-view .ga-sld-toolbar>select { flex:0 0 145px;min-width:110px;max-width:210px; }
+.ga-sld-view .ga-sld-toolbar>select[aria-label="Trafo merkezi"] { flex-basis:200px; }
+.ga-sld-view .ga-sld-toolbar>select[aria-label="SLD YTM filtresi"] { flex-basis:125px; }
+.ga-sld-view .ga-sld-toolbar>select[aria-label="Fider seç"] { flex-basis:150px; }
+.ga-sld-view .ga-sld-toolbar .ga-voltage-layers { display:flex;flex-wrap:nowrap;gap:7px;margin:0; }
+.ga-sld-view .ga-sld-toolbar .ga-check { display:inline-flex;align-items:center;gap:3px;white-space:nowrap;margin:0;font-size:11px; }
+.ga-sld-view .ga-sld-toolbar button,.ga-sld-view .ga-sld-toolbar select { min-height:36px; }
+.ga-sld-view .ga-sld-toolbar :focus-visible { outline:2px solid #90d4df;outline-offset:-2px; }
+.ga-sld-side-panel .ga-sld-feeder-commands { padding:8px; }
+
+.ga-sld-view .ga-sld-toolbar>button { flex:0 0 auto;min-width:36px;white-space:nowrap; }
+.ga-sld-svg g[data-feeder-marker]:focus { outline:2px solid #b58216;outline-offset:3px; }
