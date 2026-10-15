@@ -16,6 +16,13 @@ test('Device captions strip only the owning station prefix and retain decimal co
  for(const s of ['BANK-A PRIMER FIDERI','BANK-B SEKONDER FIDERI','TR-A SEK.','TR-3 PR.'])assert.ok(windingCaption(s,'TM'));assert.ok(!windingCaption('TR-A YUKU','TM'));assert.ok(!windingCaption('TRAKYA HATTI','TM'));
 });
 test('Long captions wrap at words in at most two rows',()=>{assert.deepEqual(captionLines('Bara Bolucu Kesicisi A-B',17),['Bara Bolucu','Kesicisi A-B']);assert.deepEqual(captionLines('AKASYA GES-1',17),['AKASYA GES-1']);assert.equal(captionLines('A B C D E F G H I J K L',7).length,2);});
+test('Rail names use the same natural order for HV, MV and actual spelling variants',()=>{
+ for(const [names,expected]of [[['TR-C','TR-A1','TR-B','TR-A2'],['TR-A1','TR-A2','TR-B','TR-C']],[['154 B-3','154 B-T-A','154 B-1','154 B-2'],['154 B-1','154 B-2','154 B-3','154 B-T-A']],[['33-SNL-TR-C','33-SNL-TR-B','33-SNL-TR-A'],['33-SNL-TR-A','33-SNL-TR-B','33-SNL-TR-C']],[['BARA_C','BARA_A','BARA_B'],['BARA_A','BARA_B','BARA_C']]]){assert.deepEqual([...names].sort((a,b)=>mvBarOrder(a)-mvBarOrder(b)||a.localeCompare(b,'tr',{numeric:true})),expected);}
+ const f=ytbsFixture(),g=f.graph();g.busSections.find(b=>b.id==='M')!.name='154 B-C';g.busSections.find(b=>b.id==='M2')!.name='154 B-A';const before=structuredClone(g),p=connectedStationLayout(g,allVoltageBands());assert.deepEqual(p.sections.filter(b=>b.section.voltageKv===154).sort((a,b)=>a.y-b.y).map(b=>b.section.name),['154 B-A','154 B-C']);assert.deepEqual(g,before);
+});
+test('A single real MV coupler stays centered when reversed, including stacked rails',()=>{
+ const f=ytbsFixture();f.term('LB',33,'G33',true);f.sw('ONLY_CB','L','LB','COUP','cbk',false);const g=f.graph(),positions=[];for(const reverse of [false,true]){const graph=structuredClone(g),s=graph.switches.find(s=>s.id==='ONLY_CB')!;if(reverse)[s.from,s.to]=[s.to,s.from];const p=connectedStationLayout(graph,allVoltageBands()),r=p.routes.find(r=>r.sw.id===s.id)!;positions.push([r.x,r.y]);assert.equal(Math.abs(r.rotation!),90);assert.ok(r.a&&r.b);assert.equal(r.x,(r.a.x+r.b.x)/2);assert.deepEqual(r.wires[0].points.at(-1),r.contactFrom);assert.deepEqual(r.wires[1].points[0],r.contactTo);assert.equal(p.routes.length,graph.switches.length);}assert.deepEqual(positions[0],positions[1]);
+});
 test('MV letter order includes C and later sections before the transfer rail',()=>{assert.deepEqual(['TR-C','TR-B','TR-A','TR-D','B-T'].sort((a,b)=>mvBarOrder(a)-mvBarOrder(b)),['TR-A','TR-B','TR-C','TR-D','B-T']);
  const f=ytbsFixture();f.term('LB',33,'GB',true);f.term('LC',33,'GC',true);const g=f.graph();g.busSections.find(b=>b.id==='L')!.name='TR-A';g.busSections.find(b=>b.id==='LB')!.name='TR-B';g.busSections.find(b=>b.id==='LC')!.name='TR-C';g.busSections.reverse();const before=structuredClone(g),p=connectedStationLayout(g,allVoltageBands());assert.deepEqual(p.sections.filter(b=>b.section.voltageKv===33).sort((a,b)=>a.x1-b.x1).map(b=>b.section.name),['TR-A','TR-B','TR-C']);assert.deepEqual(g,before);
 });
@@ -37,6 +44,10 @@ test('Feeder readout chooses a real result-bearing key and exact native TO value
 });
 test('A bare bay never borrows aggregate bus P/Q or source load setpoints',()=>{
  const f=sourceCircuit('isolator-breaker-isolator'),g=f.graph,feeder=g.feeders.find(f=>f.id==='F')!;feeder.equipmentKeys=[];const overlay:SldResultOverlay={status:'CONVERGED',method:'FIXTURE',phase:'BASE',outageKey:null,entries:new Map(feeder.terminalIds.map(id=>['ElmTerm|'+id,{status:'CONVERGED',method:'FIXTURE',values:{pMw:999,qMvar:123},lines:[],direction:null,alarm:false}]))};const r=feederReadout(g,feeder,overlay);assert.equal(r.reason,'NO_RESULT_BEARING_EQUIPMENT');assert.equal(r.shown,false);assert.deepEqual(r.rows,['— MW','— MVAr']);
+});
+test('MW and MVAr availability is independent at the native feeder endpoint',()=>{
+ const g=sourceCircuit('isolator-breaker-isolator').graph,f=g.feeders.find(f=>f.id==='F')!,native=g.equipment.find(e=>e.id==='LINE')!.terminals[0];
+ for(const [p,q]of [[10,3],[10,null],[null,3],[null,null]]){const overlay:SldResultOverlay={status:'CONVERGED',method:'FIXTURE',phase:'BASE',outageKey:null,entries:new Map([['ElmLne|LINE',{status:'CONVERGED',method:'FIXTURE',values:{fromTerminal:'REMOTE',toTerminal:native,pFromMw:999,qFromMvar:999,pToMw:p,qToMvar:q},lines:[],direction:null,alarm:false}]])};const r=feederReadout(g,f,overlay);assert.deepEqual(r.rows,[p===null?'— MW':'10.0 MW',q===null?'— MVAr':'3.0 MVAr']);assert.equal(r.shown,p!==null||q!==null);}
 });
 test('Sheet summary separates intentionally hidden source leaves from undrawn devices',()=>{
  const f=sourceLeafCircuit(),before=structuredClone(f.graph),drawing=sldDrawingGraph(f.graph),drawn=drawing.switches.length+drawing.equipment.length,summary=stationSummary(f.graph,drawing,drawn);

@@ -52,6 +52,10 @@ SVG/PNG filenames share `TM_ADI(TM_ID)_DD.MM.YY_HHMM` with the corresponding ext
 
 ## Acceptance
 
+Order source bar captions naturally at every voltage, including letter/number suffixes (`TR-A1`, `33-SNL-TR-A`, `154 B-1`, `BARA_A`); normal bars precede transfer bars. This changes presentation order only. A lone MV interbus switch that cannot occupy a clear section gap uses a centered horizontal device between its two real geometric anchors. Reverse FROM/TO changes contact signs, never its position. Do not manufacture selectors. Keep the existing HV vertical transfer/coupler arrangement and each proven multi-selector/bypass circuit intact.
+
+Final independent inventory checks compare the footer against actual SVG glyphs and source FIDs. Compare raw LF MW/MVAr separately against rendered native-endpoint rows; report both, MW-only, MVAr-only and neither. Canonical load injections already included in AC preparation are not missing loads merely because the snapshot lacks individual ElmLod records.
+
 Run all existing source/geometry/unit/regression tests and four E2E suites without skips or relaxed thresholds, plus normal/portable builds and committed raw-byte provenance. Freshly render all 1,554 SN3 terminal-bearing stations in technical/LF label modes and retain all 65 explicit missing-source views. Check independent raw winding/visibility, immutable inputs, exact FID inventory, hidden remnants, genuine glyph contacts, open gap, foreign-net joins, caption bounds and dense hop regions. The 12 critical real stations and raw/reference input hashes are recorded in [SLD development](SLD_DEVELOPMENT.md).
 
 Compare real full SVG/PNG sheets and 4× bar/coupler/bank corridors against YTBS references. Original reference pixels are geometry guidance only; retain data-supported differences. A render/inventory PASS is separate from strict electrical geometry and human visual acceptance. A remaining critical false connection blocks main integration and branch deletion. Record source-only PARTIAL independently and retain all FID evidence.

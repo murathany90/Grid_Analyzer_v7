@@ -1,0 +1,24 @@
+/** Read-only, real-source audit. Private model/FID evidence stays outside Git. */
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {nativeBarCircuit} from '../src/features/sld/bar-circuit';
+import {connectedStationLayout} from '../src/features/sld/physical-layout';
+import {allVoltageBands} from '../src/domain/model/voltage-band';
+import {sldDrawingGraph} from '../src/features/sld/source-switch-policy';
+import {prepareModel} from '../src/analysis/power-flow/preparation';
+import type {StationTopologyGraph} from '../src/domain/model/station-topology';
+import type {CanonicalNetwork} from '../src/domain/model/network';
+const dir='local-benchmark-results/sld-final-integration';await mkdir(dir,{recursive:true});
+const fixtures=JSON.parse(await readFile('local-benchmark-results/sld-v38/graphs-audited-private.json','utf8')) as {site:{id:string};graph:StationTopologyGraph}[];
+const {network,lf}=JSON.parse(await readFile('local-benchmark-results/map-lightning-audit-SN3-cache-private.json','utf8')) as {network:CanonicalNetwork;lf:{generators:{id:string}[]}};
+const couplers=[],equipment:{key:string;terminal:string;sites:string[];inService:boolean;blocked:boolean;terminalMapped:boolean;inAcPreparation:boolean;individualResult:boolean;reason:string}[]=[],configurationCounts:Record<string,number>={};
+for(const f of fixtures){const g=sldDrawingGraph(f.graph),bays=g.feeders.filter(b=>b.voltageKv>0&&b.voltageKv<=36&&nativeBarCircuit(g,b));if(!bays.length)continue;
+ const before=JSON.stringify(g),normal=connectedStationLayout(g,allVoltageBands()),reversed=structuredClone(g),couplerIds=new Set(bays.flatMap(b=>b.switchIds));for(const s of reversed.switches)if(couplerIds.has(s.id))[s.from,s.to]=[s.to,s.from];const reverse=connectedStationLayout(reversed,allVoltageBands());
+ for(const bay of bays){const circuit=nativeBarCircuit(g,bay)!,edges=g.switches.filter(s=>bay.switchIds.includes(s.id)),signature=edges.map(s=>s.kind).sort().join('+'),path=circuit.switchIds.map(id=>edges.find(s=>s.id===id)!.kind),geometry=edges.map(s=>{const a=normal.routes.find(r=>r.sw.id===s.id)!,b=reverse.routes.find(r=>r.sw.id===s.id)!;assert.ok(a&&b);assert.deepEqual([a.x,a.y],[b.x,b.y],`${f.site.id}/${bay.id}/${s.id} reversed geometry`);for(const r of [a,b]){assert.deepEqual(r.wires[0].points.at(-1),r.contactFrom);assert.deepEqual(r.wires[1].points[0],r.contactTo);}return {fid:s.id,from:s.from,to:s.to,x:a.x,y:a.y,kind:s.kind};});configurationCounts[signature]=(configurationCounts[signature]??0)+1;couplers.push({site:f.site.id,fid:bay.id,name:bay.name,bars:bay.busSectionIds,path,signature,bypass:edges.length>circuit.switchIds.length,geometry,reversed:'PASS'});
+ }assert.equal(JSON.stringify(g),before);
+}
+// Inspect the actual full AC preparation, without running or changing a solver.
+const prepared=prepareModel(network),parts=[prepared,...(prepared.additionalIslands??[])],preparedGenerators=new Set(parts.flatMap(p=>p.generators.map(g=>g.id))),byBus=new Map(network.buses.map(b=>[b.id,b]));
+for(const e of [...network.loads,...network.generators]){const bus=byBus.get(e.bus);if(!bus||bus.vnKv<=0||bus.vnKv>36)continue;const key=e.sourceClass+'|'+e.id,graphs=fixtures.filter(f=>f.graph.equipment.some(q=>q.sourceClass+'|'+q.id===key)),enabled=e.inService&&!prepared.topology.blockedEquipment.has(e.id),mapped=prepared.topology.terminalToBus.has(e.bus),isLoad=e.sourceClass==='ElmLod',included=isLoad?enabled&&mapped:preparedGenerators.has(e.id);assert.ok(graphs.length,`${key} absent from SLD source graph`);if(enabled&&mapped)assert.ok(included,`${key} absent from AC preparation`);equipment.push({key,terminal:e.bus,sites:graphs.map(f=>f.site.id),inService:e.inService,blocked:prepared.topology.blockedEquipment.has(e.id),terminalMapped:mapped,inAcPreparation:included,individualResult:!isLoad&&lf.generators.some(g=>g.id===e.id),reason:!enabled?'OUT_OF_SERVICE_OR_OPEN_CONTACT':!mapped?'NO_ELECTRICAL_BUS':isLoad?'LOAD_INCLUDED_AS_BUS_INJECTION_NO_PER_LOAD_RESULT':'NATIVE_GENERATOR_RESULT_OR_UNSUPPLIED_ISLAND'});}
+const report={couplers:couplers.length,configurationCounts,bypasses:couplers.filter(c=>c.bypass).length,couplerRows:couplers,equipmentCounts:Object.fromEntries(['ElmLod','ElmSym','ElmGenStat'].map(cls=>[cls,{total:equipment.filter(e=>e.key.startsWith(cls+'|')).length,inAcPreparation:equipment.filter(e=>e.key.startsWith(cls+'|')&&e.inAcPreparation).length}])),equipment,sourceIssueSites:fixtures.filter(f=>f.graph.issues.length).length,sourceIssues:fixtures.reduce((n,f)=>n+f.graph.issues.length,0)};
+assert.equal(report.sourceIssueSites,31);assert.equal(report.sourceIssues,60);await writeFile(dir+'/TARGETED_AUDIT.json',JSON.stringify(report,null,2));console.log(JSON.stringify({...report,couplerRows:undefined,equipment:undefined},null,2));

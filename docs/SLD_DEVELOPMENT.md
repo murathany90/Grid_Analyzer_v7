@@ -1,5 +1,15 @@
 # SLD development
 
+## 2026-10-16: final integration audit
+
+Continue from `c536725` without changing canonical inputs or numerical engines. A single-switch MV coupler could change its geometric side when source FROM/TO was reversed and an intervening rail prevented a direct section-gap route. Its real device now lies halfway between two canonical geometric anchors, with unchanged FID, contact identity and open state. The existing HV vertical arrangement remains intact. Natural bar ordering now applies at every voltage and recognizes actual `TR-A1`, `33-SNL-TR-A`, `BARA_A` and numeric B-section variants.
+
+Read-only actual-source audit: 1,009 MV interbus circuits (560 breaker-only, 121 isolator-only, 154 DS/CB/DS, 174 CB with three selectors), including 15 bypass configurations. Reverse each coupler's source endpoints and verify identical glyph coordinates, original contact conductors and immutable input. Source issue inventory remains 60 in 31 stations.
+
+All 2,508 MV loads, 1,298 ElmSym and 1,539 MV ElmGenStat devices exist in station source graphs. Inspecting unchanged full AC preparation confirms 1,947 loads and 1,963 MV generators pass actual service/contact/island inclusion; excluded sources retain their explicit reason. Load injections enter pSpec/qSpec, while the LF result schema has no per-load record. Missing individual load results must not be replaced with setpoints. The 22,663-feeder snapshot has 4,458 with both MW and MVAr, zero MW-only, zero MVAr-only, and 18,205 with neither.
+
+`tools/sld-final-targeted-audit.ts`, `sld-final-svg-inspector.mjs` and the actual-LF option in `sld-v38-browser.mjs` independently inspect source/solver preparation, real SVG footer inventories and raw solved endpoint quantities. Private FID ledgers, before/after SVG/PNG and validation logs remain under `local-benchmark-results/sld-final-integration`; no model cache is committed.
+
 ## 2026-10-16: MV presentation, source/result audit and sheet summary
 
 All policies are station independent and confined to the SLD layer. `caption-text.ts` removes only an owning-station prefix, wraps names at word boundaries into at most two rows and suppresses redundant winding feeder PR./SEK. captions while preserving full source titles, FIDs, selection and maneuvers. Raw DGS ElmBay F31103 already says `336 Kuplaj`; F30984 says `345 Kuplaj`. No comma-removing importer bug was found. The MV coupler caption formatter displays their implicit decimal notation as `33,6` / `34,5`, leaving raw/canonical names intact; already punctuated names retain their separator.

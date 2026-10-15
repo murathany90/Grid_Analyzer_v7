@@ -20,9 +20,11 @@ export function captionLines(name:string,limit=18):string[] {
  if(row)rows.push(row);const shorten=(s:string)=>s.length>limit?s.slice(0,limit-1)+'…':s;
  return rows.length<=2?rows.map(shorten):[shorten(rows[0]),shorten(rows.slice(1).join(' '))];
 }
-/** Natural rail order across every MV source group; no station-specific IDs. */
+/** Natural rail order at every voltage; source spelling and FIDs stay intact. */
 export function mvBarOrder(name:string):number {
- if(/\bB[- .]?T\b/i.test(name))return 10000;
- const letter=name.match(/(?:^|\s)(?:TR|BARA)[- .]*([A-Z])(?:\b|$)/i)?.[1];
- return letter?letter.toUpperCase().charCodeAt(0)-65:1000;
+ const value=name.toLocaleUpperCase('tr-TR').replace(/[–—_]/g,'-');
+ if(/(?:^|[\s-])B[\s.-]*T(?:$|[\s.-]|[A-Z])/u.test(value))return 10000;
+ const section=value.match(/(?:^|[\s-])(?:TR|BARA|TB|B)[\s.-]*(\d+|[A-Z])(?=$|[\s().-]|[A-Z\d])/u)?.[1]
+  ??value.match(/(?:^|[\s-])([A-Z])\s+BARASI\b/u)?.[1];
+ return section?(/^\d+$/.test(section)?Number(section)-1:section.charCodeAt(0)-65):1000;
 }

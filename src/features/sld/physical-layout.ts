@@ -258,7 +258,7 @@ function connectedStationLayoutAttempt(graph:StationTopologyGraph,bands:Readonly
   const bars=graph.busSections.filter(b=>b.voltageKv===kv);
   // Standard source rail captions determine presentation order only: a transfer
   // rail follows the normal rails, while every source FID stays independent.
-  if(referenceStyle&&kv<=40)bars.sort((a,b)=>mvBarOrder(a.name)-mvBarOrder(b.name)||a.name.localeCompare(b.name,'tr',{numeric:true})||a.id.localeCompare(b.id));
+  if(referenceStyle)bars.sort((a,b)=>mvBarOrder(a.name)-mvBarOrder(b.name)||a.name.localeCompare(b.name,'tr',{numeric:true})||a.id.localeCompare(b.id));
   const own=slots.filter(s=>(graph.busSections.find(b=>s.feeder.busSectionIds.includes(b.id))?.voltageKv??s.feeder.voltageKv)===kv);if(!bars.length&&!own.length)continue;
   const groups=kv>40?[bars]:[...new Set(bars.map(b=>b.groupId))].map(id=>bars.filter(b=>b.groupId===id));if(!groups.length)groups.push([]);
   const consumed=new Set<string>();
