@@ -5,11 +5,12 @@ import {pathToFileURL} from 'node:url';
 
 async function download(page,name){const pending=page.waitForEvent('download');await page.getByRole('button',{name,exact:true}).click();const file=await pending,stream=await file.createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk);return {name:file.suggestedFilename(),bytes:Buffer.concat(chunks)};}
 export async function pngBrowserAcceptance(page){
+  await page.clock.setFixedTime(new Date(2026,11,11,10,0));
   await page.getByRole('button',{name:'Yakınlaştır +',exact:true}).click();const viewport=await page.locator('.ga-sld-svg').getAttribute('viewBox');
   const svg=await download(page,'SVG indir'),png=await download(page,'PNG indir');
   const box=svg.bytes.toString().match(/viewBox="([^"]+)"/)[1].split(' ').map(Number);
   assert.notEqual(box.join(' '),viewport,'Export is the complete page after zoom');
-  assert.equal(png.bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');assert.match(png.name,/^YTBS_SLD_.+\.png$/);
+  assert.equal(png.bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');assert.match(png.name,/^.+\([^)]+\)_11\.12\.26_1000\.png$/);assert.equal(svg.name,png.name.replace(/\.png$/,'.svg'));assert.ok(!/[<>:"/\\|?*\x00-\x1f]/.test(png.name));
   const pixels=await page.evaluate(async base64=>{const blob=await(await fetch('data:image/png;base64,'+base64)).blob(),image=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;const c=canvas.getContext('2d');c.drawImage(image,0,0);const edge=[...c.getImageData(0,0,1,1).data];let ink=0;for(let y=0;y<canvas.height;y+=Math.max(1,Math.floor(canvas.height/100)))for(let x=0;x<canvas.width;x+=Math.max(1,Math.floor(canvas.width/100))){const p=c.getImageData(x,y,1,1).data;if(p[0]<240||p[1]<240||p[2]<240)ink++;}image.close();return {width:canvas.width,height:canvas.height,edge,ink};},png.bytes.toString('base64'));
   const scale=Math.min(2,16384/box[2],16384/box[3],Math.sqrt(32000000/(box[2]*box[3])));
   assert.equal(pixels.width,Math.floor(box[2]*scale));assert.equal(pixels.height,Math.floor(box[3]*scale));assert.deepEqual(pixels.edge,[255,255,255,255]);assert.ok(pixels.ink>10,'PNG contains real colored geometry and text');

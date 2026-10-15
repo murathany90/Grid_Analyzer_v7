@@ -16,6 +16,7 @@ import {selectedN1Presentation} from '../../map/layer-policy';
 import {sourceSwitchKind} from '../../domain/model/switch-usage';
 import {feederOperation,feederCommandIds} from './feeder-operation';
 import {downloadDiagramPng} from './png-export';
+import {sldExportFilename} from './export-filename';
 
 interface NetworkIndex {
   network: CanonicalNetwork;
@@ -181,7 +182,7 @@ export function createSldView(ctx: AppContext): Feature {
   resizeFrame=requestAnimationFrame(()=>{sizeWorkspace();redraw();});
   bayPicker.onchange=()=>focusFeeder(bayPicker.value);
   function focusFeeder(id:string):void {const feeder=stationData?.graph.feeders.find(f=>f.id===id);if(!feeder)return;selectedBayId=id;selectEquipment(feeder.sourceClass==='ElmBay'?id:id.slice(id.indexOf('|')+1),feeder.sourceClass);void render().then(()=>renderer.focusFeeder(id));}
-  async function exportPng():Promise<void> {const xml=renderer.exportSvg();if(!xml){ctx.setMessage('Önce SVG şeması oluşturulmalıdır.');return;}pngButton.disabled=true;try{await downloadDiagramPng(xml,`YTBS_SLD_${currentSite()?.id??'TM'}.png`,message=>ctx.setMessage(message));}catch(error){ctx.setMessage(`PNG indirilemedi: ${error instanceof Error?error.message:String(error)}`);}finally{pngButton.disabled=false;}}
+  async function exportPng():Promise<void> {const xml=renderer.exportSvg();if(!xml){ctx.setMessage('Önce SVG şeması oluşturulmalıdır.');return;}const filename=sldExportFilename(currentSite(),'png');pngButton.disabled=true;try{await downloadDiagramPng(xml,filename,message=>ctx.setMessage(message));}catch(error){ctx.setMessage(`PNG indirilemedi: ${error instanceof Error?error.message:String(error)}`);}finally{pngButton.disabled=false;}}
 
   function effectiveSignature(): string { return JSON.stringify(ctx.scenario.current); }
   function ensureNetwork(): CanonicalNetwork | null {
@@ -358,7 +359,7 @@ export function createSldView(ctx: AppContext): Feature {
   downloadButton.addEventListener('click', () => {
     const svg = diagramHost.querySelector('svg'); if (!svg) { ctx.setMessage('Önce SVG şeması oluşturulmalıdır.'); return; }
     const xml = renderer.exportSvg();if(!xml)return;
-    const site = currentSite(); downloadText(xml, `YTBS_SLD_${site?.id || 'TM'}.svg`, 'image/svg+xml;charset=utf-8');
+    downloadText(xml, sldExportFilename(currentSite(),'svg'), 'image/svg+xml;charset=utf-8');
   });
   const unsubscribe = () => {window.removeEventListener('resize',resize);document.removeEventListener('fullscreenchange',fullscreenChange);window.removeEventListener('keydown',escape);cancelAnimationFrame(resizeFrame);};
   if (ctx.view === 'sld') void render();

@@ -1,5 +1,21 @@
 # SLD development
 
+## 2026-10-15: export identity and compact LF labels
+
+`src/features/sld/export-filename.ts` supplies both downloads in `sld-view.ts`: `TM_ADI(TM_ID)_DD.MM.YY_HHMM.svg/.png`. Date/time use local `Date` getters at the click, before asynchronous rasterization. NFC Unicode/Turkish names survive; Windows-forbidden/control characters are removed, whitespace normalized and trailing dots/spaces trimmed. Full-sheet PNG/SVG contents, scale limits and offline operation are unchanged.
+
+`result-labels.ts` shares `formatMw`, `formatMvar`, `formatLoading`, `formatTap` and native-endpoint LF rows. Existing result-identity and validated-quantity gates still apply; absent/nonfinite/stale quantities display `—`. Feeder captions have one name plus MW/MVAr only. Each physical transformer has one native HV summary: MW, MVAr, then loading and tap on the same line. Bank feeders do not repeat their transformer results, and no unproved bank aggregate is calculated. Voltage is shown at the actual bar, away from its name; detailed values remain in tooltips and result panels. N-1/SC retain their detailed readouts.
+
+`sld-renderer.ts` uses the same compact physical layout for YTBS and LF on/off. Invisible reserved caption areas are identical with results hidden, visible or stale; optional result/flow layers do not influence caption collision placement. Line names stay next to their exit arrows; transformer summaries remain below their symbols. Source topology, connections, importers and analysis engines are untouched.
+
+Coverage: `tests/unit/sld-export-lf-labels.test.ts` checks local filenames, Unicode/illegal characters, short formats, endpoint signs and stale/partial gates. `tools/sld-lf-label-browser-acceptance.mjs` checks actual SVG row counts and identical native ports, conductors, names and saved page bounds across YTBS/LF/off/stale states. PNG smoke checks matching SVG/PNG names at a fixed local time, including file:// offline. Reuse cached real SN3 inputs for a focused acceptance run:
+
+```text
+node --import tsx tools/sld-final-real-acceptance.mjs --cached --labels-only --sites M1482,M890,M1074,M535 --out local-benchmark-results/sld-lf-labels
+```
+
+This checks Kayaş, Temelli, Pamukören JES and dense Afyon-2: real signed LF values, source winding parity, row limits, caption/glyph overlaps and unchanged names/native geometry when toggling results. Private full SVG/PNG pairs and the report stay in that ignored output directory; this focused presentation task does not claim a fresh all-station electrical audit.
+
 ## Current architecture and boundaries
 
 The application SLD is always a full station. Feeder/equipment selection, focus, opposite station and winding navigation, history, voltage/YTM filters, scenario maneuvers, seven presentation layers and results/details remain on that sheet. It is a derived read-only view, not a network editor. The renderer and its viewport/geometry caches have no bay/regional scope transitions; lower-level physical geometry helpers retain independent regression coverage.
