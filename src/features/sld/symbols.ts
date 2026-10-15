@@ -32,8 +32,12 @@ export function engineeringSymbol(parent:SVGElement,kind:EngineeringSymbol,x:num
   else if(kind==='voltage-transformer'){circle(0,-6,8);circle(0,6,8);}
   else if(kind==='arrester'){add('rect',{x:-6,y:-12,width:12,height:24,fill:'none',stroke:color});p('M6 -12 L-6 12');}
   else if(kind==='capacitor'||kind==='series-capacitor')p('M0 -18 V-4 M-10 -4 H10 M-10 4 H10 M0 4 V18');
-  else if(kind==='capacitor-bank')p('M0 -18 V-10 M-10 -10 H10 M-10 -4 H10 M0 -4 V4 M-10 4 H10 M-10 10 H10 M0 10 V18');
-  else if(kind==='reactor'||kind==='shunt-reactor'||kind==='series-reactor')p('M0 -18 V-12 C14 -12 14 -4 0 -4 C14 -4 14 4 0 4 C14 4 14 12 0 12 V18');
+  else if(kind==='capacitor-bank'){p('M0 -18 V-10 M-10 -10 H10 M-10 -4 H10 M0 -4 V4 M-10 4 H10 M-10 10 H10 M0 10 V18');p('M-8 18 H8 M-5 22 H5 M-2 26 H2').dataset.symbolEarth='shunt-reference';}
+  else if(kind==='reactor'||kind==='shunt-reactor'||kind==='series-reactor'){
+   p('M0 -18 V-12 C-12 -12 -12 -4 0 -4 C-12 -4 -12 4 0 4 C-12 4 -12 12 0 12 V18').dataset.reactorCoil='true';
+   if(kind==='shunt-reactor')p('M-8 18 H8 M-5 22 H5 M-2 26 H2').dataset.symbolEarth='shunt-reference';
+   if(kind==='series-reactor'){circle(0,-18,1.6);circle(0,18,1.6);}
+  }
   else if(kind==='reactive-equivalent'){p('M0 -18 V-10 M0 10 V18');add('rect',{x:-7,y:-10,width:14,height:20,fill:'var(--sld-paper, #102033)',stroke:color,'stroke-width':2});const label=add('text',{x:0,y:4,fill:color,'font-size':10,'text-anchor':'middle'});label.textContent='X';g.dataset.symbolPartial='UNRESOLVED_REACTIVE_TYPE';}
   else if(kind==='load')p('M0 -14 V-7 M-11 -7 H11 L0 12 Z');
   else if(kind==='exit')p('M0 -16 V4 M-7 -3 L0 4 L7 -3');
