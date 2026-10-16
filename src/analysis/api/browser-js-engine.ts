@@ -3,6 +3,7 @@ import type { CanonicalNetwork } from '../../domain/model/network';
 import { effectiveNetwork } from '../../domain/scenario/overlay';
 import { prepareModel } from '../power-flow/preparation';
 import { mapResults } from '../power-flow/results';
+import {reconstructSwitchFlows} from '../power-flow/switch-flows';
 import {runStationControlledIslandV73,type ControlDiagnostic,type ControlTimings} from '../power-flow/station-controls-v73';
 import {Q_LIMITS_MISSING_CODE, isStationSolved} from '../power-flow/station-participation';
 import { runReduced } from '../fast-ac/reduced-engine';
@@ -20,7 +21,7 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
       const numerical=controlled.result,mapStart=performance.now(),mapped=mapResults(controlled.prepared,numerical,request.identity);return{part:controlled.prepared,numerical,mapped,controlled,resultMapMs:performance.now()-mapStart};
     });
     onProgress('RESULT');const first=outputs[0].mapped,allConverged=outputs.every(o=>o.numerical.converged);
-    for(const o of outputs.slice(1)){first.buses.push(...o.mapped.buses);first.branches.push(...o.mapped.branches);first.generators.push(...o.mapped.generators);first.warnings.push(...o.mapped.warnings);}
+    for(const o of outputs.slice(1)){first.buses.push(...o.mapped.buses);first.branches.push(...o.mapped.branches);first.generators.push(...o.mapped.generators);(first.loads??=[]).push(...o.mapped.loads??[]);first.warnings.push(...o.mapped.warnings);}
     first.converged=allConverged;first.status=allConverged?'CONVERGED_FULL_NR':outputs.length>1?'PARTIAL_ISLAND_FAILURE':first.status;
     first.iterations=outputs.reduce((sum,o)=>sum+o.numerical.iterations,0);first.rounds=Math.max(...outputs.map(o=>o.numerical.rounds));first.elapsedMs=performance.now()-start;
     first.maxMismatchMw=outputs.reduce<number|null>((max,o)=>o.numerical.maxMismatchMW==null?max:max==null?o.numerical.maxMismatchMW:Math.max(max,o.numerical.maxMismatchMW),null);
@@ -131,6 +132,9 @@ export class BrowserJsPowerFlowEngine implements AnalysisEngine {
     first.diagnostics.calculationProvenance={profile:fullAcSettings?.profile??null,profileFidelity:profileClaim.fidelity,profileLabel:profileClaim.label,profileLimits:profileClaim.limits,effectiveLimits,unsupportedSettings:first.diagnostics.unsupportedSettings,activeSettings:request.analysisSettings?{shared:request.analysisSettings.shared,powerFlow:fullAcSettings}:null,activeSettingsHash:request.analysisSettings?analysisSettingsHash(request.analysisSettings,'powerFlow'):null,calculationOptionsHash:request.identity.optionsHash,engine:this.name,engineVersion:this.version,modelHash:request.identity.modelHash,scenarioHash:request.identity.scenarioHash,studyCase:effective.studyCase??null,studyTime:null,studyTimeSource:null,effectiveActiveBalancingMode:effectiveBalanceMode,activeBalanceFidelity,stationControlMode:controllerSummary.mode,stationControlFidelity:controllerSummary.mode==='off'?'NOT_APPLIED':stationControlConverged?'CONVERGED':'PARTIAL',
       stationSourceFidelity,
       stationSourceFidelityNote:sourceFidelityPartial?'One or more station controllers are solved without a source reactive limit, so the operating point is numerically valid but not source-exact.':null,qLimitFidelity:implementation==='INTEGRATED'?'STATION_MEMBER_BIDIRECTIONAL;GENERIC_PV_BIDIRECTIONAL;MISSING_SOURCE_LIMITS_UNRESOLVED':'MONOTONIC_PV_TO_LIMITED; RELEASE_UNSUPPORTED',effectiveActiveSetLimits:{maxStationActiveSetRestarts:Math.max(1,Math.floor(fullAcSettings?.maxStationActiveSetRestarts??128)),maxStationUnitReleases:Math.max(0,Math.floor(fullAcSettings?.maxStationUnitReleases??2)),modelEquationTolerancePercent:fullAcSettings?.modelEquationTolerancePercent??0.2}};
+    const loadIds=new Set(first.loads?.map(l=>l.id));for(const load of effective.loads)if(!loadIds.has(load.id))(first.loads??=[]).push({id:load.id,name:load.name,sourceClass:'ElmLod',bus:load.bus,p0Mw:load.pMw,q0Mvar:load.qMvar,voltagePu:null,activeBalanceAdjustmentMw:null,pMw:null,qMvar:null,model:'CONSTANT_PQ',status:!load.inService?'OUT_OF_SERVICE':built.topology.blockedEquipment.has(load.id)?'BLOCKED_OPEN_CUBICLE':allConverged?'NO_SOLVED_BUS':'NOT_CONVERGED'});
+    if(fullAcSettings?.loadVoltageDependency)for(const load of first.loads??[]){load.pMw=null;load.qMvar=null;load.status='UNSUPPORTED_LOAD_VOLTAGE_DEPENDENCY';}
+    first.switchFlows=reconstructSwitchFlows(effective,first,(fullAcSettings?.nodalToleranceKva??5)/1000);
     return first;
   }
   async runDcPowerFlow(request:AnalysisRequest,onProgress:Progress=()=>{}){return runReduced(request,'dc',onProgress);}

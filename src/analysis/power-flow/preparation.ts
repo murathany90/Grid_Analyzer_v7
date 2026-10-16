@@ -1,4 +1,4 @@
-import type { CanonicalNetwork, Generator } from '../../domain/model/network';
+import type { CanonicalNetwork, Generator, Load } from '../../domain/model/network';
 import { buildTopology, type ElectricalBus, type ElectricalTopology } from '../../topology/electrical-topology';
 export interface NumericBranch { i:number;j:number;r:number;x:number;bch:number;tap:number;phase:number;gMagPu?:number;bMagPu?:number }
 export interface NumericModel {
@@ -8,7 +8,7 @@ export interface NumericModel {
   activeBalanceParticipation?:Float64Array;activeBalanceEligibleLoadMw?:Float64Array;activeBalanceEligibilityComplete?:boolean;referencePMw?:number;
 }
 export interface BranchMeta { id:string;name:string;sourceClass:string;from:string;to:string;siteIds:string[];vnKv:number;ratingMva:number|null;i:number;j:number }
-export interface PreparedModel { model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];externalGrids?:Array<{id:string;name:string;bus:string;index:number;pMw:number;qMvar:number;pMin:number|null;pMax:number|null;qMin:number|null;qMax:number|null;isReference:boolean}>;topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
+export interface PreparedModel { loads?:(Load&{index:number})[];model:NumericModel;buses:ElectricalBus[];branches:BranchMeta[];generators:(Generator&{index:number})[];externalGrids?:Array<{id:string;name:string;bus:string;index:number;pMw:number;qMvar:number;pMin:number|null;pMax:number|null;qMin:number|null;qMax:number|null;isReference:boolean}>;topology:ElectricalTopology;diagnostics:Record<string,unknown>;warnings:string[];islandId?:string;additionalIslands?:PreparedModel[];stationControlUnitResults?:ReadonlyMap<string,{qMvar:number|null;qState:string}> }
 
 /**
  * Admittance formation threshold for near-zero branch impedance.
@@ -82,7 +82,7 @@ export function prepareModel(n:CanonicalNetwork):PreparedModel{
     const eligibleByBus=new Float64Array(kept.length);if(eligibilityComplete)for(const load of islandLoads.filter(load=>load.activeBalanceEligibility===true)){const oldBus=bi.get(load.bus);if(oldBus!=null&&load.pMw>0)eligibleByBus[oldToNew[oldBus]]+=load.pMw;}
     const eligibleTotal=eligibleByBus.reduce((sum,value)=>sum+value,0),participation=new Float64Array(kept.length);if(eligibleTotal>0)for(let i=0;i<participation.length;i++)participation[i]=eligibleByBus[i]/eligibleTotal;
     const model:NumericModel={n:kept.length,baseMVA:n.baseMva,slack:oldToNew[source.index],slackVm:source.vmSet||1,pSpec:pick(pSpec),qSpec:pick(qSpec),busType:localType,vmSet:localVm,shuntG:pick(shuntG),shuntB:pick(shuntB),qMinNet:kept.map(i=>qMinNet[i]),qMaxNet:kept.map(i=>qMaxNet[i]),referenceQMinNet:kept.map(i=>referenceQMinNet[i]),referenceQMaxNet:kept.map(i=>referenceQMaxNet[i]),activeBalanceParticipation:participation,activeBalanceEligibleLoadMw:eligibleByBus,activeBalanceEligibilityComplete:eligibilityComplete,referencePMw:source.pMw,branches:selected.map(({e})=>({...e,i:oldToNew[e.i],j:oldToNew[e.j]}))};
-    islands.push({model,buses:kept.map(i=>topology.buses[i]),branches:selected.map(({meta})=>({...meta,i:oldToNew[meta.i],j:oldToNew[meta.j]})),generators:generators.filter(e=>componentOf[e.index]===componentIndex).map(e=>({...e,index:oldToNew[e.index]})),externalGrids:sourceRows.map(e=>({id:e.id,name:e.name,bus:e.bus,index:oldToNew[e.index],pMw:e.pMw,qMvar:e.qMvar,pMin:e.pMin??null,pMax:e.pMax??null,qMin:e.qMin??null,qMax:e.qMax??null,isReference:e.id===source.id})),topology,warnings:[],diagnostics:{islandId,referenceSource:source.id,referenceBusId:topology.buses[source.index].id},islandId});
+    islands.push({loads:islandLoads.map(load=>({...load,index:oldToNew[bi.get(load.bus)!]})),model,buses:kept.map(i=>topology.buses[i]),branches:selected.map(({meta})=>({...meta,i:oldToNew[meta.i],j:oldToNew[meta.j]})),generators:generators.filter(e=>componentOf[e.index]===componentIndex).map(e=>({...e,index:oldToNew[e.index]})),externalGrids:sourceRows.map(e=>({id:e.id,name:e.name,bus:e.bus,index:oldToNew[e.index],pMw:e.pMw,qMvar:e.qMvar,pMin:e.pMin??null,pMax:e.pMax??null,qMin:e.qMin??null,qMax:e.qMax??null,isReference:e.id===source.id})),topology,warnings:[],diagnostics:{islandId,referenceSource:source.id,referenceBusId:topology.buses[source.index].id},islandId});
   }
   if(unsupplied)warnings.push(`${unsupplied} bara referanssız adalarda; hesap sonucu yok.`);
   const unsupportedReactiveLimitClasses=n.unsupportedReactiveLimitClasses||[];

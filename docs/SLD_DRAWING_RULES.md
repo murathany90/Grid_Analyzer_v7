@@ -52,6 +52,10 @@ SVG/PNG filenames share `TM_ADI(TM_ID)_DD.MM.YY_HHMM` with the corresponding ext
 
 ## Acceptance
 
+Load LF values must come from a converged native `LoadResult`, including final active-balance participation and scenario adjustments. Keep signed consumption conventions and separately identify model P0/Q0. An old snapshot without load rows requires recalculation; do not backfill from inputs. The current constant-PQ load model has no voltage law: if voltage dependence is requested but unsupported, withhold numeric load results explicitly.
+
+An interbar feeder may show the unique real breaker/selector's signed `SwitchFlowResult` when post-solve native-terminal KCL proves an ideal bridge cut. Every active native injection must be accounted for and the whole merged component must reconcile within the solver tolerance. Cycle/parallel currents are not uniquely determined by the ideal merged-bus solve and must stay `SWITCH_FLOW_UNAVAILABLE`, with an accessible reason. Open/off switches and unknown cubicle order also stay unavailable. Never estimate these flows by distributing a bar injection, or infer nonexistent outgoing feeder loads.
+
 Order source bar captions naturally at every voltage, including letter/number suffixes (`TR-A1`, `33-SNL-TR-A`, `154 B-1`, `BARA_A`); normal bars precede transfer bars. This changes presentation order only. A lone MV interbus switch that cannot occupy a clear section gap uses a centered horizontal device between its two real geometric anchors. Reverse FROM/TO changes contact signs, never its position. Do not manufacture selectors. Keep the existing HV vertical transfer/coupler arrangement and each proven multi-selector/bypass circuit intact.
 
 Final independent inventory checks compare the footer against actual SVG glyphs and source FIDs. Compare raw LF MW/MVAr separately against rendered native-endpoint rows; report both, MW-only, MVAr-only and neither. Canonical load injections already included in AC preparation are not missing loads merely because the snapshot lacks individual ElmLod records.

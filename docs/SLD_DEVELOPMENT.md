@@ -1,5 +1,15 @@
 # SLD development
 
+## 2026-10-16: solved loads and unique ideal-switch flows
+
+Full AC snapshots now carry optional `loads` and `switchFlows` result arrays. Preparation retains immutable source load FIDs and each island's actual solver index. The final result mapper emits load consumption P/Q only after convergence with a valid solved voltage, using the solver's final active-balance correction and the exact eligible positive-load weights already used in preparation. Fixed and negative loads retain their modeled signed constant-PQ equations. Model P0/Q0 are separately identified. No ZIP law is inferred: the current engine's unsupported `loadVoltageDependency` setting produces an explicit unavailable load result when requested. Out-of-service, open-cubicle, unsolved and failed cases never substitute dispatch.
+
+Switch reconstruction is a post-solve native-terminal KCL audit. It accounts for native branch endpoint powers (including transformer magnetizing power), solved load/generator/external-grid injections, modeled international transfers and voltage-dependent shunt admittances. Only bridges of the actual closed ideal-switch multigraph with complete native injections and a residual within the configured nodal tolerance get signed FROM/TO P/Q. Parallel paths and cycles have a free circulation and remain `SWITCH_FLOW_UNAVAILABLE`; no pseudoinverse, equal split or reduced-bus net-injection estimate is used. Open/off switches and unproven cubicle order remain unavailable. Numeric solver equations, canonical connections and maneuvers are unchanged.
+
+SLD reads `ElmLod|FID` or a proved interbar feeder's unique real breaker (lone selector if appropriate). Status/reason and result/model provenance are accessible in the source tooltip. Comparison uses two independently valid snapshots; absent old-format results explicitly require recalculation. New unit/browser checks cover actual Full AC-to-SVG values, scenario edits/deltas, signed loads, eligibility weights, unsupported voltage dependence, reversed contacts, parallel cycles, bridge cuts, missing injection records, residual rejection and stale identity. Fresh SN3/SN4 real cases and FID ledgers stay private under `local-benchmark-results/lf-load-switch`.
+
+Source identity matters: local SN3 maps Adatoprakpınar B8820 to LB188 (P0 −16.448 MW, Q0 8.06 MVAr); SN4 maps it to LB187 (P0 −13.33 MW, Q0 5.80 MVAr). The requested LB189/B8820/−33.04/+6.60 combination is absent from these supplied local models; no FID or input is rewritten to match it.
+
 ## 2026-10-16: final integration audit
 
 Continue from `c536725` without changing canonical inputs or numerical engines. A single-switch MV coupler could change its geometric side when source FROM/TO was reversed and an intervening rail prevented a direct section-gap route. Its real device now lies halfway between two canonical geometric anchors, with unchanged FID, contact identity and open state. The existing HV vertical arrangement remains intact. Natural bar ordering now applies at every voltage and recognizes actual `TR-A1`, `33-SNL-TR-A`, `BARA_A` and numeric B-section variants.
