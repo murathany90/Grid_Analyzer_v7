@@ -35,7 +35,7 @@ test('Packing uses four area units at 400/154 and one at 36/33, balances both si
 test('Rail span adapts to actual occupied cells and reserves uniform feeder compartment regions',()=>{
  const f=ytbsFixture();f.line('A',33);const small=connectedStationLayout(f.graph(),allVoltageBands()),span=(p:typeof small)=>Math.max(...p.sections.filter(b=>b.section.voltageKv===33).map(b=>b.x2-b.x1));
  for(let i=0;i<16;i++)f.line('D'+i,33);const large=connectedStationLayout(f.graph(),allVoltageBands());assert.ok(span(large)>span(small));assert.ok(span(small)<500);
- for(const c of large.compartments.values()){assert.ok(c.x1<c.axis&&c.axis<c.x2);assert.equal(c.flowY-c.titleY,56);assert.equal(c.equipmentY-c.titleY,76);assert.ok(c.y1<c.y2);}
+ for(const c of large.compartments.values()){assert.ok(c.x1<c.axis&&c.axis<c.x2);assert.equal(c.flowY-c.titleY,33);assert.equal(c.equipmentY-c.titleY,-15);assert.ok(c.y1<c.y2);}
 });
 test('Model feeder display tags never classify an ordinary physical ElmBay as virtual',()=>{
  const feeder=sourceCircuit('breaker-line').graph.feeders[0];assert.equal(isModelFeeder({feeder:{...feeder,name:'TR YÜKÜ',sourceClass:'ElmBay'}}),false);

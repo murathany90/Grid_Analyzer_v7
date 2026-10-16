@@ -22,3 +22,9 @@ export function lfTransformerRows(overlay:SldResultOverlay|undefined,key:string,
  const v=labelValues(overlay?.entries.get(key));
  return [...lfPowerRows(overlay,key,terminal),`${overlay?.phase==='CHANGE'?'Δ ':''}${formatLoading(v.loadingPercent)}   ${formatTap(v.tapPosition)}`];
 }
+
+/** Fixed four-row readout. Native HV powers only; missing/stale values stay absent. */
+export function transformerCardRows(overlay:SldResultOverlay|undefined,key:string,terminal:string):string[]{
+ const v=labelValues(overlay?.entries.get(key)),[p,q]=lfPowerRows(overlay,key,terminal),prefix=overlay?.phase==='CHANGE'?'Δ ':'';
+ return ['P '+p,'Q '+q,prefix+'Yük '+formatLoading(v.loadingPercent),prefix+'Kademe '+resultNumber(v.tapPosition).replace(/\.0$/,'')+' k.'];
+}

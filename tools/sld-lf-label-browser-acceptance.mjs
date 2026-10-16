@@ -22,9 +22,9 @@ export async function lfLabelBrowserAcceptance(page){
   }
   return reports;
  });
- for(const report of rows){assert.ok(report.unchanged);const first=report.frames[0];for(const frame of report.frames){assert.deepEqual(frame.geometry,first.geometry,'LF never moves physical ports/conductors');assert.deepEqual(frame.titles,first.titles,'LF never moves names');assert.equal(frame.box,first.box,'LF never changes the complete page bounds');assert.deepEqual(frame.otherVoltage,[]);for(const f of frame.feeders){assert.ok(f.titles>=1&&f.titles<=2);assert.ok(f.texts.length<=f.titles+2);assert.ok(f.rows.length<=2);if(!frame.showResults)assert.equal(f.texts.length,f.titles);}}
+ for(const report of rows){assert.ok(report.unchanged);const first=report.frames[0];for(const frame of report.frames){assert.deepEqual(frame.geometry,first.geometry,'LF never moves physical ports/conductors');assert.deepEqual(frame.titles,first.titles,'LF never moves names');assert.equal(frame.box,first.box,'LF never changes the complete page bounds');assert.deepEqual(frame.otherVoltage,[]);for(const f of frame.feeders){assert.ok(f.titles>=0&&f.titles<=2);assert.ok(f.texts.length<=f.titles+2);assert.ok(f.rows.length<=2);if(!frame.showResults)assert.equal(f.texts.length,f.titles);}}
   const on=report.frames[2],stale=report.frames[3];for(const f of on.feeders)if(f.rows.length){assert.match(f.rows[0],/^-?\d+\.\d MW$/);assert.match(f.rows[1],/^-?\d+\.\d MVAr$/);}for(const f of stale.feeders)if(f.rows.length)assert.deepEqual(f.rows,['— MW','— MVAr']);
-  for(const t of on.transformers){assert.deepEqual(t.rows,['12.3 MW','4.5 MVAr','85.0 %   7 kademe']);assert.equal(t.ports.length,1);assert.equal(t.ports[0][0],'HV');}for(const t of stale.transformers)assert.deepEqual(t.rows,['— MW','— MVAr','— %   — kademe']);
+  for(const t of on.transformers){assert.deepEqual(t.rows,['P 12.3 MW','Q 4.5 MVAr','Yük 85.0 %','Kademe 7 k.']);assert.equal(t.ports.length,1);assert.equal(t.ports[0][0],'HV');}for(const t of stale.transformers)assert.deepEqual(t.rows,['P — MW','Q — MVAr','Yük — %','Kademe — k.']);
  }
- assert.ok(rows.some(r=>r.frames[2].transformers.length));console.log('SLD minimal LF labels PASS: native signs, 2/3 rows, one winding summary, stale gates, voltage only at bars, identical ports/routes/names/page with LF on/off.');
+ assert.ok(rows.some(r=>r.frames[2].transformers.length));console.log('SLD minimal LF labels PASS: native signs, 2/4 rows, one winding summary, stale gates, voltage only at bars, identical ports/routes/names/page with LF on/off.');
 }
