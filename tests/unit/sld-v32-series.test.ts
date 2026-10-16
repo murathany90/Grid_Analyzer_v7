@@ -21,6 +21,7 @@ test('DGS aUsage mapping distinguishes load-break disconnector from generic swit
 test('A transfer bypass cannot shorten or reverse the source series sequence',()=>{
  const f=sourceCircuit('bypass');f.graph.switches.reverse();f.graph.terminals.reverse();const p=feederDrawingPath(f.graph,f.graph.feeders.find(f=>f.id==='F')!)!;assert.deepEqual(p.switchIds,['SW0','SW1','SW2']);assert.deepEqual(p.branchSwitchIds,['ALTERNATE']);
 });
+test('Auxiliary source forks keep short vertical leads on their own native columns',()=>{const f=sourceCircuit('branched-series'),p=stationOverviewPage(f.graph,allVoltageBands());for(const e of p.equipment.filter(e=>e.nativePorts.length===1)){assert.equal(e.x,e.nativePorts[0].x);for(const port of e.ports)for(const wire of port.wires)assert.ok(wire.points.every(point=>point[0]===e.x));}});
 test('Nearest external corridor shortens left-hand winding leads without widening the sheet',()=>{
  assert.deepEqual(nearestSideCorridor(338,224,132,1370),{x:108,side:'LEFT'});
  assert.deepEqual(nearestSideCorridor(502,304,132,1370,1),{x:120,side:'LEFT'});

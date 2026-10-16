@@ -8,6 +8,13 @@ export function mapResults(built:PreparedModel,r:PowerFlowResult,identity:Calcul
   const result:CalculationResult={identity,status:r.status,converged:r.converged,iterations:r.iterations,rounds:r.rounds,maxMismatchMw:r.maxMismatchMW,elapsedMs:r.elapsedMs,buses:[],branches:[],generators:[],diagnostics:{...built.diagnostics,referenceBusId:built.model.slack>=0?built.buses[built.model.slack]?.id??null:null,referenceBusName:built.model.slack>=0?built.buses[built.model.slack]?.name??null:null,pvToPq:r.pvToPq||[],linear:r.linear?{method:r.linear.method,iterations:r.linear.iterations,residual:r.linear.residual}:null,numericalFailure},warnings:[...built.warnings,...(r.warnings||[])],quality:{numericalStatus:r.converged?'CONVERGED':'NOT_CONVERGED',controlFidelity:'PARTIAL',referenceValidation:'NOT_AVAILABLE'}};
   if(!r.converged||!r.Vm||!r.Va||!r.P||!r.Q||!r.branches)return result;
   result.buses=built.buses.map((b,i)=>({id:b.id,name:b.name,terms:b.terms,siteIds:b.siteIds,vnKv:b.vnKv,vmPu:r.Vm![i],angleRad:r.Va![i],pMw:r.P![i],qMvar:r.Q![i],islandId:built.islandId}));
+  // The current numerical model is constant PQ (loadVoltageDependency is an
+  // explicitly unsupported setting). Read the final solver's P correction;
+  // never divide a reduced-bus net injection among arbitrary source loads.
+  result.loads=(built.loads??[]).map(load=>{
+    const delta=r.activeBalanceLoadAdjustmentsMw?.[load.index]??0,eligible=load.activeBalanceEligibility===true&&load.pMw>0,total=built.model.activeBalanceEligibleLoadMw?.[load.index]??0,adjustment=eligible&&total>0?delta*load.pMw/total:0,valid=Number.isFinite(delta)&&Number.isFinite(adjustment)&&Number.isFinite(load.pMw)&&Number.isFinite(load.qMvar)&&Number.isFinite(r.Vm![load.index])&&r.Vm![load.index]>0&&(!eligible||delta===0||total>0);
+    return{id:load.id,name:load.name,sourceClass:'ElmLod',bus:load.bus,p0Mw:load.pMw,q0Mvar:load.qMvar,voltagePu:r.Vm![load.index],activeBalanceAdjustmentMw:valid?adjustment:null,pMw:valid?load.pMw+adjustment:null,qMvar:valid?load.qMvar:null,model:'CONSTANT_PQ',status:valid?'SOLVED_CONSTANT_PQ':'BLOCKED_LOAD_ALLOCATION'};
+  });
   result.branches=r.branches.map((e,k)=>{const m=built.branches[k],sf=Math.hypot(e.pf,e.qf),st=Math.hypot(e.pt,e.qt),vf=r.Vm![m.i]*built.buses[m.i].vnKv,vt=r.Vm![m.j]*built.buses[m.j].vnKv;
     const ifA=vf>0?sf*1000/(Math.sqrt(3)*vf):NaN,itA=vt>0?st*1000/(Math.sqrt(3)*vt):NaN;
     const apparentPowerLoadingPercent=m.ratingMva&&m.ratingMva>0?Math.max(sf,st)/m.ratingMva*100:null;
