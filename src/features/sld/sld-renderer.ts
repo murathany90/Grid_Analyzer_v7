@@ -23,6 +23,7 @@ import {portResultRows,transformerCardRows,labelValues,resultNumber} from './res
 import {captionLines,feederCaption,localDeviceName} from './caption-text';
 import {feederReadout} from './feeder-readout';
 import {stationSummary} from './station-summary';
+import {transformerCaptionRight} from './label-anchors';
 export type SldScope='station';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
@@ -93,7 +94,7 @@ const defaultPalette=defaultSettings();
 function paperVoltageColor(d:SldDiagram,kv:number){const key=kv>=300?'color400':kv>=180?'color220':kv>=100?'color154':kv>=50?'color66':'colorLow';return d.settings[key]!==defaultPalette[key]?d.settings[key]:kv>=300?'#d62f2f':kv>=180?'#7151ab':kv>=100?'#254a6e':kv>=50?'#287783':'#25813a';}
 // Native station graphs are immutable cached source projections; result/scenario labels are never cached.
 const geometryCache=new WeakMap<StationTopologyGraph,Map<string,ReturnType<typeof stationOverviewPage>>>();
-function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const expanded=['N1','SC'].includes(d.mode??''),key=[...d.voltageBands].sort().join(',')+'|'+expanded;let layout=cache.get(key);if(!layout){layout=stationOverviewPage(graph,d.voltageBands,expanded);cache.set(key,layout);}return layout;}
+function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const expanded=['N1','SC'].includes(d.mode??''),key=[...d.voltageBands].sort().join(',')+'|'+expanded;let layout=cache.get(key);if(!layout){layout=stationOverviewPage(graph,d.voltageBands,expanded,d.station.name);cache.set(key,layout);}return layout;}
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   if(!d.graph)return;const sourceGraph=d.graph,graph=sldDrawingGraph(sourceGraph),layout=stationGeometry(graph,d),overview=true;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod=d.lod==='detail'?'detail':overview?'overview':'detail';root.dataset.omittedFeeders='0';root.dataset.methodStatus=d.overlay?.status??'NOT_RUN';
   if(overview){root.dataset.paper='true';root.style.background='#fff';root.style.setProperty('--sld-paper','#fff');}
@@ -138,11 +139,11 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
       const kv=geo.ports[0].boundaryKv;svg('path',{d:`M${x-7},${y-geo.direction*7} L${x},${y} L${x+7},${y-geo.direction*7}`,fill:'none',stroke:color,'stroke-width':2},g);text(g,x,y+geo.direction*28,`Diğer gerilim seviyesine devam: ${kv??'—'} kV`,10,ink,'middle');text(g,x,y+geo.direction*43,e.id,9,muted,'middle');
     }else if(e.kind==='transformer'||e.kind==='transformer3w'){
       engineeringSymbol(g,e.autoTransformer?'autotransformer':e.kind==='transformer3w'?'transformer3w':'transformer2w',x,y,color,true,palette(graph.terminals.find(t=>t.id===e.terminals[1])?.vnKv??0,item.inService));g.dataset.transformerType=e.autoTransformer===true?'AUTOTRANSFORMER':e.autoTransformer===false?'TWO_WINDING':'UNVERIFIED_TYPE';g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1]??'';g.dataset.windingSourceAudit=JSON.stringify(graph.sourceAudit?.windings.filter(w=>w.transformerId===e.id)??[]);
-      const caption=svg('g',{'data-equipment-caption':e.id,'data-fixed-label-cell':'transformer'},g),cx=x,cy=y+36;
-      text(caption,cx,cy,shorten(localDeviceName(e.name,d.station.name),26),10,ink,'middle').dataset.labelZone='title';
+      const caption=svg('g',{'data-equipment-caption':e.id,'data-fixed-label-cell':'transformer'},g),cx=x+transformerCaptionRight,cy=y+36;
+      text(caption,cx,cy,shorten(localDeviceName(e.name,d.station.name),26),10,ink,'end').dataset.labelZone='title';
       const nominal=typeof item.ratingMva==='number'&&Number.isFinite(item.ratingMva)&&item.ratingMva>0?String(Number(item.ratingMva.toFixed(3))):'—';
-      text(caption,cx,cy+14,nominal+' MVA',9,muted,'middle').dataset.labelZone='rating';
-      svg('rect',{x:x+34,y:y-34,width:130,height:59,fill:'none','pointer-events':'none','data-label-reservation':'transformer'},caption);
+      text(caption,cx,cy+14,nominal+' MVA',9,muted,'end').dataset.labelZone='rating';
+      svg('rect',{x:x+34,y:y-34,width:90,height:59,fill:'none','pointer-events':'none','data-label-reservation':'transformer'},caption);
       if(d.showResults!==false&&['LF','N1','SC'].includes(d.mode??'')){
        const layer=svg('g',{'data-result-layer':'transformer'},caption),native=e.terminals[0]??'',column=svg('g',{'data-result-port':'HV','data-native-terminal':native},layer);
        caption.dataset.transformerCard=e.id;caption.dataset.readoutStatus=d.overlay?.entries.get(e.sourceClass+'|'+e.id)?.status??d.overlay?.status??'NOT_RUN';

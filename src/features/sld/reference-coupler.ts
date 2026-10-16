@@ -28,7 +28,7 @@ export function referenceCoupler(graph:StationTopologyGraph,feeder:StationTopolo
  if(!nodes.length&&edges.length===1){const r=routes.find(r=>r.sw.id===edges[0].id)!,from=rails.find(b=>b.section.id===r.sw.from)!,to=rails.find(b=>b.section.id===r.sw.to)!;
   // A real section breaker joins side-by-side rails through their gap. It is
   // never routed back through another feeder or around the station envelope.
-  const gapClear=!rails.some(r=>r!==from&&r!==to&&(r.y===from.y&&r.x1<Math.max(from.x1,to.x1)&&r.x2>Math.min(from.x2,to.x2)||r.y!==from.y&&[from,to].some(b=>b.x1===r.x1)));
+  const gapClear=!ownRails.some(r=>r!==from&&r!==to&&r.y>=Math.min(from.y,to.y)&&r.y<=Math.max(from.y,to.y)&&r.x1<Math.max(from.x1,to.x1)&&r.x2>Math.min(from.x2,to.x2));
   const gapCenter=(Math.min(from.x2,to.x2)+Math.max(from.x1,to.x1))/2,glyphClear=!routes.some(o=>o.sw.id!==r.sw.id&&o.ordering==='INTERBUS_CIRCUIT'&&Math.abs(o.x-gapCenter)<36&&Math.abs(o.y-from.y)<30);
   if(from.y===to.y&&gapClear&&glyphClear&&(from.x2<to.x1||to.x2<from.x1)){const forward=from.x2<to.x1,sign=forward?1:-1,start:Point=[forward?from.x2:from.x1,from.y],end:Point=[forward?to.x1:to.x2,to.y];
    r.x=(start[0]+end[0])/2;r.y=from.y;r.rotation=sign>0?-90:90;r.inline=false;r.fixedCell=true;r.ordering='INTERBUS_CIRCUIT';r.a={...ports.get(r.sw.from)!,x:start[0]};r.b={...ports.get(r.sw.to)!,x:end[0]};r.contactFrom=[r.x-sign*16,r.y];r.contactTo=[r.x+sign*16,r.y];r.wires=[{points:[start,r.contactFrom],terminalId:r.sw.from,side:'FROM',contact:r.contactFrom},{points:[r.contactTo,end],terminalId:r.sw.to,side:'TO',contact:r.contactTo}];r.points=r.wires.flatMap(w=>w.points);return;
