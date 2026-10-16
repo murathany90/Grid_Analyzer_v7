@@ -39,7 +39,11 @@ export function referenceCoupler(graph:StationTopologyGraph,feeder:StationTopolo
   // A source with only one switch has no selectors to invent. Center that
   // real device between canonical geometric rail anchors, independently of
   // the switch's FROM/TO spelling (including overlapping/stacked rails).
-  const ordered=[from,to].sort((a,b)=>(a.x1+a.x2)-(b.x1+b.x2)||a.y-b.y||a.section.id.localeCompare(b.section.id)),left=ordered[0],right=ordered[1],lane=laneFor(left.section.id,axis-48,r.sw.id),returnLane=laneFor(right.section.id,axis+48,r.sw.id,[lane]),forward=from===left,sign=forward?1:-1,bottom=origin+72;
+  const ordered=[from,to].sort((a,b)=>(a.x1+a.x2)-(b.x1+b.x2)||a.y-b.y||a.section.id.localeCompare(b.section.id)),left=ordered[0],right=ordered[1],lane=laneFor(left.section.id,axis-48,r.sw.id),returnLane=laneFor(right.section.id,axis+48,r.sw.id,[lane]),forward=from===left,sign=forward?1:-1;let bottom=origin+72;
+  // Reserve the real glyph against native terminals and already placed devices.
+  // Its bar endpoints stay fixed; only the local interbus cell grows downward.
+  const center=(lane+returnLane)/2;while([...ports.values()].some(p=>!bars.has(p.terminalId)&&Math.abs(p.x-center)<21&&Math.abs(p.y-bottom)<16)||routes.some(o=>o.sw.id!==r.sw.id&&Math.abs(o.x-center)<34&&Math.abs(o.y-bottom)<30))bottom+=48;
+
   r.x=(lane+returnLane)/2;r.y=bottom;r.rotation=forward?-90:90;r.inline=true;r.fixedCell=true;r.ordering='INTERBUS_CIRCUIT';r.a={...ports.get(r.sw.from)!,x:forward?lane:returnLane};r.b={...ports.get(r.sw.to)!,x:forward?returnLane:lane};r.contactFrom=[r.x-sign*16,bottom];r.contactTo=[r.x+sign*16,bottom];r.wires=[{points:[[r.a.x,from.y],[r.a.x,bottom],r.contactFrom],terminalId:r.sw.from,side:'FROM',contact:r.contactFrom},{points:[r.contactTo,[r.b.x,bottom],[r.b.x,to.y]],terminalId:r.sw.to,side:'TO',contact:r.contactTo}];r.points=r.wires.flatMap(w=>w.points);return;
  }
  nodes.forEach((id,i)=>{const p=ports.get(id)!;p.x=axis;p.y=origin+66+i*48;p.direction=1;p.seriesFeeder=feeder.id;p.seriesRank=i+1;});

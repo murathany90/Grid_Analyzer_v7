@@ -452,14 +452,16 @@ function connectedStationLayoutAttempt(graph:StationTopologyGraph,bands:Readonly
   else if(outlet){c.direction=outlet.direction;f.x=c.axis;f.y=outlet.y+(outlet.direction<0?-(flowLabels?176:88):outlet.equipment.kind==='line'?30:48);}
   else if(f.feeder.terminalIds.length&&!eq.some(e=>['transformer','transformer3w','shunt','seriesCompensator'].includes(e.equipment.kind))){if(!f.feeder.busSectionIds.length)c.direction=1;f.x=c.axis;const ys=f.feeder.terminalIds.map(id=>ports.get(id)?.y??c.y1);f.y=c.direction<0?Math.min(c.y2+20,...ys)-(flowLabels?214:126):Math.max(c.y1-20,...ys)+68;}
   if(!ordinary.some(o=>o.feeder.id===f.feeder.id)&&!circuit){
-   const neighbors=[...equipment.filter(e=>e.nativePorts.some(p=>terminal.get(p.terminalId)?.vnKv===f.feeder.voltageKv)&&Math.abs(e.x-f.x)<140).map(e=>e.y),...routes.filter(r=>[r.a,r.b].some(p=>p&&(terminal.get(p.terminalId)?.vnKv===f.feeder.voltageKv||f.feeder.terminalIds.includes(p.terminalId)))&&Math.abs(r.x-f.x)<140).map(r=>r.y)];
+   const neighbors=flowLabels?[...equipment.filter(e=>f.feeder.equipmentKeys.includes(e.equipment.sourceClass+'|'+e.equipment.id)).map(e=>e.y),...routes.filter(r=>f.feeder.switchIds.includes(r.sw.id)||[r.a,r.b].some(p=>p&&!sections.has(p.terminalId)&&f.feeder.terminalIds.includes(p.terminalId))).map(r=>r.y)]:[...equipment.filter(e=>e.nativePorts.some(p=>terminal.get(p.terminalId)?.vnKv===f.feeder.voltageKv)&&Math.abs(e.x-f.x)<140).map(e=>e.y),...routes.filter(r=>[r.a,r.b].some(p=>p&&(terminal.get(p.terminalId)?.vnKv===f.feeder.voltageKv||f.feeder.terminalIds.includes(p.terminalId)))&&Math.abs(r.x-f.x)<140).map(r=>r.y)];
    if(neighbors.length)f.y=c.direction<0?Math.min(f.y,...neighbors.map(y=>y-(flowLabels?214:126))):Math.max(f.y,...neighbors.map(y=>y+68));
   }
   c.titleY=f.y;c.flowY=f.y+33;c.equipmentY=f.y-15;
  }
  // Real section/coupler circuits can share a narrow rail gap. Reserve successive
  // caption rows in that local interbus cell, with no free DOM displacement.
- const interbusRows:GlyphBox[]=[];
+ const interbusRows:GlyphBox[]=[...base.feeders.filter(f=>!nativeBarCircuit(graph,f.feeder)&&!f.feeder.equipmentKeys.some(k=>equipment.some(e=>k===e.equipment.sourceClass+'|'+e.equipment.id&&(['transformer','transformer3w'].includes(e.equipment.kind)||e.equipment.reactiveSymbol)))).map(f=>({id:'FEEDER|'+f.feeder.id,x1:f.x-66,x2:f.x+66,y1:f.y-26,y2:f.y+(flowLabels?142:54)})),
+  ...routes.map(r=>({id:r.sw.id,x1:r.x-20,x2:r.x+20,y1:r.y-21,y2:r.y+21})),
+  ...equipment.flatMap(e=>!e.boundary&&['transformer','transformer3w'].includes(e.equipment.kind)?[{id:e.equipment.id,x1:e.x-78,x2:e.x+78,y1:e.y+25,y2:e.y+57},{id:e.equipment.id,x1:e.x+34,x2:e.x+164,y1:e.y-34,y2:e.y+25}]:e.equipment.reactiveSymbol?[{id:e.equipment.id,x1:e.x-20,x2:e.x+170,y1:e.y-28,y2:e.y+48}]:[{id:e.equipment.id,x1:e.x-20,x2:e.x+20,y1:e.y-21,y2:e.y+21}])];
  for(const f of base.feeders.filter(f=>nativeBarCircuit(graph,f.feeder)).sort((a,b)=>a.y-b.y||a.x-b.x||a.feeder.id.localeCompare(b.feeder.id))){
   const c=compartments.get(f.feeder.id)!,height=flowLabels?168:80;let y=f.y;
   for(let hit=interbusRows.find(b=>intersects({id:f.feeder.id,x1:f.x-82,x2:f.x+82,y1:y-26,y2:y+height-26},b));hit;hit=interbusRows.find(b=>intersects({id:f.feeder.id,x1:f.x-82,x2:f.x+82,y1:y-26,y2:y+height-26},b)))y=hit.y2+36;
