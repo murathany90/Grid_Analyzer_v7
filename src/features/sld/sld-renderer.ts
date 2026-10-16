@@ -23,6 +23,7 @@ import {portResultRows,transformerCardRows,labelValues,resultNumber} from './res
 import {captionLines,feederCaption,localDeviceName} from './caption-text';
 import {feederReadout} from './feeder-readout';
 import {stationSummary} from './station-summary';
+import {transformerCaptionEnd} from './label-geometry';
 export type SldScope='station';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
@@ -139,6 +140,9 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
     }else if(e.kind==='transformer'||e.kind==='transformer3w'){
       engineeringSymbol(g,e.autoTransformer?'autotransformer':e.kind==='transformer3w'?'transformer3w':'transformer2w',x,y,color,true,palette(graph.terminals.find(t=>t.id===e.terminals[1])?.vnKv??0,item.inService));g.dataset.transformerType=e.autoTransformer===true?'AUTOTRANSFORMER':e.autoTransformer===false?'TWO_WINDING':'UNVERIFIED_TYPE';g.dataset.hvTerminal=e.terminals[0];g.dataset.lvTerminal=e.terminals[1]??'';g.dataset.windingSourceAudit=JSON.stringify(graph.sourceAudit?.windings.filter(w=>w.transformerId===e.id)??[]);
       const caption=svg('g',{'data-equipment-caption':e.id,'data-fixed-label-cell':'transformer'},g),cx=x,cy=y+36;
+      // The winding's secondary lead resumes on its own axis below the two
+      // caption rows. This is glyph lead clearance, never an electrical fork.
+      svg('path',{d:`M${x},${y+18} L${x},${y+24} M${x},${y+58} L${x},${y+transformerCaptionEnd}`,fill:'none',stroke:palette(graph.terminals.find(t=>t.id===e.terminals[1])?.vnKv??0,item.inService),'stroke-width':2,'data-transformer-caption-lead':e.id},g);
       text(caption,cx,cy,shorten(localDeviceName(e.name,d.station.name),26),10,ink,'middle').dataset.labelZone='title';
       const nominal=typeof item.ratingMva==='number'&&Number.isFinite(item.ratingMva)&&item.ratingMva>0?String(Number(item.ratingMva.toFixed(3))):'—';
       text(caption,cx,cy+14,nominal+' MVA',9,muted,'middle').dataset.labelZone='rating';

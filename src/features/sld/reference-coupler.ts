@@ -28,7 +28,7 @@ export function referenceCoupler(graph:StationTopologyGraph,feeder:StationTopolo
  if(!nodes.length&&edges.length===1){const r=routes.find(r=>r.sw.id===edges[0].id)!,from=rails.find(b=>b.section.id===r.sw.from)!,to=rails.find(b=>b.section.id===r.sw.to)!;
   // A real section breaker joins side-by-side rails through their gap. It is
   // never routed back through another feeder or around the station envelope.
-  const gapClear=!rails.some(r=>r!==from&&r!==to&&(r.y===from.y&&r.x1<Math.max(from.x1,to.x1)&&r.x2>Math.min(from.x2,to.x2)||r.y!==from.y&&[from,to].some(b=>b.x1===r.x1)));
+  const gapClear=!ownRails.some(r=>r!==from&&r!==to&&r.y>=Math.min(from.y,to.y)&&r.y<=Math.max(from.y,to.y)&&r.x1<Math.max(from.x1,to.x1)&&r.x2>Math.min(from.x2,to.x2));
   const gapCenter=(Math.min(from.x2,to.x2)+Math.max(from.x1,to.x1))/2,glyphClear=!routes.some(o=>o.sw.id!==r.sw.id&&o.ordering==='INTERBUS_CIRCUIT'&&Math.abs(o.x-gapCenter)<36&&Math.abs(o.y-from.y)<30);
   if(from.y===to.y&&gapClear&&glyphClear&&(from.x2<to.x1||to.x2<from.x1)){const forward=from.x2<to.x1,sign=forward?1:-1,start:Point=[forward?from.x2:from.x1,from.y],end:Point=[forward?to.x1:to.x2,to.y];
    r.x=(start[0]+end[0])/2;r.y=from.y;r.rotation=sign>0?-90:90;r.inline=false;r.fixedCell=true;r.ordering='INTERBUS_CIRCUIT';r.a={...ports.get(r.sw.from)!,x:start[0]};r.b={...ports.get(r.sw.to)!,x:end[0]};r.contactFrom=[r.x-sign*16,r.y];r.contactTo=[r.x+sign*16,r.y];r.wires=[{points:[start,r.contactFrom],terminalId:r.sw.from,side:'FROM',contact:r.contactFrom},{points:[r.contactTo,end],terminalId:r.sw.to,side:'TO',contact:r.contactTo}];r.points=r.wires.flatMap(w=>w.points);return;
@@ -39,10 +39,11 @@ export function referenceCoupler(graph:StationTopologyGraph,feeder:StationTopolo
   // A source with only one switch has no selectors to invent. Center that
   // real device between canonical geometric rail anchors, independently of
   // the switch's FROM/TO spelling (including overlapping/stacked rails).
-  const ordered=[from,to].sort((a,b)=>(a.x1+a.x2)-(b.x1+b.x2)||a.y-b.y||a.section.id.localeCompare(b.section.id)),left=ordered[0],right=ordered[1],lane=laneFor(left.section.id,axis-48,r.sw.id),returnLane=laneFor(right.section.id,axis+48,r.sw.id,[lane]),forward=from===left,sign=forward?1:-1;let bottom=origin+72;
+  const ordered=[from,to].sort((a,b)=>(a.x1+a.x2)-(b.x1+b.x2)||a.y-b.y||a.section.id.localeCompare(b.section.id)),left=ordered[0],right=ordered[1],lane=laneFor(left.section.id,axis-48,r.sw.id),returnLane=laneFor(right.section.id,axis+48,r.sw.id,[lane]),forward=from===left,sign=forward?1:-1;
   // Reserve the real glyph against native terminals and already placed devices.
   // Its bar endpoints stay fixed; only the local interbus cell grows downward.
-  const center=(lane+returnLane)/2;while([...ports.values()].some(p=>!bars.has(p.terminalId)&&Math.abs(p.x-center)<21&&Math.abs(p.y-bottom)<16)||routes.some(o=>o.sw.id!==r.sw.id&&Math.abs(o.x-center)<34&&Math.abs(o.y-bottom)<30))bottom+=48;
+  const center=(lane+returnLane)/2,bottom=[48,72,96].map(offset=>origin+offset).find(y=>![...ports.values()].some(p=>!bars.has(p.terminalId)&&Math.abs(p.x-center)<21&&Math.abs(p.y-y)<16)&&!routes.some(o=>o.sw.id!==r.sw.id&&Math.abs(o.x-center)<34&&Math.abs(o.y-y)<30));
+  if(bottom==null)throw Error('SLD_COMPACT_COUPLER_BLOCKED: '+r.sw.id);
 
   r.x=(lane+returnLane)/2;r.y=bottom;r.rotation=forward?-90:90;r.inline=true;r.fixedCell=true;r.ordering='INTERBUS_CIRCUIT';r.a={...ports.get(r.sw.from)!,x:forward?lane:returnLane};r.b={...ports.get(r.sw.to)!,x:forward?returnLane:lane};r.contactFrom=[r.x-sign*16,bottom];r.contactTo=[r.x+sign*16,bottom];r.wires=[{points:[[r.a.x,from.y],[r.a.x,bottom],r.contactFrom],terminalId:r.sw.from,side:'FROM',contact:r.contactFrom},{points:[r.contactTo,[r.b.x,bottom],[r.b.x,to.y]],terminalId:r.sw.to,side:'TO',contact:r.contactTo}];r.points=r.wires.flatMap(w=>w.points);return;
  }
