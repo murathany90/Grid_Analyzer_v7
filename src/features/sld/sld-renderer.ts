@@ -23,6 +23,7 @@ import {portResultRows,transformerCardRows,labelValues,resultNumber} from './res
 import {captionLines,feederCaption,localDeviceName} from './caption-text';
 import {feederReadout} from './feeder-readout';
 import {stationSummary} from './station-summary';
+import {transformerCaptionPath} from './caption-pass';
 export type SldScope='station';
 export interface SldEquipment { id:string;name:string;sourceClass:string;busIds:readonly string[];siteIds:readonly string[];inService:boolean;sourceInService?:boolean;closed?:boolean;sourceClosed?:boolean;fromSiteId?:string;toSiteId?:string;voltageKv?:number;lvKv?:number;ratingMva?:number }
 export interface SldBusGroup {id:string;name:string;buses:readonly Bus[]}
@@ -93,7 +94,7 @@ const defaultPalette=defaultSettings();
 function paperVoltageColor(d:SldDiagram,kv:number){const key=kv>=300?'color400':kv>=180?'color220':kv>=100?'color154':kv>=50?'color66':'colorLow';return d.settings[key]!==defaultPalette[key]?d.settings[key]:kv>=300?'#d62f2f':kv>=180?'#7151ab':kv>=100?'#254a6e':kv>=50?'#287783':'#25813a';}
 // Native station graphs are immutable cached source projections; result/scenario labels are never cached.
 const geometryCache=new WeakMap<StationTopologyGraph,Map<string,ReturnType<typeof stationOverviewPage>>>();
-function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const expanded=['N1','SC'].includes(d.mode??''),key=[...d.voltageBands].sort().join(',')+'|'+expanded;let layout=cache.get(key);if(!layout){layout=stationOverviewPage(graph,d.voltageBands,expanded);cache.set(key,layout);}return layout;}
+function stationGeometry(graph:StationTopologyGraph,d:SldDiagram){let cache=geometryCache.get(graph);if(!cache){cache=new Map();geometryCache.set(graph,cache);}const expanded=['N1','SC'].includes(d.mode??''),key=[...d.voltageBands].sort().join(',')+'|'+expanded;let layout=cache.get(key);if(!layout){layout=stationOverviewPage(graph,d.voltageBands,expanded,d.station.name);cache.set(key,layout);}return layout;}
 function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
   if(!d.graph)return;const sourceGraph=d.graph,graph=sldDrawingGraph(sourceGraph),layout=stationGeometry(graph,d),overview=true;root.setAttribute('viewBox',`0 0 ${layout.width} ${layout.height}`);root.dataset.lod=d.lod==='detail'?'detail':overview?'overview':'detail';root.dataset.omittedFeeders='0';root.dataset.methodStatus=d.overlay?.status??'NOT_RUN';
   if(overview){root.dataset.paper='true';root.style.background='#fff';root.style.setProperty('--sld-paper','#fff');}
@@ -222,6 +223,13 @@ function station(root:SVGSVGElement,d:SldDiagram,select:Select):void {
       line.setAttribute('d',commands.join(' '));
     }
     for(const [s,line]of sharedLines)if(s.owners.length>1)line.dataset.conductorOwners=[...new Set([...(line.dataset.conductorOwners??'').split(';').filter(Boolean),...s.owners])].join(';');
+  }
+  for(const e of layout.equipment.filter(e=>!e.boundary&&['transformer','transformer3w'].includes(e.equipment.kind))){
+    const terminal=e.equipment.terminals[1];
+    for(const line of lines.filter(line=>line.dataset.nativeTerminal===terminal&&line.closest('[data-equipment-center]')?.getAttribute('data-id')===e.equipment.id)){
+      const full=line.dataset.sourceConductor??line.getAttribute('d')!,clear=transformerCaptionPath(line.getAttribute('d')!,e.x,e.y);
+      if(clear.passed){line.dataset.sourceConductor=full;line.dataset.captionPass=JSON.stringify({equipmentId:e.equipment.id,terminalId:terminal,x:e.x,lo:clear.lo,hi:clear.hi});line.setAttribute('d',clear.d);}
+    }
   }
   const visibleCrossingSet=new Set(visibleCrossings(lines.map(line=>({d:line.getAttribute('d')!,terminalId:line.dataset.nativeTerminal!}))).map(c=>c.x+','+c.y));
   for(const jump of wireCrossings(conductors).filter(c=>visibleCrossingSet.has(c.x+','+c.y))){const {x,y,vertical}=jump,line=lines[jump.wire],g=svg('g',{'data-hop-over':'true','data-crossing-at':`${x},${y}`,'data-crossing-purpose':'VISIBLE_FOREIGN_CONDUCTORS','data-terminal-a':conductors[jump.wire].terminalId,'data-terminal-b':conductors[jump.other].terminalId,'pointer-events':'none'},root);
