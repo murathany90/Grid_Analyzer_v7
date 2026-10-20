@@ -51,5 +51,56 @@ try{
   await page.keyboard.press('Escape');assert.equal(await page.locator('.ga-lightning').isVisible(),false);await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();assert.equal(await page.locator('.ga-lightning').isVisible(),true);
   assert.deepEqual(await page.evaluate(()=>window.solverRequests),[]);assert.deepEqual(proof.errors,[]);proof.status='PASS';
   if(privateData){const data=JSON.parse(privateData);await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/map-lightning-audit-'+data.tag+'-private.png'});await writeFile('local-benchmark-results/map-lightning-audit-'+data.tag+'-ui-private.json',JSON.stringify(proof,null,2));}
+  if(!privateData){
+    // One focused LF/workspace regression: actual controller, source worker, solver and IndexedDB.
+    const workspaceHtml=`<!doctype html><html lang="tr"><meta charset="utf-8"><body><main id="app"></main><script type="module">
+      ${css}
+      import {Application} from '/src/app/controller.ts';
+      import {createLightningPanel} from '/src/map/lightning-panel.ts';
+      import {BrowserDatabase} from '/src/persistence/database.ts';
+      import {workspaceKey} from '/src/domain/results/workspace.ts';
+      const raw=await (await fetch('/tests/fixtures/small-dgs.json')).json();
+      raw.ElmCoup.Values.forEach((row,i)=>{row[raw.ElmCoup.Attributes.indexOf('aUsage')]=i?'dct':'cbk';row[raw.ElmCoup.Attributes.indexOf('on_off')]=1;});
+      const file=new File([JSON.stringify(raw)],'workspace-ui-fixture.json',{type:'application/json'}),ctx=new Application();window.ctx=ctx;
+      await ctx.loadFiles([file]);ctx.view='map';
+      const panel=createLightningPanel(ctx);document.querySelector('#app').append(panel.element);ctx.subscribe(()=>panel.render());
+      const db=new BrowserDatabase();window.db=db;window.cacheKey=()=>workspaceKey(ctx);
+      window.seedLegacy=async()=>{const key=workspaceKey(ctx);await db.put('scenario:'+ctx.network.modelHash,ctx.scenario.current);await db.put('workspace:'+key,{old:true});await db.put('lf:'+key+':powerFlow',{old:true});window.oldKey=key;};
+      await ctx.run('powerFlow','base');window.base=ctx.resultStore.get('base');
+      if(!ctx.scenario.canUndo)await ctx.run('powerFlow','scenario');
+      panel.open('RESULTS');window.ready=true;
+    </script></body></html>`;
+    await page.route('**/workspace.html',r=>r.fulfill({contentType:'text/html',body:workspaceHtml}));
+    await page.goto('http://127.0.0.1:'+port+'/workspace.html');await page.waitForFunction(()=>window.ready);
+    const panel=page.locator('.ga-lightning'),view=panel.getByLabel('Elektriksel sonuç görünümü'),table=panel.locator('.ga-result-table');
+    assert.equal(await page.evaluate(()=>!!window.base?.converged),true);
+    await view.selectOption('delta');assert.equal(await table.isVisible(),true);assert.match(await table.locator('thead').textContent(),/Baz.*Senaryo.*ΔP/);
+    assert.equal(await panel.locator('.ga-workspace-results').isVisible(),false);assert.equal(await view.inputValue(),'delta');assert.equal(await panel.getByRole('button',{name:'Başlat',exact:true}).isVisible(),false);
+    for(const role of ['base','scenario','delta']){await view.selectOption(role);assert.equal(await table.isVisible(),true);assert.equal(await view.inputValue(),role);assert.equal(await panel.locator('.ga-workspace-results').isVisible(),false);assert.equal(await panel.locator('.ga-delta-summary').isVisible(),role==='delta');}
+    await panel.getByLabel('Elektriksel sonuçlarda ara').fill('L400-01');assert.equal(await table.locator('tbody tr[data-row]').count(),1);await panel.getByLabel('Elektriksel sonuçlarda ara').fill('');
+    await table.locator('[data-sort="deltaP"]').click();assert.equal(await table.locator('[data-sort="deltaP"]').getAttribute('aria-pressed'),'true');
+    if(await panel.getByRole('button',{name:'Sonraki',exact:true}).isEnabled()){await panel.getByRole('button',{name:'Sonraki',exact:true}).click();assert.match(await panel.locator('.ga-result-container .ga-pager').textContent(),/2\//);await panel.getByRole('button',{name:'Önceki',exact:true}).click();}
+    for(const kind of ['trafo','bus','line']){await panel.getByLabel('Elektriksel sonuç ekipmanı').selectOption(kind);assert.equal(await table.isVisible(),true);}
+    const download=page.waitForEvent('download');await panel.getByRole('button',{name:'Elektriksel sonuçları XLSX indir'}).click();assert.match((await download).suggestedFilename(),/\.xlsx$/);
+    const before=await page.evaluate(()=>JSON.stringify(ctx.network));
+    await page.evaluate(async()=>{await ctx.setStatus('lineStatus',ctx.network.lines[0].id,false,true);await ctx.setStatus('transformerStatus',ctx.network.transformers[0].id,false,true);await ctx.setStatus('switchState',ctx.network.switches[0].id,false,true);});
+    assert.deepEqual(await page.evaluate(()=>[ctx.scenario.snapshots.length,ctx.scenario.historyLength,ctx.scenario.selected.events.length,ctx.resultStore.get('scenario')===null,ctx.resultStore.get('base')===window.base]),[2,3,3,true,true]);
+    assert.equal(await page.evaluate(()=>JSON.stringify(ctx.network)),before);
+    await panel.getByRole('button',{name:'Senaryolar',exact:true}).click();const journal=panel.locator('.ga-scenario-log');await journal.locator(':scope > summary').click();
+    await page.waitForFunction(()=>document.querySelector('.ga-scenario-log')?.textContent?.includes('Kesici'));assert.match(await journal.textContent(),/400 kV Bay.*Kesici/);
+    assert.equal(await panel.locator('.ga-scenario-workspace select,.ga-scenario-workspace input').count(),0);assert.doesNotMatch(await journal.textContent(),/switchState|lineStatus|true|false|\b[SB]\d+\b/);
+    await page.reload();await page.waitForFunction(()=>window.ready);assert.deepEqual(await page.evaluate(()=>[ctx.scenario.historyLength,ctx.scenario.selected.events.length]),[3,3]);
+    await panel.getByRole('button',{name:'Senaryolar',exact:true}).click();for(let i=0;i<3;i++)await panel.getByRole('button',{name:'Geri Al',exact:true}).click();assert.equal(await panel.getByRole('button',{name:'Geri Al',exact:true}).isDisabled(),true);
+    await page.evaluate(()=>ctx.setFeederStatus(ctx.network.switches.map(s=>s.id),false));await journal.locator(':scope > summary').click();assert.equal(await journal.locator('ol > li').count(),1);await journal.getByText('Toplu manevra · 2 cihaz',{exact:false}).click();assert.match(await journal.textContent(),/Kesici.*Kapalı → Açık/);assert.match(await journal.textContent(),/Ayırıcı.*Kapalı → Açık/);
+    await panel.getByRole('button',{name:'Geri Al',exact:true}).click();assert.deepEqual(await page.evaluate(()=>ctx.scenario.current.switchState),{});
+    await page.evaluate(async()=>{await ctx.setFeederStatus(ctx.network.switches.map(s=>s.id),false);await window.seedLegacy();});
+    await panel.getByRole('button',{name:'Senaryoyu Sıfırla',exact:true}).click();
+    await page.waitForFunction(async()=>!(await db.get('scenario:'+ctx.network.modelHash)));
+    assert.deepEqual(await page.evaluate(async()=>[ctx.scenario.historyLength,ctx.scenario.selected.events.length,ctx.resultStore.get('scenario'),ctx.resultStore.get('base')===window.base,await db.get('workspace:'+window.oldKey),await db.get('lf:'+window.oldKey+':powerFlow')]),[0,0,null,true,undefined,undefined]);
+    assert.equal(await page.evaluate(async()=>JSON.stringify((await db.get('lf:'+window.cacheKey()+':powerFlow')).identity)===JSON.stringify(window.base.identity)),true);
+    await page.reload();await page.waitForFunction(()=>window.ready);assert.deepEqual(await page.evaluate(()=>[ctx.scenario.historyLength,ctx.scenario.selected.events.length,Object.keys(ctx.scenario.current.switchState).length]),[0,0,0]);
+    await page.evaluate(()=>{ctx.resultStore.clear();ctx.notify();});await view.selectOption('delta');assert.match(await panel.locator('.ga-base-notice').textContent(),/Baz sonucu bulunmuyor/);assert.equal(await panel.locator('.ga-base-notice').getByRole('button',{name:'Baz Hesapla',exact:true}).isVisible(),true);assert.equal(await panel.locator('.ga-workspace-results').isVisible(),false);
+    assert.doesNotMatch(await panel.innerText(),/\bB0\b|\bS[123]\b|\bworking\b/);proof.scenarioWorkspace='PASS';assert.deepEqual(proof.errors,[]);
+  }
   console.log('MAP_LIGHTNING_AUDIT_BROWSER_SMOKE '+JSON.stringify(proof));
 }catch(e){if(page&&privateData)await page.screenshot({path:'local-benchmark-results/map-lightning-audit-failure-private.png'}).catch(()=>{});throw e;}finally{await browser?.close();await server.close();}

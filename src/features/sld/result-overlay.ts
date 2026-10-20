@@ -2,7 +2,7 @@ import type {AppContext} from '../../app/contracts';
 import type {CalculationResult,BranchResult} from '../../domain/results/types';
 import {identity,identityKey,stableJson} from '../../domain/calculation/identity';
 import {activeAnalysisSettings,analysisSettingsHash} from '../../domain/calculation/analysis-settings';
-import {calculationScenario,scenarioSignature} from '../../domain/scenario/overlay';
+import {calculationScenario,scenarioChanged,scenarioSignature} from '../../domain/scenario/overlay';
 import {selectedN1Presentation,angleHasReference} from '../../map/layer-policy';
 import {mapLoadingValues} from '../../map/loading-presentation';
 import {sha256} from '@noble/hashes/sha2.js';
@@ -74,7 +74,7 @@ function buildSldResultOverlay(ctx:AppContext,mode:SldMode):SldResultOverlay {
     const p=selectedN1Presentation(ctx);out.status=p.status;out.method=p.method;
     const outage=p.post?.outage??p.recorded?.outage??p.hybrid?.outage;if(outage)out.outageKey=`${outage.sourceClass}|${outage.fid}`;
     if(!p.post){if(p.candidate){out.outageKey=`${p.candidate.sourceClass}|${p.candidate.equipmentId}`;for(const b of p.candidate.topImpacts){const native=[...n.lines,...n.transformers].find(e=>e.sourceClass===b.sourceClass&&e.id===b.equipmentId),phase=out.phase,flow=phase==='BASE'||phase==='PRE'?b.baseFlowMw:phase==='CHANGE'?b.deltaPMw:b.postFlowMw,load=phase==='BASE'||phase==='PRE'?b.baseEstimatedLoadingPct:phase==='CHANGE'?b.postEstimatedLoadingPct===null||b.baseEstimatedLoadingPct===null?null:b.postEstimatedLoadingPct-b.baseEstimatedLoadingPct:b.postEstimatedLoadingPct;out.entries.set(`${b.sourceClass}|${b.equipmentId}`,{status:'DC_SCREENED · AC_UNVERIFIED',method:'GA_DC_SCREEN',values:{fromTerminal:native?.from??null,toTerminal:native?.to??null,pFromMw:finite(flow),qFromMvar:null,voltageKv:null,currentA:null,estimatedLoadingPercent:finite(load)},lines:[`DC P ${fmt(flow)} MW · tahmini yük ${fmt(load)}%`,`Q / U / I: — · AC_UNVERIFIED`],direction:finite(flow),alarm:false});}}return out;}
-    const selectedRole=ctx.scenario.selectedId==='B0'?'base':'scenario',selectedBase=ctx.resultStore.get(selectedRole,'powerFlow'),validBase=sldLfCurrent(ctx,selectedBase,selectedRole)?selectedBase:null;
+    const selectedRole=scenarioChanged(ctx.scenario.current)?'scenario':'base',selectedBase=ctx.resultStore.get(selectedRole,'powerFlow'),validBase=sldLfCurrent(ctx,selectedBase,selectedRole)?selectedBase:null;
     const pre=p.post.source==='HYBRID_FULL_AC'?ctx.hybridResult?.basePost:validBase?postResultAssembler(n,validBase,p.post.post.branches[0]?.loading.season??'nominal'):null,preBranches=new Map((pre?.branches??[]).map(b=>[`${b.sourceClass}|${b.fid}`,b]));
     for(const b of p.post.post.branches){const key=`${b.sourceClass}|${b.fid}`,old=preBranches.get(key),values=sldBranchValues(b,b.loading.operationalPercent);
       if(out.phase==='BASE'||out.phase==='PRE'){const bv=old?sldBranchValues(old,old.loading&&typeof old.loading==='object'?old.loading.operationalPercent:old.loading as number|null):null;for(const k of Object.keys(values) as (keyof typeof values)[])values[k]=bv?.[k]??null;}

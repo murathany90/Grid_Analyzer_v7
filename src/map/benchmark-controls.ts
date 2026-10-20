@@ -29,7 +29,7 @@ export function createBenchmarkMapControls(ctx:AppContext){
   function commit(){
     const s=selection();ctx.benchmarkMap=s;
     if(!s){ctx.analysisTab=ctx.resultView.analysis='LF';ctx.resultView.source='GA';ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:metric.value as Settings['displayMode']});}
-    else{ctx.analysisTab=ctx.resultView.analysis=s.analysis;ctx.resultView.source=s.source==='PF'?'PF':s.source==='SCENARIO_DELTA'?'Senaryo−Baz':['DELTA','EXPLORATORY_DELTA'].includes(s.source)?'GA−PF':'GA';ctx.resultView.metric=s.metric;ctx.resultView.caseId=s.caseId;ctx.resultView.phase=s.n1Layer==='BASE'?'PRE':s.n1Layer==='CHANGE'?'CHANGE':'POST';ctx.resultView.side=s.side;if(s.analysis==='SC')ctx.resultView.faultId=cases.value;if(s.analysis==='LF')ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:s.analysis==='LF'&&s.metric==='island'?'island':'nominal'});}
+    else{ctx.analysisTab=ctx.resultView.analysis=s.analysis;ctx.resultView.source=s.source==='PF'?'PF':s.source==='SCENARIO_DELTA'?'Senaryo−Baz':['DELTA','EXPLORATORY_DELTA'].includes(s.source)?'GA−PF':'GA';ctx.resultView.metric=s.metric;ctx.resultView.caseId=s.caseId;ctx.resultView.phase=s.n1Layer==='BASE'?'PRE':s.n1Layer==='CHANGE'?'CHANGE':'POST';ctx.resultView.side=s.side;if(s.analysis==='SC')ctx.resultView.faultId=cases.value;if(s.analysis==='LF'){ctx.resultStore.analysisType='powerFlow';if(s.source==='SCENARIO_DELTA')ctx.resultStore.role='delta';else if(s.source==='GA'&&ctx.resultStore.role==='delta')ctx.resultStore.role='scenario';}ctx.settings.update({displayMode:s.analysis==='LF'&&s.metric==='island'?'island':'nominal'});}
     syncMapCase(ctx);ctx.notify();
   }
   function populate(){

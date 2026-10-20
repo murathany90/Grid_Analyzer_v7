@@ -19,8 +19,6 @@ export interface CatalogRow { id: string; name: string; siteIds: string[]; attri
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
   resultView:import('../domain/results/workspace').ResultView;
-  selectScenario(id:string):Promise<void>;
-  branchScenario(name?:string):void;
   analysisTab:'LF'|'N1'|'SC';
   helpId:string|null;
   comparisonOutage:AcOutage|null;

@@ -24,6 +24,7 @@ export class ResultStore {
   }
   get active(): CalculationResult | null { return this.get(this.role === 'base' ? 'base' : 'scenario'); }
   invalidateScenario(): void { for (const key of [...this.expected.keys()]) if (key.startsWith(this.scenarioId+'.')&&this.scenarioId!=='B0') this.expected.delete(key); }
+  clearScenario():void{for(const cache of [this.expected,this.results])for(const key of cache.keys())if(!key.startsWith('B0.'))cache.delete(key);this.comparisonScenarioId='B0';}
   clear(): void { this.expected.clear(); this.results.clear(); this.role = 'base';this.scenarioId='working';this.comparisonScenarioId='B0'; }
   private comparisonResult():CalculationResult|null{const key=`${this.comparisonScenarioId}.${this.analysisType}`,r=this.results.get(key);return r&&this.expected.get(key)===identityKey(r.identity)?r:null;}
   getSnapshot(id:string,type:AnalysisType='powerFlow'):CalculationResult|null{const key=`${id}.${type}`,r=this.results.get(key);return r&&this.expected.get(key)===identityKey(r.identity)?r:null;}
