@@ -4,17 +4,19 @@ import {scenarioLfComparison} from '../../domain/results/lf-comparison';
 import type {AppContext} from '../../app/contracts';
 import type {BenchmarkMapSelection,BenchmarkMapData} from '../../domain/benchmark/map-layer';
 import {rowObject} from '../../domain/benchmark/types';
-import {buildMapPresentationData,mapCaseOptions,selectedN1Presentation,selectedScPresentation} from '../../map/layer-policy';
+import {buildMapPresentationData,mapCaseOptions,currentMapLf,selectedN1Presentation,selectedScPresentation} from '../../map/layer-policy';
 import {modelPresentationIndex} from '../../map/presentation-index';
 import {selectFaultTerminals} from '../../domain/benchmark/study-scope';
 import {scFaultTargetHash} from '../../analysis/short-circuit';
+import {studyEquipmentType,studyConstraintTypes} from './study-operator';
 import {scStudyState} from './sc-study-state';
 
 export interface StudyRow {id:string;cls:string;fid:string;name:string;tm:string;ytm?:string;pre:number|null;post:number|null;delta:number|null;unit:string;status:string;reason:string;ikss:number|null;skss:number|null;metadata:boolean;nominal:number|null;pfIkss:number|null;pfSkss:number|null;preQ:number|null;postQ:number|null;postLoading:number|null;deltaLoading:number|null;unsupplied:number|null;outage:string}
 const finite=(v:unknown):number|null=>typeof v==='number'&&Number.isFinite(v)?v:null;
 /** The catalog exists independently of the gated numerical projection. */
 export function studyResultRows(ctx:AppContext,selection:BenchmarkMapSelection){
-  const n=ctx.network,options=selection.analysis==='LF'?[]:mapCaseOptions(ctx,selection.analysis),data=buildMapPresentationData(ctx,selection),rows:StudyRow[]=[];
+  const selectedN1=selection.analysis==='N1'?selectedN1Presentation(ctx):null,hasN1Base=selectedN1?.post?.source==='HYBRID_FULL_AC'?!!ctx.hybridResult?.basePost:!!currentMapLf(ctx),emptyData:BenchmarkMapData={enabled:false,reason:'BASE_NOT_RECORDED',branches:new Map(),sites:new Map(),outage:null,noGeometry:0,numericValues:0};
+  const n=ctx.network,options=selection.analysis==='LF'?[]:mapCaseOptions(ctx,selection.analysis),data=selectedN1&&!hasN1Base&&selection.n1Layer==='BASE'?emptyData:buildMapPresentationData(ctx,selection),rows:StudyRow[]=[];
   const equipment=n?modelPresentationIndex(n).equipmentByKey:null,terms=n?modelPresentationIndex(n).physicalTerminalById:null,sites=n?modelPresentationIndex(n).siteById:null;
   const entity=(cls:string,fid:string)=>equipment?.get(cls+':'+fid)??(n?modelPresentationIndex(n).equipmentByFid.get(cls+':'+fid):null)??sites?.get(fid)??terms?.get(fid);
   const row=(cls:string,fid:string,name?:string):StudyRow=>({id:cls+':'+fid,cls,fid:entity(cls,fid)?.id??fid,name:name??entity(cls,fid)?.name??fid,tm:'',pre:null,post:null,delta:null,unit:'—',status:'NOT_RUN',reason:'',ikss:null,skss:null,metadata:true,nominal:null,pfIkss:null,pfSkss:null,preQ:null,postQ:null,postLoading:null,deltaLoading:null,unsupplied:null,outage:''});
@@ -35,7 +37,7 @@ export function studyResultRows(ctx:AppContext,selection:BenchmarkMapSelection){
       r.metadata=r.ikss===null&&r.skss===null&&r.pfIkss===null&&r.pfSkss===null;rows.push(r);
     }
   }else{
-    const n1=selection.analysis==='N1'?selectedN1Presentation(ctx):null,before=n1?buildMapPresentationData(ctx,{...selection,n1Layer:'BASE'}):data,after=n1?buildMapPresentationData(ctx,{...selection,n1Layer:'POST'}):data,change=n1?buildMapPresentationData(ctx,{...selection,n1Layer:'CHANGE'}):data;
+    const n1=selection.analysis==='N1'?selectedN1Presentation(ctx):null,before=n1?(hasN1Base?buildMapPresentationData(ctx,{...selection,n1Layer:'BASE'}):emptyData):data,after=n1?buildMapPresentationData(ctx,{...selection,n1Layer:'POST'}):data,change=n1?buildMapPresentationData(ctx,{...selection,n1Layer:'CHANGE'}):data;
     const keys=new Set([...before.branches.keys(),...after.branches.keys(),...change.branches.keys()]);for(const key of keys){const [cls,...parts]=key.split(':'),fid=parts.join(':'),r=row(cls,fid),v=cell(after,cls,fid)??cell(before,cls,fid)??cell(change,cls,fid);r.pre=n1?finite(cell(before,cls,fid)?.value):null;r.post=finite(cell(after,cls,fid)?.value);r.delta=n1?finite(cell(change,cls,fid)?.value):null;r.unit=v?.unit??'—';r.status=n1?(selection.source==='PF'?'PF_REFERENCE_ONLY':n1.method+' · '+n1.status):v?.status??'NOT_RUN';r.reason=v?.details.join('; ')??'';r.metadata=r.pre===null&&r.post===null&&r.delta===null;rows.push(r);}
     const siteKeys=new Set(['voltageKv','postVoltagePu','voltagePu','angleDeg'].includes(selection.metric)?[...before.sites.keys(),...after.sites.keys(),...change.sites.keys()]:[]);for(const fid of siteKeys){const r=row('ElmSite',fid),v=after.sites.get(fid)??before.sites.get(fid);r.pre=n1?finite(before.sites.get(fid)?.value):null;r.post=finite(after.sites.get(fid)?.value);r.delta=n1?finite(change.sites.get(fid)?.value):null;r.unit=v?.unit??'—';r.status=n1?(selection.source==='PF'?'PF_REFERENCE_ONLY':n1.method+' · '+n1.status):v?.status??'NOT_RUN';r.metadata=r.pre===null&&r.post===null&&r.delta===null;rows.push(r);}
     if(n1&&!rows.length){
@@ -47,11 +49,11 @@ export function studyResultRows(ctx:AppContext,selection:BenchmarkMapSelection){
     }
   }
   if(selection.analysis==='N1'){
-    const n1=selectedN1Presentation(ctx),loadingPost=buildMapPresentationData(ctx,{...selection,metric:'postLoadingPercent',n1Layer:'POST'}),loadingChange=buildMapPresentationData(ctx,{...selection,metric:'postLoadingPercent',n1Layer:'CHANGE'}),qBase=n1.post?buildMapPresentationData(ctx,{...selection,metric:'postQmvar',n1Layer:'BASE'}):null,qPost=n1.post?buildMapPresentationData(ctx,{...selection,metric:'postQmvar',n1Layer:'POST'}):null;
+    const n1=selectedN1Presentation(ctx),loadingPost=buildMapPresentationData(ctx,{...selection,metric:'postLoadingPercent',n1Layer:'POST'}),loadingChange=buildMapPresentationData(ctx,{...selection,metric:'postLoadingPercent',n1Layer:'CHANGE'}),qBase=n1.post&&hasN1Base?buildMapPresentationData(ctx,{...selection,metric:'postQmvar',n1Layer:'BASE'}):null,qPost=n1.post?buildMapPresentationData(ctx,{...selection,metric:'postQmvar',n1Layer:'POST'}):null;
     const supplied=new Set(n1.post?.post.buses.flatMap(b=>b.terms)),unsupplied=(n1.recorded?.components??n1.hybrid?.components)?.some(c=>c.status==='UNSUPPLIED_COMPONENT');
     for(const r of rows){const key=r.cls+':'+r.fid;r.postLoading=n1.post?finite(loadingPost.branches.get(key)?.value):null;r.deltaLoading=n1.post?finite(loadingChange.branches.get(key)?.value):null;r.preQ=finite(qBase?.branches.get(key)?.value);r.postQ=finite(qPost?.branches.get(key)?.value);r.outage=selection.caseId??'';
       const e=entity(r.cls,r.fid);if(unsupplied&&n1.post&&e&&'from' in e&&'to' in e&&e.sourceId!==n1.post.outage?.fid&&(!supplied.has(e.from)||!supplied.has(e.to))){r.status+=' · ISLAND_UNSUPPLIED';r.reason+='; UNSUPPLIED_COMPONENT; POST_NULL';}
-      if(r.postLoading!==null&&r.postLoading>=ctx.settings.value.riskWarningPercent)r.status+=' · '+(r.postLoading>=100?'THERMAL_LIMIT_100':'RISK_WARNING_'+ctx.settings.value.riskWarningPercent);r.reason=[r.reason,'outage '+r.outage,n1.post?'FULL_SOLVED_BRANCH_MATRIX':'DC_TOP_IMPACTS_PARTIAL'].join('; ');}
+      if(r.postLoading!==null&&r.postLoading>=ctx.settings.value.riskWarningPercent)r.status+=' · '+(r.postLoading>=100?'THERMAL_LIMIT_100':'RISK_WARNING_'+ctx.settings.value.riskWarningPercent);if(selection.source==='GA'&&!n1.post&&selection.metric!=='postPmw'){r.pre=r.post=r.delta=null;r.metadata=true;r.reason='DC_P_ONLY; Q_V_AC_LOADING_NOT_VERIFIED';r.unit=selection.metric==='postQmvar'?'MVAr':selection.metric==='voltageKv'?'kV':selection.metric==='angleDeg'?'°':'%';}r.reason=[r.reason,'outage '+r.outage,n1.post?'FULL_SOLVED_BRANCH_MATRIX':'DC_TOP_IMPACTS_PARTIAL'].join('; ');}
   }
   if(selection.analysis==='LF'&&selection.source==='SCENARIO_DELTA'){
     const pair=scenarioLfComparison(ctx,selection.metric);
@@ -70,7 +72,14 @@ export function studyResultRows(ctx:AppContext,selection:BenchmarkMapSelection){
 export type StudySortKey='record'|'name'|'pre'|'post'|'delta'|'ikss'|'skss'|'pfIkss'|'pfSkss'|'nominal'|'postLoading'|'deltaLoading'|'status';
 export function sortStudyRows(rows:readonly StudyRow[],key:StudySortKey,descending:boolean,secondary:readonly {key:StudySortKey;descending:boolean}[]=[]){if(key==='record'&&!secondary.length)return [...rows];return [...rows].sort((a,b)=>{for(const criterion of [{key,descending},...secondary]){if(criterion.key==='record')continue;const x=a[criterion.key],y=b[criterion.key],missing=(v:typeof x)=>v===null||(typeof v==='number'&&!Number.isFinite(v));if(missing(x)||missing(y)){const cmp=Number(missing(x))-Number(missing(y));if(cmp)return cmp;continue;}const cmp=typeof x==='string'?x.localeCompare(String(y),'tr'):Number(x)-Number(y);if(cmp)return (criterion.descending?-cmp:cmp);}return a.name.localeCompare(b.name,'tr')||a.id.localeCompare(b.id);});}
 export type ScListView='ALL'|'SELECTED'|'CALCULATED'|'BLOCKED'|'PF';
-export function queryStudyRows(rows:readonly StudyRow[],o:{query?:string;ytm?:string;tm?:string;nominal?:number;scView?:ScListView;selectedFault?:string;sort:StudySortKey;descending:boolean;secondary?:readonly {key:StudySortKey;descending:boolean}[];page:number}){
-  const q=o.query?.trim().toLocaleLowerCase('tr-TR'),filtered=sortStudyRows(rows.filter(r=>(!q||`${r.ytm??''} ${r.tm} ${r.name} ${r.fid} ${r.status} ${r.reason}`.toLocaleLowerCase('tr-TR').includes(q))&&(!o.ytm||r.ytm===o.ytm)&&(!o.tm||r.tm===o.tm)&&(o.nominal===undefined||r.nominal===o.nominal)&&(!o.scView||o.scView==='ALL'||o.scView==='SELECTED'&&r.fid===o.selectedFault||o.scView==='CALCULATED'&&(r.ikss!==null||r.skss!==null)||o.scView==='BLOCKED'&&['BLOCKED','UNSUPPORTED'].includes(r.status)||o.scView==='PF'&&(r.pfIkss!==null||r.pfSkss!==null))),o.sort,o.descending,o.secondary),pages=Math.max(1,Math.ceil(filtered.length/50)),page=Math.max(0,Math.min(o.page,pages-1));
+export function queryStudyRows(rows:readonly StudyRow[],o:{query?:string;ytms?:readonly string[];tms?:readonly string[];nominals?:readonly number[];equipmentTypes?:readonly string[];constraintTypes?:readonly string[];ytm?:string;tm?:string;nominal?:number;scView?:ScListView;selectedFault?:string;sort:StudySortKey;descending:boolean;secondary?:readonly {key:StudySortKey;descending:boolean}[];page:number}){
+  const q=o.query?.trim().toLocaleLowerCase('tr-TR'),filtered=sortStudyRows(rows.filter(r=>(!q||`${r.ytm??''} ${r.tm} ${r.name} ${r.fid} ${r.status} ${r.reason}`.toLocaleLowerCase('tr-TR').includes(q))&&(!o.ytms?.length||o.ytms.some(v=>r.ytm?.split(' / ').includes(v)))&&(!o.tms?.length||o.tms.some(v=>r.tm.split(' / ').includes(v)))&&(!o.nominals?.length||r.nominal!==null&&o.nominals.includes(r.nominal))&&(!o.equipmentTypes?.length||o.equipmentTypes.includes(studyEquipmentType(r)))&&(!o.constraintTypes?.length||studyConstraintTypes(r).some(v=>o.constraintTypes!.includes(v)))&&(!o.ytm||r.ytm===o.ytm)&&(!o.tm||r.tm===o.tm)&&(o.nominal===undefined||r.nominal===o.nominal)&&(!o.scView||o.scView==='ALL'||o.scView==='SELECTED'&&r.fid===o.selectedFault||o.scView==='CALCULATED'&&(r.ikss!==null||r.skss!==null)||o.scView==='BLOCKED'&&['BLOCKED','UNSUPPORTED'].includes(r.status)||o.scView==='PF'&&(r.pfIkss!==null||r.pfSkss!==null))),o.sort,o.descending,o.secondary),pages=Math.max(1,Math.ceil(filtered.length/50)),page=Math.max(0,Math.min(o.page,pages-1));
   return {filtered,visible:filtered.slice(page*50,page*50+50),visibleFilteredCount:filtered.length,pages,page};
+}
+
+/** Search the full catalog but materialise only one bounded list of selectable rows. */
+export function boundedStudyChoices(rows:readonly StudyRow[],query:string,limit=50){
+  const text=query.trim().toLocaleLowerCase('tr-TR'),visible:StudyRow[]=[];let total=0;
+  for(const row of rows)if(!text||`${row.tm} ${row.ytm??''} ${row.name} ${row.fid} ${row.id}`.toLocaleLowerCase('tr-TR').includes(text)){total++;if(visible.length<limit)visible.push(row);}
+  return {visible,total};
 }

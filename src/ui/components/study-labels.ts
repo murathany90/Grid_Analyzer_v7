@@ -9,6 +9,10 @@ export const studyLabel=(code:string)=>labels[code]??'Teknik durum — ayrıntı
 export function compactStudyLabel(code:string){
   if(/ISLAND_UNSUPPLIED/.test(code))return 'Beslenmiyor';
   if(/THERMAL_LIMIT/.test(code))return 'Aşırı yük';
+  if(/VIOLATION/.test(code))return 'İhlal';
+  if(/ISLANDING/.test(code))return 'Ada';
+  if(/UNSCREENABLE/.test(code))return 'Taranamadı';
+  if(/CAPACITY_UNAVAILABLE/.test(code))return 'Kapasite yok';
   if(/RISK_WARNING/.test(code))return 'Yüksek yük';
   if(/STALE/.test(code))return 'Güncel değil';
   if(/BLOCKED|UNSUPPORTED|NOT_COMPUTABLE|AMBIGUOUS/.test(code))return 'Bloke';
