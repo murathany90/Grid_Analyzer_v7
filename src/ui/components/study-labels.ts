@@ -5,4 +5,21 @@ const labels:Record<string,string>={
   powerFlow:'Tam AC yük akışı',fastAc:'Hızlı yaklaşık AC',dc:'DC tarama',DC:'DC tarama — yalnız aktif güç',HYBRID:'DC tarama → seçili Full AC',MANUAL_FULL_AC:'Seçili vaka Full AC',HYBRID_FULL_AC:'Hibrit çalışma Full AC',HYBRID_RUN:'Hibrit çalışma',GA_DC_SCREEN:'DC aktif güç taraması',GA_POSITIVE_SEQUENCE_3PH_MAX:'3PH MAX ağ yaklaşımı',GA_POSITIVE_SEQUENCE_3PH_MIN:'3PH MIN ağ yaklaşımı',GA_IEC60909_2016_PREFLIGHT:'IEC 2016 ön kontrolü — bloke',
 };
 export const studyLabel=(code:string)=>labels[code]??'Teknik durum — ayrıntılara bakın';
+/** Short table labels; the original code and reason remain in the row details. */
+export function compactStudyLabel(code:string){
+  if(/ISLAND_UNSUPPLIED/.test(code))return 'Beslenmiyor';
+  if(/THERMAL_LIMIT/.test(code))return 'Aşırı yük';
+  if(/RISK_WARNING/.test(code))return 'Yüksek yük';
+  if(/STALE/.test(code))return 'Güncel değil';
+  if(/BLOCKED|UNSUPPORTED|NOT_COMPUTABLE|AMBIGUOUS/.test(code))return 'Bloke';
+  if(/NOT_RUN|NOT_CALCULATED/.test(code))return 'Çalıştırılmadı';
+  if(/CANCELLED/.test(code))return 'İptal';
+  if(/DIVERGED|NOT_CONVERGED/.test(code))return 'Yakınsamadı';
+  if(/PARTIAL/.test(code))return 'Kısmi';
+  if(/APPROXIMATION/.test(code))return 'Yaklaşık';
+  if(/PF_REFERENCE_ONLY/.test(code))return 'PF referansı';
+  if(/CONVERGED|CALCULATED/.test(code))return 'Hesaplandı';
+  if(/DC|SCREEN/.test(code))return 'DC tarama';
+  return studyLabel(code);
+}
 export const studyStatusHelp=(code:string)=>`${studyLabel(code)} (${code}). Sayısal sonuç; kaynak, kontrol, normatif yöntem ve PF karşılaştırması için ayrı kanıt gerektirir.`;

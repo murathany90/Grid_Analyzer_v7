@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {compactStudyLabel} from '../../src/ui/components/study-labels';
 import {scAuditFixture} from '../helpers/study-audit';
 import {studyResultRows,queryStudyRows} from '../../src/features/analysis/study-result-rows';
 import {workspaceMapSelection} from '../../src/domain/results/workspace';
@@ -7,6 +8,7 @@ import {studyEvidence} from '../../src/features/analysis/study-evidence';
 import {metricRows,metricStatistics,preflightBenchmark} from '../../src/domain/benchmark/comparison';
 
 test('common filters and multiple sorting preserve bounded rows, metadata, zero and null',()=>{
+  assert.equal(compactStudyLabel('NOT_RUN'),'Çalıştırılmadı');assert.equal(compactStudyLabel('SC_BATCH_BLOCKED'),'Bloke');assert.equal(compactStudyLabel('MANUAL_FULL_AC · PARTIAL_SOLUTION'),'Kısmi');assert.equal(compactStudyLabel('PARTIAL_SOLUTION · ISLAND_UNSUPPLIED'),'Beslenmiyor');
   const {ctx,fault,result}=scAuditFixture(70);ctx.scResult=result([fault(0,'CALCULATED_NETWORK_APPROXIMATION'),fault(2,'CALCULATED_NETWORK_APPROXIMATION')]);
   const rows=studyResultRows(ctx,workspaceMapSelection(ctx)).rows;assert.equal(rows.length,70);assert.equal(rows.find(r=>r.fid==='B0')!.ikss,0);assert.equal(rows.find(r=>r.fid==='B1')!.ikss,null);assert.equal(rows[0].ytm,'Test YTM');
   const q=queryStudyRows(rows,{ytm:'Test YTM',tm:'Test TM',nominal:100,sort:'status',descending:false,secondary:[{key:'ikss',descending:true}],page:0});assert.equal(q.visible.length,50);assert.equal(q.filtered.length,70);assert.equal(q.pages,2);assert.equal(q.filtered.filter(r=>r.status==='CALCULATED_NETWORK_APPROXIMATION')[0].ikss,2);
