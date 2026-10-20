@@ -15,7 +15,7 @@ import {setCapacitySeason,setManualCapacity} from '../../src/domain/model/capaci
 import {buildMapPresentationData,currentMapLf} from '../../src/map/layer-policy';
 import {buildBenchmarkMapData} from '../../src/domain/benchmark/map-layer';
 import {studyResultRows} from '../../src/features/analysis/study-result-rows';
-import {resultSortValue,type ResultRow} from '../../src/features/analysis/result-columns';
+import {compactResultColumns,resultSortValue,type ResultRow} from '../../src/features/analysis/result-columns';
 import {branchDelta,deltaSummary} from '../../src/domain/results/delta';
 import {equipmentCard} from '../../src/map/equipment-tooltip';
 import {BrowserJsPowerFlowEngine} from '../../src/analysis/api/browser-js-engine';
@@ -76,3 +76,18 @@ test('actual small-network cumulative workspace maneuvers yield P/Q/U/loading di
 });
 
 test('N-1 uses the working-scenario LF even when the last LF view was Baz',()=>{const {ctx,base,post}=fixture();ctx.resultStore.role='base';assert.strictEqual(currentMapLf(ctx),base);ctx.resultView.analysis='N1';assert.strictEqual(currentMapLf(ctx),post);});
+
+test('compact LF metric modes keep matching loss columns and bus voltage is always kV',()=>{
+  const settings=defaultSettings(),keys=(kind:'line'|'trafo'|'bus',tab:'results'|'delta')=>compactResultColumns(kind,tab,settings).flatMap(c=>c.metrics.map(m=>m.key));
+  assert.equal(settings.lfBranchDisplay,'pq-loading');assert.equal(settings.lfBusDisplay,'voltage-angle');
+  for(const kind of ['line','trafo'] as const)for(const tab of ['results','delta'] as const){
+    settings.lfBranchDisplay='pq-loading';assert.ok(keys(kind,tab).some(k=>/Q|^q/.test(k)));assert.ok(keys(kind,tab).some(k=>/load/i.test(k)));
+    settings.lfBranchDisplay='p-loading';assert.ok(keys(kind,tab).includes(tab==='delta'?'deltaPLoss':'pLoss'));assert.ok(!keys(kind,tab).some(k=>/q/i.test(k)));
+    settings.lfBranchDisplay='pq';assert.ok(keys(kind,tab).includes(tab==='delta'?'deltaQLoss':'qLoss'));assert.ok(!keys(kind,tab).some(k=>/load/i.test(k)));
+  }
+  for(const tab of ['results','delta'] as const){
+    settings.lfBusDisplay='voltage';assert.ok(keys('bus',tab).some(k=>/vkv/i.test(k)));assert.ok(!keys('bus',tab).some(k=>/angle/i.test(k)));
+    settings.lfBusDisplay='angle';assert.ok(keys('bus',tab).some(k=>/angle/i.test(k)));assert.ok(!keys('bus',tab).some(k=>/vkv/i.test(k)));if(tab==='delta')assert.deepEqual(compactResultColumns('bus',tab,settings).slice(1).flatMap(c=>c.metrics.map(m=>m.label)),['Baz Açı','Senaryo Açı','ΔAçı']);
+    settings.lfBusDisplay='voltage-angle';assert.ok(!compactResultColumns('bus',tab,settings).some(c=>c.metrics.some(m=>m.unit==='pu'||m.label.includes('pu'))));
+  }
+});

@@ -126,9 +126,12 @@ try{
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();await page.locator('.ga-sld-svg').waitFor();if(await page.locator('section[data-view="sld"]').getAttribute('data-result-id')!==mapIdentity||await page.locator('section[data-view="sld"]').getAttribute('data-scenario-id')!==mapScenario)throw Error('SLD workspace identity differs from map');
  await page.getByRole('button',{name:'Bilgi ve sonuçlar',exact:true}).click();await page.locator('.ga-sld-results>summary').click();await page.waitForFunction(id=>document.querySelector('.ga-sld-results .ga-workspace-results')?.getAttribute('data-result-id')===id,mapIdentity);await page.getByRole('button',{name:'Harita',exact:true}).click();
  if(await map.locator('.ga-lightning').isVisible())throw Error('Lightning stayed open after switching view');
- await map.getByRole('button',{name:'Senaryoları aç',exact:true}).click();const scenarios=map.locator('.ga-scenario-embedded');await scenarios.getByRole('button',{name:'Dallan',exact:true}).click();await scenarios.getByLabel('Aktif senaryo',{exact:true}).selectOption('B0');
- await map.getByRole('button',{name:'Sonuç panelini kapat',exact:true}).click();await analysisSelect.selectOption('SC');await map.getByRole('button',{name:'Senaryoları aç',exact:true}).click();await scenarios.getByLabel('Senaryo farkının referansı',{exact:true}).selectOption('S1');
- if(await analysisSelect.inputValue()!=='LF'||await page.getByLabel('Benchmark harita kaynağı',{exact:true}).inputValue()!=='SCENARIO_DELTA')throw Error('Scenario comparison leaves another analysis overlay selected');
+ await map.getByRole('button',{name:'Senaryoları aç',exact:true}).click();const scenarios=map.locator('.ga-scenario-embedded');
+ if(await scenarios.locator('select,input').count()||await scenarios.getByRole('button',{name:'Dallan',exact:true}).count())throw Error('Retired branching controls remain');
+ await scenarios.getByRole('button',{name:'Geri Al',exact:true}).waitFor();await scenarios.getByRole('button',{name:'Senaryoyu Sıfırla',exact:true}).waitFor();
+ await map.locator('.ga-lightning').getByRole('button',{name:'Yük Akışı',exact:true}).click();const compactView=map.getByLabel('Elektriksel sonuç görünümü',{exact:true});await compactView.selectOption('delta');
+ if(await analysisSelect.inputValue()!=='LF'||await page.getByLabel('Benchmark harita kaynağı',{exact:true}).inputValue()!=='SCENARIO_DELTA'||await map.locator('.ga-lightning .ga-workspace-results').isVisible())throw Error('Scenario comparison leaves another analysis UI selected');
+ await compactView.selectOption('base');
  if(await page.locator('.ga-scenario-drawer[open]').count())throw Error('A second fixed scenario popup remains on map');
  await map.getByRole('button',{name:'Sonuç panelini kapat',exact:true}).click();await analysisSelect.selectOption('LF');await metricSelect.selectOption('pFromMw');
  await metricSelect.selectOption('voltageKv');await map.getByLabel('Haritada hat ara',{exact:true}).fill('L400-01');await map.getByRole('button',{name:'Bul',exact:true}).click();

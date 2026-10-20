@@ -21,12 +21,12 @@ test('Ambiguous multiple breakers and unknown source positions cannot be operate
 });
 test('A bus-to-bus coupler without a unique outgoing terminal cannot silently operate only half its path',()=>{const f=sourceCircuit('coupler');assert.equal(feederOperation(f.graph,f.graph.feeders[0]).ready,false);});
 test('Batch feeder operation is one immutable scenario, one undo step and three device events',()=>{
- const f=sourceCircuit('bypass'),before=structuredClone(f.network),store=new ScenarioStore(f.network.modelHash),members=f.network.switches.filter(s=>['SW0','SW1','SW2'].includes(s.id)).map(s=>({id:s.id,source:s.closed}));
- store.setSwitchStates(members,false);assert.equal(store.selectedId,'S1');assert.equal(store.revision,1);assert.equal(store.historyLength,1);assert.equal(store.selected.events.length,3);assert.equal(store.selected.parentId,'B0');
+ const f=sourceCircuit('bypass'),before=structuredClone(f.network),store=new ScenarioStore(f.network.modelHash),workspaceId=store.selectedId,members=f.network.switches.filter(s=>['SW0','SW1','SW2'].includes(s.id)).map(s=>({id:s.id,source:s.closed}));
+ store.setSwitchStates(members,false);assert.equal(store.selectedId,workspaceId);assert.equal(store.revision,1);assert.equal(store.historyLength,1);assert.equal(store.selected.events.length,3);assert.equal(store.selected.parentId,'B0');
  assert.ok(effectiveNetwork(f.network,store.current).switches.every(s=>!s.closed));
  const identity=store.selected.scenarioHash;store.setStatus('switchState','SW1',true,true);assert.notEqual(store.selected.scenarioHash,identity);assert.deepEqual(store.current.switchState,{SW0:false,SW2:false});
  store.setSwitchStates(members,true);assert.deepEqual(store.current.switchState,{});assert.deepEqual(f.network,before);assert.equal(store.snapshots[0].scenarioHash,store.selected.scenarioHash);
- store.setSwitchStates(members,true);assert.equal(store.selectedId,'S3','Repeated identical command creates no extra scenario');
+ const revision=store.revision;store.setSwitchStates(members,true);assert.equal(store.selectedId,workspaceId);assert.equal(store.snapshots.length,2);assert.equal(store.revision,revision,'Repeated identical command creates no extra maneuver');
 });
 test('Packing uses four area units at 400/154 and one at 36/33, balances both sides and retains every feeder',()=>{
  assert.deepEqual([400,154,36,33].map(feederAreaUnits),[4,4,1,1]);const f=ytbsFixture();for(let i=0;i<24;i++)f.line('D'+i,33);const g=f.graph(),slots=assignYtbsSlot(g,g.feeders.filter(f=>f.voltageKv===33)),rows=packFeederRows(slots,new Map());

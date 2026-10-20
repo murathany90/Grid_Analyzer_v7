@@ -4,7 +4,7 @@ import {voltageMatches} from '../../domain/model/voltage-band';
 import {displayBranches} from '../../domain/results/presentation';
 import type {AppContext} from '../../app/contracts';
 import type {Bus,Line,Transformer2W} from '../../domain/model/network';
-import {resultColumns,sortResultRows,busVoltageKv,resultSortValue,type ResultRow as Row,type ResultKind as Kind,type ResultTab as Tab} from './result-columns';
+import {resultColumns,compactResultColumns,sortResultRows,busVoltageKv,resultSortValue,type ResultColumn,type ResultRow as Row,type ResultKind as Kind,type ResultTab as Tab} from './result-columns';
 import {displayDelta,signedValue} from '../../map/delta-style';
 import {escapeHtml as h,format as f,button} from '../../ui/components/dom';
 import {planEnergization} from '../../topology/energization';
@@ -14,6 +14,7 @@ import {currentMapLf} from '../../map/layer-policy';
 import {formatEngineering} from '../../ui/components/engineering-format';
 export class ResultTable {
   kind:Kind='line';tab:Tab='results';search='';page=0;pageSize=14;sort:string|null=null;descending=false;expanded='';
+  summaryHost?:HTMLElement;pagerHost?:HTMLElement;
   constructor(private ctx:AppContext,readonly element:HTMLElement,private mapScope=true,private compact=false){}
   private rows(kind:Kind=this.kind):Row[]{
     const n=this.ctx.network;if(!n)return[];const role=this.ctx.resultStore.role==='base'?'base':'scenario',s=this.ctx.scenario.current,result=this.ctx.resultStore.get(role),base=this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType),scenario=this.ctx.resultStore.get('scenario');
@@ -40,17 +41,36 @@ export class ResultTable {
     return sortResultRows(rows,this.sort,this.descending);
   }
 
+  private compactCells(row:Row,columns:ResultColumn[]):string{
+    const signed=this.tab==='delta',precision=this.ctx.settings.value.precision;
+    const number=(key:string)=>formatEngineering(resultSortValue(row,key),precision,{signed:signed&&key.startsWith('delta')});
+    return columns.slice(1).map(column=>{
+      const keys=column.metrics.map(m=>m.key),reason=row.comparisons?.[keys.some(k=>/Load$/.test(k))?'loadingPercent':'pFromMw']?.reason;
+      if(keys.includes('state'))return `<td><span class="ga-badge">${h(row.state)}</span></td>`;
+      if(keys.includes('loading'))return `<td data-loading="${row.validatedLoading?.maximum??''}" title="${h(row.validatedLoading?`${row.validatedLoading.status} · ${row.validatedLoading.basis} · ${row.validatedLoading.season} · ${row.validatedLoading.source}`:'UNKNOWN_CAPACITY / NOT_RUN')}">${number('loading')}</td>`;
+      if(signed&&this.kind!=='bus'&&keys.some(k=>['baseP','scenarioP','deltaP'].includes(k))){
+        const phase=keys.includes('baseP')?'pre':keys.includes('scenarioP')?'post':'delta',load=keys.find(k=>/Load$/.test(k)),pq=keys.filter(k=>!/Load$/.test(k));
+        const to=(metric:string)=>formatEngineering(row.comparisons?.[metric]?.[phase],precision,{signed:phase==='delta'});
+        return `<td title="${h(reason||row.comparisons?.pFromMw?.status)}">${pq.map(number).join(' / ')}<small>${this.kind==='trafo'?'AG':'B'}: ${[to('pToMw'),...(pq.some(k=>/Q$/.test(k))?[to('qToMvar')]:[])].join(' / ')}</small>${load?`<small>${phase==='delta'?'ΔYük':'Yük'} ${number(load)} ${phase==='delta'?'pp':'%'}</small>`:''}</td>`;
+      }
+      const reasons=this.kind==='bus'?Object.values(row.comparisons??{}).map(c=>c?.reason).filter(Boolean).join(' · '):reason;
+      return `<td title="${h(reasons)}">${keys.map((key,i)=>i?`<small>${number(key)}</small>`:number(key)).join('')}</td>`;
+    }).join('');
+  }
   render(resetScroll=false){
+    this.summaryHost?.replaceChildren();this.pagerHost?.replaceChildren();
+    if(this.compact)this.element.dataset.metricMode=this.kind==='bus'?this.ctx.settings.value.lfBusDisplay??'voltage-angle':this.ctx.settings.value.lfBranchDisplay??'pq-loading';
     const n=this.ctx.network;if(!n){this.element.innerHTML='<p class="ga-empty">Önce JSON modeli yükleyin.</p>';return;}
     if(this.tab==='delta'&&!scenarioLfComparison(this.ctx,'loadingPercent').enabled){const reason=scenarioLfComparison(this.ctx,'loadingPercent').reason;this.element.innerHTML=`<p class="ga-empty">${h(reason==='NO_BASE_RESULT'?'Baz sonucu bulunmuyor.':reason==='SCENARIO_STALE'?'Senaryo sonucu yok veya güncel değil.':reason)} · Aynı model, motor ve ayarlarla güncel baz ve senaryo hesabı gerekiyor.</p>`;if(!this.compact&&!this.ctx.resultStore.get('base'))this.element.append(button('Baz Hesapla',()=>void this.ctx.run(this.ctx.resultStore.analysisType,'base')));return;}
     const oldScroll=this.element.querySelector<HTMLElement>('.ga-result-scroll'),scrollTop=resetScroll?0:oldScroll?.scrollTop||0,scrollLeft=resetScroll?0:oldScroll?.scrollLeft||0;
-    const columns=resultColumns(this.kind,this.tab).filter(c=>!this.compact||(!c.metrics.some(m=>m.key==='voltage')&&!(this.kind==='bus'&&c.metrics.some(m=>m.key==='v'&&m.label==='V pu')))).map(c=>this.compact&&this.kind==='bus'&&this.tab==='delta'?{...c,metrics:c.metrics.map(m=>m.unit==='pu'?{...m,key:m.key==='v'?'vKv':m.key==='baseV'?'baseVKv':'deltaVKv',unit:'kV'}:m)}:c),keys=columns.flatMap(c=>c.metrics.map(m=>m.key));if(this.sort&&!keys.includes(this.sort)){this.sort=null;this.descending=false;}
+    const columns=this.compact&&this.tab!=='energize'?compactResultColumns(this.kind,this.tab,this.ctx.settings.value):resultColumns(this.kind,this.tab),keys=columns.flatMap(c=>c.metrics.map(m=>m.key));if(this.sort&&!keys.includes(this.sort)){this.sort=null;this.descending=false;}
     const rows=this.rows(),pages=Math.max(1,Math.ceil(rows.length/this.pageSize));this.page=Math.min(pages-1,Math.max(0,this.page));const selected=rows.slice(this.page*this.pageSize,(this.page+1)*this.pageSize),isBus=this.kind==='bus';
     const header=columns.map(c=>`<th scope="col"${c.metrics.some(m=>m.key===this.sort)?` aria-sort="${this.descending?'descending':'ascending'}"`:''}>${c.metrics.map(m=>`<button class="ga-sort" data-sort="${m.key}" title="${h(m.label)}${m.unit?' · '+m.unit:''} · Sırala" aria-label="${h(m.key==='loading'?'Yüklenme (%)':m.key==='q'&&!isBus?(this.kind==='trafo'?'YG Q':'A Q'):m.key==='qt'?(this.kind==='trafo'?'AG Q':'B Q'):m.key==='qLoss'?'Kayıp Q':m.label)} sırala" aria-pressed="${this.sort===m.key}">${h(m.label)}${this.sort===m.key?(this.descending?' ▼':' ▲'):''}</button>`).join(' / ')}${c.label||''}${c.metrics.some(m=>m.unit)?`<small>${c.metrics.filter(m=>m.unit).map(m=>h(m.unit)).join(' · ')}</small>`:''}</th>`).join('');
     const summary=deltaSummary(this.tab==='delta'?(['line','trafo','bus'] as const).flatMap(kind=>kind===this.kind?rows:this.rows(kind)):[]);
     const summaryHtml=this.tab==='delta'?`<div class="ga-delta-summary" aria-label="Filtreli şebeke fark özeti"><span>Yeni aşırı yük: ${f(summary.newOverloads,0)}</span><span>Giderilen: ${f(summary.resolvedOverloads,0)}</span><span>Max |ΔP| ${f(summary.maxP)} MW</span><span>|ΔQ| ${f(summary.maxQ)} MVAr</span>${this.compact?'':`<span>|ΔV| ${f(summary.maxV,5)} pu</span>`}<span>|ΔYük| ${f(summary.maxLoading,1)} pp</span></div>`:'';
     const delta=(value:number|null|undefined,digits=2)=>{const shown=displayDelta(value,digits);return `<span style="color:${shown==null?'inherit':shown===0?this.ctx.settings.value.deltaNeutral:shown>0?this.ctx.settings.value.deltaUp:this.ctx.settings.value.deltaDown}">${signedValue(value,digits)}</span>`;};
-    this.element.innerHTML=`${summaryHtml}<div class="ga-result-scroll"><table class="ga-result-table"><colgroup>${columns.map(c=>`<col style="width:${this.compact?100*c.width/columns.reduce((sum,c)=>sum+c.width,0):c.width}%">`).join('')}</colgroup><thead><tr>${header}</tr></thead><tbody>${selected.map(r=>{
+    if(this.summaryHost)this.summaryHost.innerHTML=summaryHtml;
+    this.element.innerHTML=`${this.summaryHost?'':summaryHtml}<div class="ga-result-scroll"><table class="ga-result-table"><colgroup>${columns.map(c=>`<col style="width:${this.compact?100*c.width/columns.reduce((sum,c)=>sum+c.width,0):c.width}%">`).join('')}</colgroup><thead><tr>${header}</tr></thead><tbody>${selected.map(r=>{
       const sites=r.siteIds.map(id=>n.sites.find(s=>s.id===id)?.name).filter(Boolean).join(' ↔ '),d=branchDelta(r.baseBranch,r.branch,r.loadingComparison);
       let cells='';if(this.tab==='energize')cells=`<td>${h(r.state)}</td><td><button data-toggle="${h(r.id)}">${r.on?'Servis dışı':'Servise al'}</button></td>`;
       else if(this.tab==='delta'){
@@ -59,6 +79,7 @@ export class ResultTable {
           `<td>${number('baseP')} / ${number('baseQ')}<small>${isBus?'':this.kind==='trafo'?'AG':'B'}: ${formatEngineering(c?.pToMw?.pre,this.ctx.settings.value.precision)} / ${formatEngineering(c?.qToMvar?.pre,this.ctx.settings.value.precision)}</small><small>Yük ${number('baseLoad')} %</small></td><td>${number('scenarioP')} / ${number('scenarioQ')}<small>${isBus?'':this.kind==='trafo'?'AG':'B'}: ${formatEngineering(c?.pToMw?.post,this.ctx.settings.value.precision)} / ${formatEngineering(c?.qToMvar?.post,this.ctx.settings.value.precision)}</small><small>Yük ${number('scenarioLoad')} %</small></td><td>${signed('deltaP')} / ${signed('deltaQ')}<small>${isBus?'':this.kind==='trafo'?'AG':'B'}: ${formatEngineering(c?.pToMw?.delta,this.ctx.settings.value.precision,{signed:true})} / ${formatEngineering(c?.qToMvar?.delta,this.ctx.settings.value.precision,{signed:true})}</small><small>ΔYük ${signed('deltaLoad')} pp</small><small>${h(c?.loadingPercent?.reason||c?.loadingPercent?.status)}</small></td><td>${signed('deltaPLoss')}<small>${signed('deltaQLoss')}</small></td>`;
       }
       else cells=isBus?`${this.compact?'':`<td>${f(r.bus?.vmPu,5)}</td>`}<td>${f(busVoltageKv(r.bus),2)}</td><td>${f(r.bus?r.bus.angleRad*180/Math.PI:null)}</td><td>${f(r.bus?.pMw)}<small>${f(r.bus?.qMvar)}</small></td><td><span class="ga-badge">${h(r.state)}</span></td>`:`<td>${f(r.branch?.pf)}<small>${f(r.branch?.qf)}</small></td><td>${f(r.branch?.pt)}<small>${f(r.branch?.qt)}</small></td><td>${f(r.branch?.pLoss)}<small>${f(r.branch?.qLoss)}</small></td><td data-loading="${r.validatedLoading?.maximum??''}" title="${h(r.validatedLoading?`${r.validatedLoading.status} · ${r.validatedLoading.basis} · ${r.validatedLoading.season} · ${r.validatedLoading.source}`:'UNKNOWN_CAPACITY / NOT_RUN')}">${formatEngineering(r.validatedLoading?.maximum,this.ctx.settings.value.precision)}</td><td><span class="ga-badge">${h(r.state)}</span></td>`;
+      if(this.compact&&this.tab!=='energize')cells=this.compactCells(r,columns);
       const plan=this.expanded===r.id&&r.cls==='ElmLne'?planEnergization(effectiveNetwork(n,this.ctx.scenario.current),r.id):null;
       const detail=this.expanded!==r.id?'':`<tr class="ga-detail-row"><td colspan="${columns.length}"><div class="ga-row-actions"><button data-map="${h(r.id)}">Harita</button><button data-sld="${h(r.id)}">Tek hat</button><button data-toggle="${h(r.id)}">${r.on?'Servis dışı':'Servise al'}</button><button data-calc="${h(r.id)}">Değiştir + hesapla</button><button data-source="${h(r.id)}">Kaynağa dön</button></div><div class="ga-row-summary">${r.branch?`<span>Akım A / B: ${f(r.branch.ifA)} / ${f(r.branch.itA)} A</span>`:''}${this.tab==='delta'&&!isBus?`<span>ΔKayıp: ${delta(d.pLoss)} MW / ${delta(d.qLoss)} MVAr</span>`:''}${plan?`<span>${plan.ready?'Bağlantı yolu hazır':h(plan.blockers.join(' '))} · ${plan.restoredTerminals.length} terminal · ${plan.closeSwitches.length} anahtar</span>`:''}</div></td></tr>`;
       return `<tr data-row="${h(r.id)}" tabindex="0" aria-expanded="${this.expanded===r.id}" class="${this.expanded===r.id?'ga-selected':''}"><td class="ga-equipment"><strong title="${h(r.name)} · ${h(r.id)}">${h(r.name)}</strong><small title="${h(sites)}">${this.compact?f(r.vnKv)+' kV · ':''}${h(sites)}</small></td>${this.compact?'':`<td>${f(r.vnKv)}</td>`}${cells}</tr>${detail}`;
@@ -66,6 +87,7 @@ export class ResultTable {
     const scroll=this.element.querySelector<HTMLElement>('.ga-result-scroll')!;scroll.scrollTop=scrollTop;scroll.scrollLeft=scrollLeft;
     this.element.querySelectorAll<HTMLButtonElement>('[data-sort]').forEach(b=>b.onclick=()=>{if(this.sort===b.dataset.sort)this.descending=!this.descending;else{this.sort=b.dataset.sort!;this.descending=true;}this.page=0;this.render(true);});
     this.element.querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{this.page+=Number(b.dataset.page);this.render(true);});
+    const pager=this.element.querySelector<HTMLElement>('.ga-pager');if(this.pagerHost&&pager)this.pagerHost.append(pager);
     this.element.querySelectorAll<HTMLTableRowElement>('[data-row]').forEach(tr=>{const act=()=>{this.expanded=this.expanded===tr.dataset.row?'':tr.dataset.row!;this.render();const replacement=[...this.element.querySelectorAll<HTMLTableRowElement>('[data-row]')].find(r=>r.dataset.row===tr.dataset.row);replacement?.focus({preventScroll:true});};tr.onclick=e=>{if(!(e.target as HTMLElement).closest('button'))act();};tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act();}};});
     this.element.querySelectorAll<HTMLButtonElement>('[data-map],[data-sld],[data-toggle],[data-calc],[data-source]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const id=b.dataset.map||b.dataset.sld||b.dataset.toggle||b.dataset.calc||b.dataset.source,r=selected.find(r=>r.id===id);if(!r)return;if(b.dataset.map||b.dataset.sld){this.ctx.select(r.cls==='ElmTerm'?(r.terms[0]||r.id):r.id,r.cls,b.dataset.sld?'sld':'map');return;}const key=r.cls==='ElmLne'?'lineStatus':r.cls==='ElmTr2'?'transformerStatus':'busOrTerminalStatus',desired=b.dataset.source!==undefined?r.source:!r.on;
       if(r.cls==='ElmTerm')await this.ctx.setBusStatus(r.terms,b.dataset.source!==undefined?'source':desired,b.dataset.calc!==undefined);
