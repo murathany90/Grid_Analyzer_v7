@@ -4,7 +4,7 @@ import type { BenchmarkAnalysis } from './types';
 import type { AppContext } from '../../app/contracts';
 import { metricRows,preflightBenchmark,type BenchmarkMetricRow,METRICS } from './comparison';
 import { rowObject } from './types';
-import { scenarioSignature,emptyScenario } from '../scenario/overlay';
+import { scenarioSignature,scenarioChanged,emptyScenario } from '../scenario/overlay';
 import {resolveN1Post,lfSnapshotIsCurrent,selectN1Result} from './post-result-source';
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import { stableJson } from '../calculation/identity';
@@ -23,7 +23,7 @@ function canonicalRows(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMetricRo
   const rows=metricRows(table,gate,s.metric,{lfResult:result,diagnostic:s.diagnostic===true,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark,ac:ctx.n1AcResults}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(!s.voltageKv||r.nominalKv===s.voltageKv));
   rowCache.set(ctx,{key,benchmark:ctx.benchmark,result,ac:ctx.n1AcResults,dc:ctx.n1Result,hybrid:ctx.hybridResult,sc:ctx.scResult,rows});return rows;
 }
-function currentLf(ctx:AppContext):boolean {const base=ctx.scenario.selectedId==='B0'||ctx.resultView?.analysis==='LF'&&ctx.resultStore.role==='base';return lfSnapshotIsCurrent(ctx.resultStore.get(base?'base':'scenario','powerFlow'),ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings?.value);}
+function currentLf(ctx:AppContext):boolean {const base=ctx.resultView?.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current);return lfSnapshotIsCurrent(ctx.resultStore.get(base?'base':'scenario','powerFlow'),ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings?.value);}
 export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enabled:boolean;reason:string}{
   if(!ctx.network)return {enabled:false,reason:'MODEL_NOT_LOADED'};
   if(s.source==='SCENARIO_DELTA'){const pair=scenarioLfComparison(ctx,s.metric);return {enabled:s.analysis==='LF'&&pair.enabled,reason:pair.reason||pair.status};}
@@ -83,9 +83,9 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     for(const id of siteIds){putSite(id,value,fid,bus?.vnKv??null);const site=siteById.get(id);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
     if(!hasGeometry)data.noGeometry++;
   };
-  const baseView=s.analysis==='LF'&&ctx.resultStore.role==='base',result=ctx.resultStore.get(baseView||ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow');
+  const baseView=s.analysis==='LF'&&ctx.resultStore.role==='base',result=ctx.resultStore.get((s.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'base':'scenario','powerFlow');
   if(s.source==='SCENARIO_DELTA'){
-    const pair=scenarioLfComparison(ctx,s.metric),details=(v:import('../results/lf-comparison').LfComparisonCell)=>[ctx.scenario.selectedId+' − '+ctx.resultStore.comparisonScenarioId+' · GA ONLY',v.reason||pair.status,'PRE '+v.pre+' · POST '+v.post+' · Δ '+v.delta+' '+v.unit];
+    const pair=scenarioLfComparison(ctx,s.metric),details=(v:import('../results/lf-comparison').LfComparisonCell)=>['Senaryo−Baz · GA ONLY',v.reason||pair.status,'PRE '+v.pre+' · POST '+v.post+' · Δ '+v.delta+' '+v.unit];
     if(!['voltageKv','voltagePu','angleDeg'].includes(s.metric))for(const e of [...network.lines,...network.transformers]){const v=pair.branches.get(e.sourceClass+':'+e.id);if(v)put(e.sourceClass,e.sourceId,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});}
     for(const [fid,v] of pair.terminals)put('ElmTerm',fid,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});
     const values=[...data.branches.values(),...data.sites.values()].flatMap(v=>v.value===null?[]:[v.value]),abs=values.map(Math.abs).sort((a,b)=>a-b);

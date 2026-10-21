@@ -14,6 +14,6 @@ export function calculationSessionStatus(ctx:AppContext){
   }};
 }
 export function baseResultNotice(ctx:AppContext){
-  const host=element('div','ga-base-notice'),label=element('span','','Senaryo farkı için baz sonucu bulunmuyor.'),action=button('Bazı Hesapla',()=>void ctx.run(ctx.resultStore.analysisType,'base'));host.append(label,action);
-  return{element:host,render(){host.hidden=!ctx.network||!scenarioChanged(ctx.scenario.current)||!!ctx.resultStore.get('base');action.disabled=ctx.busy;}};
+  const host=element('div','ga-base-notice'),label=element('span','','Baz sonucu bulunmuyor. Senaryo−Baz için güncel baz hesabı gerekiyor.'),action=button('Baz Hesapla',()=>void ctx.run(ctx.resultStore.analysisType,'base'));host.append(label,action);
+  return{element:host,render(){host.hidden=!ctx.network||!!ctx.resultStore.get('base');action.disabled=ctx.busy;}};
 }

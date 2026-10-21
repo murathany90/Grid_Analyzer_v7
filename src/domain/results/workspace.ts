@@ -3,7 +3,7 @@ import {resolveN1Post,selectN1Result} from '../benchmark/post-result-source';
 import {sha256} from '@noble/hashes/sha2.js';
 import type {AppContext} from '../../app/contracts';
 import {stableJson,identityKey} from '../calculation/identity';
-import {scenarioSignature} from '../scenario/overlay';
+import {scenarioSignature,scenarioChanged} from '../scenario/overlay';
 export interface ResultView {scenarioId:string;fid?:string;analysis:'LF'|'N1'|'SC';source:'GA'|'PF'|'GA−PF'|'Senaryo−Baz';phase:'BASE'|'PRE'|'POST'|'CHANGE';metric:string;caseId?:string;faultId?:string;side?:string}
 export const initialResultView=():ResultView=>({scenarioId:'B0',analysis:'LF',source:'GA',phase:'BASE',metric:'pFromMw'});
 export function workspaceKey(ctx:AppContext):string{return stableJson({model:ctx.network?.modelHash,scenario:scenarioSignature(ctx.scenario.current),settings:ctx.analysisSettings.value,control:ctx.powerFactoryControlContextHash});}
@@ -16,7 +16,7 @@ const n1Ids=new WeakMap<AppContext,{key:string;refs:unknown[];id:string|null}>()
 function activeN1Id(ctx:AppContext):string|null{
   const v=ctx.resultView;if(!ctx.network||!v.caseId)return null;
   const owner=selectN1Result({network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings.value,hybrid:ctx.hybridResult,ac:ctx.n1AcResults,dc:ctx.n1Result},v.caseId),c=owner.ac,h=owner.hybridCase,selection=ctx.benchmarkMap?.analysis==='N1'&&ctx.benchmarkMap.caseId===v.caseId&&ctx.benchmarkMap.metric===v.metric?ctx.benchmarkMap:workspaceMapSelection(ctx);
-  const key=stableJson([v.caseId,v.phase,v.metric,v.source,v.side,selection,ctx.analysisSettings.value,ctx.powerFactoryControlContextHash]),refs=[ctx.network,ctx.scenario.current,ctx.benchmark,ctx.resultStore.get(ctx.scenario.selectedId==='B0'?'base':'scenario','powerFlow'),ctx.n1Result,ctx.n1AcResults,c?.result,c?.status,ctx.hybridResult,ctx.hybridResult?.basePost,h?.mapResults,h?.status],old=n1Ids.get(ctx);
+  const key=stableJson([v.caseId,v.phase,v.metric,v.source,v.side,selection,ctx.analysisSettings.value,ctx.powerFactoryControlContextHash]),refs=[ctx.network,ctx.scenario.current,ctx.benchmark,ctx.resultStore.get(scenarioChanged(ctx.scenario.current)?'scenario':'base','powerFlow'),ctx.n1Result,ctx.n1AcResults,c?.result,c?.status,ctx.hybridResult,ctx.hybridResult?.basePost,h?.mapResults,h?.status],old=n1Ids.get(ctx);
   if(old?.key===key&&old.refs.every((r,i)=>r===refs[i]))return old.id;
   const data=buildBenchmarkMapData(ctx,selection);let id:string|null=null;
   if(data.enabled&&(data.numericValues??0)>0){

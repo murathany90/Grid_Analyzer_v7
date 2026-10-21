@@ -8,9 +8,12 @@ import {pfFaultReference} from '../../src/domain/benchmark/pf-fault-reference';
 import {scStudyState,setScStudyScope,setScStudyTargets,scBatchProgress,nextScBatch,cancelScBatch} from '../../src/features/analysis/sc-study-state';
 import {studyExportRows} from '../../src/features/analysis/study-export';
 import {equipmentCard} from '../../src/map/equipment-tooltip';
+import {n1CaseRows,n1OperatorRows,ensureOperatorCatalog,groupN1Cases,filterOperatorGroups,operatorMetricKeys,operatorExportRows} from '../../src/features/analysis/study-operator';
+import {createOperatorRowsCache} from '../../src/features/analysis/study-rows-cache';
 import {identity,stableJson} from '../../src/domain/calculation/identity';
 import {scenarioSignature} from '../../src/domain/scenario/overlay';
 import type {CalculationResult} from '../../src/domain/results/types';
+import {n1ControlEvidence} from '../../src/analysis/contingency-ac/control-evidence';
 
 test('SC BLOCKED + PF available has GA=0, PF=1, BLOCKED=1 and keeps the full fault catalog',()=>{
   const {ctx,table,fault,result}=scAuditFixture();table.rows=table.rows.slice(0,1);ctx.scResult=result([fault(0)]);
@@ -65,5 +68,51 @@ test('N1 case total exports once as CASE_TOTAL and each equipment remains ELEMEN
 test('scenario delta tooltip keeps flow, loss, tap/service and 1/2 decimals beside loading pp',()=>{
   const {ctx,network,base,post}=n1Fixture();ctx.resultView={...initialResultView(),source:'Senaryo−Baz',metric:'loadingPercent'};ctx.scenario.setStatus('lineStatus','BYPASS',false,true);post.identity=identity(network.modelHash,ctx.scenario.current,'powerFlow',{analysisSettings:ctx.analysisSettings.value});post.branches=post.branches.map(b=>({...b,pf:-22,pt:20,pLoss:2,qLoss:2}));ctx.resultStore.selectScenario(ctx.scenario.selectedId);ctx.resultStore.expect('scenario',post.identity);ctx.resultStore.accept('scenario',post);ctx.resultStore.role='delta';ctx.benchmarkMap=workspaceMapSelection(ctx);base.diagnostics.convergence={stationControl:'STATION_CONTROL_CONVERGED',activeBalance:'ACTIVE_BALANCE_CONVERGED'};
   const trafo={...network.lines[0],id:'TR',sourceId:'TR',sourceClass:'ElmTr2',lvKv:33,tapPosition:2,ratingMva:100,rPu:0,xPu:.1,tap:1,phase:0,gPu:0,bPu:0};ctx.network={...network,transformers:[trafo],buses:network.buses.map((b,i)=>i===1?{...b,vnKv:33}:b)};base.buses=base.buses.map((b,i)=>i===1?{...b,vnKv:33}:b);post.buses=post.buses.map((b,i)=>i===1?{...b,vnKv:33}:b);base.branches=[...base.branches,{...base.branches[0],id:'TR',sourceClass:'ElmTr2'}];post.branches=[...post.branches,{...post.branches[0],id:'TR',sourceClass:'ElmTr2'}];
-  const card=equipmentCard(ctx,trafo);assert.match(card.note,/B0 .*%.*Δ .*pp/);assert.match(card.note,/P: B → A.*ΔKayıp P\/Q.*Serviste.*Tap 2,0/);assert.match(card.details!,/Kayıp P\/Q.*1,0\/1,0/);ctx.settings.value.precision=2;assert.match(equipmentCard(ctx,trafo).note,/Tap 2,00/);
+  const card=equipmentCard(ctx,trafo);assert.match(card.note,/Baz .*%.*Δ .*pp/);assert.match(card.note,/P: B → A.*ΔKayıp P\/Q.*Serviste.*Tap 2,0/);assert.match(card.details!,/Kayıp P\/Q.*1,0\/1,0/);ctx.settings.value.precision=2;assert.match(equipmentCard(ctx,trafo).note,/Tap 2,00/);
+});
+
+test('operator case metadata filters the cut equipment, results filter affected equipment, and modes reuse one guarded pair',()=>{
+  const {ctx,network,base,post}=n1Fixture(),read=createOperatorRowsCache(ctx),first=read();assert.strictEqual(read(),first);ctx.resultView.metric='postQmvar';assert.strictEqual(read(),first);
+  ctx.resultStore.clear();assert.doesNotThrow(()=>studyResultRows(ctx,workspaceMapSelection(ctx)));assert.equal(n1OperatorRows(ctx).find(r=>r.row.fid==='L0')!.values.p.delta,null);ctx.resultStore.expect('base',base.identity);ctx.resultStore.accept('base',base);
+  const line=first.rows.find(r=>r.row.fid==='L0')!;assert.equal(line.values.p.pre,10);assert.equal(line.values.q.post,3);assert.equal(line.values.loading.post,null);assert.equal(line.values.loading.delta,null);
+  const terminal=first.rows.find(r=>r.row.cls==='ElmTerm')!;assert.equal(terminal.values.voltage.post,100);assert.ok(Math.abs(terminal.values.angle.delta!-3)<1e-9);
+  post.diagnostics.islands=[{islandId:'I',referenceSource:'OTHER',status:'CONVERGED'}] as never;assert.equal(n1OperatorRows(ctx).find(r=>r.row.cls==='ElmTerm')!.values.angle.delta,null);
+  post.buses[0].terms=['B0','B1'];assert.equal(n1OperatorRows(ctx).find(r=>r.row.fid==='L0')!.values.p.delta,null);post.buses=post.buses.map((b,i)=>({...b,terms:['B'+i]}));
+  const tr={...network.lines[0],id:'TR',sourceId:'TR',name:'Kesilen Trafo',sourceClass:'ElmTr2',siteIds:['STATION'],lvKv:33} as unknown as typeof network.transformers[number];network.transformers=[tr];ctx.n1AcResults[0].outage={caseId:'N1:ElmTr2:TR',sourceClass:'ElmTr2',fid:'TR'};ctx.resultView.caseId='N1:ElmTr2:TR';
+  const query=(rows:ReturnType<typeof n1CaseRows>,equipmentTypes:string[])=>queryStudyRows(rows,{equipmentTypes,sort:'name',descending:false,page:0}).filtered;
+  assert.equal(query(n1CaseRows(ctx),['trafo']).length,1);assert.equal(query(n1CaseRows(ctx),['line']).length,0);assert.ok(query(n1OperatorRows(ctx).map(r=>r.row),['line']).length>0);assert.equal(query(n1OperatorRows(ctx).map(r=>r.row),['trafo']).length,0);
+  ctx.n1AcResults=[];assert.equal(n1OperatorRows(ctx).length,0);ctx.n1Result={identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current)},candidates:[{equipmentId:'TR',sourceClass:'ElmTr2',status:'SCREENED',topImpacts:[{equipmentId:'L0',sourceClass:'ElmLne',baseFlowMw:10,postFlowMw:12,deltaPMw:2,baseEstimatedLoadingPct:50,postEstimatedLoadingPct:60}]}]} as unknown as typeof ctx.n1Result;
+  const dc=n1OperatorRows(ctx)[0];assert.equal(dc.values.p.post,12);assert.equal(dc.values.q.post,null);assert.equal(dc.values.loading.post,null);for(const metric of ['postQmvar','voltageKv','postLoadingPercent']){ctx.resultView.metric=metric;assert.ok(studyResultRows(ctx,workspaceMapSelection(ctx)).rows.every(r=>r.post===null&&r.delta===null));}
+  ctx.n1Result!.identity.scenarioHash='STALE';assert.equal(n1OperatorRows(ctx).length,0);assert.equal(base.identity.modelHash,network.modelHash);
+});
+
+test('operator catalog loads without AC, once per model/scenario; grouped results keep whole cases, mixed types and view export units',async()=>{
+  const {ctx,network,post,base}=n1Fixture();ctx.hybridResult={status:'BLOCKED'} as never;ctx.n1AcResults=[];let loads=0;ctx.loadN1Catalog=async(scope,season,all)=>{assert.deepEqual([scope,season,all],['scenario','nominal',true]);loads++;};
+  ensureOperatorCatalog(ctx);ensureOperatorCatalog(ctx);await new Promise<void>(resolve=>queueMicrotask(resolve));assert.equal(loads,1);
+  ctx.hybridResult=null;const {ctx:source}=n1Fixture();ctx.n1AcResults=source.n1AcResults;
+  const first=ctx.n1AcResults[0];first.result=post;post.branches=post.branches.map(b=>({...b,pf:21,qf:7}));
+  const second=structuredClone(first);second.outage={...first.outage,caseId:'N1:ElmLne:OTHER',fid:'OTHER'};second.result!.branches=second.result!.branches.map(b=>({...b,pf:30,qf:11}));ctx.n1AcResults=[first,second];
+  const groups=groupN1Cases(ctx,n1CaseRows(ctx)),line=groups.find(g=>g.row.cls==='ElmLne')!;assert.equal(line.cases.length,2);assert.equal(line.critical.verified,false);assert.equal(line.critical.violation,false);
+  assert.deepEqual(line.cases.map(c=>[c.values.p.post,c.values.q.post]),[[21,7],[30,11]]);assert.equal(filterOperatorGroups(groups,[],[],'violations').length,0);assert.equal(filterOperatorGroups(groups,[],[],'unverified').length,groups.length);
+  const mixed=queryStudyRows(groups.map(g=>g.row),{equipmentTypes:['line','trafo','bus'],sort:'record',descending:false,page:0}).filtered;assert.ok(mixed.some(r=>r.cls==='ElmTerm'));assert.ok(mixed.some(r=>r.cls==='ElmLne'));
+  const out=operatorExportRows([line.row],new Map([[line.row.id,line]]),r=>operatorMetricKeys(r,'pq-loading','voltage-angle'),{model:network.modelHash,scenario:scenarioSignature(ctx.scenario.current),source:'GA'});assert.equal(out.length,4);const col=(name:string)=>out[0].indexOf(name);assert.deepEqual(out.slice(1).map(r=>r[col('Vaka')]),Array(3).fill(line.critical.caseId));assert.deepEqual(out.slice(1).map(r=>r[col('Fark birimi')]),['MW','MVAr','pp']);assert.equal(out[1][col('Sonra')],line.critical.values.p.post);assert.equal(out[2][col('Sonra')],line.critical.values.q.post);assert.equal(out[3][col('Sonra')],null);
+  // Deliberately supplied synthetic source/control evidence and rating; production never infers these.
+  base.maxMismatchMw=0;base.diagnostics.convergence={activeBalance:'ACTIVE_BALANCE_CONVERGED'};
+  const evidence=n1ControlEvidence(network,base,ctx.analysisSettings.value);assert.equal(evidence.fidelity,'CONTROL_VERIFIED');first.controlEvidence=second.controlEvidence=evidence;
+  network.lines=network.lines.map(l=>({...l,capacity:{quality:'DGS_MAIN_TYPE',nominalCurrentKA:.05,nominalMVA:8.66,sections:[],seasonalReference:null} as never}));
+  post.branches=post.branches.map(b=>({...b,ifA:75}));second.result!.branches=second.result!.branches.map(b=>({...b,ifA:85}));
+  const verified=filterOperatorGroups(groupN1Cases(ctx,n1CaseRows(ctx)),[],[],'worsened'),critical=verified.find(g=>g.row.fid==='L0')!.critical;assert.equal(critical.caseId,second.outage.caseId);assert.deepEqual([critical.values.p.pre,critical.values.p.post,critical.values.q.post,critical.values.loading.post,critical.values.loading.delta],[10,30,11,170,70]);assert.equal(critical.violation,true);
+});
+
+test('catalog request finishes before a scenario undo or failed-load retry requests the same key',async()=>{
+  const {ctx}=n1Fixture();let loads=0,fail=false;
+  ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;
+  ctx.loadN1Catalog=async()=>{loads++;if(fail)throw Error('Temporary catalog failure');ctx.n1CatalogResult={candidates:[]} as never;ctx.n1CatalogIdentity={modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current),analysisScope:'scenario',capacitySeason:'nominal',includeAllVoltages:true};};
+  const settled=()=>new Promise<void>(resolve=>setImmediate(resolve));
+  ensureOperatorCatalog(ctx);ensureOperatorCatalog(ctx);await settled();assert.equal(loads,1);
+  ensureOperatorCatalog(ctx);await settled();assert.equal(loads,1);
+  ctx.scenario.setStatus('lineStatus','L0',false,true);ctx.scenario.undo();ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;
+  ensureOperatorCatalog(ctx);await settled();assert.equal(loads,2);assert.ok(ctx.n1CatalogResult);
+  ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;fail=true;ensureOperatorCatalog(ctx);await settled();assert.equal(loads,3);
+  fail=false;ensureOperatorCatalog(ctx);await settled();assert.equal(loads,4);assert.ok(ctx.n1CatalogResult);
 });

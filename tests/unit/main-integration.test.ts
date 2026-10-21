@@ -14,13 +14,13 @@ import {loadBenchmarkModel} from '../../src/importers/powerfactory-benchmark/mod
 import {syntheticBenchmarkPair} from '../helpers/benchmark-model';
 import {acNetwork} from '../helpers/ac-network';
 
-test('The B0 PF scorecard stays numerically identical through B0 S1 S2 B0 selection',async()=>{
+test('PF scorecard stays numerically identical through cumulative maneuvers, undo and reset',async()=>{
   const pair=syntheticBenchmarkPair(),network=(await loadBenchmarkModel(pair.model)).network,benchmark=await loadBenchmark(pair.benchmark),scenario=new ScenarioStore(network.modelHash),analysisSettings=new AnalysisSettingsStore();
   const result=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario:scenario.current,identity:identity(network.modelHash,scenario.current,'powerFlow',{analysisSettings:analysisSettings.value}),analysisSettings:analysisSettings.value});
   const ctx={network,benchmark,scenario,analysisSettings,resultStore:{get:()=>result},powerFactoryControlContextHash:null,powerFactoryControlContextNumericFile:null} as unknown as AppContext;
   const base=scorecardEvidence(ctx);assert.ok(base.rows.some(r=>r.matched>0));
   scenario.setStatus('lineStatus','SYN-LINE',false,true);const s1=scenario.selectedId;scenario.setStatus('transformerStatus','TR',false,true);const s2=scenario.selectedId;
-  for(const id of [s1,s2,'B0']){scenario.select(id);assert.strictEqual(scorecardEvidence(ctx),base);assert.deepEqual(scorecardEvidence({...ctx} as AppContext).rows,base.rows);}
+  for(const action of [()=>{},()=>scenario.undo(),()=>scenario.reset()]){action();assert.strictEqual(scorecardEvidence(ctx),base);assert.deepEqual(scorecardEvidence({...ctx} as AppContext).rows,base.rows);}
 });
 
 test('An N1 run cannot mark a different or unrecorded case phase metric READY',async()=>{

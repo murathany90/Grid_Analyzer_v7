@@ -1,4 +1,5 @@
 export interface Settings {
+  lfBranchDisplay:'p-loading'|'pq'|'pq-loading';lfBusDisplay:'voltage'|'angle'|'voltage-angle';
   precision:number;pageSize:number;siteSize:number;routeDetail:boolean;riskWarningPercent:number;
   color400: string; color220:string; color154:string; color66:string; colorLow:string; colorMid: string;
   colorOut: string; colorScenarioOff: string; colorScenarioOn: string; colorNoResult:string;
@@ -15,6 +16,7 @@ export interface Settings {
   flowSpeed: 'slow' | 'normal' | 'fast'; flowDensity: number; theme: 'dark' | 'light';
 }
 export const defaultSettings = (): Settings => ({
+  lfBranchDisplay:'pq-loading',lfBusDisplay:'voltage-angle',
   deltaMetric:'p',voltageMin:.90,voltageNeutral:1,voltageMax:1.10,voltageLowColor:'#508bc2',voltageNeutralColor:'#bccbd3',voltageHighColor:'#e4a66a',
   angleMin:-20,angleNeutral:0,angleMax:20,angleNegativeColor:'#4f91cc',angleNeutralColor:'#becbd1',anglePositiveColor:'#d8965d',
   magnitudePercentile:95,magnitudePMax:0,magnitudeQMax:0,magnitudeIntensity:1,
@@ -48,7 +50,7 @@ export class SettingsStore {
     next.qThresholds = Array.isArray(next.qThresholds) && next.qThresholds.length === 6 && next.qThresholds.every(Number.isFinite) ? next.qThresholds.map(x => Math.max(0, Math.min(300, x))).sort((a,b) => a-b) : [...this.value.qThresholds];
     for(const key of ['qBase400Mvar','qBase154Mvar'] as const)if(!Number.isFinite(next[key])||next[key]<=0)next[key]=this.value[key];
     for (const key of ['width400', 'widthMid', 'widthOther', 'deltaLoad', 'deltaP', 'deltaQ', 'deltaV', 'flowDensity'] as const) if (!Number.isFinite(next[key]) || next[key] <= 0) next[key] = this.value[key];
-    const enums = {palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta','island','n1-island','n1-risk'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
+    const enums = {lfBranchDisplay:['p-loading','pq','pq-loading'],lfBusDisplay:['voltage','angle','voltage-angle'],palette:['voltage','green'],layoutMode:['standard','separated'],displayMode:['nominal','loading','p','q','v','angle','delta','island','n1-island','n1-risk'],deltaMetric:['p','q','v','loading'],basemapStyle:['dark','plain','provinces','none'],flowSpeed:['slow','normal','fast'],theme:['dark','light']} as const;
     for (const key of Object.keys(enums) as (keyof typeof enums)[]) if (!(enums[key] as readonly string[]).includes(next[key])) Object.assign(next,{[key]:this.value[key]});
     next.precision=Math.round(Math.max(0,Math.min(8,next.precision||0)));next.pageSize=Math.round(Math.max(10,Math.min(100,next.pageSize||20)));next.siteSize=Math.max(1,Math.min(10,next.siteSize||2.5));
     if(!Number.isFinite(next.riskWarningPercent)||next.riskWarningPercent<0||next.riskWarningPercent>=100)next.riskWarningPercent=this.value.riskWarningPercent;

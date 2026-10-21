@@ -2,6 +2,7 @@ import type {LfComparisonCell} from '../../domain/results/lf-comparison';
 import type {BranchResult,BusResult} from '../../domain/results/types';
 import {branchDelta,difference} from '../../domain/results/delta';
 import type {PresentedLoading} from '../../map/loading-presentation';
+import type {Settings} from '../../persistence/settings';
 
 export type ResultKind='line'|'trafo'|'bus';
 export type ResultTab='results'|'delta'|'energize';
@@ -19,6 +20,20 @@ export function resultColumns(kind:ResultKind,tab:ResultTab):ResultColumn[]{
   return bus?
     [{width:30,metrics:first},{width:7,metrics:kv},{width:11,metrics:[metric('v','V pu')]},{width:12,metrics:[metric('vKv','V kV')]},{width:10,metrics:[metric('angle','Açı °')]},{width:13,metrics:[metric('p','P','MW'),metric('q','Q','MVAr')]},{width:17,metrics:[metric('state','Durum')]}]:
     [{width:29,metrics:first},{width:6,metrics:kv},{width:13,metrics:[metric('p',kind==='trafo'?'YG P':'A P','MW'),metric('q','Q','MVAr')]},{width:13,metrics:[metric('pt',kind==='trafo'?'AG P':'B P','MW'),metric('qt','Q','MVAr')]},{width:13,metrics:[metric('pLoss','Kayıp P','MW'),metric('qLoss','Q','MVAr')]},{width:9,metrics:[metric('loading','Yük %')]},{width:17,metrics:[metric('state','Durum')]}];
+}
+/** Presentation only: retain the same result keys and sorting, with kV throughout the compact panel. */
+export function compactResultColumns(kind:ResultKind,tab:ResultTab,settings:Pick<Settings,'lfBranchDisplay'|'lfBusDisplay'>):ResultColumn[]{
+  const branchMode=settings.lfBranchDisplay??'pq-loading',busMode=settings.lfBusDisplay??'voltage-angle';
+  return resultColumns(kind,tab).map(column=>({...column,metrics:column.metrics.flatMap(m=>{
+    if(m.key==='voltage')return [];
+    if(kind==='bus'){
+      if(['p','q','v'].includes(m.key)&&tab!=='delta')return [];
+      if(m.unit==='pu')m={...m,key:m.key==='v'?'vKv':m.key==='baseV'?'baseVKv':'deltaVKv',unit:'kV'};
+      if(busMode==='angle'&&['vKv','baseVKv','deltaVKv'].includes(m.key)||busMode==='voltage'&&/angle/i.test(m.key))return [];
+      if(busMode==='angle'&&tab==='delta')m={...m,label:m.key==='baseAngle'?'Baz Açı':m.key==='angle'?'Senaryo Açı':m.label};
+    }else if(branchMode==='p-loading'&&/q/i.test(m.key)||branchMode==='pq'&&/load/i.test(m.key))return [];
+    return [m];
+  })})).filter(c=>c.metrics.length>0||!!c.label);
 }
 export function resultSortValue(row:ResultRow,key:string):string|number|null|undefined {
   const d=branchDelta(row.baseBranch,row.branch,row.loadingComparison);

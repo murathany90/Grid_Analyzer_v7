@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {scAuditFixture} from '../helpers/study-audit';
+import {n1OperatorRows,n1CaseRows,groupN1Cases} from '../../src/features/analysis/study-operator';
 import {createStudyRowsCache} from '../../src/features/analysis/study-rows-cache';
 import {workspaceMapSelection} from '../../src/domain/results/workspace';
 import {setScStudyScope} from '../../src/features/analysis/sc-study-state';
@@ -21,5 +22,7 @@ test('cached rows invalidate identities, replacement results, model metadata and
 test('case-detail hydration on an existing hybrid object invalidates cached numerical rows',async()=>{
   const {ctx}=scAuditFixture(),n=acNetwork();ctx.network=n;ctx.scenario=new ScenarioStore(n.modelHash);ctx.resultView={...ctx.resultView,analysis:'N1',source:'GA',caseId:'N1:ElmLne:BYPASS',metric:'postPmw'};
   ctx.hybridResult=await runHybridN1(n,ctx.scenario.current,{analysisSettings:ctx.analysisSettings.value,studyProfile:'NATIVE_PARTIAL_CONTROLS',selectedCandidateIds:['ElmLne:BYPASS'],policy:{acBudgetCases:1}});const c=ctx.hybridResult.cases.find(c=>c.outage.caseId===ctx.resultView.caseId)!,post=c.mapResults!,read=createStudyRowsCache(ctx),s=workspaceMapSelection(ctx);assert.ok(read(s).numericCount>0);
-  delete c.mapResults;assert.equal(read(s).numericCount,0);c.mapResults=post;assert.ok(read(s).numericCount>0);
+  delete c.mapResults;assert.equal(read(s).numericCount,0);
+  assert.ok(c.affectedKeys?.length);c.violationKeys=[];const evicted=groupN1Cases(ctx,n1CaseRows(ctx));assert.ok(evicted.length);assert.ok(evicted.every(g=>g.row.reason==='CASE_DETAIL_NOT_LOADED'&&Object.values(g.values).every(v=>v.pre===null&&v.post===null)&&!g.critical.violation));
+  c.mapResults=post;assert.ok(read(s).numericCount>0);const before=ctx.hybridResult.basePost!.branches[0],after=post.branches.find(b=>b.fid===before.fid&&b.sourceClass===before.sourceClass)!;before.loading={...before.loading,operationalPercent:50,fromLimitA:1000};after.loading={...after.loading,operationalPercent:60,fromLimitA:2000};const shown=n1OperatorRows(ctx).find(r=>r.row.fid===before.fid)!;assert.equal(shown.values.loading.delta,null);assert.match(shown.values.loading.reason,/DENOMINATOR/);
 });

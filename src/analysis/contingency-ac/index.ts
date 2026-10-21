@@ -55,7 +55,7 @@ export async function validateAcOutages(network:CanonicalNetwork,scenario:Scenar
     const result=await new BrowserJsPowerFlowEngine().runPowerFlow({network,scenario:overlay,identity:identity(network.modelHash,overlay,'powerFlow',{analysisSettings:options.analysisSettings,contingency:key}),analysisSettings:options.analysisSettings},options.onProgress);
     if(options.signal?.aborted||performance.now()-start>budget){row.status='CANCELLED';row.reason='CANCELLED_OR_TIME_BUDGET';finish();continue;}
     const controls=n1ControlEvidence(post,result,options.analysisSettings);row.controlEvidence=controls;
-    const allowPartial=options.controlPolicy==='ALLOW_PARTIAL'||controls.reasons.every(r=>r==='STATION_CONTROL_OFF_LOCAL_PV_PROFILE');
+    const allowPartial=options.controlPolicy==='ALLOW_PARTIAL';
     if(!result.converged){row.status='DIVERGED';row.reason=result.status;}
     else if(!controls.numericalSolved){row.status='NOT_COMPUTABLE';row.reason='MISSING_INVALID_OR_EXCESSIVE_PHYSICAL_RESIDUAL';}
     else if(controls.fidelity==='CONTROL_FIDELITY_PARTIAL'&&!allowPartial){row.status='UNSUPPORTED_CONTROL_CONFIGURATION';row.reason=controls.reasons.join('; ');}

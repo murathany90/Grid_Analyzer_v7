@@ -10,7 +10,7 @@ import type {BusResult} from '../domain/results/types';
 import type {CanonicalNetwork} from '../domain/model/network';
 import {buildBenchmarkMapData,benchmarkMapGate,type BenchmarkMapData} from '../domain/benchmark/map-layer';
 import {metricRows,preflightBenchmark} from '../domain/benchmark/comparison';
-import {scenarioSignature,emptyScenario} from '../domain/scenario/overlay';
+import {scenarioSignature,scenarioChanged,emptyScenario} from '../domain/scenario/overlay';
 import {voltageMatches} from '../domain/model/voltage-band';
 import {lfSnapshotIsCurrent,resolveN1Post,selectN1Result} from '../domain/benchmark/post-result-source';
 import {solutionCompleteness} from '../domain/results/diagnostics';
@@ -40,7 +40,7 @@ export function matchedVoltageKv(pu:unknown,nominal:unknown,otherNominal:unknown
   return finiteNumber(pu)&&finiteNumber(nominal)&&nominal>0&&nominal===otherNominal?pu*nominal:null;
 }
 export const lfMapTarget=(metric:string)=>LF_MAP_METRICS.find(m=>m.metric===metric)?.target;
-export function currentMapLf(ctx:AppContext){const base=ctx.scenario.selectedId==='B0'||ctx.resultView?.analysis==='LF'&&ctx.resultStore.role==='base',r=ctx.resultStore.get(base?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
+export function currentMapLf(ctx:AppContext){const base=ctx.resultView?.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current),r=ctx.resultStore.get(base?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
 export function representativeStationBus(ctx:AppContext,siteId:string,result:CalculationResult|null){
   const n=ctx.network,nominal=n?highestNominalBySite(n,ctx.filters.voltages).get(siteId)??null:null,selected=n&&result&&nominal!==null?resultPresentationIndex(n,result).solution.bySiteAndNominal.get(siteId)?.get(nominal):undefined;
   return {nominal,bus:selected?.bus??null,count:selected?.count??0};
@@ -73,7 +73,7 @@ export function mapCaseOptions(ctx:AppContext,analysis:'N1'|'SC'):string[][]{
     const table=ctx.benchmark?.groups.N1.tables.N1_Cases_Raw;for(const row of table?.rows??[]){const r=rowObject(table!,row);rows.push([String(r.caseId),String(r.outageName||r.caseId)]);seen.add(String(r.caseId));}
     if(ctx.n1CatalogResult&&ctx.n1CatalogIdentity?.modelHash===ctx.network?.modelHash&&ctx.n1CatalogIdentity?.scenarioHash===scenarioSignature(ctx.scenario.current))for(const c of ctx.n1CatalogResult.candidates){const e=modelPresentationIndex(ctx.network!).equipmentByKey.get(c.sourceClass+':'+c.equipmentId),id='N1:'+c.sourceClass+':'+(e?.sourceId??c.equipmentId);if(!seen.has(id)){seen.add(id);rows.push([id,c.name+' · '+c.topology]);}}
     const current=currentN1Metadata(ctx);for(const c of [...current.ac,...current.hybrid?.cases??[]]){statuses.set(c.outage.caseId,c.status);if(!seen.has(c.outage.caseId)){seen.add(c.outage.caseId);rows.push([c.outage.caseId,c.outage.caseId+' · '+c.status]);}}
-    for(const c of current.dc?.candidates??[]){const e=[...ctx.network?.lines??[],...ctx.network?.transformers??[]].find(e=>e.id===c.equipmentId&&e.sourceClass===c.sourceClass),id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;statuses.set(id,statuses.get(id)??c.status);if(!seen.has(id)){seen.add(id);rows.push([id,(e?.name??id)+' · '+c.status]);}}
+    for(const c of current.dc?.candidates??[]){const e=ctx.network?modelPresentationIndex(ctx.network).equipmentByKey.get(c.sourceClass+':'+c.equipmentId):undefined,id=`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;statuses.set(id,statuses.get(id)??c.status);if(!seen.has(id)){seen.add(id);rows.push([id,(e?.name??id)+' · '+c.status]);}}
     for(const row of rows){const status=statuses.get(row[0]);if(status&&!row[1].endsWith(' · '+status))row[1]+=' · '+status;}
   }else{
     for(const f of selectedScPresentation(ctx).sc?.faults??[]){if(seen.has(f.physicalTerminalFid))continue;seen.add(f.physicalTerminalFid);rows.push([f.physicalTerminalFid,(terms?.get(f.physicalTerminalFid)?.name??f.physicalTerminalFid)+' · '+f.status]);}
@@ -186,14 +186,14 @@ export function selectedScPresentation(ctx:AppContext){
   const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(matches.length>1?'PARTITION_AMBIGUOUS':'NOT_RUN'),reason:fault?.reasons.join('; ')??(matches.length>1?'PARTITION_AMBIGUOUS: birden fazla fault kaydı':!current?'Güncel kayıt yüklenmedi':'Seçilen fiziksel fault hesaplanmadı')};
 }
 export function mapStatusText(ctx:AppContext):string{
-  const v=ctx.resultView,base=ctx.scenario.selectedId==='B0'?'Baz':'Senaryo';
-  if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${ctx.scenario.selectedId} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);return `N-1 · ${ctx.scenario.selectedId} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
-  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${ctx.scenario.selectedId} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${ctx.scenario.selectedId} · 3PH · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
-  if(v.source!=='GA')return `LF · ${v.source==='GA−PF'?'GA−PF TANISAL / yöntem doğrulanmadı':v.source} · ${ctx.scenario.selectedId} · ${mapPresentationGate(ctx,ctx.benchmarkMap??{analysis:'LF',source:'PF',metric:v.metric,table:'GA_Reference_Raw'}).reason||'Kayıtlı referans'}`;
-  const r=currentMapLf(ctx);if(!r)return `LF · ${base} ${ctx.scenario.selectedId} · NOT_RUN / STALE`;
+  const v=ctx.resultView,base=(v.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'Baz':'Senaryo';
+  if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${base} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);return `N-1 · ${base} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
+  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
+  if(v.source!=='GA')return `LF · ${v.source==='GA−PF'?'GA−PF TANISAL / yöntem doğrulanmadı':v.source} · ${base} · ${mapPresentationGate(ctx,ctx.benchmarkMap??{analysis:'LF',source:'PF',metric:v.metric,table:'GA_Reference_Raw'}).reason||'Kayıtlı referans'}`;
+  const r=currentMapLf(ctx);if(!r)return `LF · ${base} · NOT_RUN / STALE`;
   const c=solutionCompleteness(r),label=r.identity.analysisType==='dc'?'DC P-only':r.identity.analysisType==='fastAc'?'Hızlı yaklaşık AC':'Tam AC';
   const issue=c.reason==='ACTIVE_BALANCE_PARTIAL'?'P dengesi kısmi; tam çözüm değil':c.reason==='STATION_CONTROL_FALLBACK'?'istasyon kontrolü kısmi; tam çözüm değil':c.reason==='NEWTON_NOT_CONVERGED'?r.status:'';
-  return `${label} · ${base} ${ctx.scenario.selectedId} · ${r.converged?'NR yakınsadı':r.status}${issue?' ('+issue+')':''} · ${(r.elapsedMs/1000).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} sn`;
+  return `${label} · ${base} · ${r.converged?'NR yakınsadı':r.status}${issue?' ('+issue+')':''} · ${(r.elapsedMs/1000).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} sn`;
 }
 
 export function mapMetricTarget(metric:string):'site'|'branch'{
