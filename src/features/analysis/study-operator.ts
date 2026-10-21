@@ -73,7 +73,8 @@ export function ensureOperatorCatalog(ctx:AppContext){
   if(!ctx.network||ctx.busy||typeof ctx.loadN1Catalog!=='function')return;
   const key=ctx.network.modelHash+'|'+scenarioSignature(ctx.scenario.current),id=ctx.n1CatalogIdentity;if(ctx.n1CatalogResult&&id?.modelHash===ctx.network.modelHash&&id.scenarioHash===scenarioSignature(ctx.scenario.current)&&id.includeAllVoltages)return;
   if(catalogRequests.get(ctx)===key)return;catalogRequests.set(ctx,key);
-  queueMicrotask(()=>{if(ctx.busy||!ctx.network||ctx.network.modelHash+'|'+scenarioSignature(ctx.scenario.current)!==key){catalogRequests.delete(ctx);return;}void ctx.loadN1Catalog('scenario','nominal',true).catch(()=>{});});
+  const release=()=>{if(catalogRequests.get(ctx)===key)catalogRequests.delete(ctx);};
+  queueMicrotask(()=>{if(ctx.busy||!ctx.network||ctx.network.modelHash+'|'+scenarioSignature(ctx.scenario.current)!==key){release();return;}void ctx.loadN1Catalog('scenario','nominal',true).catch(()=>{}).finally(release);});
 }
 export interface OperatorCase extends OperatorRow {caseId:string;caseName:string;method:string;verified:boolean;violation:boolean;newWorsened:boolean;severity:number}
 export interface OperatorGroup extends OperatorRow {cases:OperatorCase[];critical:OperatorCase}

@@ -103,3 +103,16 @@ test('operator catalog loads without AC, once per model/scenario; grouped result
   post.branches=post.branches.map(b=>({...b,ifA:75}));second.result!.branches=second.result!.branches.map(b=>({...b,ifA:85}));
   const verified=filterOperatorGroups(groupN1Cases(ctx,n1CaseRows(ctx)),[],[],'worsened'),critical=verified.find(g=>g.row.fid==='L0')!.critical;assert.equal(critical.caseId,second.outage.caseId);assert.deepEqual([critical.values.p.pre,critical.values.p.post,critical.values.q.post,critical.values.loading.post,critical.values.loading.delta],[10,30,11,170,70]);assert.equal(critical.violation,true);
 });
+
+test('catalog request finishes before a scenario undo or failed-load retry requests the same key',async()=>{
+  const {ctx}=n1Fixture();let loads=0,fail=false;
+  ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;
+  ctx.loadN1Catalog=async()=>{loads++;if(fail)throw Error('Temporary catalog failure');ctx.n1CatalogResult={candidates:[]} as never;ctx.n1CatalogIdentity={modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current),analysisScope:'scenario',capacitySeason:'nominal',includeAllVoltages:true};};
+  const settled=()=>new Promise<void>(resolve=>setImmediate(resolve));
+  ensureOperatorCatalog(ctx);ensureOperatorCatalog(ctx);await settled();assert.equal(loads,1);
+  ensureOperatorCatalog(ctx);await settled();assert.equal(loads,1);
+  ctx.scenario.setStatus('lineStatus','L0',false,true);ctx.scenario.undo();ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;
+  ensureOperatorCatalog(ctx);await settled();assert.equal(loads,2);assert.ok(ctx.n1CatalogResult);
+  ctx.n1CatalogResult=null;ctx.n1CatalogIdentity=null;fail=true;ensureOperatorCatalog(ctx);await settled();assert.equal(loads,3);
+  fail=false;ensureOperatorCatalog(ctx);await settled();assert.equal(loads,4);assert.ok(ctx.n1CatalogResult);
+});

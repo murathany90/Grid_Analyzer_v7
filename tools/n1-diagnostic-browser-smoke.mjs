@@ -29,6 +29,13 @@ try{
   await page.route('**/diagnostic.html',r=>r.fulfill({contentType:'text/html',body:html}));
   console.log('Diagnostic smoke: loading');await page.goto(`http://127.0.0.1:${port}/diagnostic.html`,{waitUntil:'domcontentloaded'});console.log('Diagnostic smoke: waiting for catalog');await page.waitForFunction(()=>window.ready&&ctx.n1CatalogResult&&!ctx.busy).catch(async e=>{console.error(await page.evaluate(()=>({ready:window.ready,status:window.ctx?.status,busy:window.ctx?.busy})));throw e;});
   const panel=page.locator('.ga-lightning'),shared=panel.locator('.ga-workspace-results');
+  const baseCatalogHash=await page.evaluate(()=>ctx.n1CatalogIdentity.scenarioHash);
+  await page.evaluate(()=>{ctx.scenario.setStatus('lineStatus','L0',false,true);ctx.notify();});
+  await page.waitForFunction(hash=>!ctx.busy&&ctx.n1CatalogResult&&ctx.n1CatalogIdentity.scenarioHash!==hash,baseCatalogHash);
+  await page.evaluate(()=>{ctx.scenario.undo();ctx.notify();});
+  await page.waitForFunction(hash=>!ctx.busy&&ctx.n1CatalogResult&&ctx.n1CatalogIdentity.scenarioHash===hash,baseCatalogHash);
+  assert.equal(await page.evaluate(()=>ctx.n1CatalogResult.counts.total),4);
+  if(process.argv.includes('--catalog-only')){console.log('N1_CATALOG_UNDO_BROWSER_SMOKE PASS');await browser.close();await server.close();process.exit(0);}
   await panel.evaluate(p=>{p.style.width='640px';p.style.height='480px';p.style.top='20px';p.style.bottom='auto';});
   const listHeight=()=>shared.locator('.ga-table-wrap').evaluate(e=>e.clientHeight);
   await shared.getByLabel('N-1 görünümü',{exact:true}).selectOption('results');const initialHeight=await listHeight();
