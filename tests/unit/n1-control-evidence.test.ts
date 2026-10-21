@@ -36,6 +36,14 @@ test('missing station source limit is not silently inferred and cannot produce f
   const [r]=await validateAcOutages(stationFixture('B2',false),emptyScenario(),[outage],{analysisSettings:settings(),controlPolicy:'ALLOW_PARTIAL'});
   assert.equal(r.controlEvidence?.numericalSolved,true);assert.equal(r.status,'PARTIAL_SOLUTION');assert.match(r.reason,/MISSING_SOURCE_REACTIVE_LIMIT/);
 });
+
+test('station-off numerical convergence requires an explicit partial profile in both N-1 paths',async()=>{
+  const n=stationFixture(),s=settings();s.powerFlow.stationControlMode='off';
+  const [strict]=await validateAcOutages(n,emptyScenario(),[outage],{analysisSettings:s});
+  assert.equal(strict.status,'UNSUPPORTED_CONTROL_CONFIGURATION');assert.equal(strict.controlEvidence?.numericalSolved,true);assert.match(strict.reason,/STATION_CONTROL_OFF_LOCAL_PV_PROFILE/);
+  assert.equal((await runHybridN1(n,emptyScenario(),{analysisSettings:s})).status,'BLOCKED');
+  const [partial]=await validateAcOutages(n,emptyScenario(),[outage],{analysisSettings:s,controlPolicy:'ALLOW_PARTIAL'});assert.equal(partial.status,'PARTIAL_SOLUTION');assert.match(partial.reason,/NOT_PF_PARITY/);
+});
 test('unresolved distributed active balance cannot pass a station-free strict gate',async()=>{
   const s=defaultAnalysisSettings();s.powerFlow.stationControlMode='off';
   const [r]=await validateAcOutages(acNetwork(),emptyScenario(),[outage],{analysisSettings:s});

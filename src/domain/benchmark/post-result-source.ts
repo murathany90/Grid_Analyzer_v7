@@ -5,6 +5,7 @@ import type {CalculationResult} from '../results/types';
 import type {CanonicalNetwork} from '../model/network';
 import type {ScenarioOverlay} from '../scenario/overlay';
 import {hybridStudyIsCurrent} from '../../analysis/contingency-hybrid/profile';
+import {loadingEquipment} from '../results/loading-presentation';
 import {stableJson} from '../calculation/identity';
 import {postResultAssembler,type PostMapResults} from '../../analysis/contingency-ac/post-results';
 import type {AcContingency} from '../../analysis/contingency-ac';
@@ -23,7 +24,7 @@ export function selectN1Result(o:MetricOptions&{dc?:N1ScreenResult|null},caseId?
   if(caseId)for(const ac of [...o.ac??[]].reverse().filter(c=>c.outage.caseId===caseId))matches.push({source:'MANUAL_FULL_AC',ac,current:ac.identity.modelHash===n.modelHash&&ac.identity.baseScenarioHash===hash&&(!o.settings||ac.identity.settingsHash===stableJson(o.settings))});
   const h=o.hybrid,hc=h?.cases.find(c=>c.outage.caseId===caseId);
   if(h&&(!caseId||hc))matches.push({source:hc?'HYBRID_FULL_AC':'HYBRID_RUN',hybrid:h,hybridCase:hc,current:h.identity.modelHash===n.modelHash&&h.identity.scenarioHash===hash&&(!o.settings||hybridStudyIsCurrent(h.identity.settingsHash,o.settings,h.studyProfile))});
-  const dc=o.dc,c=caseId?dc?.candidates.find(c=>{const e=(c.sourceClass==='ElmLne'?n.lines:n.transformers).find(e=>e.id===c.equipmentId);return caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;}):undefined;
+  const dc=o.dc,c=caseId?dc?.candidates.find(c=>{const e=loadingEquipment(n).get(c.sourceClass+':'+c.equipmentId);return caseId===`N1:${c.sourceClass}:${e?.sourceId??c.equipmentId}`;}):undefined;
   if(dc&&(!caseId||c))matches.push({source:'GA_DC_SCREEN',dc,candidate:c,current:dc.identity.modelHash===n.modelHash&&dc.identity.scenarioHash===hash});
   return matches.find(r=>r.current)??matches[0]??{source:'NOT_RUN',current:true};
 }

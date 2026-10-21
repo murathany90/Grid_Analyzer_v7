@@ -104,7 +104,7 @@ export class Application implements AppContext {
         screen:(opts,budget)=>work(()=>this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options:opts}),budget),
         solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings,controlPolicy:options.studyProfile==='NATIVE_PARTIAL_CONTROLS'||options.studyProfile==='GA_APPROX_STATION_OFF'?'ALLOW_PARTIAL':'STRICT'});return rows[0];},budget),
       });
-      if(current()){this.hybridResult=result;if(this.resultView.analysis==='N1'){this.resultView.caseId=result.cases[0]?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 hibrit · ${result.status} · ${JSON.stringify(result.counts)} · ${result.reason}`;}
+      if(current()){this.hybridResult=result;if(this.resultView.analysis==='N1'){this.resultView.caseId=result.cases[0]?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 · ${{BLOCKED:'AC doğrulanamadı — teknik tanıya bakın',PARTIAL:'Kısmi çalışma — PF paritesi doğrulanmadı',COMPLETE:'Tamamlandı',CANCELLED:'İptal'}[result.status]} · ${result.counts.AC_VERIFIED??0} doğrulanmış vaka`;}
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(current()){this.hybridAbort=null;this.busy=false;this.notify();}}
   }
