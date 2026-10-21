@@ -124,5 +124,7 @@ export function n1OperatorDiagnosis(ctx:AppContext){
   if(h?.status==='BLOCKED'||e&&e.fidelity!=='CONTROL_VERIFIED')message=e?.numericalSolved?'AC yakınsadı; kontrol/kaynak doğrulanmadı. DC kullanın veya kaynak verisini kontrol edin.':'AC doğrulanamadı. Teknik tanıya bakın; katalog ve DC taraması kullanılabilir.';
   else if(e?.fidelity==='CONTROL_VERIFIED')message='Kontrol/model doğrulandı · kısıt sonuçlarını inceleyin.';
   if(partial)message='Kısmi AC · PF PARİTESİ DOĞRULANMADI. Sonuçları deneysel değerlendirin.';
-  return {message,technical:{profile:h?.studyProfile??'CURRENT_SETTINGS',hybridStatus:h?.status??'NOT_RUN',reason:reasons,newtonStatus:lf?.status??h?.base?.status??'NOT_RUN',evidence:e,convergence:lf?.diagnostics.convergence??null,sourceFidelity:lf?.diagnostics.sourceFidelity??null,stationSummary:lf?.diagnostics.stationControllerSummary??null,stationControls:lf?.diagnostics.stationControllers??null,voltageControl:lf?.diagnostics.voltageControl??null,baseControlSupport:h?.base?.controlSupport??null}};
+  return {message,technical:{identity:h?.identity??lf?.identity??null,profile:h?.studyProfile??'CURRENT_SETTINGS',hybridStatus:h?.status??'NOT_RUN',reason:reasons,newtonStatus:h?.base?.status??lf?.status??'NOT_RUN',evidence:e,convergence:e?.convergence??null,stationSummary:e?.stationSupport??null,baseControlSupport:h?.base?.controlSupport??null,
+    // A partial-profile hybrid base is distinct from the independently cached working LF.
+    workingLf:lf?{identity:lf.identity,status:lf.status,sourceFidelity:lf.diagnostics.sourceFidelity??null,stationControls:lf.diagnostics.stationControllerResults??null,stationMappings:lf.diagnostics.stationControllerMappings??null,voltageControl:lf.diagnostics.finalControlRevalidation??null}:null}};
 }

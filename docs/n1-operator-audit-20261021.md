@@ -15,7 +15,7 @@ The reported count of 89, `ACTIVE_BALANCE_PARTIAL` and `PARTIAL_NATIVE_SOURCE_PH
 ## Validation
 
 - 71 targeted existing unit tests passed, including strict/explicit-partial gates, catalog independence, whole-case aggregation, mixed filters, loading pp and export values.
-- Browser smoke passed: 640/420 px, no horizontal table/panel overflow, accessible controls, single popup layer/close/Escape/outside click, case expansion, visible CSV, 40,001 SC fault choices bounded to 50, actual-worker automatic N-1 catalog, LF/scenario undo/reset regression.
+- Focused and general browser smoke passed: 640/420 px, no horizontal table/panel overflow, accessible controls, single popup layer/close/Escape/outside click, case expansion, visible CSV, 40,001 SC fault choices bounded to 50, actual-worker automatic N-1 catalog, LF/scenario undo/reset regression. The general CI smoke exposed an initial popup-layout frame that collapsed the list; popup bodies now leave normal flow before opening, and the existing assertion checks identical list height from the first click. Expanded narrow-screen cases span the full card width, with bounded sublist pagination. Scope settings open in one accessible level, including the explicit partial-profile consent control.
 - At the same 640×480 px panel, the result list grew from **222 to 230 px**. At 420 px the table uses row cards. No production panel dimension changed.
 - Typecheck, architecture lint and standard/portable builds passed. The committed portable artifact is checked separately against a fresh build by raw bytes/hash.
 

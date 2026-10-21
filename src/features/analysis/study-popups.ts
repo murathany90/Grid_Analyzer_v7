@@ -11,8 +11,9 @@ export function createStudyPopups(root:HTMLElement,enabled:()=>boolean){
   }
   function register(d:HTMLDetailsElement,body:HTMLElement){
     entries.set(d,body);body.append(button('Kapat',()=>{d.open=false;d.querySelector<HTMLElement>('summary')?.focus();}));
+    d.querySelector('summary')!.addEventListener('click',()=>{if(enabled()&&!d.open){close(d);fit(d,body);}});
     d.addEventListener('toggle',()=>{if(enabled()&&d.open){close(d);fit(d,body);}});
   }
   root.addEventListener('pointerdown',e=>{if(!enabled())return;const target=e.target as Node;for(const d of entries.keys())if(d.open&&!d.contains(target))d.open=false;});
-  return {register,close:()=>enabled()&&close(),render:()=>{for(const [d,body] of entries){body.classList.toggle('ga-n1-popup',enabled());if(!enabled()){for(const key of ['position','left','top','bottom','right','width','max-height'])body.style.removeProperty(key);}else if(d.open)fit(d,body);}}};
+  return {register,open:(d:HTMLDetailsElement)=>{const body=entries.get(d);if(body){close(d);fit(d,body);d.open=true;}},close:()=>enabled()&&close(),render:()=>{for(const [d,body] of entries){body.classList.toggle('ga-n1-popup',enabled());if(!enabled()){for(const key of ['position','left','top','bottom','right','width','max-height'])body.style.removeProperty(key);}else if(d.open)fit(d,body);}}};
 }
