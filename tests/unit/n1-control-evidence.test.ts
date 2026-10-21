@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {acNetwork} from '../helpers/ac-network';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
 import {defaultAnalysisSettings} from '../../src/domain/calculation/analysis-settings';
-import {validateAcOutages} from '../../src/analysis/contingency-ac';
+import {validateAcOutages,type AcOutage} from '../../src/analysis/contingency-ac';
 import {runHybridN1} from '../../src/analysis/contingency-hybrid';
 import {hybridStudySettings} from '../../src/analysis/contingency-hybrid/profile';
 import {n1ControlEvidence} from '../../src/analysis/contingency-ac/control-evidence';
@@ -66,4 +66,28 @@ test('active station evidence accepts only exact converged and source-bounded st
     assert.equal(n1ControlEvidence(n,r,s).fidelity,'CONTROL_FIDELITY_PARTIAL',field+' '+status);
   }
   for(const count of [NaN,-1,'0',undefined]){const r=structuredClone(actual.result!);(r.diagnostics.stationControllerSummary as Record<string,unknown>).unsupported=count;assert.equal(n1ControlEvidence(n,r,s).fidelity,'CONTROL_FIDELITY_PARTIAL');}
+});
+
+test('diagnostic N-1 keeps real paired results after a failed case; Strict keeps its gate and DC catalog',async()=>{
+  const n=stationFixture('MISSING_REMOTE'),s=settings(),calls:string[]=[];
+  const options={analysisSettings:s,solveAllSelected:true,policy:{acBudgetCases:3},solveOutage:async(o:AcOutage)=>{
+    calls.push(o.fid);if(o.fid==='L0')throw Error('WORKER_TIME_BUDGET');
+    return (await validateAcOutages(n,emptyScenario(),[o],{analysisSettings:s,controlPolicy:'ALLOW_PARTIAL'}))[0];
+  }};
+  const strict=await runHybridN1(n,emptyScenario(),options);
+  assert.equal(strict.status,'BLOCKED');assert.equal(strict.cases.length,3);assert.equal(strict.counts.AC_SKIPPED,3);assert.equal(calls.length,0);assert.ok(strict.dcDiagnostics);
+  const diagnostic=await runHybridN1(n,emptyScenario(),{...options,studyProfile:'NATIVE_PARTIAL_CONTROLS'});
+  assert.deepEqual(calls,['BYPASS','L0','L1']);assert.equal(diagnostic.counts.AC_SUCCESSFUL,0);assert.equal(diagnostic.counts.AC_PARTIAL,2);assert.equal(diagnostic.counts.AC_SKIPPED,1);assert.equal(diagnostic.counts.AC_VERIFIED,0);
+  assert.match(diagnostic.cases[1].reason,/WORKER_TIME_BUDGET/);assert.equal(diagnostic.cases[1].mapResults,undefined);
+  assert.ok(diagnostic.basePost?.buses.length);assert.ok(diagnostic.cases[2].mapResults?.branches.some(b=>Number.isFinite(b.pf)&&Number.isFinite(b.qf)));
+  assert.equal(diagnostic.base?.controlEvidence?.fidelity,'CONTROL_FIDELITY_PARTIAL');
+});
+
+test('diagnostic N-1 never dispatches POST AC for a numerically invalid base',async()=>{
+  const n=stationFixture('MISSING_REMOTE'),s=settings();let posts=0;
+  const {BrowserJsPowerFlowEngine}=await import('../../src/analysis/api/browser-js-engine');
+  const {identity}=await import('../../src/domain/calculation/identity');
+  const scenario=emptyScenario(),base=await new BrowserJsPowerFlowEngine().runPowerFlow({network:n,scenario,analysisSettings:s,identity:identity(n.modelHash,scenario,'powerFlow',{analysisSettings:s})});
+  const r=await runHybridN1(n,scenario,{analysisSettings:s,studyProfile:'NATIVE_PARTIAL_CONTROLS',solveBase:async()=>({...base,maxMismatchMw:10}),solveOutage:async()=>{posts++;throw Error('POST must not run');}});
+  assert.equal(r.status,'BLOCKED');assert.equal(r.cases.length,3);assert.equal(posts,0);assert.equal(r.base?.controlEvidence?.numericalSolved,false);assert.equal(r.basePost,undefined);
 });

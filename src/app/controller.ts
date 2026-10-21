@@ -26,6 +26,10 @@ import {hybridStudySettings} from '../analysis/contingency-hybrid/profile';
 import {runHybridN1,hybridIsCurrent} from '../analysis/contingency-hybrid';
 import {assertOperationalLimits} from '../analysis/contingency-hybrid/limits';
 import {DEFAULT_HYBRID_POLICY} from '../analysis/contingency-hybrid';
+import {n1CaseCounts} from '../analysis/contingency-hybrid/case-summary';
+import {n1CountsLabel} from '../ui/components/study-labels';
+import {n1ControlEvidence} from '../analysis/contingency-ac/control-evidence';
+import {lfSnapshotIsCurrent} from '../domain/benchmark/post-result-source';
 import {benchmarkControlContext} from '../domain/benchmark/reference';
 import {hasReference} from '../domain/benchmark/reference-slots';
 
@@ -75,9 +79,19 @@ export class Application implements AppContext {
     if(!this.network||this.busy)return;this.analysisTab='N1';this.resultView.analysis='N1';const network=this.network,job=++this.job,scenario=structuredClone(this.scenario.current),signature=scenarioSignature(scenario),settings=structuredClone(this.analysisSettings.value),settingsSignature=stableJson(settings);this.busy=true;this.n1AcResults=[];this.setMessage('Seçili kesintiler Full AC ile doğrulanıyor');
     const timeout=setTimeout(()=>{if(job===this.job){this.cancel();this.setMessage('N-1 AC zaman bütçesi doldu · CANCELLED');}},120000);
     try{if(!await this.prepareCalculationWorker(network,job))return;
+      const cached=this.resultStore.get(scenarioChanged(scenario)?'scenario':'base','powerFlow');
+      const base=cached&&lfSnapshotIsCurrent(cached,network,scenario,settings)?cached:unpackResult(await this.calculation.request<PackedResult>({type:'RUN_AC',scenario,identity:identity(network.modelHash,scenario,'powerFlow',{analysisSettings:settings}),analysisSettings:settings}));
+      if(job!==this.job||this.network!==network||scenarioSignature(this.scenario.current)!==signature||stableJson(this.analysisSettings.value)!==settingsSignature)return;
+      const evidence=n1ControlEvidence(effectiveNetwork(network,scenario),base,settings);
+      if(!evidence.numericalSolved||controlPolicy==='STRICT'&&evidence.fidelity!=='CONTROL_VERIFIED'){
+        this.n1AcResults=outages.map(outage=>({outage,method:'GA_AC_POST_CONTINGENCY',status:evidence.numericalSolved?'UNSUPPORTED_CONTROL_CONFIGURATION':'NOT_COMPUTABLE',reason:'BASE_FULL_AC_NOT_VERIFIED; '+evidence.reasons.join('; '),controlEvidence:evidence,result:null,elapsedMs:0,branchApparentPower:[],identity:{modelHash:network.modelHash,baseScenarioHash:signature,scenarioHash:'',settingsHash:settingsSignature,topologyIdentity:'',key:stableJson({modelHash:network.modelHash,signature,settingsSignature,outage})}}));
+        this.status='N-1 AC · baz çözüm doğrulanamadı · '+evidence.reasons.join('; ');return;
+      }
+      if(job!==this.job||this.network!==network||scenarioSignature(this.scenario.current)!==signature||stableJson(this.analysisSettings.value)!==settingsSignature)return;
+      if(base!==cached){const role=scenarioChanged(scenario)?'scenario':'base';this.resultStore.expect(role,base.identity);this.resultStore.accept(role,base);}
       const results=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages,analysisSettings:settings,controlPolicy});
       if(job!==this.job||this.network!==network||scenarioSignature(this.scenario.current)!==signature||stableJson(this.analysisSettings.value)!==settingsSignature)return;
-      this.n1AcResults=results;if(this.resultView.analysis==='N1'){this.resultView.caseId=results[0]?.outage.caseId;this.resultView.phase='POST';this.resultView.source='GA';this.resultView.metric='postLoadingPercent';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 AC · ${results.filter(r=>r.status==='CONVERGED').length}/${results.length} yakınsamış · PF ayrıntılı paritesi yok`;
+      this.n1AcResults=results;if(this.resultView.analysis==='N1'){this.resultView.caseId=results[0]?.outage.caseId;this.resultView.phase='POST';this.resultView.source='GA';this.resultView.metric='postLoadingPercent';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 AC · ${n1CountsLabel(n1CaseCounts(results))} · ${controlPolicy==='ALLOW_PARTIAL'?'Tanısal — PF paritesi doğrulanmadı':'PF ayrıntılı paritesi yok'}`;
     }catch(error){if(job===this.job)this.status=`N-1 AC: ${error instanceof Error?error.message:String(error)}`;}
     finally{clearTimeout(timeout);if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -104,7 +118,7 @@ export class Application implements AppContext {
         screen:(opts,budget)=>work(()=>this.calculation.request<N1ScreenResult>({type:'RUN_N1_SCREEN',scenario,options:opts}),budget),
         solveOutage:(outage,budget)=>work(async()=>{const rows=await this.calculation.request<AppContext['n1AcResults']>({type:'RUN_N1_AC_VALIDATE',scenario,outages:[outage],analysisSettings:settings,controlPolicy:options.studyProfile==='NATIVE_PARTIAL_CONTROLS'||options.studyProfile==='GA_APPROX_STATION_OFF'?'ALLOW_PARTIAL':'STRICT'});return rows[0];},budget),
       });
-      if(current()){this.hybridResult=result;if(this.resultView.analysis==='N1'){this.resultView.caseId=result.cases[0]?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 hibrit · ${{BLOCKED:'AC doğrulanamadı — teknik tanıya bakın',PARTIAL:'Kısmi çalışma — PF paritesi doğrulanmadı',COMPLETE:'Tamamlandı',CANCELLED:'İptal'}[result.status]} · ${result.counts.AC_VERIFIED??0} doğrulanmış vaka`;}
+      if(current()){this.hybridResult=result;if(this.resultView.analysis==='N1'){this.resultView.caseId=(result.cases.find(c=>c.mapResults)??result.cases[0])?.outage.caseId;this.resultView.metric='postLoadingPercent';this.resultView.source='GA';this.resultView.phase='POST';this.benchmarkMap=workspaceMapSelection(this);}this.status=`N-1 hibrit · ${{BLOCKED:'AC doğrulanamadı — teknik tanıya bakın',PARTIAL:'Kısmi çalışma — PF paritesi doğrulanmadı',COMPLETE:'Tamamlandı',CANCELLED:'İptal'}[result.status]} · ${n1CountsLabel(n1CaseCounts(result.cases))}`;}
     }catch(e){if(current())this.status=`N-1 hibrit: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(current()){this.hybridAbort=null;this.busy=false;this.notify();}}
   }

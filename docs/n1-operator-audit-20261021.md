@@ -21,3 +21,13 @@ The reported count of 89, `ACTIVE_BALANCE_PARTIAL` and `PARTIAL_NATIVE_SOURCE_PH
 - The existing PF benchmark smoke also passed after explicitly exercising rejected/unapproved versus approved partial AC. Its worker-timeout check reads the retained technical evidence and still verifies actual worker termination/recovery; the main status stays concise.
 
 Changed source areas: `workspace-results.ts`, `study-operator.ts`, `study-rows-cache.ts`, `study-actions.ts`, the small `study-popups.ts` helper, `calculation-actions.ts`, `lightning-panel.ts`, `benchmark-controls.ts`, `layer-policy.ts`, `post-result-source.ts`, `ui-workspace.css`, the two strict N-1 gates and controller status text. Two existing unit suites and the existing browser smoke were extended; the generated portable HTML was refreshed.
+
+## Explicit diagnostic N-1 follow-up
+
+The existing `NATIVE_PARTIAL_CONTROLS` profile is labelled **Tanısal N-1 / UI Testi**, with the existing explicit consent checkbox. The compact selected-AC action now uses that selection via `ALLOW_PARTIAL`; Strict remains the default. Manual and hybrid paths refuse an invalid numerical base. Catalog/DC preparation runs before the hybrid AC gate, retaining candidate/DC evidence even when Strict blocks AC.
+
+Cases run sequentially. Divergence, unsupported controls, per-case worker timeout and unsupplied islands retain a reason and appear as **Atlandı / Çözülemedi**; later cases continue within the original global/case budgets and cancellation rules. Successful, partial, skipped and pending cases have separate counts. Partial numerical results never count as verified AC. Evicted affected equipment remains discoverable even without a confirmed violation; its numbers stay null until the stored case detail is loaded.
+
+The focused real-worker browser smoke produced three partial numerical solutions and one skipped unsupplied-island case, checked unapproved/approved diagnostic mode and selected-AC Strict behavior, and found no horizontal overflow at 640/420 px. The 640×480 panel retained its **230 px** main list before/after calculation. The expanded row preserves one complete case pair for P/Q/V/loading and export.
+
+A bounded current-engine SN3 replay used the locally cached network/settings: base `CONVERGED_FULL_NR`, mismatch `2.0407307614600523e-8 MW`, control fidelity still `CONTROL_FIDELITY_PARTIAL`. Strict attempted zero POST cases; explicit diagnostic mode solved one selected real outage as `PARTIAL_SOLUTION` (4,077 solved buses, 5,139 post branches, zero verified AC cases). Missing Q bounds, reactive modes and station/source support remain disclosed; this establishes numerical/UI availability, not PF parity. Private input, result identifiers and screenshots remain local.

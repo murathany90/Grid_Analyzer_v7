@@ -4,6 +4,7 @@ import {scenarioSignature} from '../../domain/scenario/overlay';
 import {DEFAULT_HYBRID_POLICY} from '../../analysis/contingency-hybrid';
 import {operationalLimits} from '../../analysis/contingency-hybrid/limits';
 import {n1ControlEvidence} from '../../analysis/contingency-ac/control-evidence';
+import {n1CaseCounts} from '../../analysis/contingency-hybrid/case-summary';
 import {currentMapLf,currentN1Metadata,mapCaseOptions,angleHasReference} from '../../map/layer-policy';
 import {modelPresentationIndex} from '../../map/presentation-index';
 import {resolveN1Post} from '../../domain/benchmark/post-result-source';
@@ -50,7 +51,7 @@ export function n1OperatorRows(ctx:AppContext,caseId=ctx.resultView.caseId):Oper
       let why=reason;if(id==='loading'&&!why){const x=a!.loading,y=b!.loading;if(['basis','season','fromLimitA','toLimitA','ratingMva','source'].some(k=>x[k as keyof typeof x]!==y[k as keyof typeof y]))why='LOADING_DENOMINATOR_UNVERIFIED';}
       values[id]=triple(a?postBranchMetric(a,metric,side):null,b?postBranchMetric(b,metric,side):null,unit,why);if(id==='loading'&&(values[id].pre===null||values[id].post===null))values[id].reason||='UNKNOWN_RATING';
     }
-    const row=metadata(ctx,e.sourceClass,e.sourceId);row.preQ=values.q.pre;row.postQ=values.q.post;row.postLoading=values.loading.post;row.deltaLoading=values.loading.delta;row.outage=caseId??'';row.status=resolved.source+' · '+resolved.status;if(values.loading.post!==null&&values.loading.post>=100)row.status+=' · THERMAL_LIMIT_100';row.reason=[...new Set(Object.values(values).map(v=>v.reason).filter(Boolean))].join('; ');rows.push({row,values});
+    const row=metadata(ctx,e.sourceClass,e.sourceId);row.preQ=values.q.pre;row.postQ=values.q.post;row.postLoading=values.loading.post;row.deltaLoading=values.loading.delta;row.outage=caseId??'';row.status=resolved.source+' · '+resolved.status+(resolved.status==='PARTIAL_SOLUTION'||current.hybrid?.studyProfile==='NATIVE_PARTIAL_CONTROLS'?' · DIAGNOSTIC_NOT_PF_PARITY':'');if(values.loading.post!==null&&values.loading.post>=100)row.status+=' · THERMAL_LIMIT_100';row.reason=[...new Set(Object.values(values).map(v=>v.reason).filter(Boolean))].join('; ');rows.push({row,values});
   }
   const islandMembers=(r:typeof lf)=>{const groups=new Map<string,string[]>();for(const bus of r?.buses??[]){const id=bus.islandId??'',terms=groups.get(id)??[];terms.push(...bus.terms);groups.set(id,terms);}return new Map([...groups].map(([id,terms])=>[id,terms.sort().join('|')]));},oldMembers=islandMembers(lf),newMembers=islandMembers(manual?.result??null);
   const rawBefore=new Map(lf?.buses.flatMap(b=>b.terms.map(t=>[t,b] as const))??[]),rawPost=new Map(manual?.result?.buses.flatMap(b=>b.terms.map(t=>[t,b] as const))??[]);
@@ -58,7 +59,7 @@ export function n1OperatorRows(ctx:AppContext,caseId=ctx.resultView.caseId):Oper
     const a=beforeTerms.get(t.id),b=afterTerms.get(t.id);if(!a&&!b)continue;const row=metadata(ctx,'ElmTerm',t.sourceId),why=incompatible||(!a?'BASE_NOT_RECORDED':!b?'POST_NOT_RECORDED':a.vnKv!==t.vnKv||b.vnKv!==t.vnKv||partition(a)!==partition(b)?'PARTITION_NOT_1_TO_1':'');
     const voltage=triple(a&&a.vnKv===t.vnKv?a.vmPu*t.vnKv:null,b&&b.vnKv===t.vnKv?b.vmPu*t.vnKv:null,'kV',why),x=rawBefore.get(t.id),y=rawPost.get(t.id),ref=(r:typeof lf,island?:string)=>Array.isArray(r?.diagnostics.islands)?r.diagnostics.islands.find(i=>i.islandId===island)?.referenceSource:null;
     const angleWhy=why||(!angleHasReference(lf,x??null)||!angleHasReference(manual?.result??null,y??null)?'ANGLE_REFERENCE_UNVERIFIED':ref(lf,x?.islandId)!==ref(manual?.result??null,y?.islandId)||x?.islandId!==y?.islandId||oldMembers.get(x?.islandId??'')!==newMembers.get(y?.islandId??'')?'ANGLE_REFERENCE_MISMATCH':'');
-    const angle=triple(a?.angleDeg,b?.angleDeg,'°',angleWhy);row.outage=caseId??'';row.status=resolved.source+' · '+resolved.status;row.reason=[why,angleWhy].filter(Boolean).join('; ');rows.push({row,values:{voltage,angle}});
+    const angle=triple(a?.angleDeg,b?.angleDeg,'°',angleWhy);row.outage=caseId??'';row.status=resolved.source+' · '+resolved.status+(resolved.status==='PARTIAL_SOLUTION'||current.hybrid?.studyProfile==='NATIVE_PARTIAL_CONTROLS'?' · DIAGNOSTIC_NOT_PF_PARITY':'');row.reason=[why,angleWhy].filter(Boolean).join('; ');rows.push({row,values:{voltage,angle}});
   }
   return rows;
 }
@@ -94,7 +95,7 @@ export function groupN1Cases(ctx:AppContext,cases:readonly StudyRow[]):OperatorG
       let list=groups.get(entry.row.id);if(!list){list=[];groups.set(entry.row.id,list);}list.push(item);
     }
     // Evicted numerical details remain discoverable without inventing paired values.
-    if(h&&!h.mapResults)for(const key of h.violationKeys??[]){const match=/^(ElmLne|ElmTr2|ElmTerm):(.+):(voltagePu|postLoadingPercent)$/.exec(key);if(!match)continue;const row=metadata(ctx,match[1],match[2]);row.outage=caseId;row.status=h.status+' · DETAIL_NOT_LOADED'+(!verified?' · UNVERIFIED':'');row.reason='CASE_DETAIL_NOT_LOADED';const blank=triple(null,null,'','CASE_DETAIL_NOT_LOADED'),item:OperatorCase={row,values:row.cls==='ElmTerm'?{voltage:{...blank,unit:'kV'},angle:{...blank,unit:'°'}}:{p:{...blank,unit:'MW'},q:{...blank,unit:'MVAr'},loading:{...blank,unit:'%'}},caseId,caseName:names.get(caseId)??caseId,method,verified,violation:verified,newWorsened:false,severity:0};let list=groups.get(row.id);if(!list){list=[];groups.set(row.id,list);}if(!list.some(c=>c.caseId===caseId))list.push(item);}
+    if(h&&!h.mapResults)for(const key of new Set([...(h.violationKeys??[]),...(h.affectedKeys??[])])){const match=/^(ElmLne|ElmTr2|ElmTerm):(.+):(voltagePu|postLoadingPercent)$/.exec(key);if(!match)continue;const row=metadata(ctx,match[1],match[2]);row.outage=caseId;row.status=h.status+' · DETAIL_NOT_LOADED'+(!verified?' · UNVERIFIED':'');row.reason='CASE_DETAIL_NOT_LOADED';const blank=triple(null,null,'','CASE_DETAIL_NOT_LOADED'),item:OperatorCase={row,values:row.cls==='ElmTerm'?{voltage:{...blank,unit:'kV'},angle:{...blank,unit:'°'}}:{p:{...blank,unit:'MW'},q:{...blank,unit:'MVAr'},loading:{...blank,unit:'%'}},caseId,caseName:names.get(caseId)??caseId,method,verified,violation:verified&&(h.violationKeys??[]).includes(key),newWorsened:false,severity:0};let list=groups.get(row.id);if(!list){list=[];groups.set(row.id,list);}if(!list.some(c=>c.caseId===caseId))list.push(item);}
   }
   const rank=rankOperatorCases;
   return [...groups.values()].map(list=>{list.sort(rank);const critical=list[0];return {row:critical.row,values:critical.values,cases:list,critical};}).sort((a,b)=>rank(a.critical,b.critical)||a.row.name.localeCompare(b.row.name,'tr'));
@@ -119,12 +120,13 @@ export function operatorExportRows(rows:readonly StudyRow[],groups:ReadonlyMap<s
   })];
 }
 export function n1OperatorDiagnosis(ctx:AppContext){
-  const h=currentN1Metadata(ctx).hybrid,lf=currentMapLf(ctx),e=h?.base?.controlEvidence??(lf&&ctx.network?n1ControlEvidence(ctx.network,lf,ctx.analysisSettings.value):null),partial=h?.studyProfile==='NATIVE_PARTIAL_CONTROLS'||h?.studyProfile==='GA_APPROX_STATION_OFF';
+  const h=currentN1Metadata(ctx).hybrid,lf=currentMapLf(ctx),e=h?.base?.controlEvidence??(lf&&ctx.network?n1ControlEvidence(ctx.network,lf,ctx.analysisSettings.value):null),partial=h?.studyProfile==='NATIVE_PARTIAL_CONTROLS'||h?.studyProfile==='GA_APPROX_STATION_OFF'||currentN1Metadata(ctx).ac.some(c=>c.status==='PARTIAL_SOLUTION');
   const reasons=[...new Set([...(e?.reasons??[]),h?.reason??''])].join('; ');let message='AC POST henüz yok · katalog ve DC taraması kullanılabilir.';
   if(h?.status==='BLOCKED'||e&&e.fidelity!=='CONTROL_VERIFIED')message=e?.numericalSolved?'AC yakınsadı; kontrol/kaynak doğrulanmadı. DC kullanın veya kaynak verisini kontrol edin.':'AC doğrulanamadı. Teknik tanıya bakın; katalog ve DC taraması kullanılabilir.';
   else if(e?.fidelity==='CONTROL_VERIFIED')message='Kontrol/model doğrulandı · kısıt sonuçlarını inceleyin.';
-  if(partial)message='Kısmi AC · PF PARİTESİ DOĞRULANMADI. Sonuçları deneysel değerlendirin.';
-  return {message,technical:{identity:h?.identity??lf?.identity??null,profile:h?.studyProfile??'CURRENT_SETTINGS',hybridStatus:h?.status??'NOT_RUN',reason:reasons,newtonStatus:h?.base?.status??lf?.status??'NOT_RUN',evidence:e,convergence:e?.convergence??null,stationSummary:e?.stationSupport??null,baseControlSupport:h?.base?.controlSupport??null,
+  if(partial&&e?.numericalSolved)message='Tanısal — PF paritesi doğrulanmadı';
+  const counts=n1CaseCounts(n1CaseRows(ctx));
+  return {message,counts,technical:{identity:h?.identity??lf?.identity??null,profile:h?.studyProfile??'CURRENT_SETTINGS',hybridStatus:h?.status??'NOT_RUN',reason:reasons,newtonStatus:h?.base?.status??lf?.status??'NOT_RUN',evidence:e,convergence:e?.convergence??null,stationSummary:e?.stationSupport??null,baseControlSupport:h?.base?.controlSupport??null,
     // A partial-profile hybrid base is distinct from the independently cached working LF.
     workingLf:lf?{identity:lf.identity,status:lf.status,sourceFidelity:lf.diagnostics.sourceFidelity??null,stationControls:lf.diagnostics.stationControllerResults??null,stationMappings:lf.diagnostics.stationControllerMappings??null,voltageControl:lf.diagnostics.finalControlRevalidation??null}:null}};
 }
