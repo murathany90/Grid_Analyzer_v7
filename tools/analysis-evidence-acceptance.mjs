@@ -35,6 +35,7 @@ window.ready=true;
   try{
     await page.route('**/analysis-evidence.html',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto(target);await page.waitForFunction(()=>window.ready);
     const workspace=page.locator('.ga-analysis-workspace'),n1=page.locator('#ga-analysis-N1');
+    const openLegacy=async(panel,family)=>{for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=panel.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}};await openLegacy(n1,'N1');
     await n1.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');
     proof.manual=await page.evaluate(()=>window.evidence());assert.equal(proof.manual.recordSource,'MANUAL_FULL_AC');assert.equal(proof.manual.coverage.AC_ATTEMPTED,1);
     await workspace.locator('.ga-analysis-evidence details summary').click();assert.match(await workspace.locator('.ga-analysis-evidence pre').textContent(),/MANUAL_FULL_AC/);
@@ -43,7 +44,7 @@ window.ready=true;
     await n1.getByLabel('Hibrit YTM kapsamı',{exact:true}).selectOption('B');await n1.getByLabel('AC min Vpu',{exact:true}).fill('.95');await n1.getByRole('button',{name:'Bu YTM / gerilim için limitleri kaydet',exact:true}).click();
     const preflight=n1.getByLabel('İşletme limit profili ön kontrolü',{exact:true});assert.equal(await preflight.getAttribute('data-status'),'BLOCKED');assert.equal(await n1.getByRole('button',{name:'Otomatik hibrit (DC → Full AC)',exact:true}).isDisabled(),true);await preflight.locator('summary').click();assert.match(await preflight.textContent(),/ElmTerm:B1/);assert.match(await preflight.textContent(),/A:\*/);assert.match(await preflight.textContent(),/B:\*/);
     await n1.getByRole('button',{name:'Özel limitleri temizle',exact:true}).click();assert.equal(await n1.getByRole('button',{name:'Otomatik hibrit (DC → Full AC)',exact:true}).isEnabled(),true);
-    await page.evaluate(()=>{window.largeSc();ctx.resultView.faultId=undefined;ctx.notify();});const sc=page.locator('#ga-analysis-SC');
+    await page.evaluate(()=>{window.largeSc();ctx.resultView.faultId=undefined;ctx.notify();});const sc=page.locator('#ga-analysis-SC');await openLegacy(sc,'SC');await sc.locator('.ga-workspace-results[data-status="SC_BATCH_NETWORK_APPROXIMATION"]').waitFor();
     assert.equal(await sc.locator('.ga-workspace-results').getAttribute('data-status'),'SC_BATCH_NETWORK_APPROXIMATION');assert.match(await sc.locator('.ga-result-context').textContent(),/Toplu ağ yaklaşımı sonuçları/);
     for(const type of ['LL','1LG','2LG'])assert.equal(await sc.getByLabel('SC arıza türü',{exact:true}).locator('option[value="'+type+'"]').isDisabled(),true);
     assert.equal(await sc.getByLabel('SC yöntem edisyonu',{exact:true}).locator('option[value=IEC2016]').isDisabled(),true);

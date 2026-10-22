@@ -28,6 +28,7 @@ export interface HybridPolicy {
 export const DEFAULT_HYBRID_POLICY:HybridPolicy={operationalLoadingLimitPercent:100,voltageMinPu:.9,voltageMaxPu:1.1,dcPromotionLoadingPercent:90,includeDCViolation:true,includeCapacityUnavailable:true,includeUnscreenable:true,classifyIslanding:true,includeExplicitUserSelection:true,acBudgetCases:10,perCaseTimeLimitMs:120000,globalTimeLimitMs:300000,concurrency:1,limitsProvenance:'USER_OPERATIONAL_PROFILE (use PF manifest only when explicitly supplied)',promotionProvenance:'USER_POLICY; NOT_INFERRED_FROM_PF'};
 export type HybridStatus='DC_SCREEN_ONLY'|'DC_CLEAR_NOT_AC_VERIFIED'|'AC_CONVERGED_WITHIN_LIMIT'|'AC_CONVERGED_VIOLATION'|'AC_DIVERGED'|'ISLAND_UNSUPPLIED'|'PARTIAL_SOLUTION'|'BLOCKED'|'NOT_RUN_BUDGET'|'NOT_EVALUATED_BUDGET'|'DC_UNSCREENABLE'|'TOPOLOGY_ISLANDING'|'CANCELLED';
 export interface HybridCase {
+  retainedFromPrior?:boolean;
   quality?:import('../../domain/results/quality').ResultQuality;
   dcResult?:N1ScreenCandidate;
   outage:AcOutage;candidateId:string;promotionReasons:string[];dcStatus:string;status:HybridStatus;reason:string;
@@ -43,7 +44,7 @@ export interface HybridCase {
 export interface HybridResult {
   method:'GA_DC_TO_FULL_AC';identity:{modelHash:string;scenarioHash:string;settingsHash:string;optionsHash:string};
   policy:HybridPolicy;filter:N1CatalogFilter;season:CapacitySeason;phase:string;status:'COMPLETE'|'PARTIAL'|'BLOCKED'|'CANCELLED';reason:string;
-  studyProfile?:HybridStudyProfile;basePost?:PostMapResults;baseConstraintCounts?:Record<string,number>;
+  retainedBasePost?:boolean;studyProfile?:HybridStudyProfile;basePost?:PostMapResults;baseConstraintCounts?:Record<string,number>;
   base:{status:string;converged:boolean;iterations:number;maxMismatchMw:number|null;settingsHash?:string;stationControlMode?:string;activeBalancingMode?:string;controlSupport?:unknown;fidelity?:string;controlEvidence?:ControlEvidence}|null;catalogCount:number;excludedCatalogCount:number;
   cases:HybridCase[];counts:Record<string,number>;dcDiagnostics:N1ScreenResult['dcDiagnostics']|null;elapsedMs:number;
 }

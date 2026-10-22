@@ -189,7 +189,7 @@ export function selectedScPresentation(ctx:AppContext){
 export function mapStatusText(ctx:AppContext):string{
   const v=ctx.resultView,base=(v.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'Baz':'Senaryo';
   if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${base} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);return `N-1 · ${base} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
-  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
+  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH ${p.sc?.profile.calculateMode??'NOT_RUN'} · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
   if(v.source!=='GA')return `LF · ${v.source==='GA−PF'?'GA−PF TANISAL / yöntem doğrulanmadı':v.source} · ${base} · ${mapPresentationGate(ctx,ctx.benchmarkMap??{analysis:'LF',source:'PF',metric:v.metric,table:'GA_Reference_Raw'}).reason||'Kayıtlı referans'}`;
   const r=currentMapLf(ctx);if(!r)return `LF · ${base} · NOT_RUN / STALE`;
   const c=solutionCompleteness(r),label=r.identity.analysisType==='dc'?'DC P-only':r.identity.analysisType==='fastAc'?'Hızlı yaklaşık AC':'Tam AC';
