@@ -19,14 +19,15 @@ export interface YtmStudyResult {
  schemaVersion:1;identity:{modelHash:string;scenarioHash:string;optionsHash:string;sourceHashMAX?:string;sourceHashMIN?:string};options:YtmStudyOptions;status:'RUNNING'|'COMPLETE'|'BUDGET_EXHAUSTED'|'CANCELLED'|'FAILED';
  catalog:N1CatalogCandidate[];n1:HybridResult|null;scMax:ScResult|null;scMin:ScResult|null;faultTargets:string[];electricalTargets:number;
  stageMs:Record<YtmStage,number>;elapsedMs:number;qualityCounts:Record<ResultQuality,number>;assumptions:typeof SC_ENGINEERING_ASSUMPTIONS;messages:string[];
+ pendingCounts?:{N1:number;SC_MAX:number;SC_MIN:number};
 }
 export interface YtmCallbacks {resume?:YtmStudyResult;signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void;onCheckpoint?:(result:YtmStudyResult)=>void;hybrid?:Pick<HybridOptions,'solveBase'|'solveOutage'|'screen'|'onCaseDetail'>}
 const emptyQualities=():Record<ResultQuality,number>=>({REFERENCE_VALIDATED:0,NATIVE_COMPUTED:0,ENGINEERING_APPROX:0,DC_SCREEN_ONLY:0,NOT_COMPUTABLE:0,REFERENCE_ONLY:0});
 export function ytmStudyIsCurrent(r:YtmStudyResult,n:CanonicalNetwork,s:ScenarioOverlay,settings?:AnalysisSettings){return r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&(!settings||!r.options.analysisSettings||stableJson(settings)===stableJson(r.options.analysisSettings));}
 export function finishYtmStudy(r:YtmStudyResult,status:YtmStudyResult['status']=r.status){
- r.status=status;const q=emptyQualities();for(const c of r.n1?.cases??[])q[c.quality??'NOT_COMPUTABLE']++;if(!r.n1)q.NOT_COMPUTABLE+=r.catalog.length;
- for(const sc of [r.scMax,r.scMin]){for(const f of sc?.faults??[])q[f.quality??'NOT_COMPUTABLE']++;if(!sc)q.NOT_COMPUTABLE+=r.faultTargets.length;}
- r.qualityCounts=q;return r;
+ r.status=status;const q=emptyQualities(),pending={N1:0,SC_MAX:0,SC_MIN:0};for(const c of r.n1?.cases??[])if(c.quality)q[c.quality]++;else pending.N1++;if(!r.n1)pending.N1+=r.catalog.length;
+ for(const [key,sc] of [['SC_MAX',r.scMax],['SC_MIN',r.scMin]] as const){for(const f of sc?.faults??[])if(f.quality)q[f.quality]++;else pending[key]++;if(!sc)pending[key]+=r.faultTargets.length;}
+ r.qualityCounts=q;r.pendingCounts=pending;return r;
 }
 /** REPORT includes result marshalling/checkpoints and unassigned orchestration time. */
 export function reconcileYtmTimings(r:YtmStudyResult){r.stageMs.REPORT=Math.max(r.stageMs.REPORT,r.elapsedMs-YTM_STAGES.filter(s=>s!=='REPORT').reduce((sum,s)=>sum+r.stageMs[s],0));}
@@ -47,7 +48,7 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
  for(const fid of r.faultTargets){const b=topology.terminalToBus.get(fid);if(b===undefined)unmapped.push(fid);else{const ids=aliases.get(b)??[];ids.push(fid);aliases.set(b,ids);}}
  const targets=[...aliases.values()].map(ids=>ids[0]);r.electricalTargets=targets.length;checkpoint();
  const settings=structuredClone(options.analysisSettings??defaultAnalysisSettings()),strict=options.profile==='STRICT';
- const hybridOptions:HybridOptions={...callbacks.hybrid,preferDirectAcSample:true,preserveDcOnAcFailure:!strict,analysisSettings:settings,studyProfile:strict?'CURRENT_SETTINGS':'NATIVE_PARTIAL_CONTROLS',filter:{ytmIds:[options.ytmId],endpointScope:'BOTH',voltageBands:options.voltageBands},policy:{acBudgetCases:0,globalTimeLimitMs:Math.max(1,remaining()),operationalLoadingLimitPercent:options.loadingLimitPercent??100,voltageMinPu:options.voltageMinPu??.9,voltageMaxPu:options.voltageMaxPu??1.1,limitsProvenance:'EDITABLE_USER_ENGINEERING_LIMITS; NOT_TEIAS_APPROVED'},signal:callbacks.signal,onProgress:callbacks.onProgress};
+ const hybridOptions:HybridOptions={...callbacks.hybrid,preferDirectAcSample:true,allowSuppliedIslandResults:!strict,preserveDcOnAcFailure:!strict,analysisSettings:settings,studyProfile:strict?'CURRENT_SETTINGS':'NATIVE_PARTIAL_CONTROLS',filter:{ytmIds:[options.ytmId],endpointScope:'BOTH',voltageBands:options.voltageBands},policy:{acBudgetCases:0,globalTimeLimitMs:Math.max(1,remaining()),operationalLoadingLimitPercent:options.loadingLimitPercent??100,voltageMinPu:options.voltageMinPu??.9,voltageMaxPu:options.voltageMaxPu??1.1,limitsProvenance:'EDITABLE_USER_ENGINEERING_LIMITS; NOT_TEIAS_APPROVED'},signal:callbacks.signal,onProgress:callbacks.onProgress};
  if(!r.n1?.cases.length)r.n1=await stage('DC_SCREEN',()=>runHybridN1(network,scenario,{...hybridOptions,screenOnly:true}));
  for(const mode of ['MAX','MIN'] as const){
   const old=mode==='MAX'?r.scMax:r.scMin;if(old&&old.faults.length===r.faultTargets.length&&old.faults.every(f=>f.status!=='CANCELLED'))continue;
@@ -68,7 +69,7 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
   // Keep the numerical DC ledger even when advanced controls cannot be solved.
   if(!r.n1?.cases.length)r.n1=dc;
   if(!strict&&remaining()>500&&r.n1?.base?.controlEvidence?.numericalSolved!==true){
-   const approx=structuredClone(settings);approx.powerFlow={...approx.powerFlow,profile:'CUSTOM',stationControlMode:'off',activeBalancingMode:'SINGLE_REFERENCE',maxInnerIterations:40};
+   const approx=structuredClone(settings);approx.powerFlow={...approx.powerFlow,profile:'CUSTOM',stationControlMode:'off'};
    await stage('AC_APPROX',async()=>{const result=await runHybridN1(network,scenario,{...hybridOptions,analysisSettings:approx,studyProfile:'GA_APPROX_STATION_OFF',policy:{...hybridOptions.policy,acBudgetCases:2,globalTimeLimitMs:Math.max(1,remaining()),perCaseTimeLimitMs:Math.max(1,Math.min(remaining(),15000))}});if(result.cases.some(c=>c.acSolved))r.n1=result;});
   }
  }

@@ -14,6 +14,7 @@ import {csvDocument} from '../../src/ui/components/dom';
 import {adaptShortCircuitSources} from '../../src/importers/powerfactory-benchmark/short-circuit-source';
 import {loadBenchmarkModel} from '../../src/importers/powerfactory-benchmark/model';
 import {syntheticBenchmarkPair} from '../helpers/benchmark-model';
+import {validateAcOutages} from '../../src/analysis/contingency-ac';
 const network=()=>{const n=acNetwork();return {...n,sites:[{...n.buses[0],id:'S',sourceId:'S',sourceClass:'ElmSite',areaId:'Y',areaName:'Real scope semantics',name:'TM',lat:null,lon:null,voltages:[100]}],buses:n.buses.map(b=>({...b,siteIds:['S']}))};};
 const context=(n=network()):ScSourceContext=>({modelHash:n.modelHash,audit:[],invalidBranches:[],sources:[{sourceClass:'ElmXnet',fid:'SLACK',bus:'B0',inService:true,rOhm:1,xOhm:10,reason:'',sourceRef:'EXACT_ANALYTIC_OHM',parameterStatus:'NATIVE'}]});
 const near=(a:number|null,b:number)=>assert.ok(a!==null&&Math.abs(a-b)<1e-8*Math.max(1,b),`${a} / ${b}`);
@@ -76,5 +77,15 @@ test('missing-machine fallback retains every supplied native impedance parameter
  const g=c.sources.find(s=>s.fid==='G')!;near(g.rOhm,.5);near(g.xOhm,10);assert.equal(g.parameterStatus,'ASSUMED');
 });
 test('expired study budget reports all targets with null quantities and a resumable ledger',async()=>{
- const n=network(),c=context(n),r=await runYtmStudy(n,emptyScenario(),{MAX:c,MIN:c},{ytmId:'Y',profile:'FAST',timeBudgetMs:.001});assert.equal(r.status,'BUDGET_EXHAUSTED');assert.equal(r.catalog.length,3);assert.equal(ytmScRows(r,n).length,3);assert.ok(ytmScRows(r,n).every(row=>row.Ikss_MAX_kA===null&&row.Ikss_MIN_kA===null));
+ const n=network(),c=context(n),r=await runYtmStudy(n,emptyScenario(),{MAX:c,MIN:c},{ytmId:'Y',profile:'FAST',timeBudgetMs:.001});assert.equal(r.status,'BUDGET_EXHAUSTED');assert.equal(r.catalog.length,3);assert.equal(ytmScRows(r,n).length,3);assert.ok(ytmScRows(r,n).every(row=>row.Ikss_MAX_kA===null&&row.Ikss_MIN_kA===null&&row.quality===null));assert.equal(r.pendingCounts?.SC_MAX,3);
+});
+test('unsupplied component is explicit while the independently solved supplied component stays usable',async()=>{
+ const base=network(),bus={...base.buses[2],id:'DETACHED',sourceId:'DETACHED'},n={...base,buses:[...base.buses,bus],lines:[...base.lines,{...base.lines[0],id:'SPUR',sourceId:'SPUR',from:'B2',to:'DETACHED'}],loads:[...base.loads,{...base.loads[0],id:'DETACHED_LOAD',sourceId:'DETACHED_LOAD',bus:'DETACHED',pMw:5,qMvar:1}]};
+ const r=await runHybridN1(n,emptyScenario(),{studyProfile:'NATIVE_PARTIAL_CONTROLS',allowSuppliedIslandResults:true,catalogCandidateIds:['ElmLne:SPUR'],selectedCandidateIds:['ElmLne:SPUR'],policy:{acBudgetCases:1}}),c=r.cases[0];
+ assert.equal(c.unsuppliedLoadMw,5);assert.equal(c.acSolved,true);assert.equal(c.status,'PARTIAL_SOLUTION');assert.match(c.reason,/ISLAND_UNSUPPLIED/);assert.equal(r.counts.ISLAND_UNSUPPLIED_COMPONENT_CASES,1);assert.ok(c.mapResults?.buses.length);assert.ok(c.mapResults?.buses.every(b=>!b.terms.includes('DETACHED')));
+});
+test('a forged successful POST flag cannot expose invalid residuals as AC numbers',async()=>{
+ const n=network(),outage={caseId:'N1:ElmLne:L0',sourceClass:'ElmLne' as const,fid:'L0'},[valid]=await validateAcOutages(n,emptyScenario(),[outage],{controlPolicy:'ALLOW_PARTIAL'});assert.ok(valid.result);
+ const r=await runHybridN1(n,emptyScenario(),{studyProfile:'NATIVE_PARTIAL_CONTROLS',catalogCandidateIds:['ElmLne:L0'],selectedCandidateIds:['ElmLne:L0'],policy:{acBudgetCases:1},solveOutage:async()=>({...valid,status:'CONVERGED',result:{...valid.result!,maxMismatchMw:123},controlEvidence:{...valid.controlEvidence!,numericalSolved:true}})}),c=r.cases[0];
+ assert.equal(c.acSolved,false);assert.equal(c.status,'BLOCKED');assert.equal(c.mapResults,undefined);assert.equal(c.minVpu,null);assert.ok(c.dcResult);assert.equal(c.quality,'DC_SCREEN_ONLY');assert.equal(r.counts.AC_NUMERICALLY_SOLVED,0);
 });

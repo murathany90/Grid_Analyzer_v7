@@ -108,5 +108,5 @@ export async function calculateThreePhase(network:CanonicalNetwork,scenario:Scen
     }catch(e){row.reasons=[String(e)];}
     }finally{if(result.faults.length%32===0||result.faults.length===selectedTerminals.length){options.onProgress?.('SC_FAULT',{message:`GA 3PH ${profile.calculateMode} ${result.faults.length}/${selectedTerminals.length} · kalan ${selectedTerminals.length-result.faults.length}`,completed:result.faults.length,total:selectedTerminals.length,percent:100*result.faults.length/selectedTerminals.length});await new Promise<void>(resolve=>setTimeout(resolve,0));}}
   }}finally{release(entry);}
-  for(const f of result.faults){f.quality??='NOT_COMPUTABLE';f.quantitySupport=scQuantitySupport(f);result.counts[f.status]=(result.counts[f.status]??0)+1;}result.elapsedMs=performance.now()-started;result.timings!.batchMs=Math.max(0,result.elapsedMs-result.timings!.factorizationMs-result.timings!.sourcePreparationMs);return result;
+  for(const f of result.faults){if(f.status!=='CANCELLED')f.quality??='NOT_COMPUTABLE';f.quantitySupport=scQuantitySupport(f);result.counts[f.status]=(result.counts[f.status]??0)+1;}result.elapsedMs=performance.now()-started;result.timings!.batchMs=Math.max(0,result.elapsedMs-result.timings!.factorizationMs-result.timings!.sourcePreparationMs);return result;
 }
