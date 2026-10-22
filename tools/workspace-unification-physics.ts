@@ -1,0 +1,15 @@
+/** Reuse the verified private manifest; two direct AC cases, no archive discovery. */
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {basename} from 'node:path';
+import {loadBenchmarkModel} from '../src/importers/powerfactory-benchmark/model';
+import {runHybridN1} from '../src/analysis/contingency-hybrid';
+import {emptyScenario} from '../src/domain/scenario/overlay';
+import {defaultAnalysisSettings} from '../src/domain/calculation/analysis-settings';
+const dir='local-benchmark-results/workspace-unification';await mkdir(dir,{recursive:true});
+const pairs=JSON.parse(await readFile('local-benchmark-results/pr7-followup/pairs.json','utf8')),old=JSON.parse(await readFile('local-benchmark-results/pr7-followup/study-0-BALANCED.json','utf8')),pair=pairs[0],loaded=await loadBenchmarkModel(new File([await readFile(pair.model.path)],basename(pair.model.path)));
+if(old.identity.modelHash!==loaded.network.modelHash)throw Error('PRIVATE_BASELINE_MODEL_MISMATCH');
+const outside=old.cases??old.n1.cases,eligible=outside.filter((c: {dcResult?:unknown;metadata?:{topology:string}})=>!c.dcResult&&c.metadata?.topology==='NON_ISLANDING').sort((a:{candidateId:string},b:{candidateId:string})=>a.candidateId.localeCompare(b.candidateId)),ids=eligible.slice(0,2).map((c:{candidateId:string})=>c.candidateId);
+if(process.argv.includes('--queue')){const results=[];for(const interleaveDirectAc of [false,true]){const r=await runHybridN1(loaded.network,emptyScenario(),{studyProfile:'NATIVE_PARTIAL_CONTROLS',analysisSettings:defaultAnalysisSettings(),filter:{ytmIds:[old.options.ytmId],endpointScope:'BOTH'},preferDirectAcSample:true,adaptiveAcTimeBudget:true,interleaveDirectAc,allowSuppliedIslandResults:true,preserveDcOnAcFailure:true,policy:{acBudgetCases:6,perCaseTimeLimitMs:20000,globalTimeLimitMs:25000}});results.push({interleaveDirectAc,modelHash:loaded.network.modelHash,ytm:old.options.ytmId,elapsedMs:r.elapsedMs,counts:r.counts,cases:r.cases.filter(c=>c.acAttempted).map(c=>({id:c.candidateId,dc:!!c.dcResult,numerical:c.acSolved,topology:c.metadata?.topology,status:c.status,residualMw:c.maxMismatchMw}))});}await writeFile(dir+'/queue-before-after.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results));process.exit(0);}
+const r=await runHybridN1(loaded.network,emptyScenario(),{studyProfile:'NATIVE_PARTIAL_CONTROLS',analysisSettings:defaultAnalysisSettings(),catalogCandidateIds:ids,selectedCandidateIds:ids,allowSuppliedIslandResults:true,policy:{acBudgetCases:2,perCaseTimeLimitMs:20000,globalTimeLimitMs:55000}});
+const proof={modelHash:loaded.network.modelHash,studyCase:loaded.network.studyCase,ytm:old.options.ytmId,dcOutsideNonIslanding:eligible.length,selected:ids,elapsedMs:r.elapsedMs,counts:r.counts,cases:r.cases.map(c=>({id:c.candidateId,status:c.status,reason:c.reason,numerical:c.acSolved,residualMw:c.maxMismatchMw,unsuppliedLoadMw:c.unsuppliedLoadMw,controls:c.controlEvidence}))};
+await writeFile(dir+'/direct-ac-proof.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof));

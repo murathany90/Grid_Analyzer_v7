@@ -55,6 +55,7 @@ export interface HybridOptions {
   allowSuppliedIslandResults?:boolean;
   /** Spend wall time with an empirical reserve; case count remains a safety cap. */
   adaptiveAcTimeBudget?:boolean;
+  interleaveDirectAc?:boolean;
   studyProfile?:HybridStudyProfile;maxRetainedCaseDetails?:number;onCaseDetail?:(caseId:string,detail:{post:PostMapResults;changes:ConstraintChange[]})=>void|Promise<void>;
   policy?:Partial<HybridPolicy>;filter?:N1CatalogFilter;season?:CapacitySeason;analysisSettings?:AnalysisSettings;
   selectedCandidateIds?:string[];catalogCandidateIds?:string[];resume?:HybridResult;signal?:AbortSignal;
@@ -80,7 +81,7 @@ export function promotionReasons(c:N1ScreenCandidate,p:HybridPolicy,explicit=fal
   if(p.includeExplicitUserSelection&&explicit)r.push('EXPLICIT_SELECTION');
   return r;
 }
-const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:{...p,acBudgetCases:undefined,perCaseTimeLimitMs:undefined,globalTimeLimitMs:undefined},filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[],solveAllSelected:o.solveAllSelected??false,dcClearValidationCases:o.dcClearValidationCases??1,studyProfile:o.studyProfile??'CURRENT_SETTINGS',...(o.adaptiveAcTimeBudget?{adaptiveAcTimeBudget:true}:{}),...(o.allowSuppliedIslandResults?{allowSuppliedIslandResults:true}:{}),...(o.preferDirectAcSample?{preferDirectAcSample:true}:{}),...(o.preserveDcOnAcFailure?{preserveDcOnAcFailure:true}:{})})});
+const snapshot=(n:CanonicalNetwork,s:ScenarioOverlay,o:HybridOptions,p:HybridPolicy)=>({modelHash:n.modelHash,scenarioHash:scenarioSignature(s),settingsHash:stableJson(o.analysisSettings??{}),optionsHash:stableJson({policy:{...p,acBudgetCases:undefined,perCaseTimeLimitMs:undefined,globalTimeLimitMs:undefined},filter:o.filter??{},season:o.season??'nominal',catalogCandidateIds:o.catalogCandidateIds??null,selectedCandidateIds:[...(o.selectedCandidateIds??[])].sort(),observations:o.observations??[],solveAllSelected:o.solveAllSelected??false,dcClearValidationCases:o.dcClearValidationCases??1,studyProfile:o.studyProfile??'CURRENT_SETTINGS',...(o.interleaveDirectAc===false?{interleaveDirectAc:false}:{}),...(o.adaptiveAcTimeBudget?{adaptiveAcTimeBudget:true}:{}),...(o.allowSuppliedIslandResults?{allowSuppliedIslandResults:true}:{}),...(o.preferDirectAcSample?{preferDirectAcSample:true}:{}),...(o.preserveDcOnAcFailure?{preserveDcOnAcFailure:true}:{})})});
 export function hybridIsCurrent(r:HybridResult,n:CanonicalNetwork,s:ScenarioOverlay,settings:AnalysisSettings):boolean{return r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&hybridStudyIsCurrent(r.identity.settingsHash,settings,r.studyProfile);}
 /** Sequential budgeted orchestration; the original >=66kV DC algorithm is untouched. */
 export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOverlay,options:HybridOptions={}):Promise<HybridResult>{
@@ -146,6 +147,12 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
   const queue=result.cases.filter(c=>c.promotionReasons.length&&['NOT_RUN_BUDGET','NOT_EVALUATED_BUDGET','DC_UNSCREENABLE','TOPOLOGY_ISLANDING','CANCELLED'].includes(c.status)).sort((a,b)=>Number(b.promotionReasons.includes('EXPLICIT_SELECTION'))-Number(a.promotionReasons.includes('EXPLICIT_SELECTION'))||Number(b.promotionReasons.includes('DC_VIOLATION'))-Number(a.promotionReasons.includes('DC_VIOLATION'))||(options.adaptiveAcTimeBudget?Number(a.metadata?.topology==='ISLANDING')-Number(b.metadata?.topology==='ISLANDING')||(b.dcResult?.maxEstimatedLoadingPct??0)-(a.dcResult?.maxEstimatedLoadingPct??0):0)||a.candidateId.localeCompare(b.candidateId));
   // Reserve an early slot for a real full-network outage absent from the reduced DC model.
   if(options.preferDirectAcSample){const slot=Math.max(1,queue.filter(c=>c.promotionReasons.includes('EXPLICIT_SELECTION')).length),direct=queue.findIndex(c=>c.dcStatus==='UNSCREENABLE'&&c.metadata?.topology==='NON_ISLANDING');if(direct>slot){const [sample]=queue.splice(direct,1);queue.splice(slot,0,sample);}}
+  if(options.adaptiveAcTimeBudget&&options.preferDirectAcSample&&options.interleaveDirectAc!==false){
+    const explicit=queue.filter(c=>c.promotionReasons.includes('EXPLICIT_SELECTION')),other=queue.filter(c=>!explicit.includes(c)),direct=other.filter(c=>c.dcStatus==='UNSCREENABLE'&&c.metadata?.topology==='NON_ISLANDING'),risk=other.filter(c=>!direct.includes(c)&&c.dcResult),deferred=other.filter(c=>!direct.includes(c)&&!risk.includes(c)),ordered=[...explicit];
+    // Alternate a DC risk with a distinct direct-AC opportunity. Never promote
+    // a topological island as if its source/load balance had been established.
+    while(direct.length){if(risk.length)ordered.push(risk.shift()!);ordered.push(direct.shift()!);}queue.splice(0,queue.length,...ordered,...risk,...deferred);
+  }
   for(const c of queue){
     if(aborted()){c.status='CANCELLED';c.reason='CANCELLED';continue;}
     const reserve=options.adaptiveAcTimeBudget?Math.max(1500,observedCaseMs*1.3):0;
