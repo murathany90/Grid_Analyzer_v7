@@ -35,6 +35,10 @@ test('adaptive AC queue solves more than three distinct physical outages with re
 test('DC scope exclusion and topology isolation never imply failed physical computation',async()=>{
  const base=acNetwork(),n={...base,buses:base.buses.map(b=>({...b,vnKv:33})),lines:base.lines.slice(0,2).map(l=>({...l,vnKv:33}))},r=await runHybridN1(n,emptyScenario(),{screenOnly:true});assert.ok(r.cases.every(c=>['DC_UNSCREENABLE','TOPOLOGY_ISLANDING'].includes(c.status)&&c.quality===undefined));
 });
+test('engineering time-budget failures remain pending while the legacy API keeps its status contract',async()=>{
+ const r=await runHybridN1(acNetwork(),emptyScenario(),{adaptiveAcTimeBudget:true,studyProfile:'NATIVE_PARTIAL_CONTROLS',solveAllSelected:true,policy:{globalTimeLimitMs:15000},solveOutage:async()=>{throw Error('WORKER_TIME_BUDGET');}});
+ assert.ok(r.cases.every(c=>c.status==='NOT_EVALUATED_BUDGET'&&c.quality==='DC_SCREEN_ONLY'));assert.equal(r.counts.AC_SKIPPED,0);assert.equal(r.counts.AC_CALCULATED,0);
+});
 test('PF N-1 extrema require the same equipment, explicit endpoint and capacity denominator',async()=>{
  const b=await loadBenchmark(syntheticBenchmarkPair().benchmark),n={...acNetwork(),studyCase:b.groups.N1.identity.studyCase},t=b.groups.N1.tables.N1_RecordedExtrema_Raw;
  t.headers=['caseId','affectedClass','affectedFid','postPowerEndpoint','loadingDenominatorBasis','loadingSeason','ratingMva','postLoadingPercent'];t.rows=[['N1:ElmLne:L0','ElmLne','L0','FROM','APPARENT_MVA','nominal',200,90]];

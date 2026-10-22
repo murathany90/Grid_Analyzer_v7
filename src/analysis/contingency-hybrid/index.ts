@@ -173,11 +173,11 @@ export async function runHybridN1(network:CanonicalNetwork,scenario:ScenarioOver
         const byKey=new Map(post.branches.map(b=>[`${b.sourceClass}:${b.fid}`,b]));const observed=new Map((options.observations??[]).filter(o=>!o.caseId||o.caseId===c.outage.caseId).map(o=>[stableJson(o),o]));
         c.observations=[...observed.values()].map(o=>{const b=byKey.get(`${o.sourceClass}:${o.fid}`),voltage=o.metric==='postVoltagePu'?post.buses.find(b=>b.terms.includes(o.fid))?.vmPu:null;return {...o,value:o.metric==='postVoltagePu'?voltage??null:b?postBranchMetric(b,o.metric,o.side):null,...(b&&o.metric.includes('Loading')?{loading:b.loading}:{})};});
       }
-      c.status=ac.status==='CONVERGED'?(c.thermalViolations||c.voltageViolations?'AC_CONVERGED_VIOLATION':'AC_CONVERGED_WITHIN_LIMIT'):ac.status==='PARTIAL_SOLUTION'?'PARTIAL_SOLUTION':ac.status==='DIVERGED'?'AC_DIVERGED':ac.status==='CANCELLED'?(aborted()?'CANCELLED':'NOT_EVALUATED_BUDGET'):'BLOCKED';
+      c.status=ac.status==='CONVERGED'?(c.thermalViolations||c.voltageViolations?'AC_CONVERGED_VIOLATION':'AC_CONVERGED_WITHIN_LIMIT'):ac.status==='PARTIAL_SOLUTION'?'PARTIAL_SOLUTION':ac.status==='DIVERGED'?'AC_DIVERGED':ac.status==='CANCELLED'?(aborted()?'CANCELLED':options.adaptiveAcTimeBudget?'NOT_EVALUATED_BUDGET':'BLOCKED'):'BLOCKED';
       if(c.acSolved)c.quality=ac.status==='CONVERGED'&&result.base?.fidelity==='CONTROL_VERIFIED'?'NATIVE_COMPUTED':'ENGINEERING_APPROX';
       if(c.acSolved&&ac.status==='CONVERGED'&&result.base?.fidelity!=='CONTROL_VERIFIED'){c.status='PARTIAL_SOLUTION';c.reason+='; BASE_CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY';}
       if(c.unknownRatings)c.reason+='; UNKNOWN_RATINGS; NO_ALL_CLEAR';
-    }catch(e){c.status=aborted()?'CANCELLED':/TIME_BUDGET/.test(String(e))?'NOT_EVALUATED_BUDGET':'BLOCKED';c.reason=String(e);c.elapsedMs=performance.now()-caseStarted;}
+    }catch(e){c.status=aborted()?'CANCELLED':/TIME_BUDGET/.test(String(e))&&options.adaptiveAcTimeBudget?'NOT_EVALUATED_BUDGET':'BLOCKED';c.reason=String(e);c.elapsedMs=performance.now()-caseStarted;}
     observedCaseMs=Math.max(observedCaseMs*.7,(performance.now()-caseStarted));checkpoint();
   }
   result.status=aborted()?'CANCELLED':result.base?.fidelity!=='CONTROL_VERIFIED'||result.excludedCatalogCount>0||result.cases.some(c=>c.unknownRatings>0||!['AC_CONVERGED_WITHIN_LIMIT','AC_CONVERGED_VIOLATION'].includes(c.status))?'PARTIAL':'COMPLETE';phase('REPORT');checkpoint();return result;
