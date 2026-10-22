@@ -9,7 +9,8 @@ import {createModelView} from '../model/model-view';
 import {createCalculationActions} from '../comparison/calculation-actions';
 import {studyEvidence} from './study-evidence';
 import {studyLabel,studyStatusHelp} from '../../ui/components/study-labels';
-import {createYtmStudyView} from './ytm-study-view';
+import {createCompactStudyView} from './compact-study-view';
+import {analysisDialog} from './analysis-dialog';
 
 export function createModelLanding(ctx:AppContext):Feature{
   const model=createModelView(ctx),quality=createQualityN1View(ctx,'quality');model.element.append(quality.element);
@@ -17,8 +18,8 @@ export function createModelLanding(ctx:AppContext):Feature{
 }
 
 /** Views and controls retain their lifetime; only their placement/visibility changes. */
-export function createAnalysisWorkspace(ctx:AppContext):Feature{
-  const root=element('section','ga-analysis-workspace'),tabs=element('nav','ga-analysis-tabs'),context=element('div','ga-analysis-context'),lf=createAnalysisView(ctx),dc=createQualityN1View(ctx,'n1'),method=element('select');
+function createLegacyAnalysisWorkspace(ctx:AppContext):Feature{
+  const root=element('section','ga-legacy-workspace'),tabs=element('nav','ga-analysis-tabs'),context=element('div','ga-analysis-context'),lf=createAnalysisView(ctx),dc=createQualityN1View(ctx,'n1'),method=element('select');
   const panels={} as Record<'LF'|'N1'|'SC',HTMLElement>,options={} as Record<'LF'|'N1'|'SC',HTMLElement>,centers={} as Record<'LF'|'N1'|'SC',HTMLElement>,tabButtons=new Map<string,HTMLButtonElement>();
   tabs.setAttribute('aria-label','Analiz türü');context.setAttribute('aria-label','Ortak analiz bağlamı');
   const familyMetrics=new Map<string,string>();
@@ -34,10 +35,9 @@ export function createAnalysisWorkspace(ctx:AppContext):Feature{
   const manualPolicy=element('select');manualPolicy.setAttribute('aria-label','Seçili Full AC kontrol doğruluğu');manualPolicy.innerHTML='<option value="STRICT">Kontrollerin tam desteği gerekir</option><option value="ALLOW_PARTIAL">Aynı ayarlar · eksik kontrol PARTIAL · PF paritesi yok</option>';
   const ac=button('Seçili vaka: GA Full AC doğrula',()=>{if(ctx.comparisonOutage)void ctx.runN1AcValidation([ctx.comparisonOutage],manualPolicy.value as 'STRICT'|'ALLOW_PARTIAL');}),screen=button('Seçili vaka: GA DC screening',()=>{const o=ctx.comparisonOutage;if(!o)return;const e=(o.sourceClass==='ElmLne'?ctx.network?.lines:ctx.network?.transformers)?.find(e=>e.sourceId===o.fid);if(e)void ctx.runN1Screen({candidateTypes:[o.sourceClass],selectedCandidateIds:[`${o.sourceClass}:${e.id}`],analysisScope:'scenario'});});
   manual.append(element('summary','','Referanstan seçilen tek vaka'),manualInfo,manualPolicy,screen,ac,button('Seçili AC vaka JSON',()=>downloadText(JSON.stringify(ctx.n1AcResults,null,2),'GA_N1_AC.local.json','application/json')),button('Vaka ayrıntıları / karşılaştırma',()=>ctx.setView('comparison')));options.N1.append(manual);centers.N1.append(dc.element);
-  const shared=createWorkspaceResults(ctx,true),ytm=createYtmStudyView(ctx,{family:()=>ctx.analysisTab}),legacyOptions={} as Record<'N1'|'SC',HTMLDetailsElement>,legacyResults={} as Record<'N1'|'SC',HTMLDetailsElement>;for(const key of ['N1','SC'] as const){const d=element('details');d.append(element('summary','','Gelişmiş / eski '+key+' komutları'),...options[key].childNodes);options[key].append(d);legacyOptions[key]=d;const results=element('details');results.append(element('summary','','Ekipman PRE/POST ve gelişmiş '+key+' sonuçları'),...centers[key].childNodes);centers[key].append(results);legacyResults[key]=results;}root.append(tabs,context,panels.LF,panels.N1,panels.SC);let lastOutage=ctx.comparisonOutage;method.onchange=()=>render();
+  const shared=createWorkspaceResults(ctx,true),legacyOptions={} as Record<'N1'|'SC',HTMLDetailsElement>,legacyResults={} as Record<'N1'|'SC',HTMLDetailsElement>;for(const key of ['N1','SC'] as const){const d=element('details');d.append(element('summary','','Gelişmiş / eski '+key+' komutları'),...options[key].childNodes);options[key].append(d);legacyOptions[key]=d;const results=element('details');results.append(element('summary','','Ekipman PRE/POST ve gelişmiş '+key+' sonuçları'),...centers[key].childNodes);centers[key].append(results);legacyResults[key]=results;}root.append(tabs,context,panels.LF,panels.N1,panels.SC);let lastOutage=ctx.comparisonOutage;method.onchange=()=>render();
   for(const d of [...Object.values(legacyOptions),...Object.values(legacyResults)])d.ontoggle=()=>render();
   function render(){
-    if(ctx.analysisTab!=='LF'){if(ytm.element.parentElement!==centers[ctx.analysisTab])centers[ctx.analysisTab].prepend(ytm.element);ytm.render();}
     const selected=ctx.analysisTab??'LF',proof=studyEvidence(ctx);root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.evidenceStatus=proof.numerical;
     for(const key of ['LF','N1','SC'] as const){panels[key].hidden=key!==selected;tabButtons.get(key)!.setAttribute('aria-pressed',String(key===selected));}
     if(evidence.parentElement!==panels[selected])panels[selected].append(evidence);const resultHost=selected==='LF'?centers.LF:legacyResults[selected];if(shared.element.parentElement!==resultHost)resultHost.append(shared.element);shared.element.hidden=selected==='LF'&&ctx.resultView.source==='GA'&&lfMode.value==='DETAILS'||selected==='N1'&&method.value==='DC';if(!shared.element.hidden&&(selected==='LF'||legacyResults[selected].open))shared.render();
@@ -57,4 +57,16 @@ export function createAnalysisWorkspace(ctx:AppContext):Feature{
     log.textContent=JSON.stringify({...proof,liveStatus:ctx.status},null,2);log.title='Eksik kanıt başarı olarak gösterilmez.';
   }
   return {element:root,render};
+}
+
+/** One production list; unchanged specialized tools remain opt-in in a native dialog. */
+export function createAnalysisWorkspace(ctx:AppContext):Feature{
+ const root=element('section','ga-analysis-workspace ga-analysis-compact'),tabs=element('nav','ga-analysis-tabs'),tools=analysisDialog('Gelişmiş araçlar'),legacy=createLegacyAnalysisWorkspace(ctx),buttons=new Map<string,HTMLButtonElement>(),metrics=new Map<string,string>();
+ tabs.setAttribute('aria-label','Analiz türü');
+ const compact=createCompactStudyView(ctx,()=>{legacy.render();tools.open();});
+ tools.body.append(element('p','ga-muted','Eski/özel vaka hesapları. Birincil kapsamlı analiz ana listededir.'),button('N-1 + Kısa Devre birlikte çalıştır',()=>{tools.close();if(ctx.network&&ctx.filters.areaId)void ctx.runYtmStudy?.({...ctx.studyOptions,ytmId:ctx.filters.areaId,tmId:ctx.filters.siteId||undefined,profile:ctx.studyOptions?.profile??'BALANCED',families:['N1','SC']});}),legacy.element);
+ for(const [key,label] of [['LF','Yük Akışı Analizi'],['N1','Kısıt Analizi (N-1)'],['SC','Kısa Devre Analizi']] as const){const b=button(label,()=>{metrics.set(ctx.analysisTab,ctx.resultView.metric);ctx.analysisTab=key;ctx.resultView.analysis=key;ctx.resultView.metric=metrics.get(key)??(key==='SC'?'ikssKa':key==='N1'?'postLoadingPercent':'pFromMw');ctx.benchmarkMap=null;ctx.notify();});buttons.set(key,b);tabs.append(b);}
+ root.append(tabs,compact.element,tools.element);
+ ctx.subscribe(()=>{if(ctx.view!=='analysis'&&tools.element.open)tools.close();});
+ return {element:root,render(){root.dataset.scenarioId=ctx.scenario.selectedId;for(const [key,b] of buttons)b.setAttribute('aria-pressed',String(ctx.analysisTab===key));compact.render();if(tools.element.open)legacy.render();}};
 }
