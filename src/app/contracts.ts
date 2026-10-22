@@ -19,6 +19,8 @@ export interface CatalogRow { id: string; name: string; siteIds: string[]; attri
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
   ytmStudy?:import('../analysis/ytm-study').YtmStudyResult|null;
+  studyResumeAvailable?:boolean;
+  studyOptions?:import('../analysis/ytm-study').YtmStudyOptions;
   runYtmStudy?(options:import('../analysis/ytm-study').YtmStudyOptions,resume?:boolean):Promise<void>;
   resultView:import('../domain/results/workspace').ResultView;
   analysisTab:'LF'|'N1'|'SC';
