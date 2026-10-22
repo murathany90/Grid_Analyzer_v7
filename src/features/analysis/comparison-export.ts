@@ -27,9 +27,9 @@ export function comparisonSheets(report:PowerFactoryComparison,preflight:Referen
   const meta:Cell[][]=[['Field','Value'],['modelName',network.name],['modelHash',network.modelHash],['studyCase',preflight.context.studyCase],['studyTime',preflight.context.studyTime],['sourceFile',reference.metadata.sourceFile],['controlContextHash',String(calculationOptions.controlContextHash??'unavailable')],['analysisSettingsHash',String(calculationOptions.analysisSettingsHash??'unavailable')],['scenarioHash',result.identity.scenarioHash],['engine',result.identity.engine],['engineVersion',result.identity.engineVersion],['converged',String(result.converged)],['capacityMode',String(result.diagnostics.capacityMode??'unknown')],['exportedAt',new Date().toISOString()]];
   return [{name:'Ozet',rows:summary},{name:'Gerilim_Aci',rows:metricRows(report,'bus')},{name:'Hatlar',rows:metricRows(report,'line')},{name:'Trafolar',rows:metricRows(report,'transformer')},{name:'Ureticiler',rows:metricRows(report,'generator')},{name:'Eslesmeyenler',rows:unmatched},{name:'Topoloji',rows:topology},{name:'Meta',rows:meta}];
 }
-export function downloadComparisonWorkbook(sheets:WorkbookSheet[]):void{
+export function downloadComparisonWorkbook(sheets:WorkbookSheet[],filename='GridAnalyzer_PowerFactory_Comparison.xlsx'):void{
   const bytes=buildWorkbook(sheets),url=URL.createObjectURL(new Blob([new Uint8Array(bytes)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-  const link=document.createElement('a');link.href=url;link.download='GridAnalyzer_PowerFactory_Comparison.xlsx';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export function downloadComparisonCsv(sheets:WorkbookSheet[]):void{
   const sections=sheets.flatMap(sheet=>[[sheet.name],...sheet.rows,[]]);

@@ -1,3 +1,4 @@
+import {navigateAnalysis,openAnalysisTools,closeAnalysisDialogs} from './analysis-navigation.mjs';
 import {mkdir,readFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -31,13 +32,13 @@ try{
  await page.addInitScript(()=>{const Native=Worker;window.smokeWork=[];window.Worker=class extends Native{postMessage(m,...rest){if(['RUN_AC','RUN_N1_SCREEN','RUN_N1_AC_VALIDATE','RUN_SC_3PH'].includes(m.type))window.smokeWork.push(m.type);return super.postMessage(m,...rest);}};const nativeRaf=requestAnimationFrame,nativeCancel=cancelAnimationFrame,pending=new Set();window.smokeRaf={pending,maximum:0,frames:0};window.requestAnimationFrame=cb=>{let id;id=nativeRaf(t=>{pending.delete(id);window.smokeRaf.frames++;cb(t);});pending.add(id);window.smokeRaf.maximum=Math.max(window.smokeRaf.maximum,pending.size);return id;};window.cancelAnimationFrame=id=>{pending.delete(id);nativeCancel(id);};});
  await page.goto(url);const navigation=await page.locator('.ga-nav button').allTextContents();if(navigation.join('|')!=='Model Yükle|Şebeke Envanteri|İşletme Verileri|Harita|Tek Hat Şeması|Analizler|Karşılaştırma|Yardım|Ayarlar')throw Error('UI navigation contract failed');if(await page.locator('[data-view="model"]').getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).count())throw Error('N-1 remains in Model');await page.locator('#modelFileInput').setInputFiles({name:'synthetic-map-visual-dgs.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(visualRaw))});
  try{await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));}catch(e){console.error(JSON.stringify({errors,stage:'MODEL_HEADER',body:await page.locator('body').textContent()}));throw e;}
- await page.getByRole('button',{name:'Model Yükle',exact:true}).click();
+ await navigateAnalysis(page,'Model Yükle');
  await page.getByRole('button',{name:'MODEL KALİTESİ',exact:true}).click();
  await page.getByRole('button',{name:'Kalite denetimini çalıştır'}).click();
  await page.locator('[data-view="model"] .ga-analysis-view .ga-card-grid .ga-card').first().waitFor();
  const qualityDownload=page.waitForEvent('download');await page.getByRole('button',{name:'JSON indir'}).click();
  if((await qualityDownload).suggestedFilename()!=='GridAnalyzer-model-quality.json')throw new Error('Model Quality JSON export missing.');
- await page.getByRole('button',{name:'Analizler',exact:true}).click();await page.getByRole('button',{name:'Kısıt Analizi (N-1)',exact:true}).click();await page.getByText('Gelişmiş / eski N1 komutları',{exact:true}).click();await page.getByText('Ekipman PRE/POST ve gelişmiş N1 sonuçları',{exact:true}).click();await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();await page.getByText('Gelişmiş DC tarama / katalog',{exact:true}).click();
+ await navigateAnalysis(page,'Analizler');await navigateAnalysis(page,'Kısıt Analizi (N-1)');await openAnalysisTools(page);await page.getByText('Gelişmiş / eski N1 komutları',{exact:true}).click();await page.getByText('Ekipman PRE/POST ve gelişmiş N1 sonuçları',{exact:true}).click();await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();await page.getByText('Gelişmiş DC tarama / katalog',{exact:true}).click();
  const view=page.locator('section[data-view="analysis"] #ga-analysis-N1');
  await view.locator('table.ga-table tbody tr').first().waitFor();
  const defaultCounts=await view.evaluate(root=>{const cards=[...root.querySelectorAll('.ga-card')];const count=label=>{const card=cards.find(item=>item.querySelector('small')?.textContent?.trim()===label);return card?Number(card.querySelector('strong')?.textContent?.replace(/\D/g,'')):null;};return{screenable:count('DC taranabilir'),islanding:count('Ada ayıran'),unsupported:count('Taranamayan'),selected:count('Seçili')};});
@@ -71,30 +72,30 @@ try{
  await view.getByRole('button',{name:'KISIT SENARYOLARI',exact:true}).click();
  const n1Download=page.waitForEvent('download');await view.locator('summary[aria-label="N-1 sonuçlarını dışa aktar"]').click();await view.getByRole('button',{name:'Senaryolar CSV'}).click();
  if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-senaryolar.csv')throw new Error('N-1 CSV export missing.');
- await page.getByRole('button',{name:'Harita',exact:true}).click();
+ await navigateAnalysis(page,'Harita');
  await page.getByLabel('Benchmark harita analizi',{exact:true}).selectOption('N1');await page.locator('.ga-map-options>summary').click();await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-risk');
  await page.waitForFunction(()=>/N-1 termik risk/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
  await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-island');await page.locator('.ga-map-options>summary').click();
  await page.waitForFunction(()=>/N-1 adaları/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
- await page.getByRole('button',{name:'Analizler',exact:true}).click();
+ await navigateAnalysis(page,'Analizler');
  await page.getByRole('button',{name:'N-1 SONUÇLARI',exact:true}).click();
  await view.getByRole('button',{name:'KISIT SENARYOLARI',exact:true}).click();
  await view.locator(`.ga-panel .ga-table tbody tr[data-id="${selectedId}"].ga-selected`).waitFor({state:'visible'});
- await page.getByRole('button',{name:'Analizler',exact:true}).click();
- await page.getByRole('button',{name:'Yük Akışı Analizi',exact:true}).click();await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
+ await navigateAnalysis(page,'Analizler');
+ await navigateAnalysis(page,'Yük Akışı Analizi');await openAnalysisTools(page);await page.getByRole('button',{name:/Baz Hesapla.*Tam AC/}).click();
  await page.waitForFunction(()=>document.querySelector('footer [role="status"]')?.textContent?.includes('NR yakınsadı'));
- if(await page.locator('#ga-analysis-LF input[type="file"]').count())throw Error('LF still owns reference imports');await page.getByRole('button',{name:'Harita',exact:true}).click();const engineHelp=page.locator('#mapArea');await engineHelp.focus();await page.waitForTimeout(700);if(await page.locator('#ga-label-help').isVisible())throw Error('Mouse control focus opens label help');await page.keyboard.press('Tab');const helpLabel=page.locator('section[data-view=map] [data-help-label=YTM]');await helpLabel.focus();await page.locator('#ga-label-help').waitFor({state:'visible'});await helpLabel.press('Escape');if(await page.locator('#ga-label-help').isVisible())throw Error('Escape did not hide label help');if(await page.locator('.ga-context-help,.ga-help-field').count())throw Error('Decorative help icon/wrapper remains');await page.getByRole('button',{name:'Yardım',exact:true}).click();await page.getByLabel('Yardımda ara',{exact:true}).fill('Yük akışı yöntemi');await page.locator('[data-help-entry="lf.fullAc"]').waitFor();await page.getByRole('button',{name:'Analizler',exact:true}).click();
- const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'XLSX sonuç indir'}).click();const workbook=await downloadEvent;
+ if(await page.locator('#ga-analysis-LF input[type="file"]').count())throw Error('LF still owns reference imports');await navigateAnalysis(page,'Harita');const engineHelp=page.locator('#mapArea');await engineHelp.focus();await page.waitForTimeout(700);if(await page.locator('#ga-label-help').isVisible())throw Error('Mouse control focus opens label help');await page.keyboard.press('Tab');const helpLabel=page.locator('section[data-view=map] [data-help-label=YTM]');await helpLabel.focus();await page.locator('#ga-label-help').waitFor({state:'visible'});await helpLabel.press('Escape');if(await page.locator('#ga-label-help').isVisible())throw Error('Escape did not hide label help');if(await page.locator('.ga-context-help,.ga-help-field').count())throw Error('Decorative help icon/wrapper remains');await navigateAnalysis(page,'Yardım');await page.getByLabel('Yardımda ara',{exact:true}).fill('Yük akışı yöntemi');await page.locator('[data-help-entry="lf.fullAc"]').waitFor();await navigateAnalysis(page,'Analizler');
+ await openAnalysisTools(page);const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'XLSX sonuç indir'}).click();const workbook=await downloadEvent;
  if(workbook.suggestedFilename()!=='GridAnalyzer_FullNR_Results.xlsx')throw new Error('XLSX result download missing.');
- await page.getByRole('button',{name:'Karşılaştırma',exact:true}).click();await page.getByText('Diğer referanslar / ControlContext',{exact:true}).click();const analysis=page.locator('section[data-view="comparison"] .ga-analysis-view');
+ await navigateAnalysis(page,'Karşılaştırma');await page.getByText('Diğer referanslar / ControlContext',{exact:true}).click();const analysis=page.locator('section[data-view="comparison"] .ga-analysis-view');
  await analysis.locator('input[aria-label="PowerFactory referans JSON veya CSV"]').setInputFiles({name:'pf-mismatch.csv',mimeType:'text/csv',buffer:Buffer.from('sep=;\r\nkind;fid;name;metaKey;metaValue;calculationBusKey;physicalTerminalFid;voltagePu\r\nmeta;;;modelId;different-model;;;\r\nmeta;;;studyCase;different-case;;;\r\nmeta;;;studyTimeLocal;2026-10-02 13:00:00;;;\r\nbus;T1;Bus;;;T1;T1;1\r\n')});
  await analysis.getByRole('button',{name:'Karşılaştır',exact:true}).waitFor();
  await analysis.getByText('Bloklandı', {exact:true}).first().waitFor();
  if(await analysis.locator('pre').count())throw new Error('Raw diagnostics JSON remains visible.');
  const comparisonXlsx=page.waitForEvent('download');await analysis.getByRole('button',{name:'Karşılaştırma XLSX'}).click();if((await comparisonXlsx).suggestedFilename()!=='GridAnalyzer_PowerFactory_Comparison.xlsx')throw new Error('Comparison XLSX export missing.');
  const comparisonCsv=page.waitForEvent('download');await analysis.getByRole('button',{name:'Karşılaştırma CSV'}).click();if((await comparisonCsv).suggestedFilename()!=='GridAnalyzer_PowerFactory_Comparison.csv')throw new Error('Comparison CSV export missing.');
- await page.getByRole('button',{name:'Analizler',exact:true}).click();const lf=page.locator('section[data-view="analysis"]');await lf.getByRole('button',{name:'Topoloji',exact:true}).click();await lf.getByRole('button',{name:'154 kV Ayrık Bara / Yarı Ada'}).waitFor();
- await page.getByRole('button',{name:'Harita',exact:true}).click();
+ await navigateAnalysis(page,'Analizler');const lf=page.locator('section[data-view="analysis"]');await lf.getByRole('button',{name:'Topoloji',exact:true}).click();await lf.getByRole('button',{name:'154 kV Ayrık Bara / Yarı Ada'}).waitFor();
+ await navigateAnalysis(page,'Harita');
  const map=page.locator('section[data-view="map"]'),analysisSelect=page.getByLabel('Benchmark harita analizi',{exact:true}),metricSelect=page.getByLabel('Benchmark harita metriği',{exact:true});
  await analysisSelect.selectOption('');await metricSelect.selectOption('angle');
  await page.waitForFunction(()=>/açısı/i.test(document.querySelector('.ga-map-legend b')?.textContent||''));
@@ -124,7 +125,7 @@ try{
  await map.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();await map.locator('#networkCanvas').click({position:{x:20,y:180}});if(await map.locator('.ga-lightning').isVisible())throw Error('Outside map click does not close Lightning');
  if(await map.locator('.ga-map-wrap').evaluate(e=>e.getBoundingClientRect().height)!==mapHeight||await map.getAttribute('data-result-id')!==mapIdentity)throw Error('Panel changes map height/result identity');
  await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();await page.locator('.ga-sld-svg').waitFor();if(await page.locator('section[data-view="sld"]').getAttribute('data-result-id')!==mapIdentity||await page.locator('section[data-view="sld"]').getAttribute('data-scenario-id')!==mapScenario)throw Error('SLD workspace identity differs from map');
- await page.getByRole('button',{name:'Bilgi ve sonuçlar',exact:true}).click();await page.locator('.ga-sld-results>summary').click();await page.waitForFunction(id=>document.querySelector('.ga-sld-results .ga-workspace-results')?.getAttribute('data-result-id')===id,mapIdentity);await page.getByRole('button',{name:'Harita',exact:true}).click();
+ await page.getByRole('button',{name:'Bilgi ve sonuçlar',exact:true}).click();await page.locator('.ga-sld-results>summary').click();await page.waitForFunction(id=>document.querySelector('.ga-sld-results .ga-workspace-results')?.getAttribute('data-result-id')===id,mapIdentity);await navigateAnalysis(page,'Harita');
  if(await map.locator('.ga-lightning').isVisible())throw Error('Lightning stayed open after switching view');
  await map.getByRole('button',{name:'Senaryoları aç',exact:true}).click();const scenarios=map.locator('.ga-scenario-embedded');
  if(await scenarios.locator('select,input').count()||await scenarios.getByRole('button',{name:'Dallan',exact:true}).count())throw Error('Retired branching controls remain');
@@ -155,20 +156,20 @@ try{
  await map.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();await map.locator('.ga-lightning').getByRole('button',{name:'Yük Akışı',exact:true}).click();const panelExport=page.waitForEvent('download');await map.getByRole('button',{name:'Elektriksel sonuçları XLSX indir',exact:true}).click();if((await panelExport).suggestedFilename()!=='GridAnalyzer_FullNR_Results.xlsx')throw Error('Lightning XLSX does not export the existing LF');await page.mouse.move(0,0);await page.screenshot({path:'local-benchmark-results/desktop-map-results-640.png'});await map.locator('.ga-lightning').getByRole('button',{name:'Senaryolar',exact:true}).click();await scenarios.locator('.ga-scenario-log>summary').click();await page.mouse.move(0,0);await page.screenshot({path:'local-benchmark-results/desktop-map-scenarios-640.png'});await map.getByRole('button',{name:'Sonuç panelini kapat',exact:true}).click();
  if(await page.evaluate(()=>window.smokeWork.length)!==workBefore)throw Error('Map filters, scenario/view selection or panel started a new computation');
  if(await page.evaluate(()=>window.smokeRaf.pending.size)>1)throw Error('More than one map RAF scheduled');
- await page.getByRole('button',{name:'Ayarlar',exact:true}).click();await page.waitForTimeout(100);if(await page.evaluate(()=>window.smokeRaf.pending.size)!==0)throw Error('Map RAF kept running off-tab');
+ await navigateAnalysis(page,'Ayarlar');await page.waitForTimeout(100);if(await page.evaluate(()=>window.smokeRaf.pending.size)!==0)throw Error('Map RAF kept running off-tab');
  for(const label of ['Model Yükle','Şebeke Envanteri','İşletme Verileri','Analizler','Karşılaştırma','Yardım','Ayarlar']){
    await page.locator('.ga-nav').getByRole('button',{name:label,exact:true}).click();
    if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Desktop UI overflow: '+label);
    if(await page.locator('.ga-context-help,.ga-help-field').count()||await page.getByRole('button',{name:/^Bilgi:/}).count())throw Error('Decorative information buttons remain: '+label);
    if(label==='Analizler'||label==='Ayarlar'){await page.mouse.move(0,0);await page.screenshot({path:'local-benchmark-results/desktop-map-'+(label==='Analizler'?'analysis':'settings')+'.png'});}
  }
- await page.getByRole('button',{name:'Analizler',exact:true}).click();const workspace=page.locator('.ga-analysis-workspace');
+ await navigateAnalysis(page,'Analizler');const workspace=page.locator('.ga-analysis-workspace');
  for(const viewport of [{width:1366,height:768},{width:1440,height:900},{width:1600,height:900},{width:1920,height:1080}]){
    await page.setViewportSize(viewport);
    for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
-     await workspace.getByRole('button',{name:label,exact:true}).click();if(label!=='Yük Akışı Analizi'){const family=label==='Kısıt Analizi (N-1)'?'N1':'SC';for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=workspace.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}}if(label==='Kısıt Analizi (N-1)')await workspace.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');if(label==='Yük Akışı Analizi')await workspace.getByLabel('LF sonuç görünümü',{exact:true}).selectOption('COMMON');
+     await closeAnalysisDialogs(page);await workspace.getByRole('button',{name:label,exact:true}).click();await openAnalysisTools(page);if(label!=='Yük Akışı Analizi'){const family=label==='Kısıt Analizi (N-1)'?'N1':'SC';for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=workspace.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}}if(label==='Kısıt Analizi (N-1)')await workspace.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');if(label==='Yük Akışı Analizi')await workspace.getByLabel('LF sonuç görünümü',{exact:true}).selectOption('COMMON');
      const layout=workspace.locator('.ga-analysis-layout:visible'),geometry=await layout.evaluate(e=>({columns:getComputedStyle(e).gridTemplateColumns.split(' ').length,width:e.getBoundingClientRect().width,overflow:document.documentElement.scrollWidth>innerWidth}));
-     if(geometry.columns!==3||geometry.overflow)throw Error('Analysis three-column geometry '+JSON.stringify({viewport,label,geometry}));if(await layout.locator('.ga-analysis-evidence .ga-study-verdict').count()!==4)throw Error('Analysis evidence verdicts missing');
+     if(geometry.columns!==1||geometry.overflow)throw Error('Advanced tools single-column geometry '+JSON.stringify({viewport,label,geometry}));if(await layout.locator('.ga-analysis-evidence .ga-study-verdict').count()!==4)throw Error('Analysis evidence verdicts missing');
      if(await layout.locator('.ga-study-table tbody tr').count()>50)throw Error('Unbounded common study DOM');
    }
    await page.screenshot({path:'local-benchmark-results/analysis-v7-20261011/analysis-sc-'+viewport.width+'.png'});

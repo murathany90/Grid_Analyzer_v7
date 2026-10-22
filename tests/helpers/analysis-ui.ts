@@ -5,14 +5,14 @@ import {stableJson} from '../../src/domain/calculation/identity';
 import type {AppContext} from '../../src/app/contracts';
 import type {CalculationResult} from '../../src/domain/results/types';
 import {identity} from '../../src/domain/calculation/identity';
-import {analysisSettingsHash} from '../../src/domain/calculation/analysis-settings';
+import {activeAnalysisSettings,analysisSettingsHash} from '../../src/domain/calculation/analysis-settings';
 
 /** PUBLIC SYNTHETIC PRESENTATION fixture. Numbers test display contracts, never physics. */
 export function analysisUiFixture(){
  const f=scAuditFixture(6278),ctx=f.ctx,n={...f.network,studyCase:'synthetic'},settings=ctx.analysisSettings.value;
  const lines=Array.from({length:660},(_,j)=>({...n.lines[0],id:'H'+(2182+j),sourceId:'H'+(2182+j),name:j===1?'CAYIRHAN–NALLIHAN':`Türkçe kesinti ${j} · İSTASYON`,vnKv:154,siteIds:['STATION']}));n.lines=lines;
  const members=new Map<number,string[]>();for(let j=0;j<6278;j++){const key=j%500;members.set(key,[...(members.get(key)??[]),'B'+j]);}
- n.buses=n.buses.map((t,j)=>({...t,vnKv:j%500===0?66:154}));ctx.network=n;ctx.analysisTab='N1';ctx.resultView.analysis='N1';ctx.filters.areaId='A';
+ n.buses=n.buses.map((t,j)=>({...t,vnKv:j%500===0?66:154}));n.transformers=[{...n.lines[0],id:'T0',sourceId:'T0',sourceClass:'ElmTr2',name:'ÇİFT GERİLİMLİ TRAFO',from:'B0',to:'B1',vnKv:154,lvKv:66,rPu:.01,xPu:.1,tap:1,phase:0,ratingMva:100,tapPosition:0,gPu:0,bPu:0}];ctx.network=n;ctx.analysisTab='N1';ctx.resultView.analysis='N1';ctx.filters.areaId='A';
  const cases=lines.map((e,j):HybridCase=>{const solved=j<28||j===400||j===401,attempted=solved||j>=28&&j<35,dc=j<296;
   return {candidateId:'ElmLne:'+e.id,outage:{caseId:'N1:ElmLne:'+e.id,sourceClass:'ElmLne',fid:e.id},promotionReasons:[],dcStatus:dc?'SCREENED_NO_VIOLATION':'UNSCREENABLE',status:solved?'PARTIAL_SOLUTION':attempted?'AC_DIVERGED':'NOT_EVALUATED_BUDGET',reason:solved?'CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY':'BUDGET_OR_MISSING_RESULT',acSolved:solved,acAttempted:attempted,iterations:solved?4:null,maxMismatchMw:solved?.001:null,minVpu:solved?.95:null,maxVpu:solved?1.05:null,maxLoadingPercent:solved?120:null,unknownRatings:0,voltageViolations:0,thermalViolations:solved?1:0,components:[],elapsedMs:0,observations:[],metadata:{name:e.name,voltageKv:154,fromYtmIds:['A'],toYtmIds:['A'],topology:'NON_ISLANDING'},...(dc?{dcResult:{equipmentId:e.id,sourceClass:'ElmLne',maxEstimatedLoadingPct:j%2?104.3:90,violationImpacts:j%2?[{equipmentId:lines[1].id,sourceClass:'ElmLne',postEstimatedLoadingPct:104.3}]:[],topImpacts:[] } as unknown as NonNullable<HybridCase['dcResult']>}:{ }),...(solved?{constraintChanges:[{sourceClass:'ElmLne',fid:lines[1].id,metric:'postLoadingPercent',side:'MAX_BOTH_ENDS',base:90,post:120,delta:30,state:'NEW',limit:100,baseSeverity:0,postSeverity:20} as const]}:{})};
  });
@@ -27,7 +27,8 @@ export function analysisUiFixture(){
  return {ctx,network:n,study};
 }
 export function installLfFixture(ctx:AppContext){
- const n=ctx.network!,opts={analysisSettingsHash:analysisSettingsHash(ctx.analysisSettings.value,'powerFlow')},id=identity(n.modelHash,ctx.scenario.current,'powerFlow',opts),bus=n.buses[0],line=n.lines[0];
+ const n=ctx.network!,opts={analysisSettings:activeAnalysisSettings(ctx.analysisSettings.value,'powerFlow'),analysisSettingsHash:analysisSettingsHash(ctx.analysisSettings.value,'powerFlow'),controlContextHash:ctx.powerFactoryControlContextHash},id=identity(n.modelHash,ctx.scenario.current,'powerFlow',opts),bus=n.buses[0],line=n.lines[0];
  const r:CalculationResult={identity:id,status:'CONVERGED',converged:true,iterations:3,rounds:1,maxMismatchMw:.001,elapsedMs:20,buses:[{id:'E66',name:'66 kV bara',terms:[bus.id],siteIds:bus.siteIds.slice(),vnKv:66,vmPu:1.02,angleRad:0,pMw:0,qMvar:0},{id:'E154',name:'154 kV bara',terms:[n.buses[1].id],siteIds:bus.siteIds.slice(),vnKv:154,vmPu:1.01,angleRad:0,pMw:0,qMvar:0}],branches:[{id:line.id,name:line.name,sourceClass:'ElmLne',from:line.from,to:line.to,siteIds:line.siteIds.slice(),vnKv:154,pf:-12,qf:3,pt:13,qt:-2,ifA:100,itA:101,loading:null,pLoss:1,qLoss:1}],generators:[],diagnostics:{},warnings:['SYNTHETIC_UI_ONLY'],quality:{numericalStatus:'CONVERGED',controlFidelity:'PARTIAL',referenceValidation:'NOT_AVAILABLE'}};
+ if(n.transformers[0])r.branches.push({...r.branches[0],id:n.transformers[0].id,name:n.transformers[0].name,sourceClass:'ElmTr2',pf:10,qf:3,pt:-9,qt:-2});
  ctx.resultStore.expect('base',id);ctx.resultStore.accept('base',r);return r;
 }

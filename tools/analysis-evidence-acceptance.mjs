@@ -1,3 +1,4 @@
+import {navigateAnalysis,openAnalysisTools,closeAnalysisDialogs} from './analysis-navigation.mjs';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
@@ -35,7 +36,7 @@ window.ready=true;
   try{
     await page.route('**/analysis-evidence.html',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto(target);await page.waitForFunction(()=>window.ready);
     const workspace=page.locator('.ga-analysis-workspace'),n1=page.locator('#ga-analysis-N1');
-    const openLegacy=async(panel,family)=>{for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=panel.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}};await openLegacy(n1,'N1');
+    const openLegacy=async(panel,family)=>{await openAnalysisTools(page);for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=panel.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}};await openLegacy(n1,'N1');
     await n1.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');
     proof.manual=await page.evaluate(()=>window.evidence());assert.equal(proof.manual.recordSource,'MANUAL_FULL_AC');assert.equal(proof.manual.coverage.AC_ATTEMPTED,1);
     await workspace.locator('.ga-analysis-evidence details summary').click();assert.match(await workspace.locator('.ga-analysis-evidence pre').textContent(),/MANUAL_FULL_AC/);
@@ -52,13 +53,13 @@ window.ready=true;
     for(const width of [1366,1440,1600,1920,768,390]){
       await page.setViewportSize({width,height:width===1366?768:width===1920?1080:width===390?844:900});
       for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
-        await workspace.getByRole('button',{name:label,exact:true}).click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' '+width);
+        await closeAnalysisDialogs(page);await workspace.getByRole('button',{name:label,exact:true}).click();await openAnalysisTools(page);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' '+width);
         const statuses=await workspace.locator('.ga-analysis-layout:visible .ga-study-verdict strong').allTextContents();assert.ok(statuses.every(s=>!/_/.test(s)),statuses.join());
         if(label==='Kısa Devre Analizi')assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'ikssKa');
       }
       proof.geometry.push({width,rows:await sc.locator('.ga-study-table tbody tr').count(),overflow:false});assert.ok(proof.geometry.at(-1).rows<=50);
     }
-    await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('skssMva');await workspace.getByRole('button',{name:'Yük Akışı Analizi',exact:true}).click();await workspace.getByRole('button',{name:'Kısa Devre Analizi',exact:true}).click();assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'skssMva');await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('ikssKa');
+    await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('skssMva');await navigateAnalysis(page,'Yük Akışı Analizi');await navigateAnalysis(page,'Kısa Devre Analizi');assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'skssMva');await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('ikssKa');
     await page.setViewportSize({width:1440,height:900});const shared=sc.locator('.ga-workspace-results');assert.equal(Number(await shared.getAttribute('data-ga-calculated-count')),2);assert.equal(Number(await shared.getAttribute('data-ga-blocked-count')),1);
     proof.filters=await shared.evaluate(e=>{const input=e.querySelector('[aria-label="Ortak sonuçlarda FID ara"]'),times=[];for(let i=0;i<25;i++){input.value=i%2?'Terminal 1':'';const t=performance.now();input.dispatchEvent(new Event('input'));if(i>=5)times.push(performance.now()-t);if(e.querySelectorAll('tbody tr').length>50)throw Error('Unbounded rows');}input.value='';input.dispatchEvent(new Event('input'));times.sort((a,b)=>a-b);return {catalog:Number(e.dataset.totalFaultCatalogCount),samples:times.length,medianMs:(times[9]+times[10])/2,p95Ms:times[18],maxMs:times.at(-1)};});assert.equal(proof.filters.catalog,6278);
     assert.deepEqual(await page.evaluate(()=>workerRequests),[]);assert.deepEqual(errors,[]);

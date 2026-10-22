@@ -24,7 +24,7 @@ export function ytmCaseDetailRows(r:YtmStudyResult,caseId:string):StudyExportRow
  if(!p)return [{...common,reason:'CASE_NOT_SOLVED_OR_DETAIL_NOT_RETAINED; see case summary'}];
  return [...p.buses.map(b=>({...common,sourceClass:'ElmTerm',FID:b.terms.join(';'),kV:b.vnKv,V_pu:b.vmPu,V_kV:b.vnKv*b.vmPu,angle_deg:b.angleDeg})),...p.branches.map(b=>({...common,sourceClass:b.sourceClass,FID:b.fid,from:b.from??null,to:b.to??null,Pfrom_MW:b.pf,Qfrom_MVAr:b.qf,Sfrom_MVA:Math.hypot(b.pf,b.qf),Pto_MW:b.pt,Qto_MVAr:b.qt,Sto_MVA:Math.hypot(b.pt,b.qt),Ifrom_A:b.ifA,Ito_A:b.itA,Ploss_MW:b.pf+b.pt,Qloss_MVAr:b.qf+b.qt,loading_percent:b.loading.operationalPercent,capacityBasis:b.loading.basis,capacitySource:b.loading.source,capacitySourceCategory:b.loading.sourceCategory??null,missingRatingCause:b.loading.missingRatingCause??null,capacityFrom_A:b.loading.fromLimitA,capacityTo_A:b.loading.toLimitA,rating_MVA:b.loading.ratingMva,reason:b.loading.reason}))];
 }
-export function ytmReferenceRows(r:YtmStudyResult,n:CanonicalNetwork,reference:BenchmarkPackage|null):StudyExportRow[]{
+export function ytmReferenceRows(r:Pick<YtmStudyResult,'identity'|'scMax'|'scMin'>,n:CanonicalNetwork,reference:BenchmarkPackage|null):StudyExportRow[]{
  const table=reference?.groups.SC.tables.SC_BusResults_Raw;if(!table)return [{status:'REFERENCE_UNAVAILABLE',reason:'SC PowerFactory reference not loaded'}];
  const index=new Map<string,Record<string,string|number|null>[]>();for(const row of table.rows){const v=rowObject(table,row),key=String(v.physicalTerminalFid??'')+':'+String(v.calculateMode??'');const group=index.get(key)??[];group.push(v);index.set(key,group);}
  const sameStudy=reference!.groups.SC.identity.studyCase===n.studyCase;
