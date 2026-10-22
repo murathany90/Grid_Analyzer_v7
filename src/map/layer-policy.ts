@@ -1,3 +1,4 @@
+import {currentScResult} from '../domain/results/sc-selection';
 import {n1RiskColor} from './n1-risk-style';
 import {deltaColor} from './delta-style';
 import {scenarioLfComparison} from '../domain/results/lf-comparison';
@@ -180,7 +181,7 @@ export function syncMapCase(ctx:AppContext){
   ctx.comparisonOutage=['ElmLne','ElmTr2'].includes(outage.sourceClass)&&outage.fid?{...outage,sourceClass:outage.sourceClass as 'ElmLne'|'ElmTr2'}:null;
 }
 export function selectedScPresentation(ctx:AppContext){
-  const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
+  const sc=currentScResult(ctx),current=!!sc&&sc.identity.modelHash===ctx.network?.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
   if(current&&!ctx.resultView.faultId&&sc.faults.length){const numeric=sc.faults.some(f=>f.status==='CALCULATED_NETWORK_APPROXIMATION'&&f.ikssKa!==null&&Number.isFinite(f.ikssKa)),blocked=sc.faults.every(f=>f.status==='BLOCKED'||f.status==='UNSUPPORTED');return {sc,fault:null,status:numeric?'SC_BATCH_NETWORK_APPROXIMATION':blocked?'SC_BATCH_BLOCKED':'SC_BATCH_PARTIAL',reason:'Toplu sonuç özeti; tek arıza kanıtı için fiziksel terminal seçin. IEC/PF paritesi doğrulanmadı.'};}
   const exact=current?sc.faults.filter(f=>f.physicalTerminalFid===ctx.resultView.faultId):[],matches=exact.length?exact:current?sc.faults.filter(f=>f.physicalTerminalFids.includes(ctx.resultView.faultId??'')):[];
   const fault=matches.length===1?matches[0]:null;return {sc:current?sc:null,fault,status:fault?.status??(matches.length>1?'PARTITION_AMBIGUOUS':'NOT_RUN'),reason:fault?.reasons.join('; ')??(matches.length>1?'PARTITION_AMBIGUOUS: birden fazla fault kaydı':!current?'Güncel kayıt yüklenmedi':'Seçilen fiziksel fault hesaplanmadı')};
@@ -188,7 +189,7 @@ export function selectedScPresentation(ctx:AppContext){
 export function mapStatusText(ctx:AppContext):string{
   const v=ctx.resultView,base=(v.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'Baz':'Senaryo';
   if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${base} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);return `N-1 · ${base} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
-  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
+  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH ${p.sc?.profile.calculateMode??'NOT_RUN'} · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
   if(v.source!=='GA')return `LF · ${v.source==='GA−PF'?'GA−PF TANISAL / yöntem doğrulanmadı':v.source} · ${base} · ${mapPresentationGate(ctx,ctx.benchmarkMap??{analysis:'LF',source:'PF',metric:v.metric,table:'GA_Reference_Raw'}).reason||'Kayıtlı referans'}`;
   const r=currentMapLf(ctx);if(!r)return `LF · ${base} · NOT_RUN / STALE`;
   const c=solutionCompleteness(r),label=r.identity.analysisType==='dc'?'DC P-only':r.identity.analysisType==='fastAc'?'Hızlı yaklaşık AC':'Tam AC';

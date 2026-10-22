@@ -1,3 +1,4 @@
+import {currentScResult} from '../results/sc-selection';
 import {scenarioLfComparison} from '../results/lf-comparison';
 import {postResultAssembler} from '../../analysis/contingency-ac/post-results';
 import type { BenchmarkAnalysis } from './types';
@@ -37,7 +38,7 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
   }
   if(s.analysis==='SC'&&s.source==='DELTA')return {enabled:false,reason:'GA_IEC60909_METHOD_AND_EDITION_UNVERIFIED'};
   if(s.analysis==='SC'&&s.source==='GA'){
-    const sc=ctx.scResult,current=!!sc&&sc.identity.modelHash===ctx.network.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
+    const sc=currentScResult(ctx),current=!!sc&&sc.identity.modelHash===ctx.network.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
     if(!current||!sc.faults.length)return {enabled:false,reason:'GA_IEC60909_NOT_COMPUTABLE'};
     if(!['ikssKa','skssMva'].includes(s.metric))return {enabled:false,reason:'SC_METRIC_NOT_IMPLEMENTED'};
   }

@@ -1,3 +1,4 @@
+import {currentScResult} from '../../domain/results/sc-selection';
 import type {AppContext} from '../../app/contracts';
 import {scenarioSignature,emptyScenario} from '../../domain/scenario/overlay';
 import {lfSnapshotIsCurrent,selectN1Result} from '../../domain/benchmark/post-result-source';
@@ -12,7 +13,7 @@ export function studyEvidence(ctx:AppContext){
   const manual=selected.ac,h=selected.hybrid,hc=selected.hybridCase,dc=selected.dc;
   const pfOnly=ctx.resultView.source==='PF',reference=pfOnly?ctx.benchmark?.groups[family]:null;
   const result=pfOnly?null:family==='SC'?sc:family==='N1'?manual??hc??h??dc:lf;
-  const stale=!!result&&(!n||(family==='SC'?sc!.identity.modelHash!==n.modelHash||sc!.identity.scenarioHash!==scenarioSignature(ctx.scenario.current):family==='N1'?!selected.current:!lfSnapshotIsCurrent(lf!,n,ctx.resultStore.role==='base'?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)));
+  const stale=!!result&&(!n||(family==='SC'?!currentScResult(ctx):family==='N1'?!selected.current:!lfSnapshotIsCurrent(lf!,n,ctx.resultStore.role==='base'?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)));
   const solved=manual?!!(manual.controlEvidence?.numericalSolved??manual.result?.converged):hc?!!(hc.controlEvidence?.numericalSolved??hc.acSolved):false;
   const numbers=pfOnly?0:family==='SC'?sc?.faults.filter(f=>f.ikssKa!==null&&Number.isFinite(f.ikssKa)).length??0:family==='N1'?manual||hc?Number(solved):h?.counts.AC_NUMERICALLY_SOLVED??(selected.candidate?Number(['SCREENED_VIOLATION','SCREENED_NO_VIOLATION','SCREENED'].includes(selected.candidate.status)):dc?.screenedCount??0):lf?.converged?lf.buses.length:0;
   const recordStatus=pfOnly?'PF_REFERENCE_ONLY':family==='N1'?manual?.status??hc?.status??h?.status??selected.candidate?.status??(dc?'DC_SCREENED':'NOT_RUN'):family==='LF'?lf?.status??'NOT_RUN':sc?.faults.find(f=>f.physicalTerminalFid===ctx.resultView.faultId)?.status??(sc?'SC_BATCH':'NOT_RUN');

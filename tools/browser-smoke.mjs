@@ -37,7 +37,7 @@ try{
  await page.locator('[data-view="model"] .ga-analysis-view .ga-card-grid .ga-card').first().waitFor();
  const qualityDownload=page.waitForEvent('download');await page.getByRole('button',{name:'JSON indir'}).click();
  if((await qualityDownload).suggestedFilename()!=='GridAnalyzer-model-quality.json')throw new Error('Model Quality JSON export missing.');
- await page.getByRole('button',{name:'Analizler',exact:true}).click();await page.getByRole('button',{name:'Kısıt Analizi (N-1)',exact:true}).click();await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();await page.getByText('Gelişmiş DC tarama / katalog',{exact:true}).click();
+ await page.getByRole('button',{name:'Analizler',exact:true}).click();await page.getByRole('button',{name:'Kısıt Analizi (N-1)',exact:true}).click();await page.getByText('Gelişmiş / eski N1 komutları',{exact:true}).click();await page.getByText('Ekipman PRE/POST ve gelişmiş N1 sonuçları',{exact:true}).click();await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();await page.getByText('Gelişmiş DC tarama / katalog',{exact:true}).click();
  const view=page.locator('section[data-view="analysis"] #ga-analysis-N1');
  await view.locator('table.ga-table tbody tr').first().waitFor();
  const defaultCounts=await view.evaluate(root=>{const cards=[...root.querySelectorAll('.ga-card')];const count=label=>{const card=cards.find(item=>item.querySelector('small')?.textContent?.trim()===label);return card?Number(card.querySelector('strong')?.textContent?.replace(/\D/g,'')):null;};return{screenable:count('DC taranabilir'),islanding:count('Ada ayıran'),unsupported:count('Taranamayan'),selected:count('Seçili')};});
@@ -166,7 +166,7 @@ try{
  for(const viewport of [{width:1366,height:768},{width:1440,height:900},{width:1600,height:900},{width:1920,height:1080}]){
    await page.setViewportSize(viewport);
    for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
-     await workspace.getByRole('button',{name:label,exact:true}).click();if(label==='Kısıt Analizi (N-1)')await workspace.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');if(label==='Yük Akışı Analizi')await workspace.getByLabel('LF sonuç görünümü',{exact:true}).selectOption('COMMON');
+     await workspace.getByRole('button',{name:label,exact:true}).click();if(label!=='Yük Akışı Analizi'){const family=label==='Kısıt Analizi (N-1)'?'N1':'SC';for(const text of ['Gelişmiş / eski '+family+' komutları','Ekipman PRE/POST ve gelişmiş '+family+' sonuçları']){const summary=workspace.getByText(text,{exact:true});if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();}}if(label==='Kısıt Analizi (N-1)')await workspace.getByLabel('N-1 hesap yöntemi',{exact:true}).selectOption('HYBRID');if(label==='Yük Akışı Analizi')await workspace.getByLabel('LF sonuç görünümü',{exact:true}).selectOption('COMMON');
      const layout=workspace.locator('.ga-analysis-layout:visible'),geometry=await layout.evaluate(e=>({columns:getComputedStyle(e).gridTemplateColumns.split(' ').length,width:e.getBoundingClientRect().width,overflow:document.documentElement.scrollWidth>innerWidth}));
      if(geometry.columns!==3||geometry.overflow)throw Error('Analysis three-column geometry '+JSON.stringify({viewport,label,geometry}));if(await layout.locator('.ga-analysis-evidence .ga-study-verdict').count()!==4)throw Error('Analysis evidence verdicts missing');
      if(await layout.locator('.ga-study-table tbody tr').count()>50)throw Error('Unbounded common study DOM');
