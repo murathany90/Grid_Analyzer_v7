@@ -18,7 +18,7 @@ Mevcut model, senaryo, ayar, kapsam, profil, kaynak ve MAX/MIN geçerlilik kapı
 
 ## Okunabilirlik ve ayrıntı
 
-Ana listede sabit 6–7 sütun, tam genişlik, normal kelime kırılması, iki satırlık ad ve tam başlık/title bulunur. Üretim listesi ham `recordHeaders()` ile sütun üretmez. 50 satır sayfalama, Türkçe metadata araması ve sayısal/null-sonda sıralama kullanılır. ≤767 px satır kartlarıdır. Eski 1200/1320 px geniş tablolar yeni ana listede kullanılmaz.
+Ana listede sabit 6–7 sütun, tam genişlik, normal kelime kırılması, iki satırlık ad ve tam başlık/title bulunur. Üretim listesi ham `recordHeaders()` ile sütun üretmez. 50 satır sayfalama, Türkçe metadata araması ve sayısal/null-sonda sıralama kullanılır. ≤767 px satır kartlarıdır. Listenin gerçek CSS genişliği ≤700 px olduğunda da container query ile kartlara geçilir; zoom veya uygulama kabuğu viewport genişliğiyle çeliştiğinde sütunlar sıkıştırılmaz. Eski 1200/1320 px geniş tablolar yeni ana listede kullanılmaz.
 
 Bir ana sayfa kaydırması vardır. Açık native dialog kendi kaydırmasını kullanır. Enter ayrıntıyı açar, Escape yalnız diyaloğu kapatır ve odağı geri verir; analizi iptal etmez. Haritada göster caseId/faultId/FID ve SC modunu korur.
 

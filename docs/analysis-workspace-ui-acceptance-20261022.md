@@ -1,6 +1,6 @@
 # Analizler UI sadeleştirme kabulü — 22.10.2026
 
-Dal: `feature/analysis-ux-cleanup`; taban: PR #8 / `d95e50206673fc80a3189db5b6c142c7af262f11`. Test edilen uygulama kaynak commit'i: `2d28f20698b4d24006ba0a66f2a8d8ae694ff9c2`. Sonraki belge commit'i yalnız tasarım/kabul kaydıdır. PR #7, PR #8 ve main merge edilmedi/değiştirilmedi. Sürüm 8.2.5 korunur.
+Dal: `feature/analysis-ux-cleanup`; taban: PR #8 / `d95e50206673fc80a3189db5b6c142c7af262f11`. Test edilen uygulama kaynak commit'i: `9a9effe97d569e77ee35492c797191e1fc76bd19`. Sonraki belge commit'i yalnız tasarım/kabul kaydıdır. PR #7, PR #8 ve main merge edilmedi/değiştirilmedi. Sürüm 8.2.5 korunur.
 
 ## Sonuç ve kapsam
 
@@ -50,9 +50,10 @@ Ortam: Windows, Core Ultra 7 155U / 14 mantıksal CPU / 16,605,564,928 bayt RAM;
 
 - Başlangıç CI #187, aynı d95e502 HEAD'inde 701 test success idi; yeni PASS diye kullanılmadı.
 - Hedefli sunum testleri geliştirildi; full unit/regression son durumda **710/710 PASS** (eski 701 + 9 yeni).
-- `typecheck`, mimari lint, normal ve portable build PASS. Portable raw byte/LF/determinism gate PASS. SHA256 `8fc752350b7d8122377889fd70d8d7f5653efd93611d347c36b2a01a9ff92038`.
+- `typecheck`, mimari lint, normal ve portable build PASS. Portable raw byte/LF/determinism gate PASS. SHA256 `7bf28245012c20a41f3cc82d1fb28697e1a6728c331ec39a82a40a60f1358d95`.
 - `npm run test:e2e` sekiz bileşen exit 0. Sonrasında bulunan aile-durumu/süre ve JSON kimlik düzeltmeleri için ilgili 9 test, full unit ve production Worker/UI + 48-görünüm UX kabulü tekrarlandı. Eski büyük benchmark veya bütün eski browser zinciri gereksiz tekrar edilmedi. LF presentation fixture'ının identity options'ı production controller kontratıyla eşleştirildi; gerçek cache kapısı gevşetilmedi.
 - Son HEAD için [CI dal kanıtı](https://github.com/murathany90/Grid_Analyzer_v7/actions?query=branch%3Afeature%2Fanalysis-ux-cleanup). Kesin run URL ve teslim HEAD'i PR/son mesajda ayrıca verilir; yerel PASS, GitHub CI sonucu yerine geçirilmez.
+- İlk [CI #189](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/39840255143) typecheck/lint ve 710 testi geçti; Browser smoke Linux Chromium 768 px / %125 görünümünde document/table overflow nedeniyle FAIL oldu. Test eşiği gevşetilmedi. `9a9effe` düzeltmesi gerçek liste genişliği ≤700 CSS px ise container query ile kartlara geçer; aynı görünümde 614 px liste genişliği ve sıfır taşma doğrulandı. 48 public + 32 gerçek restore görünümü, iki derleme ve beş portable byte/determinism testi tekrar PASS. `PUBLIC-N1-768-1.25.png` yeni kusurun düzeltme görselidir. Yeni HEAD CI sonucu PR ve teslim kaydında ayrı belirtilir.
 - PF/IEC paritesi hâlâ doğrulanmadı; eski yaklaşık 239 kA farklarının fiziksel nedeni bu UI çalışmasıyla çözülmüş sayılmaz. IEC baskısı **IEC 60909-0:2016**; ip/Ib/Ith ve desteklenmeyen asimetrik hesaplar uydurulmadı. N1 eksik POST ve UNKNOWN_RATING korunur.
 - P1 yeni 9-sekmeli Excel raporu eklenmedi. Mevcut tam exportlar, 50 satır sayfalama, legacy komutlar, map/Lightning/SLD ve senaryo/cache kontratları korunur. Ana SC özetindeki >66 eşiği hesaplanan düşük gerilimli özgün sonuçları silmez.
 - İzlenen ağaç teslimde temiz; başlangıçtaki üç izlenmeyen kullanıcı alanı korunur. Model, PF XLSX/ZIP, özel JSON veya görseller Git'e eklenmez. Kanıt dosyaları yereldir.
@@ -68,40 +69,48 @@ Ortam: Windows, Core Ultra 7 155U / 14 mantıksal CPU / 16,605,564,928 bayt RAM;
 - `local-benchmark-results\analysis-ux\PUBLIC-LF-1366-1.png`: `7237c20967e7b6f263979687a5c94e1edfd4b1846f960371b10a633a8844cc98`
 - `local-benchmark-results\analysis-ux\PUBLIC-LF-1810-1.25.png`: `93885a19bbf8b6ff5b2b5cac5503b1c725577a0db2bb758c8a40f43914d5c65d`
 - `local-benchmark-results\analysis-ux\PUBLIC-LF-1810-1.png`: `cd2ba639d6de2582f261f300e1acabcfdd78dbb2cb252ae8052a3194744b6e65`
-- `local-benchmark-results\analysis-ux\PUBLIC-LF-390-1.25.png`: `6076073f9ab57bbf1f9e39406e01cede02a14aebd6cc4579624094a94fe73a2e`
-- `local-benchmark-results\analysis-ux\PUBLIC-LF-390-1.png`: `c7ca6bc652cdcdd2b103bff7391d63acd9b77a8b7af6a5e2fee0a99b1df67a11`
+- `local-benchmark-results\analysis-ux\PUBLIC-LF-390-1.25.png`: `08c728b28faf0f845eaa90d54d1b9b729c5e41026c4279a0ee71c5eac40bd969`
+- `local-benchmark-results\analysis-ux\PUBLIC-LF-390-1.png`: `43bb1d10ec83e923c0021e52fedd34242a969046f24bfc368cec6fa40d6d834e`
+- `local-benchmark-results\analysis-ux\PUBLIC-LF-768-1.25.png`: `37d60bdae00691c3c89f56902cd9d3a868766be51b881fe808c4ed33f1065bd4`
 - `local-benchmark-results\analysis-ux\PUBLIC-light-1810.png`: `c0cf4d38d14c2277f0e96157ff6e87a4bd23c80f4fa6aadd7b6bcdb0140b4759`
 - `local-benchmark-results\analysis-ux\PUBLIC-N1-1366-1.25.png`: `2e4aeee140c25ad07f2e5bcd8668417a1180f537fcdfba9072e42802c7d81b61`
-- `local-benchmark-results\analysis-ux\PUBLIC-N1-1366-1.png`: `2cb02a88eff7c75bd3531d21c79ccbb1394d84d30ab13cf8f349f0d5bb72e6e2`
+- `local-benchmark-results\analysis-ux\PUBLIC-N1-1366-1.png`: `8b8c1d4aa81cacd38b7043ca53310094a810bada5762a6ed5b0961ce104ba9aa`
 - `local-benchmark-results\analysis-ux\PUBLIC-N1-1810-1.25.png`: `6f9d827bf273eed0cc43bb38a978b6543b19bd4ece9eb0fb389625bd465c9121`
-- `local-benchmark-results\analysis-ux\PUBLIC-N1-1810-1.png`: `359df96f68a3c97c3ff688d0c6f93e93a510afe26cf526b40b18988080480612`
-- `local-benchmark-results\analysis-ux\PUBLIC-N1-390-1.25.png`: `0c5d01fe70e3b6cd0131d162d648c9f09025ac8ebdd65b52f56f36d82137f3f7`
-- `local-benchmark-results\analysis-ux\PUBLIC-N1-390-1.png`: `9fba6faa7388a1c513c7120a59dee17595193c652da0925680b11906f32fc366`
-- `local-benchmark-results\analysis-ux\PUBLIC-proof.json`: `983e252594c6f24b60427c188da17f0f30b15e5210f4ac563c2219593363ad9b`
+- `local-benchmark-results\analysis-ux\PUBLIC-N1-1810-1.png`: `76a6d278f1cbca60f4d686178e15cfacd13d43cb808c77619798ae9771b37ad1`
+- `local-benchmark-results\analysis-ux\PUBLIC-N1-390-1.25.png`: `5ab8bf87acbf3cdf03626f9dabc543ba6bb3037f20d5cfb6b2e6bea639e98f1d`
+- `local-benchmark-results\analysis-ux\PUBLIC-N1-390-1.png`: `d6fd791834607d611c3b23be327058b0d4cfa327d20c36720cb8d75d18340a28`
+- `local-benchmark-results\analysis-ux\PUBLIC-N1-768-1.25.png`: `c2e3315f0b5cc8cca9a8b399c388710052b06378c7769f3cb9776c93903f598d`
+- `local-benchmark-results\analysis-ux\PUBLIC-proof.json`: `40059c9035c26634309665b13a76ffac2cf9d251aa2f325ca9376adfe31805c2`
 - `local-benchmark-results\analysis-ux\PUBLIC-SC-1366-1.25.png`: `8536dda634a9751122ed1e1b5bf48370d00b6737754a91c10a6c012add50becd`
 - `local-benchmark-results\analysis-ux\PUBLIC-SC-1366-1.png`: `f4e9d4584cb5c8e584c19d248a0d7ab52732a4065ed8b00b112e0fa56995b236`
-- `local-benchmark-results\analysis-ux\PUBLIC-SC-1810-1.25.png`: `64edd923b964661bab71097990054f03026a55bf2d75b9e738ebee54c6dc3361`
+- `local-benchmark-results\analysis-ux\PUBLIC-SC-1810-1.25.png`: `b55ef33f2590d3555eafda8fce466923c99647a513960fc084fad358e8a1484a`
 - `local-benchmark-results\analysis-ux\PUBLIC-SC-1810-1.png`: `02eee66e914f9bcc4ba13af45d0a8be00ee2970b93388f38249f90d8ab160afe`
-- `local-benchmark-results\analysis-ux\PUBLIC-SC-390-1.25.png`: `9c5b9e9b3b17847c806fcd03be469b3a7cdeb02328e6acc38eb781b3bf786128`
-- `local-benchmark-results\analysis-ux\PUBLIC-SC-390-1.png`: `8dd1e76c2eae7dd2d6df1ac0b86b0ff2bfc8725026a060947756d42d613b0787`
-- `local-benchmark-results\analysis-ux\PUBLIC-xlsx.xlsx`: `c7f7495d5e7d80345aaf62667d6b16504465088b047a5f8dc13a88ab3fab0f51`
+- `local-benchmark-results\analysis-ux\PUBLIC-SC-390-1.25.png`: `d932a7d7ffc4da41ca3938fca70777f039478d0eb98b70e9ea8c163bfaa4ee56`
+- `local-benchmark-results\analysis-ux\PUBLIC-SC-390-1.png`: `87864ca9d391a829f22e89264255caa68212e5fe7b0b427ad4a64d80bae84b1c`
+- `local-benchmark-results\analysis-ux\PUBLIC-SC-768-1.25.png`: `2157426a4905d392c9a911f817c2f6f5e271dcd0d81c5b74a502fe36636e87c5`
+- `local-benchmark-results\analysis-ux\PUBLIC-xlsx.xlsx`: `258a389587eba19d3582d5132a5811ca0ee418a2df76d00a4822742200a96b08`
 - `local-benchmark-results\analysis-ux\REAL-csv.csv`: `931e77ad64e7817435853b6741834981ee23215a590fd986402b048a3c7cb9b8`
 - `local-benchmark-results\analysis-ux\REAL-json.json`: `441ea4b7ecee6a3a151c9f9216ffd96bedf04d58fc1d703680b305a0da7bd7e2`
 - `local-benchmark-results\analysis-ux\REAL-light-1810.png`: `c6bbb40eb65b2207fe3ee9d9499206a5916937c77ba087285a010be4e71af2cb`
 - `local-benchmark-results\analysis-ux\REAL-N1-1366-1.25.png`: `1d5198a33e851a243096fe1625334c37ae25b4e93bbaf7b9f88f8f6b300db677`
-- `local-benchmark-results\analysis-ux\REAL-N1-1366-1.png`: `2a4af08efa897de65b0ebc4439314b0882fe63c95f54d5d15196ef2e5d303be6`
+- `local-benchmark-results\analysis-ux\REAL-N1-1366-1.png`: `b116b801c5d7140af9b402fa246084f614548e259c9595627d61a2694449130e`
 - `local-benchmark-results\analysis-ux\REAL-N1-1810-1.25.png`: `e12db457f09b765e1c8cdf0dc8d73367500ea41fc176c1f3675d43e43cd41d46`
-- `local-benchmark-results\analysis-ux\REAL-N1-1810-1.png`: `cdd4e56fe3bae4465eb8ab565273e5ce88b07d41eefd01355f517b321db04653`
-- `local-benchmark-results\analysis-ux\REAL-N1-390-1.25.png`: `3a48b590505d9683daf4eca6eb0e296473b2bcb28de04ad13b7c9126112573bc`
-- `local-benchmark-results\analysis-ux\REAL-N1-390-1.png`: `bfd6ae6791cf98ccd72fa1eb5145649cb54aa90e9d862b9c53c8b30a10f0e5f0`
-- `local-benchmark-results\analysis-ux\REAL-proof.json`: `87e9fa705401f84080b6a9c86eb4e3a6abc7421486a03936e9bd84a4a40d2401`
+- `local-benchmark-results\analysis-ux\REAL-N1-1810-1.png`: `87d423b466b8530149490e5196f4ec6a37a16d1b5ebaa7f9e68a2adf56e1edc2`
+- `local-benchmark-results\analysis-ux\REAL-N1-390-1.25.png`: `90a81383c4e9c3eb7d56e1a9d90a3642833e041f93cc85f1d1182cc38d0d9651`
+- `local-benchmark-results\analysis-ux\REAL-N1-390-1.png`: `46f0ef6ea4433485e7b89102bbbd75b8a1af7255e8e06990d8010c35ddd56b6e`
+- `local-benchmark-results\analysis-ux\REAL-proof.json`: `c391f79531de02967298cb0962a1d55fb825fa7f75a4cdd20b9671388bbdc51f`
 - `local-benchmark-results\analysis-ux\REAL-SC-1366-1.25.png`: `134f3c822bee6e03748703a728b8a0f70a3b9b644b760d1300d77d9a38a7a44d`
 - `local-benchmark-results\analysis-ux\REAL-SC-1366-1.png`: `0779240d250e86596fd9ef4d31caf662712f0aed0a1ccf4dba538104951fbb48`
 - `local-benchmark-results\analysis-ux\REAL-SC-1810-1.25.png`: `0befa050cd9265de9b862bfbceea5e2b0abdee28e5a6fd365861728a8392d845`
-- `local-benchmark-results\analysis-ux\REAL-SC-1810-1.png`: `5c383e059c5859878c167e05cbfa46b58f5b925e01417678055b28b94cccba71`
-- `local-benchmark-results\analysis-ux\REAL-SC-390-1.25.png`: `e144c987b6fd900494c678a056bbe5283603284d5c19099174ad60812110b111`
-- `local-benchmark-results\analysis-ux\REAL-SC-390-1.png`: `a3f79312b2870994376ffe4fb32a362b4bcfe09f62e5562b3132395378532be5`
-- `local-benchmark-results\analysis-ux\REAL-xlsx.xlsx`: `d8486b60030aff4005e9658cfb5591f3343bfcf3397aa536bd63f71f97a9c446`
+- `local-benchmark-results\analysis-ux\REAL-SC-1810-1.png`: `c0dcff3c7996422abb5bbb9c3e60422271cc171f87641539f8e2953571ef5343`
+- `local-benchmark-results\analysis-ux\REAL-SC-390-1.25.png`: `30c56c2da8ca39a1be91e40537c62145ad07391e46677bf17077288c3f6beef8`
+- `local-benchmark-results\analysis-ux\REAL-SC-390-1.png`: `e76d6f7577b9593fd801db092ecf17fa8d842037c760d3fc0b2b159a77e590e8`
+- `local-benchmark-results\analysis-ux\REAL-xlsx.xlsx`: `e2bd5ac8cafdb41202257022e59373c209c654000570358ad836e6efd124e274`
+- `local-benchmark-results\analysis-ux-ci-fix-browser.log`: `ee9cd7c088aed4d62d97dcd22e0a71e2b1afbc6ccd686a6ffedd451f8bb7eeb6`
+- `local-benchmark-results\analysis-ux-ci-fix-build.log`: `147504a38764e539e14a01b9989453ec6a3cd8c9ac6d2d5f44c8851efecbc6b3`
+- `local-benchmark-results\analysis-ux-ci-fix-bytes.log`: `8fd7b78e512b09062ffbc394f37563c19ca8c04d9625bf7e21cd92f0f55aba7f`
+- `local-benchmark-results\analysis-ux-ci-fix-portable.log`: `1eacf4a6c25d848ced31150f1adccc54a85a82663799a966b6544de04c5b9e29`
+- `local-benchmark-results\analysis-ux-ci-fix-real.log`: `75850decd3a93f2d837f1ec94f8dfc706bb383e83bff812d72e7bedff1c0df3b`
 - `local-benchmark-results\analysis-ux-final-browser-targeted.log`: `ee9cd7c088aed4d62d97dcd22e0a71e2b1afbc6ccd686a6ffedd451f8bb7eeb6`
 - `local-benchmark-results\analysis-ux-final-build.log`: `951780a4bbb453aba38c5becb07cc19e62499c607abb6080506ccd593149339c`
 - `local-benchmark-results\analysis-ux-final-e2e.log`: `e3c0874dda8383a970bddf941abe7bf6a45c07a436dd3060ead6b360c72addc1`
@@ -112,6 +121,7 @@ Ortam: Windows, Core Ultra 7 155U / 14 mantıksal CPU / 16,605,564,928 bayt RAM;
 - `local-benchmark-results\analysis-ux-final-typecheck.log`: `4705264512873d100001596d121fc681416c19110314597dc74c7e68e2119a59`
 - `local-benchmark-results\analysis-ux-final-unit.log`: `7123c8fbae1b5d3d67c7ac8e88b2a127f058982773e9164d493de3be431524b8`
 - `local-benchmark-results\analysis-ux-final-worker-targeted.log`: `266095e04a60b48c1bab645d68afa94eb1c8e1947018dcd6e04855997746089d`
+- `local-benchmark-results\analysis-ux-ci189-failure.txt`: `c1cb2004d14b75f3407ede22549fcf43b06eb856b6b72ec9ad1175b84ab621eb`
 
 ## Değişen dosyalar
 
