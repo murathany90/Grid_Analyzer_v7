@@ -24,6 +24,7 @@ import { preflightPowerFactoryReference } from '../analysis/validation/powerfact
 import { validateAcOutages } from '../analysis/contingency-ac';
 import {adaptShortCircuitSources} from '../importers/powerfactory-benchmark/short-circuit-source';
 import {calculateThreePhase,scFaultCatalog,clearScPreparationCache} from '../analysis/short-circuit';
+import {runYtmStudy} from '../analysis/ytm-study';
 
 const scope=self as unknown as DedicatedWorkerGlobalScope;
 let source:DgsModel|null=null,network:CanonicalNetwork|null=null;
@@ -32,7 +33,10 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
   const send=(response:Omit<WorkerResponse,'id'>,transfer:Transferable[]=[])=>scope.postMessage({...response,id:data.id},transfer);
   const progress=(stage:string,detail?:Record<string,unknown>)=>send({type:'PROGRESS',stage,detail});
   try{
-    if(data.type==='LOAD_BENCHMARK_REFERENCE'){
+    if(data.type==='RUN_YTM_STUDY'){
+      if(!network)throw Error('Model yüklenmedi.');
+      send({type:'RESULT',value:await runYtmStudy(network,data.scenario,data.contexts,data.options,{resume:data.resume,onProgress:progress,hybrid:{onCaseDetail:(caseId,detail)=>progress('YTM_CASE_DETAIL',{caseId,detail})},onCheckpoint:result=>progress('YTM_CHECKPOINT',{result})})});
+    }else if(data.type==='LOAD_BENCHMARK_REFERENCE'){
       const incoming=await loadBenchmarkReferences(data.file,progress),benchmark=mergeReferenceSlots(data.previous,incoming,data.network);
       if(hasReference(incoming,'LF')){const checked=applyPowerFactoryControlContext(data.network,benchmarkControlContext(incoming)),lf=preflightPowerFactoryReference(benchmarkLfReference(incoming),checked,null);if(lf.reasons.some(r=>!r.includes('Yakınsamış Tam AC')))throw Error(`BENCHMARK_TOPOLOGY_MISMATCH: ${lf.reasons.join('; ')}`);}
       send({type:'RESULT',value:{benchmark,preflight:preflightBenchmark(benchmark,data.network,data.result,data.controlFile)}});

@@ -10,3 +10,10 @@
 .ga-lightning .ga-study-filter-options{padding:2px 8px}
 .ga-analysis-context{grid-template-columns:repeat(8,minmax(0,1fr))}.ga-analysis-center .ga-study-table{min-width:700px}.ga-analysis-center .ga-study-n1{min-width:1200px}.ga-analysis-center .ga-study-sc{min-width:1320px}.ga-analysis-center .ga-study-table th{white-space:nowrap;overflow-wrap:normal}.ga-analysis-center .ga-study-sc th:last-child{width:150px}@media(max-width:1400px){.ga-analysis-context{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:750px){.ga-analysis-context{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .ga-study-coverage,.ga-study-residual{font-size:11px;overflow-wrap:anywhere;color:var(--muted)}.ga-limit-preflight[data-status=BLOCKED]{border-color:#b87942;color:#ffd384}.ga-limit-preflight div{max-height:220px;overflow:auto}.ga-analysis-center .ga-study-table th:first-child,.ga-analysis-center .ga-study-table td:first-child{position:sticky;left:0;z-index:2;background:var(--panel)}.ga-analysis-center .ga-study-table th:first-child{background:#193b50;z-index:4}
+
+/* Bound the combined YTM table while preserving native table scrolling. */
+.ga-ytm-study { min-width: 0; max-width: 100%; }
+.ga-ytm-study .ga-toolbar { flex-wrap: wrap; }
+.ga-ytm-study select, .ga-ytm-study input { max-width: 100%; min-width: 0; }
+.ga-ytm-study .ga-table-wrap { max-width: 100%; overflow: auto; }
+.ga-ytm-study td { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

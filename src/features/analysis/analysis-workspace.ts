@@ -9,6 +9,7 @@ import {createModelView} from '../model/model-view';
 import {createCalculationActions} from '../comparison/calculation-actions';
 import {studyEvidence} from './study-evidence';
 import {studyLabel,studyStatusHelp} from '../../ui/components/study-labels';
+import {createYtmStudyView} from './ytm-study-view';
 
 export function createModelLanding(ctx:AppContext):Feature{
   const model=createModelView(ctx),quality=createQualityN1View(ctx,'quality');model.element.append(quality.element);
@@ -33,8 +34,9 @@ export function createAnalysisWorkspace(ctx:AppContext):Feature{
   const manualPolicy=element('select');manualPolicy.setAttribute('aria-label','Seçili Full AC kontrol doğruluğu');manualPolicy.innerHTML='<option value="STRICT">Kontrollerin tam desteği gerekir</option><option value="ALLOW_PARTIAL">Aynı ayarlar · eksik kontrol PARTIAL · PF paritesi yok</option>';
   const ac=button('Seçili vaka: GA Full AC doğrula',()=>{if(ctx.comparisonOutage)void ctx.runN1AcValidation([ctx.comparisonOutage],manualPolicy.value as 'STRICT'|'ALLOW_PARTIAL');}),screen=button('Seçili vaka: GA DC screening',()=>{const o=ctx.comparisonOutage;if(!o)return;const e=(o.sourceClass==='ElmLne'?ctx.network?.lines:ctx.network?.transformers)?.find(e=>e.sourceId===o.fid);if(e)void ctx.runN1Screen({candidateTypes:[o.sourceClass],selectedCandidateIds:[`${o.sourceClass}:${e.id}`],analysisScope:'scenario'});});
   manual.append(element('summary','','Referanstan seçilen tek vaka'),manualInfo,manualPolicy,screen,ac,button('Seçili AC vaka JSON',()=>downloadText(JSON.stringify(ctx.n1AcResults,null,2),'GA_N1_AC.local.json','application/json')),button('Vaka ayrıntıları / karşılaştırma',()=>ctx.setView('comparison')));options.N1.append(manual);centers.N1.append(dc.element);
-  const shared=createWorkspaceResults(ctx,true);root.append(tabs,context,panels.LF,panels.N1,panels.SC);let lastOutage=ctx.comparisonOutage;method.onchange=()=>render();
+  const shared=createWorkspaceResults(ctx,true),ytm=createYtmStudyView(ctx);root.append(ytm.element,tabs,context,panels.LF,panels.N1,panels.SC);let lastOutage=ctx.comparisonOutage;method.onchange=()=>render();
   function render(){
+    ytm.render();
     const selected=ctx.analysisTab??'LF',proof=studyEvidence(ctx);root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.evidenceStatus=proof.numerical;
     for(const key of ['LF','N1','SC'] as const){panels[key].hidden=key!==selected;tabButtons.get(key)!.setAttribute('aria-pressed',String(key===selected));}
     if(evidence.parentElement!==panels[selected])panels[selected].append(evidence);if(shared.element.parentElement!==centers[selected])centers[selected].prepend(shared.element);shared.element.hidden=selected==='LF'&&ctx.resultView.source==='GA'&&lfMode.value==='DETAILS'||selected==='N1'&&method.value==='DC';if(!shared.element.hidden)shared.render();

@@ -32,10 +32,14 @@ import {n1ControlEvidence} from '../analysis/contingency-ac/control-evidence';
 import {lfSnapshotIsCurrent} from '../domain/benchmark/post-result-source';
 import {benchmarkControlContext} from '../domain/benchmark/reference';
 import {hasReference} from '../domain/benchmark/reference-slots';
+import {reconcileYtmTimings,finishYtmStudy,ytmStudyIsCurrent,type YtmStudyOptions,type YtmStudyResult} from '../analysis/ytm-study';
+import {engineeringSourceOptions} from '../analysis/short-circuit/engineering-profile';
 
 import {initialResultView,WorkspaceResultCache,workspaceKey,type ScenarioResults} from '../domain/results/workspace';
 
 export class Application implements AppContext {
+  ytmStudy:YtmStudyResult|null=null;
+  private ytmStarted:number|null=null;
   resultView=initialResultView();private workspaceResults=new WorkspaceResultCache();private lastWorkspaceKey='';private lastScenarioId='B0';private lastScenarioBookStamp='';
   analysisTab:AppContext['analysisTab']='LF';helpId:string|null=null;comparisonOutage:AppContext['comparisonOutage']=null;powerFactoryReference:AppContext['powerFactoryReference']=null;
   hybridResult:AppContext['hybridResult']=null;scContext:AppContext['scContext']=null;scResult:AppContext['scResult']=null;
@@ -100,6 +104,22 @@ export class Application implements AppContext {
     try{return await Promise.race([work(),new Promise<never>((_,reject)=>{timer=setTimeout(()=>{this.calculation.cancel('WORKER_TIME_BUDGET');this.calcLoadedHash='';reject(Error('WORKER_TIME_BUDGET'));},Math.max(1,budgetMs));})]);}
     finally{if(timer)clearTimeout(timer);}
   }
+  async runYtmStudy(options:YtmStudyOptions,resume=false):Promise<void>{
+    if(!this.network||this.busy)return;
+    const network=this.network,scenario=structuredClone(this.scenario.current),job=++this.job,started=performance.now(),settingsHash=stableJson(this.analysisSettings.value),budget=options.timeBudgetMs??178000;
+    if(!(budget>0&&budget<=180000)){this.setMessage('YTM zaman bütçesi 0–180 saniye olmalı.');return;}
+    const current=()=>job===this.job&&this.network===network&&scenarioSignature(scenario)===scenarioSignature(this.scenario.current)&&settingsHash===stableJson(this.analysisSettings.value);
+    const previous=resume?this.ytmStudy??undefined:undefined;this.busy=true;this.ytmStudy=previous??null;this.ytmStarted=started;this.setMessage('YTM N-1 + kısa devre · kaynaklar hazırlanıyor');
+    const remaining=()=>Math.max(1,budget-(performance.now()-started));
+    try{
+      const contexts={} as {MAX:NonNullable<AppContext['scContext']>;MIN:NonNullable<AppContext['scContext']>};
+      for(const mode of ['MAX','MIN'] as const){contexts[mode]=await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network,options:options.profile==='STRICT'?{mode}:engineeringSourceOptions(mode,options.profile!=='FAST')});if(!current())return;}
+      this.scContext=contexts.MAX;const prep=performance.now()-started;
+      const result=await this.boundedWorker(async()=>{if(!await this.prepareCalculationWorker(network,job))throw Error('YTM_STALE');return this.calculation.request<YtmStudyResult>({type:'RUN_YTM_STUDY',scenario,contexts,resume:previous,options:{...options,timeBudgetMs:remaining(),analysisSettings:this.analysisSettings.value}});},remaining());
+      if(current()){result.stageMs.SC_SOURCE_PREP+=prep;result.elapsedMs=performance.now()-started;reconcileYtmTimings(result);this.ytmStudy=result;this.hybridResult=result.n1;this.scResult=result.scMax;this.status=`YTM tamamlandı · ${(result.elapsedMs/1000).toFixed(1)} s · ${result.catalog.length} N-1 · ${result.electricalTargets} elektriksel bara · ${result.status}`;}
+    }catch(e){if(current()){if(this.ytmStudy){finishYtmStudy(this.ytmStudy,/TIME_BUDGET|TIMEOUT/.test(String(e))?'BUDGET_EXHAUSTED':'FAILED');this.ytmStudy.elapsedMs=performance.now()-started;this.ytmStudy.messages.push(String(e));}this.status='YTM süre sınırı / tanı · mevcut sonuçlar korundu · '+String(e);}}
+    finally{if(job===this.job){this.ytmStarted=null;this.busy=false;this.notify();}}
+  }
   async runHybrid(options:import('../analysis/contingency-hybrid').HybridOptions,resume=false):Promise<void>{
     if(!this.network||this.busy)return;
     try{assertOperationalLimits(this.network,this.scenario.current,{...DEFAULT_HYBRID_POLICY,...options.policy});}catch(e){this.setMessage(e instanceof Error?e.message:String(e));return;}
@@ -146,7 +166,7 @@ export class Application implements AppContext {
     }catch(e){if(job===this.job)this.status=`GA SC: ${e instanceof Error?e.message:String(e)}`;}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
-  private progress(stage:string,detail?:Record<string,unknown>){const labels:Record<string,string>={MODEL:'Model hazırlanıyor',TOPOLOGY:'Elektriksel topoloji',YBUS:'Ybus hazır',INIT:'Başlangıç değerleri',INNER_NR:'Newton adımı',Q_LIMIT:'Q limiti / PV→PQ',RESULT:'Sonuç hazırlanıyor',QUALITY:'Model kalitesi denetleniyor',N1_CATALOG:'N-1 adayları hazırlanıyor',N1_TOPOLOGY:'N-1 topolojisi sınıflandırılıyor',N1_FACTOR:'N-1 DC matrisi çarpanlara ayrılıyor',N1_SCREEN:'N-1 adayları taranıyor',N1_RESULT:'N-1 sonuçları hazırlanıyor'};
+  private progress(stage:string,detail?:Record<string,unknown>){if(stage==='YTM_CASE_DETAIL'){const identity=this.ytmStudy?.n1?.identity;if(this.ytmStarted!==null&&identity&&typeof detail?.caseId==='string')void this.database.put('hybrid-detail:'+stableJson({identity,caseId:detail.caseId}),detail.detail).catch(()=>{});return;}if(stage==='YTM_CHECKPOINT'){const result=detail?.result as YtmStudyResult|undefined;if(this.ytmStarted!==null&&result&&this.network&&ytmStudyIsCurrent(result,this.network,this.scenario.current)){this.ytmStudy=result;this.hybridResult=result.n1;this.scResult=result.scMax;this.notify();}return;}const labels:Record<string,string>={MODEL:'Model hazırlanıyor',TOPOLOGY:'Elektriksel topoloji',YBUS:'Ybus hazır',INIT:'Başlangıç değerleri',INNER_NR:'Newton adımı',Q_LIMIT:'Q limiti / PV→PQ',RESULT:'Sonuç hazırlanıyor',QUALITY:'Model kalitesi denetleniyor',N1_CATALOG:'N-1 adayları hazırlanıyor',N1_TOPOLOGY:'N-1 topolojisi sınıflandırılıyor',N1_FACTOR:'N-1 DC matrisi çarpanlara ayrılıyor',N1_SCREEN:'N-1 adayları taranıyor',N1_RESULT:'N-1 sonuçları hazırlanıyor'};
     const percent=typeof detail?.percent==='number'?` · %${Math.round(detail.percent)}`:'';
     if(stage.startsWith('N1_')&&stage!=='N1_CATALOG'&&typeof detail?.completed==='number'&&typeof detail.total==='number')this.n1Progress={stage:stage as N1Progress['stage'],completed:detail.completed,total:detail.total,percent:Number(detail.percent)||0,elapsedMs:Number(detail.elapsedMs)||0,screenedSoFar:Number(detail.screenedSoFar)||0,violationCountSoFar:Number(detail.violationCountSoFar)||0,islandingCount:Number(detail.islandingCount)||0,unsupportedCount:Number(detail.unsupportedCount)||0};
     this.status=String(detail?.message||labels[stage]||stage)+(detail?.iteration?` ${detail.iteration}`:'')+(typeof detail?.maxMismatchMW==='number'?` · Δ ${detail.maxMismatchMW.toPrecision(4)} MW`:'')+percent;this.notify();}
@@ -214,7 +234,7 @@ export class Application implements AppContext {
     finally{if(token===this.n1DetailJob){this.n1DetailLoading=false;this.notify();}}
   }
   selectN1Island(islandId:string|null):void{this.selectedN1IslandId=islandId&&this.n1Detail?.outageIslands.some(island=>island.islandId===islandId)?islandId:null;this.notify();}
-  cancel(silent=false){this.stopLoadHeartbeat();this.hybridAbort?.abort();this.hybridAbort=null;if(this.hybridResult&&this.busy){this.hybridResult.status='CANCELLED';for(const c of this.hybridResult.cases)if(c.status==='NOT_RUN_BUDGET'){c.status='CANCELLED';c.reason='USER_CANCELLED';}}++this.job;++this.n1DetailJob;this.n1DetailLoading=false;if(this.loadingModel){this.source.cancel();this.loadingModel=false;}this.calculation.cancel();this.comparison.cancel();this.calcLoadedHash='';this.busy=false;this.n1Progress=null;this.status='Hesap iptal edildi.';if(!silent)this.notify();}
+  cancel(silent=false){if(this.ytmStarted!==null&&this.ytmStudy){finishYtmStudy(this.ytmStudy,'CANCELLED');this.ytmStudy.elapsedMs=performance.now()-this.ytmStarted;}this.ytmStarted=null;this.stopLoadHeartbeat();this.hybridAbort?.abort();this.hybridAbort=null;if(this.hybridResult&&this.busy){this.hybridResult.status='CANCELLED';for(const c of this.hybridResult.cases)if(c.status==='NOT_RUN_BUDGET'){c.status='CANCELLED';c.reason='USER_CANCELLED';}}++this.job;++this.n1DetailJob;this.n1DetailLoading=false;if(this.loadingModel){this.source.cancel();this.loadingModel=false;}this.calculation.cancel();this.comparison.cancel();this.calcLoadedHash='';this.busy=false;this.n1Progress=null;this.status='Hesap iptal edildi.';if(!silent)this.notify();}
   catalog(query:CatalogQuery):Promise<CatalogPage>{return this.source.request({type:'CATALOG',query});}
   select(id:string,sourceClass:string,view?:string){this.selection={id,sourceClass};this.resultView.fid=id;if(view)this.view=view;this.notify();}
   private scenarioUpdated(){this.cancel(true);this.benchmarkMap=null;this.resultStore.selectScenario(this.scenario.selectedId);this.resultStore.role='scenario';if(this.resultView.analysis==='LF'){this.resultView.source='GA';this.resultView.phase='POST';}this.status='Senaryo · Güncel hesap bekleniyor';this.notify();}
