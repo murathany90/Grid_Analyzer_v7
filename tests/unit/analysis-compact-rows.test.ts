@@ -33,3 +33,17 @@ test('LF presentation retains a signed GA minus PF pair only after the existing 
  const gate={status:'COMPARABLE_PARTIAL',reasons:[],lf:{status:'COMPATIBLE',reference:{records:[{kind:'line',fid,name:fid}]}},comparison:{rows:[{kind:'line',status:'MATCHED',matchMethod:'FID',powerFactoryFid:fid,metrics:{pFromMw:metric(-12,-15,'MW'),qFromMvar:metric(3,5,'Mvar')}}]}} as unknown as BenchmarkPreflight;
  seedBenchmarkPreflight(b,n,r,undefined,gate);const row=compactLfRows(ctx,'lines')[0];assert.deepEqual([row.metrics.p.ga,row.metrics.p.pf,row.metrics.p.delta],[-12,-15,3]);assert.equal(row.metrics.q.delta,-2);assert.equal(row.metrics.loading.delta,null);
 });
+
+
+test('failed LF is never labelled converged or exposed as numerical rows',()=>{
+ const {ctx}=analysisUiFixture();ctx.analysisTab='LF';const r=installLfFixture(ctx);r.converged=false;r.status='DIVERGED';
+ assert.doesNotMatch(runEvidence(ctx).label,/Sayısal yakınsadı/);assert.match(runEvidence(ctx).label,/yakınsamadı/);assert.equal(runEvidence(ctx).numericalAvailable,0);
+ for(const kind of ['lines','transformers','buses'] as const)assert.equal(compactLfRows(ctx,kind).length,0);
+});
+test('standalone SC filters YTM and TM before electrical dedup and run counters',()=>{
+ const {ctx}=analysisUiFixture();ctx.analysisTab='SC';ctx.ytmStudy=null;ctx.studyOptions=undefined;
+ const n=ctx.network!;ctx.network={...n,sites:[...n.sites,{...n.sites[0],id:'OTHER',name:'Other TM',areaId:'B'}],buses:n.buses.map(t=>({...t,siteIds:[t.sourceId==='B1'?'STATION':'OTHER']}))};
+ ctx.filters.areaId='A';ctx.filters.siteId='STATION';const rows=compactScRows(ctx);assert.equal(rows.length,1);assert.equal(rows[0].fid,'B1');assert.equal(runEvidence(ctx).electricalBuses,1);assert.equal(runEvidence(ctx).physicalTerminals,1);
+ ctx.filters.siteId='OTHER';assert.equal(compactScRows(ctx).length,0);assert.equal(runEvidence(ctx).electricalBuses,0);
+ ctx.filters.areaId='B';assert.ok(compactScRows(ctx).length>0);assert.ok(compactScRows(ctx).every(r=>r.tm==='Other TM'));
+});

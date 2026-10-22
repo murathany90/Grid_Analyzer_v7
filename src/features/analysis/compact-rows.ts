@@ -8,7 +8,7 @@ import {preflightPowerFactoryReference} from '../../analysis/validation/powerfac
 import {comparePowerFactoryReference} from '../../analysis/validation/powerfactory-reference';
 import {emptyScenario,scenarioSignature} from '../../domain/scenario/overlay';
 import {mapLoadingValues} from '../../domain/results/loading-presentation';
-import {currentHybrid,currentLf,currentStudy,studyOwnsSc} from './presentation-scope';
+import {currentHybrid,currentLf,currentStudy,studyOwnsSc,scFaultsInScope} from './presentation-scope';
 
 export interface Triple {ga:number|null;pf:number|null;delta:number|null;reason:string}
 export interface Overload {caseId:string;fid:string;name:string;cls:string;percent:number;source:'GA_AC'|'GA_DC'|'PF';ytm:string;boundary:boolean;kv:number|null}
@@ -53,7 +53,7 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
  const sc=currentScResult(ctx),n=ctx.network,study=currentStudy(ctx);if(!sc||!n||studyOwnsSc(ctx,sc)&&!study)return [];
  const i=index(n),mode=sc.profile.calculateMode,reference=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw?ytmReferenceRows({identity:{modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,optionsHash:sc.identity.profileHash},scMax:mode==='MAX'?sc:null,scMin:mode==='MIN'?sc:null},n,ctx.benchmark):[],fullRows=new Map(study&&(sc===study.scMax||sc===study.scMin)?ytmScRows(study,n).map(r=>[String(r.FID),r]):[]);
  const refs=new Map(reference.map(r=>[String(r.FID),r])),groups=new Map<string,typeof sc.faults>();
- for(const f of sc.faults){const key=f.electricalBusId??'UNRESOLVED:'+f.physicalTerminalFid,list=groups.get(key)??[];list.push(f);groups.set(key,list);}
+ for(const f of scFaultsInScope(ctx,sc)){const key=f.electricalBusId??'UNRESOLVED:'+f.physicalTerminalFid,list=groups.get(key)??[];list.push(f);groups.set(key,list);}
  const scenarioKnown=scenarioSignature(ctx.scenario.current)===scenarioSignature(emptyScenario());
  return [...groups].map(([electrical,aliases])=>{
   const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(t?.siteIds??[]),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null,ga=f.status==='CALCULATED_NETWORK_APPROXIMATION'?finite(f.ikssKa):null;
@@ -64,7 +64,7 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
 
 export type LfList='lines'|'transformers'|'buses';
 export function compactLfRows(ctx:AppContext,kind:LfList):CompactRow[]{
- const n=ctx.network,r=currentLf(ctx);if(!n||!r)return [];
+ const n=ctx.network,r=currentLf(ctx);if(!n||!r||!r.converged)return [];
  const i=index(n),table=ctx.benchmark?.groups.LF.tables.GA_Reference_Raw,pf=new Map<string,ReturnType<typeof metricRows>[number]>();
  if(table&&ctx.benchmark){const gate=preflightBenchmark(ctx.benchmark,n,r,ctx.powerFactoryControlContextNumericFile);for(const v of metricRows(table,gate,undefined,{network:n,lfResult:r,scenario:ctx.resultStore.role==='base'?emptyScenario():ctx.scenario.current,settings:ctx.analysisSettings.value,diagnostic:true}))pf.set(v.sourceClass+':'+v.fid+':'+v.metric,v);}
  const legacy=new Map<string,Triple>();

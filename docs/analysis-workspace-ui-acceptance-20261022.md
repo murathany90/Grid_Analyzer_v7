@@ -148,3 +148,10 @@ Ortam: Windows, Core Ultra 7 155U / 14 mantıksal CPU / 16,605,564,928 bayt RAM;
 - `tools/browser-smoke.mjs`
 - `tools/pf-benchmark-browser-smoke.ts`
 - `tools/workspace-unification-browser.mjs`
+
+
+## Merge preflight — 23.10.2026
+
+Merge yapılmadı. PR #7/#8/#9 HEAD başlangıçları 9e8c029/d95e502/0284f44 olarak doğrulandı. PR #9 CI #191 success. Hedefli PR #9 düzeltmeleri: LF başarısız fakat kimliği güncel bir girişim artık stale yerine açık yakınsamama durumu gösterir; sayısal sayaç ve listeler boş kalır. Standalone SC için YTM ve TM filtreleri elektriksel tekilleştirmeden önce uygulanır, sayaçlar aynı kapsamı izler; tam hesap/cache değiştirilmez. 11 hedefli test, typecheck/lint, portable build ve 48 görünüm browser kabulü PASS.
+
+Zorunlu gerçek model LF görünüm kanıtı eksik: analysis-ux/REAL-proof.json yalnız N1/SC içerir (32 görünüm); PUBLIC LF sentetiktir. desktop-final-cache-lf-private.png eski Lightning görünümüdür, yeni PR #9 LF listesinin kabulü sayılamaz. Gerçek N1/SC 1810 ekranları okunabilir, mevcut DOM kanıtında taşma yoktur. Bu eksiklik giderilmeden PR zincirinin hiçbiri merge edilmez; yeni kapsamlı hesap/benchmark başlatılmadı. Özel kanıt dosyaları yerelde kalır. Yeni HEAD CI sonucu PR/teslim kaydında ayrıca verilir.
