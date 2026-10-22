@@ -5,9 +5,9 @@ import {studyEvidence} from './study-evidence';
 
 /** Run counters have their own owner. Selecting a case or PF overlay cannot change them. */
 export function runEvidence(ctx:AppContext){
- const family=ctx.analysisTab,study=currentStudy(ctx),h=currentHybrid(ctx),sc=currentScResult(ctx),lf=currentLf(ctx);
+ const family=ctx.analysisTab,study=currentStudy(ctx),h=currentHybrid(ctx),candidate=currentScResult(ctx),sc=ctx.ytmStudy&&(candidate===ctx.ytmStudy.scMax||candidate===ctx.ytmStudy.scMin)&&!study?null:candidate,lf=currentLf(ctx);
  const stale=family==='N1'?!!(ctx.ytmStudy?.n1||ctx.hybridResult)&&!h:family==='SC'?!!ctx.scResult&&!sc:!!ctx.resultStore.active&&!lf;
- const c=h?.counts??{},electrical=new Map(sc?.faults.map(f=>[f.electricalBusId,f])??[]);
+ const c=h?.counts??{},electrical=new Map(sc?.faults.filter(f=>f.electricalBusId!==null).map(f=>[f.electricalBusId,f])??[]);
  const numerical=family==='N1'?(c.AC_CALCULATED??h?.cases.filter(c=>c.acSolved).length??0):family==='SC'?[...electrical.values()].filter(f=>f.ikssKa!==null&&Number.isFinite(f.ikssKa)).length:lf?.buses.length??0;
  const workflow=stale?'STALE_RESULT':ctx.busy?'RUNNING':family==='LF'?lf?.status??'NOT_STARTED':study?.status??(family==='N1'?h?.status:sc?'COMPLETE':null)??'NOT_STARTED';
  return {family,workflow,stale,numericalAvailable:stale?0:numerical,

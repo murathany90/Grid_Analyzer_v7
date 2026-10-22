@@ -1,0 +1,33 @@
+import {scAuditFixture} from './study-audit';
+import type {HybridCase,HybridResult} from '../../src/analysis/contingency-hybrid';
+import type {YtmStudyResult} from '../../src/analysis/ytm-study';
+import {stableJson} from '../../src/domain/calculation/identity';
+import type {AppContext} from '../../src/app/contracts';
+import type {CalculationResult} from '../../src/domain/results/types';
+import {identity} from '../../src/domain/calculation/identity';
+import {analysisSettingsHash} from '../../src/domain/calculation/analysis-settings';
+
+/** PUBLIC SYNTHETIC PRESENTATION fixture. Numbers test display contracts, never physics. */
+export function analysisUiFixture(){
+ const f=scAuditFixture(6278),ctx=f.ctx,n={...f.network,studyCase:'synthetic'},settings=ctx.analysisSettings.value;
+ const lines=Array.from({length:660},(_,j)=>({...n.lines[0],id:'H'+(2182+j),sourceId:'H'+(2182+j),name:j===1?'CAYIRHAN–NALLIHAN':`Türkçe kesinti ${j} · İSTASYON`,vnKv:154,siteIds:['STATION']}));n.lines=lines;
+ const members=new Map<number,string[]>();for(let j=0;j<6278;j++){const key=j%500;members.set(key,[...(members.get(key)??[]),'B'+j]);}
+ n.buses=n.buses.map((t,j)=>({...t,vnKv:j%500===0?66:154}));ctx.network=n;ctx.analysisTab='N1';ctx.resultView.analysis='N1';ctx.filters.areaId='A';
+ const cases=lines.map((e,j):HybridCase=>{const solved=j<28||j===400||j===401,attempted=solved||j>=28&&j<35,dc=j<296;
+  return {candidateId:'ElmLne:'+e.id,outage:{caseId:'N1:ElmLne:'+e.id,sourceClass:'ElmLne',fid:e.id},promotionReasons:[],dcStatus:dc?'SCREENED_NO_VIOLATION':'UNSCREENABLE',status:solved?'PARTIAL_SOLUTION':attempted?'AC_DIVERGED':'NOT_EVALUATED_BUDGET',reason:solved?'CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY':'BUDGET_OR_MISSING_RESULT',acSolved:solved,acAttempted:attempted,iterations:solved?4:null,maxMismatchMw:solved?.001:null,minVpu:solved?.95:null,maxVpu:solved?1.05:null,maxLoadingPercent:solved?120:null,unknownRatings:0,voltageViolations:0,thermalViolations:solved?1:0,components:[],elapsedMs:0,observations:[],metadata:{name:e.name,voltageKv:154,fromYtmIds:['A'],toYtmIds:['A'],topology:'NON_ISLANDING'},...(dc?{dcResult:{equipmentId:e.id,sourceClass:'ElmLne',maxEstimatedLoadingPct:j%2?104.3:90,violationImpacts:j%2?[{equipmentId:lines[1].id,sourceClass:'ElmLne',postEstimatedLoadingPct:104.3}]:[],topImpacts:[] } as unknown as NonNullable<HybridCase['dcResult']>}:{ }),...(solved?{constraintChanges:[{sourceClass:'ElmLne',fid:lines[1].id,metric:'postLoadingPercent',side:'MAX_BOTH_ENDS',base:90,post:120,delta:30,state:'NEW',limit:100,baseSeverity:0,postSeverity:20} as const]}:{})};
+ });
+ const h:HybridResult={method:'GA_DC_TO_FULL_AC',identity:{modelHash:n.modelHash,scenarioHash:f.result([]).identity.scenarioHash,settingsHash:stableJson(settings),optionsHash:'PUBLIC_SYNTHETIC_PRESENTATION'},policy:{operationalLoadingLimitPercent:100} as HybridResult['policy'],filter:{ytmIds:['A']},season:'nominal',phase:'COMPLETE',status:'COMPLETE',reason:'SYNTHETIC_UI_ONLY',studyProfile:'NATIVE_PARTIAL_CONTROLS',base:null,catalogCount:660,excludedCatalogCount:0,cases,counts:{total:660,DC_SCREENED:296,AC_ATTEMPTED:37,AC_CALCULATED:30,AC_NUMERICALLY_SOLVED:30,AC_VERIFIED:0,N1_NUMERICALLY_COMPUTABLE:298},dcDiagnostics:null,elapsedMs:172300};
+ const options={ytmId:'A',profile:'BALANCED' as const,timeBudgetMs:178000,analysisSettings:settings};
+ const faults=Array.from({length:6278},(_,j)=>({...f.fault(j,'CALCULATED_NETWORK_APPROXIMATION'),nominalKv:j%500===0?66:154,electricalBusId:'E'+j%500,physicalTerminalFids:members.get(j%500)!,ikssKa:1+(j%500)/100,skssMva:100+(j%500),zkkOhm:{re:1,im:10}}));
+ const max={...f.result(faults),identity:{...f.result([]).identity,sourceHash:'PUBLIC_MAX'}},min={...f.result(faults.map(v=>({...v,ikssKa:v.ikssKa*.8}))),profile:{...f.result([]).profile,calculateMode:'MIN' as const},identity:{...f.result([]).identity,sourceHash:'PUBLIC_MIN'}};
+ const study:YtmStudyResult={schemaVersion:1,identity:{studyCase:n.studyCase,modelHash:n.modelHash,scenarioHash:h.identity.scenarioHash,optionsHash:stableJson(options)},options,status:'COMPLETE',catalog:lines.map(e=>({candidateId:'ElmLne:'+e.id,equipmentId:e.id,sourceClass:'ElmLne',name:e.name,from:e.from,to:e.to,fromYtmIds:['A'],toYtmIds:['A'],siteIds:e.siteIds,fromSiteIds:e.siteIds,toSiteIds:e.siteIds,representedInReducedModel:true,screenable:true,ratingAvailable:false,exclusionReason:null,vnKv:e.vnKv,topology:'NON_ISLANDING'})) as YtmStudyResult['catalog'],n1:h,scMax:max,scMin:min,faultTargets:faults.map(v=>v.physicalTerminalFid),electricalTargets:500,stageMs:{} as YtmStudyResult['stageMs'],elapsedMs:172300,qualityCounts:{} as YtmStudyResult['qualityCounts'],assumptions:[],messages:['SYNTHETIC_PRESENTATION_ONLY']};
+ // A compatible subset reference for one bus, MAX only. MIN must remain missing.
+ const t=ctx.benchmark!.groups.SC.tables.SC_BusResults_Raw;t.headers=['physicalTerminalFid','nominalKv','calculationBusKey','faultType','calculateMode','rfOhm','xfOhm','ikssKa','skssMva'];t.rows=members.get(1)!.map(fid=>[fid,154,'E1','3PH','MAX',0,0,2,200]);t.rowNumbers=t.rows.map((_,j)=>j+2);
+ ctx.ytmStudy=study;ctx.hybridResult=h;ctx.scResult=max;ctx.studyOptions=options;
+ return {ctx,network:n,study};
+}
+export function installLfFixture(ctx:AppContext){
+ const n=ctx.network!,opts={analysisSettingsHash:analysisSettingsHash(ctx.analysisSettings.value,'powerFlow')},id=identity(n.modelHash,ctx.scenario.current,'powerFlow',opts),bus=n.buses[0],line=n.lines[0];
+ const r:CalculationResult={identity:id,status:'CONVERGED',converged:true,iterations:3,rounds:1,maxMismatchMw:.001,elapsedMs:20,buses:[{id:'E66',name:'66 kV bara',terms:[bus.id],siteIds:bus.siteIds.slice(),vnKv:66,vmPu:1.02,angleRad:0,pMw:0,qMvar:0},{id:'E154',name:'154 kV bara',terms:[n.buses[1].id],siteIds:bus.siteIds.slice(),vnKv:154,vmPu:1.01,angleRad:0,pMw:0,qMvar:0}],branches:[{id:line.id,name:line.name,sourceClass:'ElmLne',from:line.from,to:line.to,siteIds:line.siteIds.slice(),vnKv:154,pf:-12,qf:3,pt:13,qt:-2,ifA:100,itA:101,loading:null,pLoss:1,qLoss:1}],generators:[],diagnostics:{},warnings:['SYNTHETIC_UI_ONLY'],quality:{numericalStatus:'CONVERGED',controlFidelity:'PARTIAL',referenceValidation:'NOT_AVAILABLE'}};
+ ctx.resultStore.expect('base',id);ctx.resultStore.accept('base',r);return r;
+}
