@@ -75,6 +75,7 @@ test('recorded zero converter current is a native input, while absent current re
 test('missing-machine fallback retains every supplied native impedance parameter',async()=>{
  const loaded=await loadBenchmarkModel(syntheticBenchmarkPair().model),raw={...loaded.raw,ElmXnet:undefined,ElmSym:{Attributes:['FID','bus1','outserv','typ_id','ngnum'],Values:[['G','SYN-CX',0,'GT',2]]},TypSym:{Attributes:['FID','rstr','xdss','ugn','sgn'],Values:[['GT',.01,'',100,100]]}},c=adaptShortCircuitSources(raw,loaded.network,undefined,{missingMachineXdssPu:.2,missingMachineRPu:.02,provenance:'MISSING_X_ONLY'});
  const g=c.sources.find(s=>s.fid==='G')!;near(g.rOhm,.5);near(g.xOhm,10);assert.equal(g.parameterStatus,'ASSUMED');
+ const invalid=adaptShortCircuitSources({...raw,TypSym:{...raw.TypSym,Values:[['GT',.01,-.2,100,100]]}},loaded.network,undefined,{missingMachineXdssPu:.2,missingMachineRPu:.02,provenance:'MISSING_ONLY'});assert.match(invalid.sources.find(s=>s.fid==='G')!.reason,/INVALID_UNIT/);
 });
 test('expired study budget reports all targets with null quantities and a resumable ledger',async()=>{
  const n=network(),c=context(n),r=await runYtmStudy(n,emptyScenario(),{MAX:c,MIN:c},{ytmId:'Y',profile:'FAST',timeBudgetMs:.001});assert.equal(r.status,'BUDGET_EXHAUSTED');assert.equal(r.catalog.length,3);assert.equal(ytmScRows(r,n).length,3);assert.ok(ytmScRows(r,n).every(row=>row.Ikss_MAX_kA===null&&row.Ikss_MIN_kA===null&&row.quality===null));assert.equal(r.pendingCounts?.SC_MAX,3);
