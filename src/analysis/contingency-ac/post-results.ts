@@ -2,7 +2,7 @@ import type {CanonicalNetwork} from '../../domain/model/network';
 import type {CalculationResult} from '../../domain/results/types';
 import {capacityLimit,type CapacitySeason} from '../../domain/model/capacity';
 
-export interface PostLoading {currentPercent:number|null;apparentPercent:number|null;operationalPercent:number|null;basis:'CURRENT_A'|'APPARENT_MVA';season:CapacitySeason;fromLimitA:number|null;toLimitA:number|null;ratingMva:number|null;source:string;reason:string}
+export interface PostLoading {currentPercent:number|null;apparentPercent:number|null;operationalPercent:number|null;basis:'CURRENT_A'|'APPARENT_MVA';season:CapacitySeason;fromLimitA:number|null;toLimitA:number|null;ratingMva:number|null;source:string;reason:string;missingRatingCause?:string;sourceCategory?:'TEIAS_VERIFIED'|'MODEL_NOMINAL'|'USER'|'UNKNOWN'}
 export interface PostBranch {sourceClass:string;fid:string;from?:string;to?:string;voltageKv?:number;ytmIds?:string[];tapPosition?:number;angleDifferenceDeg?:number|null;pf:number;qf:number;pt:number;qt:number;ifA:number;itA:number;loading:PostLoading}
 export interface PostMapResults {buses:{terms:string[];vnKv:number;vmPu:number;angleDeg:number;ytmIds?:string[]}[];branches:PostBranch[]}
 /** One denominator definition for queue classification, observations and maps. */
@@ -18,7 +18,8 @@ export function postResultAssembler(n:CanonicalNetwork,r:CalculationResult,seaso
     const apparent=rating!==null?100*Math.max(Math.hypot(b.pf,b.qf),Math.hypot(b.pt,b.qt))/rating:null;
     const basis=b.sourceClass==='ElmLne'?'CURRENT_A':'APPARENT_MVA',operational=basis==='CURRENT_A'?current:apparent;
     const fromAngle=angles.get(e?.from??b.from),toAngle=angles.get(e?.to??b.to);
-    return {sourceClass:b.sourceClass,fid:e?.sourceId??b.id,from:e?.from??b.from,to:e?.to??b.to,voltageKv:b.vnKv,ytmIds:areas(b.siteIds),...e&&'tapPosition' in e?{tapPosition:e.tapPosition}:{},angleDifferenceDeg:fromAngle===undefined||toAngle===undefined?null:Math.atan2(Math.sin(fromAngle-toAngle),Math.cos(fromAngle-toAngle))*180/Math.PI,pf:b.pf,qf:b.qf,pt:b.pt,qt:b.qt,ifA:b.ifA,itA:b.itA,loading:{currentPercent:current,apparentPercent:apparent,operationalPercent:operational,basis,season,fromLimitA:amps,toLimitA:amps,ratingMva:rating,source:limit?.source??(rating!==null?'DGS_TRANSFORMER_RATED_MVA':'MISSING_RATING'),reason:operational===null?'UNKNOWN_RATING':''}};
+    const missingRatingCause=operational!==null?'':b.sourceClass==='ElmScap'?'SERIES_COMPENSATOR_RATING_NOT_IN_CANONICAL_MODEL':!e?'EQUIPMENT_IDENTITY_UNRESOLVED':basis==='CURRENT_A'?!line?.capacity?'NO_LINE_CAPACITY_METADATA':!amps?'NO_VALID_CURRENT_FOR_SELECTED_SEASON':'CURRENT_RESULT_UNAVAILABLE':!rating?'NO_VALID_TRANSFORMER_NOMINAL_MVA':'APPARENT_POWER_UNAVAILABLE';
+    return {sourceClass:b.sourceClass,fid:e?.sourceId??b.id,from:e?.from??b.from,to:e?.to??b.to,voltageKv:b.vnKv,ytmIds:areas(b.siteIds),...e&&'tapPosition' in e?{tapPosition:e.tapPosition}:{},angleDifferenceDeg:fromAngle===undefined||toAngle===undefined?null:Math.atan2(Math.sin(fromAngle-toAngle),Math.cos(fromAngle-toAngle))*180/Math.PI,pf:b.pf,qf:b.qf,pt:b.pt,qt:b.qt,ifA:b.ifA,itA:b.itA,loading:{currentPercent:current,apparentPercent:apparent,operationalPercent:operational,basis,season,fromLimitA:amps,toLimitA:amps,ratingMva:rating,source:limit?.source??(rating!==null?'DGS_TRANSFORMER_RATED_MVA':'MISSING_RATING'),sourceCategory:operational===null?'UNKNOWN':limit?.source.startsWith('Kullanıcı')?'USER':'MODEL_NOMINAL',missingRatingCause,reason:operational===null?'UNKNOWN_RATING':''}};
   })};
 }
 export function postBranchMetric(b:PostBranch,metric:string,side='FROM'):number|null {

@@ -30,3 +30,12 @@ export function auditScPartition(b:BenchmarkPackage,f:ScFaultResult,p:ScProfile,
   for(const c of calc)for(const r of pf)for(const metric of ['ikssKa','skssMva']){const a=c[metric],v=r[metric];if(typeof a==='number'&&typeof v==='number'&&Math.abs(a-v)>Math.max(1e-6,Math.abs(a)*1e-6))reasons.add('RESULT_CONFLICT');}
   return {matched:reasons.size===0,reasons:[...reasons],calculationBusKey:key,gaMembers:gaMembers.size,pfMembers:pfMembers.size,missingGaMembers:members.filter(fid=>!pfMembers.has(fid)).length,extraPfMembers:[...pfMembers].filter(fid=>!gaMembers.has(fid)).length,calculationBusRecords:calc.length};
 }
+/** Diagnostic only: unexported internal terminals may be absent, but observed
+ * members must still form the same partition. Never relax auditScPartition. */
+export function auditScPartitionSubset(b:BenchmarkPackage,f:ScFaultResult,p:ScProfile){
+  const full=auditScPartition(b,f,p),reasons=full.reasons.filter(r=>r!=='MISSING_MEMBERS');
+  if(full.extraPfMembers>0&&!reasons.includes('SOURCE_PARTITION_MISMATCH'))reasons.push('SOURCE_PARTITION_MISMATCH');
+  const overlap=full.gaMembers-full.missingGaMembers;
+  if(overlap===0&&!reasons.includes('SOURCE_PARTITION_MISMATCH'))reasons.push('SOURCE_PARTITION_MISMATCH');
+  return {...full,matched:reasons.length===0,reasons,overlap,scope:'FID_KV_PARTITION_SUBSET_DIAGNOSTIC' as const,referenceValidated:false as const};
+}
