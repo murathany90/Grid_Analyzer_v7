@@ -155,3 +155,29 @@ Ortam: Windows, Core Ultra 7 155U / 14 mantıksal CPU / 16,605,564,928 bayt RAM;
 Merge yapılmadı. PR #7/#8/#9 HEAD başlangıçları 9e8c029/d95e502/0284f44 olarak doğrulandı. PR #9 CI #191 success. Hedefli PR #9 düzeltmeleri: LF başarısız fakat kimliği güncel bir girişim artık stale yerine açık yakınsamama durumu gösterir; sayısal sayaç ve listeler boş kalır. Standalone SC için YTM ve TM filtreleri elektriksel tekilleştirmeden önce uygulanır, sayaçlar aynı kapsamı izler; tam hesap/cache değiştirilmez. 11 hedefli test, typecheck/lint, portable build ve 48 görünüm browser kabulü PASS.
 
 Zorunlu gerçek model LF görünüm kanıtı eksik: analysis-ux/REAL-proof.json yalnız N1/SC içerir (32 görünüm); PUBLIC LF sentetiktir. desktop-final-cache-lf-private.png eski Lightning görünümüdür, yeni PR #9 LF listesinin kabulü sayılamaz. Gerçek N1/SC 1810 ekranları okunabilir, mevcut DOM kanıtında taşma yoktur. Bu eksiklik giderilmeden PR zincirinin hiçbiri merge edilmez; yeni kapsamlı hesap/benchmark başlatılmadı. Özel kanıt dosyaları yerelde kalır. Yeni HEAD CI sonucu PR/teslim kaydında ayrıca verilir.
+
+
+## Son gerçek LF kabulü — 23.10.2026 — PASS
+
+Önceki merge engeli giderildi. Kaynak UI HEAD `ed91faa03bcc4cc89b74cd73e24e41b8711c6f19`; motor/kaynak kodu değiştirilmeden aynı gerçek SN3 LF sonucu geri yüklendi. `map-lightning-audit-SN3-cache-private.json` içindeki LF kimliği: model/DGS SHA256 `f58d958269fd31a95da0203dd0db50db589bac3faec36690bf059e7293943ce6`, boş baz senaryosu, `analysisSettingsHash=7e7c5102`, `controlContextHash=318a3409680c6bb9`; özgün ayarlar geri yüklendi ve mevcut kimlik kapısı current=true döndü. Yakınsama `CONVERGED_FULL_NR`; kısmi kontrol ve PF doğrulanmama etiketleri korundu. Yeni LF/N1/SC hesabı veya benchmark yapılmadı.
+
+Gerçek Orta Anadolu/Y6 listeleri: 306 hat (P: 146 pozitif/159 negatif/1 sıfır), 354 trafo (172 pozitif/182 negatif), 218 elektriksel bara ≥66 kV. Bütün liste satırlarında FID/source native FROM veya HV ucu, MW/MVAr işareti ve bara kV değeri özgün LF sonucuna karşı kontrol edildi. Eksik kapasite ve uyuşmayan yüklenme paydası null kalır. PF LF workbook SHA256 `333f696e50ecbb23e14703415e07cbf72c87f013759a57267948a69c5e5bbde1`, StudyCase 20261007_1400_SN3_TR0 / çalışma zamanı 2026-10-07 14:00:00. Gerçek LF XLSX/sidecar/log üçlüsü mevcut importer/hash/manifest kapısından geçti; PF veya GA sayıları değiştirilmedi.
+
+Karşılaştırma `EXPLORATORY_ONLY`: PowerFactory calculation-setting semantics are unavailable or raw enum-only. Hat ve trafolarda en az bir PF/tanısal fark kaydı 306/354; baralarda PF 25, tanısal fark 24. PF kaydı veya geçerli uç/projeksiyon kanıtı olmayan farklar null; verilen farkların GA−PF olduğu doğrulandı. Bu UI kabulü PF fiziksel paritesi veya IEC doğrulaması değildir; IEC 60909-0:2016 kapıları korunur.
+
+1810 px, 1366 px, 768 px / CSS zoom 1.25 × üç liste = 9 gerçek ekran PASS. Başlıklar iki satırı aşmıyor; document/table yatay overflow=0. 1810 üç liste, 1366 trafo ve 768/%125 hat görselleri ayrıca gözle incelendi. Bu headless CSS zoom kanıtıdır, native browser chrome zoom otomasyonu iddiası değildir. Sayfada uncaught error yok. Sentetik fixture kullanılmadı.
+
+Özel kanıtlar yalnız `local-benchmark-results/analysis-ux/real-lf-final/` altında: dokuz PNG, `proof-private.json` (LF kimliği, native/FID kontrolleri, tüm gerçek liste satırları, PF preflight nedenleri ve DOM ölçümleri) ve `manifest.json` (kaynak HEAD/model hash/LF kimliği ve SHA256). Özel model/PF/PNG/JSON Git'e eklenmez. Sonraki bu commit yalnız kabul belgesidir; güncel HEAD CI sonucu PR ve teslim kaydında belirtilir.
+
+Kanıt SHA256:
+
+- `local-benchmark-results\analysis-ux\real-lf-final\buses-1366-1.png`: `e7d12a3e06541ff7b2d49bf972423464c404c03ea4ab2127845547e7a16a73bb`
+- `local-benchmark-results\analysis-ux\real-lf-final\buses-1810-1.png`: `14fe13b906555fddabb0fc797a08ddf625975aab6e5007a37fcfe060fb6527fb`
+- `local-benchmark-results\analysis-ux\real-lf-final\buses-768-1.25.png`: `65020a4d3c42fbfce69149b01cf62f935732523fc08025ae0d8d31bd0fa2a06b`
+- `local-benchmark-results\analysis-ux\real-lf-final\lines-1366-1.png`: `1229de564e173f7af9abb10fef03fb17c9013305225abdca010fbe4a796995bb`
+- `local-benchmark-results\analysis-ux\real-lf-final\lines-1810-1.png`: `054e360c7487372caf3f703944546e789ca9270e85c4b25d56e14dc10c2bfa72`
+- `local-benchmark-results\analysis-ux\real-lf-final\lines-768-1.25.png`: `167e61b3fabf86f7ec6647d89cc38525faa8a58115acb2fe4961870d1d96adbd`
+- `local-benchmark-results\analysis-ux\real-lf-final\proof-private.json`: `d1b2875e471869d4684d3229eae3e9d71cc61b8745d7b7cdbc3a37e6b5ec1830`
+- `local-benchmark-results\analysis-ux\real-lf-final\transformers-1366-1.png`: `b378ccec2876db1893784f78f217e29157602876f0898bce13f7353118987d36`
+- `local-benchmark-results\analysis-ux\real-lf-final\transformers-1810-1.png`: `7106e2a200569c3f2bf52a90fd3b76c26a840d806019c3fc3ff8098c04892efa`
+- `local-benchmark-results\analysis-ux\real-lf-final\transformers-768-1.25.png`: `b5a730c19149648bc7a685dd41117bebe6cb3a050a6406f82dde30def8db2b78`
