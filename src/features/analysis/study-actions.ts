@@ -7,6 +7,7 @@ import {scBatchProgress,cancelScBatch} from './sc-study-state';
 /** Compact controls delegate to the existing scope, policy, assumption and worker actions. */
 export function createStudyActions(ctx:AppContext,compact=false){
   const root=element('div','ga-study-actions'),mode=element('select'),advanced=element('details','ga-study-actions-options');
+  const combined=button('YTM · N-1 + SC',()=>{ctx.setView('analysis:N1');});combined.title='Tek YTM analizinde Dengeli profil, toplu N-1 ve bara kısa devre sonuçları';root.append(combined);
   mode.setAttribute('aria-label','Harita N-1 yöntemi');mode.innerHTML='<option value="HYBRID">Hibrit DC → AC</option><option value="DC">DC P-only</option><option value="AC">Seçili Full AC</option>';
   const calculations=createCalculationActions(ctx,()=>ctx.resultView.analysis,()=>ctx.comparisonOutage,true);
   advanced.append(element('summary','','Kapsam / ayarlar'),calculations.element);

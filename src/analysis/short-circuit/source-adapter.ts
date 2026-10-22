@@ -3,6 +3,8 @@ export interface ScSource {sourceClass:string;fid:string;bus:string;additionalBu
 export interface ScSourceContext {modelHash:string;sources:ScSource[];audit:ScAuditField[];calculateMode?:'MAX'|'MIN';allowMixedNominalKv?:boolean;assumptions?:string[];adapterOptions?:ScAdapterOptions;invalidBranches:{sourceClass:string;fid:string;reason:string}[]}
 
 export interface ScAdapterOptions {
+  /** Missing source contributions may be omitted only with explicit provenance. Invalid branches stay fatal. */
+  sourcePolicy?:'STRICT'|'ENGINEERING_PARTIAL';
   mode?:'MAX'|'MIN';
   missingMachineXdssPu?:number;missingMachineRPu?:number;
   externalGridFactor?:import('../../importers/powerfactory-benchmark/external-grid-equivalent').ExternalGridFactor;

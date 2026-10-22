@@ -18,6 +18,8 @@ export interface CatalogQuery { className: string; search?: string; siteId?: str
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
+  ytmStudy?:import('../analysis/ytm-study').YtmStudyResult|null;
+  runYtmStudy?(options:import('../analysis/ytm-study').YtmStudyOptions,resume?:boolean):Promise<void>;
   resultView:import('../domain/results/workspace').ResultView;
   analysisTab:'LF'|'N1'|'SC';
   helpId:string|null;

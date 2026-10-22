@@ -31,15 +31,20 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
     const source=sources.at(-1)!;
     if(cls==='ElmSym'){
       const t=machineTypes.get(String(row.typ_id)),count=row.ngnum;
-      if(t&&physical(t.rstr)&&physical(t.xdss)&&t.xdss>0&&physical(t.sgn)&&t.sgn>0&&physical(t.ugn)&&t.ugn>0&&typeof count==='number'&&Number.isInteger(count)&&count>0){
+      const absent=(v:unknown)=>v===null||v===undefined||v===''||v===99999;
+      if(t&&(!absent(t.rstr)&&!physical(t.rstr)||!absent(t.xdss)&&(!physical(t.xdss)||t.xdss===0))){source.reason='INVALID_UNIT: MACHINE_R_X';}
+      else if(t&&physical(t.rstr)&&physical(t.xdss)&&t.xdss>0&&physical(t.sgn)&&t.sgn>0&&physical(t.ugn)&&t.ugn>0&&typeof count==='number'&&Number.isInteger(count)&&count>0){
         const base=t.ugn**2/t.sgn/count;source.rOhm=t.rstr*base;source.xOhm=t.xdss*base;source.reason='';source.sourceRef=`DGS:ElmSym:${row.FID}/TypSym:${row.typ_id}:rstr,xdss pu; ugn kV,sgn MVA,ngnum; uncorrected KG/KKW`;
-      }else if(t&&physical(t.sgn)&&t.sgn>0&&physical(t.ugn)&&t.ugn>0&&typeof count==='number'&&Number.isInteger(count)&&count>0&&physical(options.missingMachineXdssPu)&&options.missingMachineXdssPu>0&&physical(options.missingMachineRPu)&&options.provenance?.trim()){
-        const base=t.ugn**2/t.sgn/count;source.rOhm=options.missingMachineRPu*base;source.xOhm=options.missingMachineXdssPu*base;source.reason='';source.sourceRef=`EXPLICIT_MISSING_MACHINE_PU_ASSUMPTION:${options.provenance}; r=${options.missingMachineRPu},xdss=${options.missingMachineXdssPu}; native TypSym:${row.typ_id}:ugn/sgn and ElmSym:ngnum`;
+      }else if(t&&physical(t.sgn)&&t.sgn>0&&physical(t.ugn)&&t.ugn>0&&typeof count==='number'&&Number.isInteger(count)&&count>0&&(physical(t.rstr)||physical(options.missingMachineRPu))&&(physical(t.xdss)&&t.xdss>0||physical(options.missingMachineXdssPu)&&options.missingMachineXdssPu>0)&&options.provenance?.trim()){
+        const base=t.ugn**2/t.sgn/count,r=physical(t.rstr)?t.rstr:options.missingMachineRPu!,x=physical(t.xdss)&&t.xdss>0?t.xdss:options.missingMachineXdssPu!;source.rOhm=r*base;source.xOhm=x*base;source.reason='';source.sourceRef=`EXPLICIT_MISSING_MACHINE_PU_ASSUMPTION:${options.provenance}; r=${r},xdss=${x}; retained available native fields; TypSym:${row.typ_id}:ugn/sgn and ElmSym:ngnum`;
       }
     }
     if((cls==='ElmGenStat'||cls==='ElmGenstat')&&row.psutype==='fsce'&&row.ngnum===1&&physical(row.Ikss3PF)&&options.converterTerminalBasis===true&&Number.isFinite(options.converterAngleDeg)&&options.provenance?.trim()){
       source.currentKa=options.mode==='MIN'?0:row.Ikss3PF as number;source.currentAngleDeg=options.converterAngleDeg;source.reason='';source.rOhm=null;source.xOhm=null;
       source.sourceRef=`DGS:${cls}:${row.FID}:Ikss3PF native input kA, ngnum=1; ${options.mode??'MAX'}; ${options.mode==='MIN'?'explicit MIN exclusion per PF 2024 §4.1.5':'current injection'}; CONNECTED_TERMINAL basis and angle assumed: ${options.provenance}`;
+    }
+    if((cls==='ElmGenStat'||cls==='ElmGenstat')&&row.psutype==='fsce'&&row.ngnum===1&&row.Ikss3PF===0){
+      source.currentKa=0;source.currentAngleDeg=0;source.rOhm=null;source.xOhm=null;source.reason='';source.sourceRef=`DGS:${cls}:${row.FID}:Ikss3PF=0 kA native recorded value; ngnum=1; zero contribution independent of phase or voltage basis`;
     }
     const override=options.overrides?.find(o=>o.sourceClass===source.sourceClass&&o.fid===source.fid);
     if(override){if(!physical(override.rOhm)||!physical(override.xOhm)||override.xOhm<=0||!override.provenance.trim())throw Error('SC_INVALID_SOURCE_OVERRIDE');source.rOhm=override.rOhm;source.xOhm=override.xOhm;source.currentKa=undefined;source.reason='';source.sourceRef=`EXPLICIT_USER_R_X_OHM:${override.provenance}`;}
@@ -61,5 +66,6 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   }
   if(options.overrides?.some(o=>!sources.some(s=>s.sourceClass===o.sourceClass&&s.fid===o.fid)))throw Error('SC_UNKNOWN_OVERRIDE_FID');
   if(options.allowMixedNominalKv&&!options.provenance?.trim())throw Error('SC_NOMINAL_NORMALIZATION_PROVENANCE_REQUIRED');
+  if(options.sourcePolicy==='ENGINEERING_PARTIAL'&&!options.provenance?.trim())throw Error('SC_PARTIAL_SOURCE_PROVENANCE_REQUIRED');
   return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
 }
