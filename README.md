@@ -1,8 +1,8 @@
 # Grid Analyzer — Şebeke Analiz Sistemi
 
 > **Güncel kod tabanı:** `main` · **Uygulama sürümü:** `8.2.5` · **Doküman revizyonu:** 23.10.2026
-> **İncelenen `main` HEAD:** `87343a3360ce4f28a9bed06437a94601ac166596`
-> **Son doğrulanan CI:** [GitHub Actions — başarılı, 712/712 test](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/39861453409)
+> **Güncel kaynak geçmişi:** [main commitleri](https://github.com/murathany90/Grid_Analyzer_v7/commits/main/)
+> **Güncel CI:** [main dalının validate koşuları](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Amain) — durum ve test sayısı seçilen commitin koşu kaydından kontrol edilir.
 
 Grid Analyzer, **DIgSILENT PowerFactory DGS JSON/ZIP** şebeke verilerini tarayıcıda açıp analiz etmek için geliştirilmiş, Türkçe kullanıcı arayüzüne sahip bir güç sistemi inceleme uygulamasıdır. Envanter, kaynak model kalite denetimi, işletme verileri, harita, trafo merkezi tek hat şeması, senaryo/manevra, yük akışı (LF), N-1/kısıt, kısa devre (SC) ve PowerFactory karşılaştırma iş akışlarını bir araya getirir.
 
@@ -184,7 +184,7 @@ npm run build:portable
 - `npm test`: `tests/unit/*.test.ts` + `tests/regression/*.test.ts`.
 - `npm run test:e2e`: Playwright/Chromium ile sıralı tarayıcı zinciri; SLD, harita, karşılaştırma, model yükleme, N-1/SC, kompakt LF/N-1/SC UI ve dışa aktarma denetimleri.
 - `npm run build:portable`: offline HTML'yi yeniden üretir. CI **kaydedilmiş portable dosya ile yeniden derlenen baytların SHA-256 eşitliğini** zorunlu tutar.
-- GitHub CI `main` HEAD `87343a3` için **712/712** test ve tarayıcı/derleme/portable bayt kontrolleriyle başarılıdır. [Kanıt](https://github.com/murathany90/Grid_Analyzer_v7/actions/runs/39861453409). Bu **kamuya açık sentetik CI** özel gerçek modelleri kullanmaz.
+- GitHub CI `validate` işi tip/lint, unit/regression, tarayıcı, derleme ve portable bayt kontrollerini çalıştırır. [main CI koşularında](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Amain) ilgili commitin sonucu ve test sayısı incelenmelidir; bir koşunun başarısı diğer commitler için doğrulama sayılmaz. Bu **kamuya açık sentetik CI** özel gerçek modelleri kullanmaz.
 - Kullanıcının yerel kabulü: Orta Anadolu gerçek LF görünümünde **306 hat, 354 trafo, 218 bara** ve yatay taşmasız dokuz görünüm bildirilmiştir; gerçek ekran/hash dosyaları **yerel** `local-benchmark-results/analysis-ux/real-lf-final/` altındadır. Bu kabul, PF/IEC parite sertifikası değildir.
 
 ### İsteğe bağlı gerçek-model runner
@@ -241,4 +241,4 @@ Güncel rehberler [belge dizininde](docs/README.md), geçmiş kabul kayıtları 
 
 ---
 
-*Bu README, 23.10.2026 tarihinde belirtilen GitHub `main` HEAD'inin kod/CI incelemesi ve kullanıcının eklediği iki gerçek model + PF referans ZIP envanteri üzerine hazırlanmıştır. Yeni bir gerçek benchmark veya tüm vakalar için PF/IEC parite koşusu yapıldığı iddia edilmez.*
+*Bu README, 23.10.2026 tarihinde GitHub kaynak kodu/CI incelemesi ve kullanıcının eklediği iki gerçek model + PF referans ZIP envanteri üzerine hazırlanmıştır. Yeni bir gerçek benchmark veya tüm vakalar için PF/IEC parite koşusu yapıldığı iddia edilmez.*
