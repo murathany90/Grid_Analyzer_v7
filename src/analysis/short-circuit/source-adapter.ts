@@ -1,6 +1,6 @@
 export interface ScAuditField {sourceClass:string;fid:string;inService:boolean|null;field:string;actualValue:unknown;unit:string;physicalValidation:string;sourceRef:string;IECRequirement:string;status:string;reason:string}
 export interface ScSource {sourceClass:string;fid:string;bus:string;additionalBuses?:string[];inService:boolean;parameterStatus?:'NATIVE'|'ASSUMED'|'UNSUPPORTED';rOhm:number|null;xOhm:number|null;reason:string;sourceRef:string;currentKa?:number;currentAngleDeg?:number}
-export interface ScSourceContext {modelHash:string;sources:ScSource[];audit:ScAuditField[];calculateMode?:'MAX'|'MIN';allowMixedNominalKv?:boolean;assumptions?:string[];adapterOptions?:ScAdapterOptions;invalidBranches:{sourceClass:string;fid:string;reason:string}[]}
+export interface ScSourceContext {modelHash:string;sources:ScSource[];audit:ScAuditField[];calculateMode?:'MAX'|'MIN';allowMixedNominalKv?:boolean;assumptions?:string[];adapterOptions?:ScAdapterOptions;invalidBranches:{sourceClass:string;fid:string;reason:string}[];sequenceData?:import('./sequence-network').ScSequenceData}
 
 export interface ScAdapterOptions {
   /** Missing source contributions may be omitted only with explicit provenance. Invalid branches stay fatal. */

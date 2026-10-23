@@ -67,5 +67,52 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   if(options.overrides?.some(o=>!sources.some(s=>s.sourceClass===o.sourceClass&&s.fid===o.fid)))throw Error('SC_UNKNOWN_OVERRIDE_FID');
   if(options.allowMixedNominalKv&&!options.provenance?.trim())throw Error('SC_NOMINAL_NORMALIZATION_PROVENANCE_REQUIRED');
   if(options.sourcePolicy==='ENGINEERING_PARTIAL'&&!options.provenance?.trim())throw Error('SC_PARTIAL_SOURCE_PROVENANCE_REQUIRED');
-  return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
+  
+  // Extract sequence data for negative and zero sequence calculations
+  const seqLines=new Map<string,import('../../analysis/short-circuit/sequence-network').ScZeroSequenceLine>();
+  for(const l of network.lines){
+    const row=lineRows.get(l.sourceId),parts=sections.get(l.sourceId)??(row?[row]:[]);
+    let r0=0,x0=0,ok=parts.length>0;
+    for(const part of parts){
+      const type=typeLines.get(String(part.typ_id));
+      if(!type||!physical(type.rline0)||!physical(type.xline0)||!physical(part.dline)){ok=false;break;}
+      r0+=Number(type.rline0)*Number(part.dline);x0+=Number(type.xline0)*Number(part.dline);
+    }
+    if(ok&&x0>0)seqLines.set(l.sourceId,{lineId:l.sourceId,r0Ohm:r0,x0Ohm:x0});
+  }
+  const seqTrafos=new Map<string,import('../../analysis/short-circuit/sequence-network').ScZeroSequenceTransformer>();
+  for(const t of network.transformers){
+    const row=transformerRows.get(t.sourceId),type=row?typeTransformers.get(String(row.typ_id)):null;
+    if(type){
+      seqTrafos.set(t.sourceId,{
+        transformerId:t.sourceId,vectorGroupHv:String(type.tr2cn_h??'YN'),vectorGroupLv:String(type.tr2cn_l??'D'),
+        uk0tr:Number(type.uk0tr??type.uktr??0),ur0tr:Number(type.ur0tr??0),x0tor0:Number(type.x0tor0??NaN),
+        re0tr_h:Number(row?.re0tr_h??0),re0tr_l:Number(row?.re0tr_l??0)
+      });
+    }
+  }
+  const groundCompensators:import('../../analysis/short-circuit/sequence-network').ScZeroSequenceGroundCompensator[]=[];
+  for(const row of tables(raw,'ElmNec')){
+    if(row.outserv!==1&&physical(row.R0)&&physical(row.X0)&&Number(row.X0)>0){
+      groundCompensators.push({fid:String(row.FID),bus:endpoint(row.bus1),r0Ohm:Number(row.R0),x0Ohm:Number(row.X0),inService:true});
+    }
+  }
+  const negativeSources=new Map<string,import('../../analysis/short-circuit/sequence-network').ScNegativeSequenceSource>();
+  for(const row of tables(raw,'ElmSym')){
+    const t=machineTypes.get(String(row.typ_id)),count=row.ngnum;
+    if(t&&physical(t.x2sy)&&Number(t.x2sy)>0&&physical(t.sgn)&&physical(t.ugn)&&typeof count==='number'&&count>0){
+      const base=t.ugn**2/t.sgn/count,r2=physical(t.r2sy)?Number(t.r2sy)*base:(options.missingMachineRPu??0.01)*base,x2=Number(t.x2sy)*base;
+      negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmSym',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:x2});
+    }
+  }
+  const zeroSources=new Map<string,{bus:string;r0Ohm:number;x0Ohm:number}>();
+  for(const row of tables(raw,'ElmVac')){
+    if(physical(row.R0)&&physical(row.X0)&&Number(row.X0)>0){
+      zeroSources.set(String(row.FID),{bus:endpoint(row.bus1),r0Ohm:Number(row.R0),x0Ohm:Number(row.X0)});
+    }
+  }
+  const sequenceData:import('../../analysis/short-circuit/sequence-network').ScSequenceData={
+    lines:seqLines,transformers:seqTrafos,groundCompensators,negativeSources,zeroSources
+  };
+  return {modelHash:network.modelHash,sources,audit,invalidBranches,sequenceData,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
 }

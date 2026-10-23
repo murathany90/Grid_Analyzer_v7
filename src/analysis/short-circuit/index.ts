@@ -5,10 +5,11 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {buildTopology} from '../../topology/electrical-topology';
 import type {ScSourceContext} from './source-adapter';
 import {factorPositiveSequence,type SequenceBranch} from './positive-sequence';
+import {buildNegativeSequenceEngine,buildZeroSequenceEngine} from './sequence-network';
 import {IEC_2016,scMethodPreflight,scQuantitySupport,type ScQuantitySupport} from './method-evidence';
 import type {ResultQuality} from '../../domain/results/quality';
 export interface ScProfile {schemaVersion?:2;faultType:'3PH'|'1LG'|'LL'|'2LG';calculateMode:'MAX'|'MIN';voltageFactor:number;factorProvenance:string;edition:null|typeof IEC_2016;frequencyHz?:50|60;breakerOpeningTimeS?:number;thermalClearingTimeS?:number;rfOhm:number;xfOhm:number;maxFaults:number;timeBudgetMs:number}
-export interface ScFaultResult {quality?:ResultQuality;sourceOmissions?:string[];physicalTerminalFid:string;electricalBusId:string|null;physicalTerminalFids:string[];nominalKv:number|null;componentId:number|null;status:'CALCULATED_NETWORK_APPROXIMATION'|'BLOCKED'|'UNSUPPORTED'|'CANCELLED';reasons:string[];quantitySupport?:ScQuantitySupport;zkkOhm:{re:number;im:number}|null;ikssKa:number|null;skssMva:number|null;ipKa:null;ibKa:null;ithKa:null;residual:number|null}
+export interface ScFaultResult {quality?:ResultQuality;sourceOmissions?:string[];physicalTerminalFid:string;electricalBusId:string|null;physicalTerminalFids:string[];nominalKv:number|null;componentId:number|null;status:'CALCULATED_NETWORK_APPROXIMATION'|'BLOCKED'|'UNSUPPORTED'|'CANCELLED';reasons:string[];quantitySupport?:ScQuantitySupport;zkkOhm:{re:number;im:number}|null;z1Ohm?:{re:number;im:number}|null;z2Ohm?:{re:number;im:number}|null;z0Ohm?:{re:number;im:number}|null;ikssKa:number|null;skssMva:number|null;ipKa:null;ibKa:null;ithKa:null;residual:number|null}
 export interface ScResult {workspaceScope?:{ytmId:string;optionsKey:string;settingsHash:string};calculationStandard?:typeof IEC_2016;sourceModelInputs?:ScSourceContext['sources'];timings?:{sourcePreparationMs:number;factorizationMs:number;batchMs:number};schemaVersion?:2;method:'GA_POSITIVE_SEQUENCE_3PH_MAX'|'GA_POSITIVE_SEQUENCE_3PH_MIN'|'GA_IEC60909_2016_PREFLIGHT';methodEvidence?:ReturnType<typeof scMethodPreflight>;identity:{modelHash:string;scenarioHash:string;profileHash:string;sourceHash:string};profile:ScProfile;faults:ScFaultResult[];componentEvidence:{componentId:number;reasons:string[]}[];assumptions:string[];sourceCounts?:Record<string,number>;counts:Record<string,number>;factorizations:number;rhsCount:number;reusedDrivingPoints?:number;dimensions:{dimension:number;nnz:number}[];elapsedMs:number}
 export const APPROXIMATION_ASSUMPTIONS=['SERIES_POSITIVE_SEQUENCE_NETWORK','PASSIVE_LOADS_LINE_CHARGING_AND_SHUNTS_EXCLUDED','TRANSFORMER_UNCORRECTED_KT_UNVERIFIED; PHASE_AS_CANONICAL_MODEL','NO_SILENT_SOURCE_DEFAULTS; EXPLICIT_SOURCE_INPUTS_AND_ASSUMPTIONS_RECORDED','IEC_EDITION_KG_KKW_AND_CMAX_NOT_NORMATIVELY_VERIFIED','IP_IB_ITH_AND_UNBALANCED_FAULTS_NOT_IMPLEMENTED'];
 const hash=(v:unknown)=>Array.from(sha256(new TextEncoder().encode(stableJson(v))),v=>v.toString(16).padStart(2,'0')).join('');
@@ -68,11 +69,13 @@ function prepareSources(network:CanonicalNetwork,scenario:ScenarioOverlay,contex
   const unresolved=context.sources.filter(s=>s.inService&&!s.bus);
   const componentIssues=components.map(group=>[...new Set([...group.flatMap(b=>issues.get(b)??[]),...unresolved.map(s=>`${s.reason}:${s.sourceClass}:${s.fid}`)])]);
   const componentOmissions=components.map(group=>[...new Set(group.flatMap(b=>omissions.get(b)??[]))]);
-  return {busById,topology,branches,componentOf,components,sources,currentSources,componentIssues,componentOmissions,factors:new Map<number,ComponentFactor>()};
+  const negativeEngine=buildNegativeSequenceEngine(topology,network,componentOf,components,branches,sources,context);
+  const zeroEngine=buildZeroSequenceEngine(n,topology,network,context);
+  return {busById,topology,branches,componentOf,components,sources,currentSources,componentIssues,componentOmissions,factors:new Map<number,ComponentFactor>(),negativeEngine,zeroEngine};
 }
 type Preparation={network:CanonicalNetwork;scenarioHash:string;sourceHash:string;value:ReturnType<typeof prepareSources>;users:number;retired:boolean};
 let retained:Preparation|undefined;
-function dispose(entry:Preparation){for(const c of entry.value.factors.values())c.factor.dispose();entry.value.factors.clear();}
+function dispose(entry:Preparation){for(const c of entry.value.factors.values())c.factor.dispose();entry.value.factors.clear();entry.value.negativeEngine?.dispose();entry.value.zeroEngine?.dispose();}
 /** One retained preparation; concurrent callers lease a retired entry until they finish. */
 function acquire(network:CanonicalNetwork,scenario:ScenarioOverlay,context:ScSourceContext){
   const scenarioHash=scenarioSignature(scenario),sourceHash=hash(context);
@@ -110,7 +113,7 @@ export async function calculateThreePhase(network:CanonicalNetwork,scenario:Scen
     const row:ScFaultResult={physicalTerminalFid:terminal,electricalBusId:bus===undefined?null:topology.buses[bus].id,physicalTerminalFids:physical,nominalKv:bus===undefined?null:topology.buses[bus].vnKv,componentId:bus===undefined?null:componentOf[bus],status:'BLOCKED',reasons:[],zkkOhm:null,ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,residual:null};
     result.faults.push(row);
     if(options.signal?.aborted||performance.now()-started>=profile.timeBudgetMs){row.status='CANCELLED';row.reasons=['CANCELLED_OR_TIME_BUDGET'];continue;}
-    if(profile.faultType!=='3PH'){row.reasons=['MISSING_SEQUENCE_FOR_UNBALANCED'];continue;}
+    if(!['3PH','1LG'].includes(profile.faultType)){row.reasons=['MISSING_SEQUENCE_FOR_UNBALANCED'];continue;}
     if(profile.edition===IEC_2016){row.reasons=['NORMATIVE_METHOD_UNVERIFIED',...result.methodEvidence!.blockers];continue;}
     if(bus===undefined||!group||!busById.get(terminal)?.inService){row.reasons=['NO_ACTIVE_FAULT_BUS'];continue;}
     const omitted=componentOmissions[componentOf[bus]];row.sourceOmissions=omitted.length?[`COMPONENT_${componentOf[bus]}: ${omitted.length} UNMODELLED_SOURCES; SEE_COMPONENT_EVIDENCE; BIAS_UNKNOWN`]:[];
@@ -119,11 +122,30 @@ export async function calculateThreePhase(network:CanonicalNetwork,scenario:Scen
     try{let prepared=cache.get(componentOf[bus]);
       if(!prepared){const factorStarted=performance.now(),local=new Map(group.map((b,i)=>[b,i])),factor=factorPositiveSequence(group.length,branches.filter(b=>componentOf[b.a]===componentOf[bus]).map(b=>({...b,a:local.get(b.a)!,b:local.get(b.b)!})),groupSources.map(s=>({...s,bus:local.get(s.bus)!})));const injections=currentSources.filter(s=>componentOf[s.bus]===componentOf[bus]).map(s=>({...s,bus:local.get(s.bus)!}));prepared={local,factor,injection:injections.length?factor.solveInjection(injections):undefined};cache.set(componentOf[bus],prepared);result.timings!.factorizationMs+=performance.now()-factorStarted;result.factorizations++;result.dimensions.push({dimension:factor.dimension,nnz:factor.nnz});}
       const points=prepared.drivingPoints??=new Map(),cached=points.get(bus),solved=cached??prepared.factor.drivingPoint(prepared.local.get(bus)!);if(cached)result.reusedDrivingPoints!++;else{points.set(bus,solved);result.rhsCount++;}const zbase=row.nominalKv!**2/network.baseMva,z={re:solved.zPu.re*zbase,im:solved.zPu.im*zbase};
-      const magnitude=Math.hypot(z.re+profile.rfOhm,z.im+profile.xfOhm),localBus=prepared.local.get(bus)!,injection=prepared.injection,openRe=injection?.voltageRe[localBus]??0,openIm=injection?.voltageIm[localBus]??0,ikss=Math.hypot(profile.voltageFactor+openRe,openIm)*row.nominalKv!/(Math.sqrt(3)*magnitude),skss=Math.sqrt(3)*row.nominalKv!*ikss;
-      if(!(magnitude>0)||!Number.isFinite(ikss)||ikss<=0||!Number.isFinite(skss))throw Error('SC_INVALID_DRIVING_POINT');
-      row.status='CALCULATED_NETWORK_APPROXIMATION';row.quality='ENGINEERING_APPROX';row.reasons=['MISSING_IEC_FACTOR; MISSING_METHOD_OPTION; APPROXIMATION_ONLY',...(row.sourceOmissions.length?['INCOMPLETE_SOURCE_CONTRIBUTIONS; BIAS_UNKNOWN; NOT_A_SAFE_LOWER_OR_UPPER_BOUND']:[])];row.zkkOhm=z;row.ikssKa=ikss;row.skssMva=skss;row.residual=Math.max(solved.residual,prepared.injection?.residual??0);
+      if(profile.faultType==='1LG'){
+        const neg=entry.value.negativeEngine.drivingPoint(bus,z,solved.residual);
+        const z0Res=entry.value.zeroEngine.drivingPoint(bus);
+        if(z0Res.status==='UNEARTHED'||!z0Res.z0Ohm){
+          row.status='BLOCKED';
+          row.quality='NOT_COMPUTABLE';
+          const hasXnet=groupSources.some(s=>context.sources.some(cs=>cs.fid===s.bus?.toString()||cs.sourceClass==='ElmXnet'));
+          row.reasons=[hasXnet?'NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_SOURCE_MODEL:ElmXnet':(z0Res.reason||'ISOLATED_ZERO_SEQUENCE_NETWORK: NO_GROUNDING_PATH')];
+          continue;
+        }
+        const rTot=z.re+neg.z2Ohm.re+z0Res.z0Ohm.re+3*profile.rfOhm,xTot=z.im+neg.z2Ohm.im+z0Res.z0Ohm.im+3*profile.xfOhm;
+        const mag=Math.hypot(rTot,xTot);
+        if(!(mag>0)||!Number.isFinite(mag))throw Error('SC_INVALID_DRIVING_POINT');
+        const ik1=Math.sqrt(3)*profile.voltageFactor*row.nominalKv!/mag,sk1=Math.sqrt(3)*row.nominalKv!*ik1;
+        row.status='CALCULATED_NETWORK_APPROXIMATION';row.quality='ENGINEERING_APPROX';row.reasons=['SEQUENCE_APPROXIMATION_1LG; APPROXIMATION_ONLY',...(row.sourceOmissions.length?['INCOMPLETE_SOURCE_CONTRIBUTIONS; BIAS_UNKNOWN; NOT_A_SAFE_LOWER_OR_UPPER_BOUND']:[]),...(context.allowMixedNominalKv?['COLLAPSED_BUS_BASE_NORMALIZATION_ASSUMED']:[])];
+        row.zkkOhm={re:rTot,im:xTot};row.z1Ohm=z;row.z2Ohm=neg.z2Ohm;row.z0Ohm=z0Res.z0Ohm;row.ikssKa=ik1;row.skssMva=sk1;row.residual=Math.max(solved.residual,neg.residual);
+      }else{
+        const magnitude=Math.hypot(z.re+profile.rfOhm,z.im+profile.xfOhm),localBus=prepared.local.get(bus)!,injection=prepared.injection,openRe=injection?.voltageRe[localBus]??0,openIm=injection?.voltageIm[localBus]??0,ikss=Math.hypot(profile.voltageFactor+openRe,openIm)*row.nominalKv!/(Math.sqrt(3)*magnitude),skss=Math.sqrt(3)*row.nominalKv!*ikss;
+        if(!(magnitude>0)||!Number.isFinite(ikss)||ikss<=0||!Number.isFinite(skss))throw Error('SC_INVALID_DRIVING_POINT');
+        row.status='CALCULATED_NETWORK_APPROXIMATION';row.quality='ENGINEERING_APPROX';row.reasons=['MISSING_IEC_FACTOR; MISSING_METHOD_OPTION; APPROXIMATION_ONLY',...(row.sourceOmissions.length?['INCOMPLETE_SOURCE_CONTRIBUTIONS; BIAS_UNKNOWN; NOT_A_SAFE_LOWER_OR_UPPER_BOUND']:[]),...(context.allowMixedNominalKv?['COLLAPSED_BUS_BASE_NORMALIZATION_ASSUMED']:[])];
+        row.zkkOhm=z;row.z1Ohm=z;row.ikssKa=ikss;row.skssMva=skss;row.residual=Math.max(solved.residual,prepared.injection?.residual??0);
+      }
     }catch(e){row.reasons=[String(e)];}
-    }finally{if(result.faults.length%32===0||result.faults.length===selectedTerminals.length){options.onProgress?.('SC_FAULT',{message:`GA 3PH ${profile.calculateMode} ${result.faults.length}/${selectedTerminals.length} · kalan ${selectedTerminals.length-result.faults.length}`,completed:result.faults.length,total:selectedTerminals.length,percent:100*result.faults.length/selectedTerminals.length});await new Promise<void>(resolve=>setTimeout(resolve,0));}}
+    }finally{if(result.faults.length%32===0||result.faults.length===selectedTerminals.length){options.onProgress?.('SC_FAULT',{message:`GA ${profile.faultType} ${profile.calculateMode} ${result.faults.length}/${selectedTerminals.length} · kalan ${selectedTerminals.length-result.faults.length}`,completed:result.faults.length,total:selectedTerminals.length,percent:100*result.faults.length/selectedTerminals.length});await new Promise<void>(resolve=>setTimeout(resolve,0));}}
   }}finally{release(entry);}
   for(const f of result.faults){if(f.status!=='CANCELLED')f.quality??='NOT_COMPUTABLE';f.quantitySupport=scQuantitySupport(f);result.counts[f.status]=(result.counts[f.status]??0)+1;}result.elapsedMs=performance.now()-started;result.timings!.batchMs=Math.max(0,result.elapsedMs-result.timings!.factorizationMs-result.timings!.sourcePreparationMs);return result;
 }
