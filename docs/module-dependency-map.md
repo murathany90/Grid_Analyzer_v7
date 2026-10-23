@@ -1,5 +1,7 @@
 # Legacy HTML module and dependency map
 
+> Tarihsel v6.8 çıkarım rehberi; güncel TypeScript modül yerleşimi için [README kaynak haritası](../README.md#mimari-ve-kaynak-kod-haritası). Aşağıdaki eski HTML satır numaraları üretim kodunun güncel konumu değildir.
+
 Source inspected: `YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html` (3,404 lines). The line references below are to that file as inspected; keep them until the first extraction commit, then replace them with module/function links. This map is an extraction aid, not a numerical review.
 
 ## Recommended extraction order

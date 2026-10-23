@@ -1,69 +1,177 @@
-﻿# Grid Analyzer
+# Grid Analyzer — Şebeke Analiz Sistemi
 
-Grid Analyzer, DIgSILENT PowerFactory DGS JSON/ZIP şebekelerini tarayıcıda açan ve envanter, harita, tek hat, senaryo, Full AC, Fast AC, DC ve N-1 analizleri sunan istemci uygulamasıdır. Hesaplanan değerler ölçüm değildir; kaynak model, çalışma durumu ve ayarlara bağlıdır. Sürüm **8.2.5**; Full AC motoru sparse KLU/WASM destekli `BrowserJsEngine`dir. `dist-portable/GridAnalyzer_v7.html` çevrimdışı kullanılabilen tek dosyalık derlemedir.
+> **Güncel kod tabanı:** `main` · **Uygulama sürümü:** `8.2.5` · **Doküman revizyonu:** 23.10.2026
+> **Güncel kaynak geçmişi:** [main commitleri](https://github.com/murathany90/Grid_Analyzer_v7/commits/main/)
+> **Güncel CI:** [main dalının validate koşuları](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Amain) — durum ve test sayısı seçilen commitin koşu kaydından kontrol edilir.
 
-## Üretim durumu ve kaynaklar
+Grid Analyzer, **DIgSILENT PowerFactory DGS JSON/ZIP** şebeke verilerini tarayıcıda açıp analiz etmek için geliştirilmiş, Türkçe kullanıcı arayüzüne sahip bir güç sistemi inceleme uygulamasıdır. Envanter, kaynak model kalite denetimi, işletme verileri, harita, trafo merkezi tek hat şeması, senaryo/manevra, yük akışı (LF), N-1/kısıt, kısa devre (SC) ve PowerFactory karşılaştırma iş akışlarını bir araya getirir.
 
-`KARŞILAŞTIRMA` ekranı Model ZIP ve dokuz PowerFactory çıktısından oluşan Benchmark ZIP ile LF/N-1/SC referanslarını açar. Workbook SHA, Study Case, terminal topolojisi ve yöntem kapıları doğrulanmadan sayısal fark üretilmez. N-1 vaka satırından isteğe bağlı GA Full AC doğrulaması çalıştırılır; mevcut DC screening ayrı kalır. SC ekranı PF referansı ve kaynak hazırlığı gösterir; bağımsız IEC motoru henüz hesap üretmez. Benchmark ve gerçek FID içeren exportlar oturumda/yerel dosyada tutulur. Kapsam ve kabul kanıtı: [benchmark raporu](docs/benchmark/IMPLEMENTATION_REPORT.md).
+**Uygulama SCADA/EMS değildir:** Gerçek zamanlı TEİAŞ kumanda veya telemetri bağlantısı yoktur. Çizilen durumlar model/senaryo projeksiyonlarıdır; hesaplanan MW/MVAr/kV/kA değerleri fiziksel ölçüm veya onaylı işletme sınırı değildir. **LF sayısal yakınsaması, N-1 AC kontrol doğrulaması ve IEC 60909/PF paritesi birbirinden farklı kanıt düzeyleridir.**
 
-Full AC, DGS + doğrulanmış ControlContext ile çözülür. PowerFactory sayısal sonuçları yalnızca çözümden sonra frozen-state denetimi ve parity ölçümü için okunur. Üretim çözümünde FID düzeltmesi, PF sonucu araması veya ampirik R/X/B/Q katsayısı yoktur. Doğrulanan son aday `pf-parity-v2-validated` annotated tag'idir. Çalışılan `main` SHA'sı `git rev-parse main` ile okunur; SHA dosyanın kendi commit'ine gömülmez.
+## İçindekiler
 
-Doğrulama girdileri:
+- [Hızlı başlangıç](#hızlı-başlangıç)
+- [Veri formatları ve iki yerel doğrulama modeli](#veri-formatları-ve-iki-yerel-doğrulama-modeli)
+- [Uygulama ekranları](#uygulama-ekranları)
+- [Analiz motorları ve mühendislik sınırları](#analiz-motorları-ve-mühendislik-sınırları)
+- [PowerFactory karşılaştırma ve veri kimliği](#powerfactory-karşılaştırma-ve-veri-kimliği)
+- [Mimari ve kaynak kod haritası](#mimari-ve-kaynak-kod-haritası)
+- [Test, CI ve kabul kanıtları](#test-ci-ve-kabul-kanıtları)
+- [Bilinen sınırlamalar ve geliştirme öncelikleri](#bilinen-sınırlamalar-ve-geliştirme-öncelikleri)
+- [Belgeler ve depo düzeni](#belgeler-ve-depo-düzeni)
+- [Veri güvenliği ve lisanslar](#veri-güvenliği-ve-lisanslar)
 
-| Model | DGS ZIP ve ControlContext | PowerFactory LoadFlow CSV |
-| --- | --- | --- |
-| SN4 | `kontrol1/20261001_1500_SN4_TR0.zip`; `kontrol1/PowerFactory_ControlContext_20261001_1500_SN4_TR0_20261003_224310.csv` | `kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv` |
-| SN7 | `kontrol1/20261004_1600_SN7_TR0.zip`; `kontrol1/PowerFactory_ControlContext_20261004_1600_SN7_TR0_20261005_205516.csv` | `C:/Users/Murathan Yeniceli/Downloads/PowerFactory_LoadFlow_20261004_1600_SN7_TR0_20261005_205516.csv` |
+## Hızlı başlangıç
 
-`kontrol1` içindeki iki Grid Analyzer XLSX sonucu ve PowerFactory station-control DOCX'i korunur. SN7 PowerFactory CSV'si mevcut envanterde Downloads içindedir; doğrulama onu taşımadan okur. Karşılaştırmalar aynı model ve aynı PF export'u kullanır, yalnız ≥66 kV hat/trafo/bara nüfusu üzerinde normalize edilir.
+Geliştirme araçları: **Node.js 22** (GitHub CI ile aynı majör sürüm), `npm`, TypeScript, Vite ve tarayıcı. `npm ci` bağımlılıkları `package-lock.json` üzerinden kurar.
 
-## Full AC denklemleri ve fizik
+```bash
+npm ci
+npm run dev
+```
 
-Her elektrik barasında `I = YV`, `Sᵢ = Vᵢ conj(Iᵢ) = Pᵢ + jQᵢ`. `Pᵢ = |Vᵢ| Σⱼ |Vⱼ|(Gᵢⱼ cos θᵢⱼ + Bᵢⱼ sin θᵢⱼ)` ve `Qᵢ = |Vᵢ| Σⱼ |Vⱼ|(Gᵢⱼ sin θᵢⱼ − Bᵢⱼ cos θᵢⱼ)`. Newton–Raphson, `J Δx = [Pspec−Pcalc, Qspec−Qcalc]` sistemini çözer. Slack açı referansını, PV barası P ve gerilimi, PQ barası P ve Q'yu belirler. Branch uç güçleri çözülmüş kompleks gerilim ve π/admitans modeliyle hesaplanır.
+Terminalde Vite'ın bildirdiği yerel adresi (varsayılan `http://127.0.0.1:5173/`) tarayıcıda açın. Normal ve tek HTML çıktısı:
 
-- Hat: `R = TypLne.rline × dline`, `X = TypLne.xline × dline`, `B = TypLne.bline × 10⁻⁶ × dline`; bölümlü hatlarda `ElmLnesec` değerleri toplanır. `ElmScap` seri kolu `R=0, X=−1/bcap` olarak kullanılır.
-- İki sargılı trafo: `rₒ = pcutr/(1000·strn)`, `|zₒ|=uktr/100`, `xₒ=√max(0,|zₒ|²−rₒ²)`; seri değerler 100 MVA ve fiziksel bara gerilim tabanına dönüştürülür. Tap için geçerli `mTaps` kV değeri, yoksa `dutap` seçilir. HV tarafı no-load `pfe/curmg` admitansı uç P/Q raporunda da bulunur. LV tap seri eşdeğerinde `ρ²` uygulanır: SN4 frozen-state trafo P/Q %0,05529/%0,38859 ile bunu doğrular. Önceki Formula Set'teki `1/ρ²` ifadesi aynı denetimde %4,12/%5,87 verdiği için uygulanmadı.
-- `ElmShnt`: reaktör negatif, kapasitör pozitif Q taşır. Değişken şöntte `ncapa` ile seçilen `mTaps` MVAr kullanılır; sabitte `qrean/qcapn`. `ushnm` ve bağlı baranın nominal kV değeri susceptance tabanını belirler.
-- Kaynaktan çözülemeyen değerler tahmin edilmez; ikame edilir veya çıkarılırsa bu görünür olur. İki sargılı trafo tap oranı çözülemezse veya `0,5–1,6` aralığı dışına düşerse `tap=1,0` ikamesi yapılır ve trafo `tapResolution=FALLBACK_*` ile işaretlenir; iki sargılı trafo dışındaki bir dalın parametresi geçersizse dal uyarıyla çıkarılır. Sayımlar `diagnostics.sourceFidelity` altında, kanıt düzeyi `SOURCE_EXACT` veya `PARTIAL` olarak raporlanır. Değişken şöntün etkin kademesi geçersizse `stepProvenance=INVALID_MTAPS` olarak işaretlenir ve sayım `diagnostics.shuntSource.invalidOrMissingStepEntries` altında verilir.
-- Yükler sabit P/Q'dur. Dağıtılmış aktif dengelemede uygun yüklerin P'si değişir, Q'su kaynak dispatch'ında sabit kalır. Station dışı generator Q da kaynak `qgini` dispatch'ını korur.
+```bash
+npm run build             # dist/
+npm run build:portable    # dist-portable/GridAnalyzer_v7.html
+```
 
-## Integrated station control ve Q sınırları
+`dist-portable/GridAnalyzer_v7.html`, kaynak içe aktarma ve uygulama varlıkları tek dosyada paketlenmiş, yerel model ve hesap işlevleri için **çevrimdışı kullanılabilen** dağıtımdır (harici harita katmanları ağ isteyebilir). Gerçek modeller bu HTML'ye gömülmez. Dağıtımın commit edilmiş baytları GitHub CI'da üretilen HTML ile SHA-256 düzeyinde karşılaştırılır; dosyayı elle düzenlemeyin. İçe aktarma ve hesaplama büyük modellerde yüksek RAM kullanabilir; düşük bellekli ortamlar için performans garantisi verilmez.
 
-Zero-droop controller üyelerinde `Qᵢ = qginiᵢ + Kᵢ·ΔQₛ꜀ₒ`; kaynak `cvqq` varsa `Kᵢ=cvqqᵢ/100`, uygun `imode=0` durumda fallback immutable `pgini` payıdır. Dengelemeden sonraki generator P katılım için kullanılmaz. Signed droop için `Qdroop=Srated·100/ddroop` ve `Vtarget=usetp+Qmeas/Qdroop`; SN4/SN7 desteklenen profilde `pQmeas` ilgili generator cubicle'ıdır. Paylaşılan uzak baralı controllerlar aynı sparse Newton sistemine girer. Çözülen değişkenler arasında `Vm`, `Va`, controller `ΔQ` ve etkin P-dengeleme değişkeni bulunur.
+### İlk model ve referans yükleme
 
-`ElmSym.pQlimType` geçerli `IntQlim` eğrisine işaret ederse `cap_P/cap_Qmn/cap_Qmx` noktaları immutable `pgini` üzerinde doğrusal enterpolasyonla değerlendirilir; uçların dışında uç değer korunur. Eğri geçersiz veya yoksa geçerli doğrudan `cQ_min/cQ_max` kullanılır. Station üyesi Qmin/Qmax'a ulaşınca kalan değişim hareketli üyelere dağıtılır. Sınırdaki üyenin yeniden girmesi denklem artığı yönüyle belirlenir: hedef gerilim daha fazla Q gerektiriyorsa QMIN'deki üye, daha az Q gerektiriyorsa QMAX'daki üye serbest bırakılır. Geçmiş Q-dispatch sapmasının işareti yön kararı olarak kullanılmaz. Genel PV→PQ bus limit geçişi de tek yönlü değildir: sınır kendi Newton çözümünde hâlâ bağlıysa üye emekli edilir, içeride kalıyorsa PV'ye döner; karar tamamlayıcılık koşuludur, histerezis değil. Kaynağın Q limiti vermediği üye sınırsız reaktif kaynak sayılmaz: bandı bilinmeyen bir yetenektir, denklemden çözülür ve sınır uygulanmış gibi raporlanmaz.
+1. **Model Yükle** → `JSON veya ZIP` üzerinden kaynak DGS modelinin **iç model ZIP'ini** seçin (`20261007_1400_SN3_TR0.zip` veya `20261008_1000_SN4_TR0.zip`).
+2. **Karşılaştırma** → `Birleşik veya LF / N-1 / SC referans ZIP` üzerinden **aynı modelin** `Birleşik_LF_N-1_SC_referans_ZIP.zip` dosyasını ekleyin. Model ZIP ile referans ZIP'ini karıştırmayın; bir modelin referansını diğer modele bağlamayın.
+3. **Analizler** → LF/N-1/SC sekmesini, YTM/TM/gerilim/profili seçin. Sonuçların kaynağını ve geçerlilik etiketlerini kontrol edin; gerektiğinde yeni hesap başlatın.
+4. `ControlContext_Raw`, LF PowerFactory kitabının içindedir. **`ControlContext uygula` ayrı ve etkili bir işlemdir**: mevcut hesap kimlikleri geçersiz olur, sonuçları yeniden hesaplamak gerekir.
+5. CSV/XLSX/JSON dışa aktarımlarında `GA`, `PF`, `Δ=GA−PF`, birim, sonuç kimliği, eksik veri ve yöntem kanıtını birlikte değerlendirin.
 
-Etkin station aktif-set sınırları (`maxStationActiveSetRestarts`, `maxStationUnitReleases`) ve controller denklem toleransı gizli sabitler değil, tip ayarlarıdır; `diagnostics.stationControllerSummary.effectiveActiveSetLimits` fiilen kullanılan değerleri raporlar. Doğrulanmış yeniden başlatma bütçesi korunur (SN4 90, SN7 63). Hareketli controller residual'ı, hâlâ Q hareket alanı varken `|Vtarget−Vremote|>0,002 pu` kalmasıdır. Doymuş controllerın aynı residual'ı fiziksel Q sınırının sonucu olabilir; ayrı sayılır. Çözüm sonunda sınırsız/movable residual SN4 ve SN7'de **0**'dır.
+## Veri formatları ve iki yerel doğrulama modeli
 
-## Son PowerFactory karşılaştırması
+Uygulama **PowerFactory `.dgs` metin dosyasını doğrudan okuyor** anlamına gelmez: doğrulanan giriş, sınıf tabloları (`ElmTerm`, `ElmLne`, `ElmTr2`, `StaCubic` vb.) içeren **DGS yapılı JSON** veya bu JSON'un bulunduğu ZIP arşividir. Kaynak giriş ile CanonicalNetwork (hesap modeli) aynı veri temsili değildir.
 
-Normalize ortalama mutlak hata, %. Birincil KPI `abs(|GA|−|PF|)` olarak tanımlıdır ve değiştirilmemiştir. İşaret hatası bu toplama yalnızca küçük tarafın büyüklüğünü kattığı için büyük ters-işaret hataları birincil kapıdan geçebilir; bu nedenle imzalı tanı (signed MAE, p95 ve max `|GA−PF|`, `signDisagreementCount`) ayrı bir `SIGNED_DIAGNOSTICS` kapısıyla değerlendirilir. “Önce” validated `2a163ef8fa2dc6c5d098fe5058eca65569bbb468`; “Sonra” kabul edilen `IntQlim` davranışıdır.
+Yerel, Git'e gönderilmeyen `kontrol1/` klasöründe iki çalışma bulunmaktadır:
 
-| KPI | SN4 önce | SN4 sonra | SN7 önce | SN7 sonra |
-| --- | ---: | ---: | ---: | ---: |
-| Hat P | 0,069348 | **0,067189** | 0,163533 | **0,161739** |
-| Hat Q | 4,779534 | **4,486271** | 5,691946 | **5,068336** |
-| Trafo P | 0,018134 | **0,017830** | 0,085339 | **0,085263** |
-| Trafo Q | 3,727118 | **3,469948** | 4,907454 | **3,901936** |
-| Bara V | 0,079824 | **0,072193** | 0,102358 | **0,094963** |
-| Hizalı açı | 0,133162 | **0,128602** | 0,323144 | **0,313805** |
+| Çalışma | DGS-JSON model ZIP | PowerFactory referansı | Çalışma zamanı |
+|---|---|---|---|
+| **SN3** | `20261007_1400_SN3_TR0.zip` | LF + N-1 + SC; 3 XLSX / 3 manifest / 3 log | 07.10.2026 14:00 |
+| **SN4** | `20261008_1000_SN4_TR0.zip` | LF + N-1 + SC; 3 XLSX / 3 manifest / 3 log | 08.10.2026 10:00 |
 
-| İkincil sonuç | SN4 önce → sonra | SN7 önce → sonra |
-| --- | ---: | ---: |
-| Tüm generator Q MAE, MVAr | 0,212891 → **0,199575** | 0,259819 → **0,192245** |
-| Zero-droop generator Q MAE, MVAr | 1,481989 → **1,384396** | 2,063576 → **1,446401** |
-| Droop generator Q MAE, MVAr | 0,348045 → **0,331702** | 0,393575 → **0,375352** |
-| Hareketli / doymuş residual | 0 / 46 → **0 / 46** | 0 / 41 → **0 / 39** |
-| Karşıt Qmin/Qmax generator sayısı | 5 → **5** | 5 → **5** |
-| Node motor süresi, s | 4,907 → **4,464** | 2,448 → **2,911** |
+Dizin yapısı:
 
-SN4 nüfusu: 2.308 hat, 2.892 trafo, 1.733 bara; SN7: 2.303 hat, 2.846 trafo, 1.726 bara. Station dışı Q MAE sırasıyla yaklaşık `4,0×10⁻⁹` ve `3,4×10⁻⁹` MVAr'dır. Frozen PF state denetiminde SN4 hat P/Q `0,00000361/0,00000838%`, trafo P/Q `0,05529/0,38859%`, bus-Q `0,02574 MVAr`; SN7 `0,00000361/0,00000858%`, `0,07503/0,39472%`, `0,02624 MVAr`.
+```text
+kontrol1/                                 # Yerel ve Git tarafından yok sayılır
+├── 20261007_1400_SN3_TR0_dosyaları/
+│   ├── 20261007_1400_SN3_TR0.zip
+│   └── Birleşik_LF_N-1_SC_referans_ZIP.zip
+├── 20261008_1000_SN4_TR0_dosyaları/
+│   ├── 20261008_1000_SN4_TR0.zip
+│   └── Birleşik_LF_N-1_SC_referans_ZIP.zip
+└── KONTROL1_TEST_VERI_ENVANTERI.md       # Ayrıntılı YEREL envanter / kullanım dosyası
+```
 
-SN7 kalan en büyük Q farkları: ZORLU T7550 HV `258,59 MVAr`, ilişkili H4627 uç Q `230,97 MVAr`; `IntQlim` düzeltmesi KARAKAYA VK1295 total-Q farkını `58,16 → 0,175 MVAr` düşürdü. Beş GA-QMIN/PF-QMAX üyesi hâlâ vardır. Genel λ=0→1 station continuation denemesi bu farkları değiştirmediği için geri alındı. Bu durum mevcut nonlinear aktif sınır seçimi sınırlamasıdır; ekipman denklemleri frozen-state kapısından geçer.
+**Bu README'de yalnızca genel envanter vardır.** Modelin/PowerFactory paketlerinin SHA-256'ları, çalışma kitabı sekmeleri, PF kimliği, N-1 vaka ve SC kapsama sayıları, sınıf envanteri ve kabul kontrol listesi **yerel `kontrol1/KONTROL1_TEST_VERI_ENVANTERI.md`** içindedir. `kontrol1` GitHub'a yüklenmemeli; ağdan herkesin indirebileceği örnek fixture gibi değerlendirilmemelidir. `tests/fixtures/small-dgs.json` ayrı, küçük ve sentetik bir herkese açık test girdisidir.
 
-## Çalıştırma ve doğrulama
+**Eski README uyarısı:** Daha önce kök README'de anılan 2026-10-01 SN4 / 2026-10-04 SN7 yolları bu iki yeni yerel referans paketiyle **aynı veri seti değildir**. Eski yol ve sayısal karşılaştırmalar tarihsel belgelerde bulunabilir; yeni çalışmanın kanıtı olarak otomatik kullanılmaz.
 
-```powershell
+## Uygulama ekranları
+
+Kaynak: `src/app/app-shell.ts`, ilgili `src/features/*` ve `src/map/*` kodu.
+
+| Sekme | İşlev / kullanım | Temel uyarı |
+|---|---|---|
+| **Model Yükle** | DGS JSON/ZIP içe aktarma, kaynak sınıf/uyarı ve kalite özeti | Kaynakta olmayan topoloji uydurulmaz |
+| **Şebeke Envanteri** | TM, hat, trafo, bara, üretim vb. kaynak varlıklarının filtreli tabloları | Fiziksel terminal ile elektriksel bara aynı değildir |
+| **İşletme Verileri** | Yük, üretim, teçhizat/işletme girdileri ve ilgili görünüm | Kaynak veri ile senaryo müdahalesi ayrıdır |
+| **Harita** | CBS konumları, gerilim katmanları, sonuç ve yön okları, Lightning | Nominal kV rengi enerjilenme ya da akış doğruluğu kanıtı değildir |
+| **Tek Hat Şeması** | **Seçili tek TM** için SVG şalt/fider/baralar, anahtarlar, trafo ve analiz bindirmeleri | **Bölgesel tüm YTM şeması henüz ayrı bir mod değildir** |
+| **Analizler** | Tam genişlikli LF, N-1 ve SC sonuçları; filtre/sıralama/sayfalama, detay diyaloğu | Durum/KPI ve yöntem kanıtı sonuca ait olmalıdır |
+| **Karşılaştırma** | Üç referans ailesi, ham/karşılaştırma sekmeleri ve isteğe bağlı tanısal fark | PF referansı GA motor girdisi değildir |
+| **Yardım / Ayarlar** | Bağlamsal açıklamalar, senaryo, analiz ve gösterim seçenekleri | Ayar değişince önceki sonuç `stale` olabilir |
+
+### LF (Yük Akışı) listeleri
+
+- **Hatlar:** kaynak `FROM` ucundaki imzalı P (MW), Q (MVAr), yüklenme (%); GA/PF/Δ.
+- **Trafolar:** kaynak doğrulandığı durumda **HV tarafı** P ve Q; yüklenme kaynak kapasite bazında en yüksek uç değeridir (salt HV yüzdesi değildir); HV'nin kaynaktaki `TO` terminali olabileceği hesaba katılır.
+- **Baralar:** ≥66 kV görünümünde GA U (kV), PF U (kV), ΔU; aynı elektriksel barayı temsil eden terminaller karşılaştırmada eşlenir.
+- Çözüm **yakınsamadıysa** sonuç başarı diye gösterilmez. Bulunmayan PF değeri veya karşılaştırılamayan delta **sıfır değildir**.
+
+### N-1/kısıt listeleri
+
+Varsayılan liste bütün adayları içerir; aday sayısı, DC taranan, AC denenen, AC sayısal çözülen, AC tam kontrol doğrulanan ve farklı DC∪AC kapsama sayaçları **ayrı** tutulur. Kesinti/aşırı yüklenen ekipmanlar listelerinde AC gerçek hesap, DC yaklaşık tarama ve PowerFactory'de **seyrek kaydedilmiş** vakalar farklı kanıt sınıflarıdır. Vaka detayı seçildiğinde POST ve gerekirse önbellekten yükleme görünür; olmayan POST değeri `0` değildir.
+
+### SC/kısa devre listeleri
+
+Görünümde varsayılan `>66 kV` elektriksel bara kapsaması; gerektiğinde fiziksel terminal alias listesi, MAX/MIN modları, GA yaklaşık Ikss (kA), PF referans Ikss ve yalnızca geçerli kimlik/yöntem kapısıyla tanısal fark bulunur. `Skss`, `Zkk`, `ip`, `Ib`, `Ith` gibi alanlar veri/motor desteği yoksa **boş/bilinmiyor** kalır; uydurulmaz.
+
+## Analiz motorları ve mühendislik sınırları
+
+| Analiz | Gerçek uygulama kapsamı | **Ne değildir?** |
+|---|---|---|
+| **Full AC LF** | Newton–Raphson, pozitif sıralı ağ; KLU tabanlı seyrek çözüm; kaynak tip/tap/Q/istasyon kontrol hazırlığı, model/senaryo kimliği | Tüm generatör aktif-set ve reaktif sınırlarının PF'yle birebir doğrulandığı sertifika |
+| **Fast AC / DC** | Hızlı/indirgenmiş analiz ve DC aktif güç yaklaşımı | Tam AC voltaj, reaktif güç veya termik güvenlik kanıtı |
+| **N-1** | Aday kataloğu → DC eleme → seçilmiş vakalarda AC hesap → sınırlı kontrol kanıtı; duraklat/devam/bütçe | 660/664 adayın tamamına Full AC çözümü veya PF tam POST matrisi |
+| **SC 3 faz** | Pozitif bileşen ağ üzerinden yaklaşık Ikss/Skss ve kaynak eksiklik raporu; MAX/MIN mühendislik ayarları | Bağımsız, normatif **IEC 60909-0:2016 doğrulanmış** çözüm veya güvenilir ekipman açma/kesme dayanımı hesap paketi |
+
+N-1 sayısal AC sonucu **`AC_VERIFIED` sayılmaz**; `COMPLETE` çalışma akışının bitmesini, her kesintinin başarılı/kanıtlı olduğunu değil belirtir. YTM kapsamı dışındaki elemanlar N-1 etkilerini etkileyebilir; tarama ve etkiler için ağın elektriksel bütünlüğü korunmalıdır. SC için `FAST_3PH`, `ENGINEERING_EXTENDED`, `IEC_REFERENCE_VERIFIED` profil adları bulunması sonuncusunun sayısal doğrulamadan geçtiği anlamına gelmez. Kodda görünen mühendislik varsayımları normatif kısa devre düzeltme katsayısı olarak kullanılmaz.
+
+Güç akışı temel denklemi `I = Ybus × V`, `S = V × conj(I)`; dengeli AC Newton çözümünde aktif/reaktif artıklar azaltılır. PowerFactory karşılaştırması farklı referans/çözüm durumları arasında sayısal kalibrasyon için değil, **bağımsız uygunluk tanısı** içindir.
+
+## PowerFactory karşılaştırma ve veri kimliği
+
+Referans içe aktarma `src/importers/powerfactory-benchmark`, doğrulama kapıları `src/domain/benchmark` ve arayüz `src/features/comparison` içindedir. Üç birleşik referans `LF`, `N1`, `SC` aileleri olarak yüklenir; her aile **kendi workbook/manifest/exporter sürümünü** taşır. Sürümlerin farklı olması otomatik hata değildir.
+
+1. **Model / study case / scenario:** DGS kaynak kimliği ile referans meta kimliği ve gerekli eşleme profili uyuşmalıdır.
+2. **Topoloji:** Kaynak sınıfı + FID + elektriksel terminal/bara üyeliği ve dal uçları açıkça karşılaştırılmalıdır. Salt benzer isimle fiziksel eşdeğerlik kabul edilmez.
+3. **Çalışma yöntemi:** PF paketinin `effectiveMethod` alanı, aynı yöntem ailesinin beyanıdır; **PF ile Grid Analyzer'ın sayısal algoritma paritesi kanıtı değildir**. LF karşılaştırma `diagnostic` modda yöntem/ayar farkını açıkça gösterebilir.
+4. **Ölçü ve yön:** Hat `FROM`, trafo `HV`, bara `kV`; Δ işaretli `GA−PF`. Ayrı kaynak durumları veya terminal yönleri karşılaştırılmadan yüzdesel hata hesaplanmaz.
+5. **Kapsama:** N-1 **recorded extrema** tam vaka matrisi değildir. SC elektriksel ve fiziksel baralar farklıdır. `NOT_RECORDED`, `UNKNOWN`, `NOT_COMPUTABLE`, `RECORDED_ZERO` aynı statü değildir.
+6. **Kanıt:** SHA-256, model/senaryo/options/source hash, durum, kalite ve koşu süresi alanları sonuca bağlanmalıdır. Sonuç kimliği bozulursa eski sonuç yeni görünümde kullanılmamalıdır.
+
+Referansın LF çalışma kitabında `GA_Reference_Raw` ve `ControlContext_Raw`; N-1'de `N1_Cases_Raw`, `N1_RecordedExtrema_Raw`, `N1_CaseCoverage_Raw`; SC'de `SC_BusResults_Raw`, `SC_CalculationBus_Raw`, `SC_DeviceResults_Raw` bulunur. Yerel envanter kitabı bu sekmeleri ve kaynak durumlarını ayrıntılandırır.
+
+## Mimari ve kaynak kod haritası
+
+**Kanonik akış:**
+
+```mermaid
+flowchart LR
+  A[PowerFactory DGS-JSON / ZIP] --> B[Import Worker ve kaynak katalog]
+  B --> C[CanonicalNetwork]
+  C --> D[Senaryo ve elektriksel topoloji]
+  D --> E[Hesaplama Worker: LF / N-1 / SC]
+  E --> F[Sonuç kimliği ve cache]
+  F --> G[Analizler / Harita / SLD]
+  H[PF LF/N-1/SC benchmark ZIP] --> I[Referans içe aktarma + yöntem kapıları]
+  I --> J[Karşılaştırma]
+  F --> J
+```
+
+| Yol | Sorumluluk |
+|---|---|
+| `src/app` | Uygulama denetleyicisi, sekme kabuğu, kontratlar ve worker yaşam döngüsü |
+| `src/importers/dgs`, `src/importers/model-file.ts` | DGS sınıf tabloları, ZIP seçimi, katalog ve kanonik içe aktarma |
+| `src/importers/powerfactory-benchmark` | OOXML XLSX/ZIP/manifest içe aktarma ve kaynak doğrulaması |
+| `src/domain/model`, `src/domain/scenario`, `src/topology` | Ekipmanlar, kapasite, durum/undo, terminal/topoloji |
+| `src/domain/results`, `src/domain/benchmark` | Çözüm kimliği, durum, cache ve PF eşleme/kanıt kapıları |
+| `src/analysis/power-flow`, `fast-ac`, `dc` | Full NR, hızlı AC ve DC sayısal motorları |
+| `src/analysis/contingency-hybrid`, `contingency-ac`, `ytm-study` | N-1 tarama/AC vakaları, toplu YTM çalışma akışı |
+| `src/analysis/short-circuit` | 3 faz yaklaşık SC, kaynak adapteri ve mühendislik profilleri |
+| `src/features/analysis`, `src/features/comparison` | Kompakt tablolar, KPI/diyalog/filtre/export ve referans UI |
+| `src/features/sld` | Seçili TM'ye ait kaynak kanıtlı SVG tek hat geometrisi |
+| `src/map` | CBS katmanları, Canvas, yön/sonuç ve Lightning |
+| `src/workers`, `src/persistence`, `src/styles` | Worker protokolü, saklama, uygulama stilleri |
+| `tests/unit`, `tests/regression`, `tests/fixtures` | Birim/regresyon ve sentetik test verileri |
+| `tools` | Tarayıcı kabul, test/bütünlük ve gerçek-model yerel denetim araçları |
+
+`src/features/sld/sld-view.ts` kapsamı mevcut sürümde **tek istasyondur** (`station`). Orta Anadolu YTM'nin tüm 400/154 kV TM bağlantılarını gösteren SCADA-benzeri **bölgesel şema** henüz geliştirilmiş değildir; TEİAŞ gerçek SCADA ekranıyla eşdeğer veya kumanda arayüzü olarak sunulmamalıdır.
+
+## Test, CI ve kabul kanıtları
+
+Önerilen doğrulama sırası:
+
+```bash
 npm ci
 npm run typecheck
 npm run lint
@@ -71,23 +179,66 @@ npm test
 npm run test:e2e
 npm run build
 npm run build:portable
-node --import tsx tools/frozen-state-audit.ts
-node --max-old-space-size=6144 --import tsx tools/sn4-parity.ts
-node --import tsx tools/pf-kpi.ts .tmp/sn4-full-ac-result.json kontrol1/PowerFactory_LoadFlow_20261001_1500_SN4_TR0_20261003_224310.csv
-node tools/portable-full-ac-benchmark.mjs
 ```
 
-SN7 için aynı komutlara yukarıdaki ZIP, ControlContext ve Downloads içindeki PF CSV'si verilir. Portable benchmark commit edilmiş `dist-portable` byte'larını kaynakla eşleştirir ve Chromium'da çözer. Son Chromium motor süreleri SN4 **3,09 s**, SN7 **1,89 s**; iki koşuda artifact SHA-256 `7742a11ddbf98328cea4b4c5f4d1093eaa15ada79db3f04586a48261813464a4` kaynakla eşleşti. Full AC motor bütçesi **15 s**'dir.
+- `npm test`: `tests/unit/*.test.ts` + `tests/regression/*.test.ts`.
+- `npm run test:e2e`: Playwright/Chromium ile sıralı tarayıcı zinciri; SLD, harita, karşılaştırma, model yükleme, N-1/SC, kompakt LF/N-1/SC UI ve dışa aktarma denetimleri.
+- `npm run build:portable`: offline HTML'yi yeniden üretir. CI **kaydedilmiş portable dosya ile yeniden derlenen baytların SHA-256 eşitliğini** zorunlu tutar.
+- GitHub CI `validate` işi tip/lint, unit/regression, tarayıcı, derleme ve portable bayt kontrollerini çalıştırır. [main CI koşularında](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Amain) ilgili commitin sonucu ve test sayısı incelenmelidir; bir koşunun başarısı diğer commitler için doğrulama sayılmaz. Bu **kamuya açık sentetik CI** özel gerçek modelleri kullanmaz.
+- Kullanıcının yerel kabulü: Orta Anadolu gerçek LF görünümünde **306 hat, 354 trafo, 218 bara** ve yatay taşmasız dokuz görünüm bildirilmiştir; gerçek ekran/hash dosyaları **yerel** `local-benchmark-results/analysis-ux/real-lf-final/` altındadır. Bu kabul, PF/IEC parite sertifikası değildir.
 
-## Bilinen sınırlar ve geçmiş
+### İsteğe bağlı gerçek-model runner
 
-Kaynak `IntQlim` için voltage-dependent varyantlar, `inputmod` ve parallel-unit ölçekleri tam modellenmemiştir. Kaynağın Q limiti sağlamadığı generator'lar (SN4'te 7, SN7'de 8 istasyon üyesi) sınırsız kabul edilmez; bunlar `MISSING` olarak sınıflandırılır, denklemden çözülür ve hiçbir sınır uygulanmış gibi raporlanmaz. Genel PV'den Q-limit'a ve geri dönüş artık iki yönlüdür; limit yeniden bağlanan üyeler emekli edilir ve `diagnostics.qLimitActiveSet.generic` altında listelenir. Kaynakta olmayan trafo phase shift varsayılarak eklenmez. Full AC N-1 yerine mevcut ≥66 kV DC aktif güç taraması kullanılır. PowerFactory ile kalan SN7 Q outlierları nedeniyle tek tek santral Q sonuçları genel KPI'larla aynı doğrulukta kabul edilmemelidir.
+`npm run test:full` yalnız `kontrol1/<çalışma>_dosyaları/<çalışma>.zip` model arşivlerini keşfeder; PF referans ZIP'i hesap girdisi değildir. Adlar ve model sayısı sabitlenmez. Arşiv boyutu/yol/CRC ve DGS şeması mevcut güvenli importer ile denetlenir. Sonuçlar yalnız Git dışı `local-benchmark-results/full-model-results.json` içine yazılır; eski `docs/validation/full-model-results.json` tarihsel kanıttır.
 
-| Tarihsel aşama | Durum |
-| --- | --- |
-| 8.2.5 ilk Full AC | Altı KPI ve unsupported droop için tarihsel karşılaştırma: `docs/validation/v8.2.5-finalization.md` |
-| Q/V recovery Phase 1–3 | Deneysel geçmiş; üretim semantiği yerine kullanılmaz |
-| Final parity v2 | SN4 frozen-state ve integrated station control doğrulandı |
-| Final quick fix | Geçerli `IntQlim` önceliği kabul edildi; λ-continuation geri alındı |
+```bash
+npm run test:full -- --list  # Yalnız keşif: NOT_RUN; model hesabı yapılmaz
+# İsteğe bağlı env: MODEL_ROOT, MODEL_FILTER; REQUIRE_MODELS=1 eksik modelde exit 2 üretir.
+```
 
-Ayrıntılı mimari: `docs/architecture.md`, DGS kaynak profili: `docs/dgs-source-profile.md`, station-control kaynak notu: `docs/DIgSILENT_ElmStactrl_Aktif_Reaktif_Guc_Oturum_Referansi.md`, testler: `tests/unit` ve `tests/regression`.
+Gerçek hesap çalıştırılırsa baz NR, senaryo AC, Fast AC ve DC yakınsaması birlikte denetlenir. `PASS` yalnız çalıştırılmış ve yakınsamış sayısal regresyonu belirtir; PF/IEC doğrulaması değildir. Kaynak veya filtre eşleşmesi yoksa `SKIP`, hesap hatası/yakınsamama varsa `FAIL` (exit 1) yazılır. Keşif/skip hiçbir zaman gerçek model PASS'i olarak sayılmaz. Bu dokümantasyon turunda büyük model benchmark'ı çalıştırılmadı.
+
+## Bilinen sınırlamalar ve geliştirme öncelikleri
+
+1. **PF sayısal paritesi:** SN3/SN4/N-1/SC gerçek model karşılaştırmalarında yöntem, terminal/kontrol ve ölçü eşlemesi nedeniyle açık tanısal farklar bulunur; `PF parity verified` etiketi verilmez.
+2. **N-1 AC kapsama:** Süre bütçesi/ada/çözüm/kontrol kanıtı bazı vakaları yalnız DC tarama veya denenmedi statüsünde bırakır. `AC_VERIFIED=0`, **AC çözümü yok** anlamına gelmez; tam kontrol kanıtı yoktur.
+3. **SC/IEC:** Hesap **pozitif bileşen mühendislik yaklaşımıdır**. IEC 60909-0:2016 kaynak/topraklama, katkı, düzeltme, ip/Ib/Ith ve PF eşdeğerliği tamamlanmamıştır. Manifestteki `IEC 60909` etiketi PF kaynağının beyanıdır, Grid Analyzer'ın bağımsız doğrulaması değildir.
+4. **SLD:** Seçilen TM için ayrıntılı SVG desteklenir; Orta Anadolu 400/154 kV bölgesel SCADA ağı şu anda mevcut değildir.
+5. **Test verisi yolu:** Aktif gerçek-model runner `kontrol1` ZIP yapısını kullanır; eski baseline araçları yalnız açık `LEGACY_MODEL_JSON` girdisiyle çalıştırılır. `kontrol1/` gizli kalır; yanlışlıkla özel kaynakları Git'e eklemek yasaktır.
+6. **Belgelerin yaşı:** Eski sürüm/araştırma/kabul raporları tarihsel kayıttır. Özellikle mimari belgelerdeki eskimiş “yoktur” ifadeleri güncel kaynak koduna üstün tutulamaz.
+7. **Model ölçeği:** DGS JSON'un bellekte maddileşmesi ve bütün PF workbook'larının ayrıştırılması bellek/CPU tüketir; bütün sonuçların tek ekranda ya da tüm N-1 vakalarının doğrulanmış olması beklenmez.
+
+## Belgeler ve depo düzeni
+
+**Bu dosya tek kök `README.md` olarak kalmalıdır.** Teknik notlar/raporlar `docs/` altındadır. Temel kaynaklar:
+
+| Amaç | Belge |
+|---|---|
+| Mimari başlangıç | [`docs/architecture.md`](docs/architecture.md) |
+| DGS sınıf/veri profili | [`docs/dgs-source-profile.md`](docs/dgs-source-profile.md) |
+| Eski HTML bağımlılık haritası (tarihsel) | [`docs/module-dependency-map.md`](docs/module-dependency-map.md) |
+| PF benchmark sınırları | [`docs/benchmark/IMPLEMENTATION_REPORT.md`](docs/benchmark/IMPLEMENTATION_REPORT.md) |
+| Gerçek SN3 kabulü (tarihsel) | [`docs/benchmark/SN3_OA_INDEPENDENT_ACCEPTANCE.md`](docs/benchmark/SN3_OA_INDEPENDENT_ACCEPTANCE.md) |
+| N-1/SC mühendislik tasarımı | [`docs/n1-sc-engineering-development-20261022.md`](docs/n1-sc-engineering-development-20261022.md) |
+| N-1/SC birleştirme kabulü | [`docs/n1-sc-workspace-unification-acceptance.md`](docs/n1-sc-workspace-unification-acceptance.md) |
+| Analizler yeni UI | [`docs/analysis-workspace-ui-design.md`](docs/analysis-workspace-ui-design.md) · [`kabul`](docs/analysis-workspace-ui-acceptance-20261022.md) |
+| SLD çizim kuralları | [`docs/SLD_DRAWING_RULES.md`](docs/SLD_DRAWING_RULES.md) |
+| Kısa devre metodolojisi | [`docs/short-circuit-architecture.md`](docs/short-circuit-architecture.md) |
+| Yerel iki-model envanteri | `kontrol1/KONTROL1_TEST_VERI_ENVANTERI.md` (**GitHub dışında**) |
+
+Güncel rehberler [belge dizininde](docs/README.md), geçmiş kabul kayıtları [tarihçe dizininde](docs/history/README.md) bulunur. Eski iki kök raporu `docs/history/` altına taşınmıştır. Alt projelerin `future/` README'leri ve kaynak lisans açıklaması kendi bağlamlarında korunur. Boş izlenen test/araç yoktur; isteğe bağlı yerel araçlar ve aktif SLD/regresyon kanıtları korunmuştur.
+
+### Geliştirme/PR politikası
+
+`main` korunur; her değişiklik ayrı feature branch + PR + başarılı `validate` CI ile kabul edilir. Yürürlükteki sonuç sözleşmeleri ve byte-deterministik portable çıktı bozulmamalıdır. Gerçek veri testleri ayrı ve Git dışı tutulur. Veri temizliğinde önce *silme adayları ve kullanım yerleri* listelenir; kullanılmayan dosya ancak gerçek kod/CI referans taraması ve regresyon sonrası kaldırılır.
+
+## Veri güvenliği ve lisanslar
+
+- Gerçek DGS modelleri, PowerFactory XLSX/manifest/log, özel FID/CSV, kabul ekranları, cache dosyaları ve tokenlar **repo/PR/CI'ya yüklenmez**. `.gitignore`, `kontrol1/`, `control1/`, `.local-fixtures/` ve `local-benchmark-results/` yolunu yok sayar; **önceden izlenen dosyaları yalnız `.gitignore` gizlemez**.
+- Modelin ZIP ve referans ZIP içindeki hash/kimlikleri kullanıcıya ait yerel raporda tutulur. Güncel GitHub `main` bu ZIP'leri içermez.
+- Lisans metinleri `licenses/` klasöründe; `klu-js`, `saxes`, `xmlchars`, `@noble/hashes` paketlerinin bildirimleri portable HTML içine dahil edilir. Değişikliklerde bildirimleri koruyun.
+- Bu yazılımın analizleri mühendislik karar desteğidir; tek başına koruma koordinasyonu, devre kesici seçimi, resmi kabul veya SCADA manevra talimatı olarak kullanılamaz.
+
+---
+
+*Bu README, 23.10.2026 tarihinde GitHub kaynak kodu/CI incelemesi ve kullanıcının eklediği iki gerçek model + PF referans ZIP envanteri üzerine hazırlanmıştır. Yeni bir gerçek benchmark veya tüm vakalar için PF/IEC parite koşusu yapıldığı iddia edilmez.*

@@ -45,7 +45,7 @@ Tolerans GA-ENGINEERING-1.0: MW/MVAr/MVA 1 birim + %1×|PF|; kV 0.5 + %0.5×|PF|
 | 66 | line / qFromMvar | 8/8 | 100 | 8/8 = 100 | 9.52078e-05 / 0.000197174 / 0.000197174 Mvar |
 | 66 | line / sFromMva | 8/8 | 100 | 8/8 = 100 | 0.000563211 / 0.00212399 / 0.00212399 MVA |
 
-[120 strata toplulaştırılmış karne](MAIN_INTEGRATION_PF_SCORECARD_20261010.csv); FROM/TO, HV/LV ve Vpu/kV dahildir. ZIP/XLSX, ham FID listesi ve gerçek result JSON'u Git'e alınmadı.
+[120 strata toplulaştırılmış karne](../../MAIN_INTEGRATION_PF_SCORECARD_20261010.csv); FROM/TO, HV/LV ve Vpu/kV dahildir. ZIP/XLSX, ham FID listesi ve gerçek result JSON'u Git'e alınmadı.
 
 ## Silme öncesi dal kaydı
 

@@ -1,4 +1,4 @@
-# Real control1 JSON models are local-only; do not track them with Git or LFS.
+# Real kontrol1 model/reference inputs are local-only; do not track them with Git or LFS.
 
 # The single-file portable build is a release artifact that is benchmarked and hashed
 # byte-for-byte. Its bytes must not depend on the checkout platform.

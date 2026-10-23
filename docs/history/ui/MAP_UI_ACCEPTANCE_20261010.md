@@ -33,15 +33,15 @@ Git'te paylaşılabilen ekran görüntüleri **sentetik smoke şebekesindendir**
 
 | Paylaşılabilir görüntü | Kanıt |
 |---|---|
-| [1920×1080](screenshots/map-ui-20261010/1920.png) | İki satır, nominal renkler, P okları |
-| [1600×900](screenshots/map-ui-20261010/1600.png) | Aynı erişilebilir araç yerleşimi |
-| [1440×900](screenshots/map-ui-20261010/1440.png) | Harita alanı ve filtre hizası |
-| [1366×768](screenshots/map-ui-20261010/1366.png) | Dar masaüstünde ana kontrollerin tamamı |
-| [640 px sonuç paneli](screenshots/map-ui-20261010/results-640.png) | Tablo, arama, sayfa geçişi, LF XLSX |
-| [Panelde senaryolar](screenshots/map-ui-20261010/scenarios-640.png) | Mevcut senaryo kontrolleri, ikinci popup yok |
-| [Analizler](screenshots/map-ui-20261010/analysis.png), [Ayarlar](screenshots/map-ui-20261010/settings.png) | Ortak hizalamalar ve ayrı bilgi ikonlarının kaldırılması |
+| [1920×1080](../../screenshots/map-ui-20261010/1920.png) | İki satır, nominal renkler, P okları |
+| [1600×900](../../screenshots/map-ui-20261010/1600.png) | Aynı erişilebilir araç yerleşimi |
+| [1440×900](../../screenshots/map-ui-20261010/1440.png) | Harita alanı ve filtre hizası |
+| [1366×768](../../screenshots/map-ui-20261010/1366.png) | Dar masaüstünde ana kontrollerin tamamı |
+| [640 px sonuç paneli](../../screenshots/map-ui-20261010/results-640.png) | Tablo, arama, sayfa geçişi, LF XLSX |
+| [Panelde senaryolar](../../screenshots/map-ui-20261010/scenarios-640.png) | Mevcut senaryo kontrolleri, ikinci popup yok |
+| [Analizler](../../screenshots/map-ui-20261010/analysis.png), [Ayarlar](../../screenshots/map-ui-20261010/settings.png) | Ortak hizalamalar ve ayrı bilgi ikonlarının kaldırılması |
 
-Gerçek SN3 ekran görüntüleri özel model adları/FID içerdiğinden Git'e alınmadı. Yerel çalışma klasöründe: [1920](../local-benchmark-results/map-ui-real-1920.png), [1600](../local-benchmark-results/map-ui-real-1600.png), [1440](../local-benchmark-results/map-ui-real-1440.png), [1366](../local-benchmark-results/map-ui-real-1366.png), [Q uç okları](../local-benchmark-results/map-ui-real-q.png), [LF sonuç paneli](../local-benchmark-results/map-ui-real-results.png), [manevra günlüğü](../local-benchmark-results/map-ui-real-scenario.png). Bu yerel bağlantılar uzak depoda bulunmaz.
+Gerçek SN3 ekran görüntüleri özel model adları/FID içerdiğinden Git'e alınmadı. Yerel çalışma klasöründe: 1920 (yerel kanıt: `local-benchmark-results/map-ui-real-1920.png`; GitHub’da yayımlanmaz), 1600 (yerel kanıt: `local-benchmark-results/map-ui-real-1600.png`; GitHub’da yayımlanmaz), 1440 (yerel kanıt: `local-benchmark-results/map-ui-real-1440.png`; GitHub’da yayımlanmaz), 1366 (yerel kanıt: `local-benchmark-results/map-ui-real-1366.png`; GitHub’da yayımlanmaz), Q uç okları (yerel kanıt: `local-benchmark-results/map-ui-real-q.png`; GitHub’da yayımlanmaz), LF sonuç paneli (yerel kanıt: `local-benchmark-results/map-ui-real-results.png`; GitHub’da yayımlanmaz), manevra günlüğü (yerel kanıt: `local-benchmark-results/map-ui-real-scenario.png`; GitHub’da yayımlanmaz). Bu yerel bağlantılar uzak depoda bulunmaz.
 
 ## Tek gerçek SN3 kabulü
 

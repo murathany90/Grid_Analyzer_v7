@@ -27,9 +27,9 @@ LF, N1 ve SC vaka/fault kontrolleri dört viewport'ta ölçüldü. ⚡ paneli en
 
 İki yeni yayımlanan ekran yalnız açık sentetik veridir. Açık sentetik 154 kV kuplaj, ayrık bara sembolünün kabulü içindir; gerçek veriye rota/koordinat eklenmedi.
 
-![1366×768](screenshots/map-desktop-20261011/1366.png)
+![1366×768](../../screenshots/map-desktop-20261011/1366.png)
 
-![1920×1080](screenshots/map-desktop-20261011/1920.png)
+![1920×1080](../../screenshots/map-desktop-20261011/1920.png)
 
 ## Test ve portable kanıtı
 

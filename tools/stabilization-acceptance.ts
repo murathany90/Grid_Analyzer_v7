@@ -12,7 +12,8 @@ import {ilu0} from '../src/analysis/power-flow/js/linear-solver';
 import {emptyScenario,effectiveNetwork} from '../src/domain/scenario/overlay';
 import {buildStationTopologyGraph} from '../src/domain/model/station-topology';
 import type {PowerFlowResult} from '../src/analysis/power-flow/js/types';
-const name='20260923_1200_SN3_TR0.json',started=performance.now(),bytes=await readFile(`control1/${name}`);
+if(!process.env.LEGACY_MODEL_JSON)throw Error('LEGACY_MODEL_JSON must explicitly select the original 20260923 baseline JSON; no current ZIP is substituted.');
+const name='20260923_1200_SN3_TR0.json',started=performance.now(),bytes=await readFile(process.env.LEGACY_MODEL_JSON);
 const hash=createHash('sha256').update(bytes).digest('hex'),source=new DgsModel(JSON.parse(bytes.toString('utf8')),name,bytes.length);await source.build();
 const network=mapCanonical(source,hash),loadMs=performance.now()-started;
 function topology(p:PreparedModel){
