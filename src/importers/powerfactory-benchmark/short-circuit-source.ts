@@ -75,7 +75,7 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
     let r0=0,x0=0,ok=parts.length>0;
     for(const part of parts){
       const type=typeLines.get(String(part.typ_id));
-      if(!type||!physical(type.rline0)||!physical(type.xline0)||!physical(part.dline)){ok=false;break;}
+      if(!type||!physical(type.rline0)||!physical(type.xline0)||!physical(part.dline)||Number(type.xline0)===99999||Number(type.xline0)===999999){ok=false;break;}
       r0+=Number(type.rline0)*Number(part.dline);x0+=Number(type.xline0)*Number(part.dline);
     }
     if(ok&&x0>0)seqLines.set(l.sourceId,{lineId:l.sourceId,r0Ohm:r0,x0Ohm:x0});
@@ -84,31 +84,59 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   for(const t of network.transformers){
     const row=transformerRows.get(t.sourceId),type=row?typeTransformers.get(String(row.typ_id)):null;
     if(type){
+      const vgHv=type.tr2cn_h?String(type.tr2cn_h):undefined;
+      const vgLv=type.tr2cn_l?String(type.tr2cn_l):undefined;
+      const uk0tr=physical(type.uk0tr)&&Number(type.uk0tr)>0&&Number(type.uk0tr)!==99999&&Number(type.uk0tr)!==999999?Number(type.uk0tr):undefined;
+      const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)>0&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
       seqTrafos.set(t.sourceId,{
-        transformerId:t.sourceId,vectorGroupHv:String(type.tr2cn_h??'YN'),vectorGroupLv:String(type.tr2cn_l??'D'),
-        uk0tr:Number(type.uk0tr??type.uktr??0),ur0tr:Number(type.ur0tr??0),x0tor0:Number(type.x0tor0??NaN),
-        re0tr_h:Number(row?.re0tr_h??0),re0tr_l:Number(row?.re0tr_l??0)
+        transformerId:t.sourceId,vectorGroupHv:vgHv,vectorGroupLv:vgLv,
+        uk0tr,ur0tr,x0tor0:physical(type.x0tor0)&&Number(type.x0tor0)!==99999&&Number(type.x0tor0)!==999999?Number(type.x0tor0):undefined,
+        re0tr_h:row?.re0tr_h&&Number(row.re0tr_h)>0?Number(row.re0tr_h):0,
+        re0tr_l:row?.re0tr_l&&Number(row.re0tr_l)>0?Number(row.re0tr_l):0
       });
     }
   }
   const groundCompensators:import('../../analysis/short-circuit/sequence-network').ScZeroSequenceGroundCompensator[]=[];
   for(const row of tables(raw,'ElmNec')){
-    if(row.outserv!==1&&physical(row.R0)&&physical(row.X0)&&Number(row.X0)>0){
-      groundCompensators.push({fid:String(row.FID),bus:endpoint(row.bus1),r0Ohm:Number(row.R0),x0Ohm:Number(row.X0),inService:true});
+    if(row.outserv===1)continue;
+    if(row.iintgnd===1&&(!row.bus1n||row.bus1n==='null'||row.bus1n==='0'))continue;
+    const r0=physical(row.R0)&&Number(row.R0)!==99999?Number(row.R0):0;
+    const x0=physical(row.X0)&&Number(row.X0)!==99999?Number(row.X0):0;
+    if(r0>0||x0>0){
+      const b=endpoint(row.bus1);
+      if(b)groundCompensators.push({fid:String(row.FID),bus:b,r0Ohm:r0,x0Ohm:x0,inService:true});
     }
   }
   const negativeSources=new Map<string,import('../../analysis/short-circuit/sequence-network').ScNegativeSequenceSource>();
   for(const row of tables(raw,'ElmSym')){
+    if(row.outserv===1)continue;
     const t=machineTypes.get(String(row.typ_id)),count=row.ngnum;
-    if(t&&physical(t.x2sy)&&Number(t.x2sy)>0&&physical(t.sgn)&&physical(t.ugn)&&typeof count==='number'&&count>0){
-      const base=t.ugn**2/t.sgn/count,r2=physical(t.r2sy)?Number(t.r2sy)*base:(options.missingMachineRPu??0.01)*base,x2=Number(t.x2sy)*base;
-      negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmSym',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:x2});
+    if(t&&physical(t.x2sy)&&Number(t.x2sy)>0&&Number(t.x2sy)!==99999&&physical(t.sgn)&&physical(t.ugn)&&typeof count==='number'&&count>0){
+      const base=t.ugn**2/t.sgn/count;
+      let r2:number|null=null;
+      if(physical(t.r2sy)&&Number(t.r2sy)>=0&&Number(t.r2sy)!==99999){r2=Number(t.r2sy)*base;}
+      else if(options.missingMachineRPu!==undefined&&options.missingMachineRPu>=0){r2=options.missingMachineRPu*base;}
+      else if(physical(t.r1)&&Number(t.r1)>=0){r2=Number(t.r1)*base;}
+      if(r2!==null){
+        negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmSym',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:Number(t.x2sy)*base});
+      }
+    }
+  }
+  for(const row of tables(raw,'ElmVac')){
+    if(row.outserv===1)continue;
+    const r2=physical(row.R2)&&Number(row.R2)!==99999?Number(row.R2):null;
+    const x2=physical(row.X2)&&Number(row.X2)!==99999?Number(row.X2):null;
+    if(r2!==null&&x2!==null&&(r2>0||x2>0)){
+      negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmVac',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:x2});
     }
   }
   const zeroSources=new Map<string,{bus:string;r0Ohm:number;x0Ohm:number}>();
   for(const row of tables(raw,'ElmVac')){
-    if(physical(row.R0)&&physical(row.X0)&&Number(row.X0)>0){
-      zeroSources.set(String(row.FID),{bus:endpoint(row.bus1),r0Ohm:Number(row.R0),x0Ohm:Number(row.X0)});
+    if(row.outserv===1)continue;
+    const r0=physical(row.R0)&&Number(row.R0)!==99999?Number(row.R0):null;
+    const x0=physical(row.X0)&&Number(row.X0)!==99999?Number(row.X0):null;
+    if(r0!==null&&x0!==null&&(r0>0||x0>0)){
+      zeroSources.set(String(row.FID),{bus:endpoint(row.bus1),r0Ohm:r0,x0Ohm:x0});
     }
   }
   const sequenceData:import('../../analysis/short-circuit/sequence-network').ScSequenceData={
