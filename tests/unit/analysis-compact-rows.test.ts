@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {analysisUiFixture,installLfFixture} from '../helpers/analysis-ui';
-import {compactN1Rows,compactScRows,compactLfRows,sortCompactRows,acStatus} from '../../src/features/analysis/compact-rows';
+import {compactN1Rows,compactScRows,compactLfRows,sortCompactRows,acStatus,type CompactRow} from '../../src/features/analysis/compact-rows';
 import {runEvidence} from '../../src/features/analysis/run-evidence';
 import {selectScMode} from '../../src/domain/results/sc-selection';
 import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../../src/domain/benchmark/comparison';
@@ -46,4 +46,56 @@ test('standalone SC filters YTM and TM before electrical dedup and run counters'
  ctx.filters.areaId='A';ctx.filters.siteId='STATION';const rows=compactScRows(ctx);assert.equal(rows.length,1);assert.equal(rows[0].fid,'B1');assert.equal(runEvidence(ctx).electricalBuses,1);assert.equal(runEvidence(ctx).physicalTerminals,1);
  ctx.filters.siteId='OTHER';assert.equal(compactScRows(ctx).length,0);assert.equal(runEvidence(ctx).electricalBuses,0);
  ctx.filters.areaId='B';assert.ok(compactScRows(ctx).length>0);assert.ok(compactScRows(ctx).every(r=>r.tm==='Other TM'));
+});
+
+test('C.1: SC compact rows integrate 3F and 1F side-by-side with LF operating point and correct blocked/uncomputed states',()=>{
+ const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
+ let rows=compactScRows(ctx);assert.ok(rows.length>0);
+ assert.equal(rows[0].raw.status_1F,'NOT_RUN');assert.equal(rows[0].raw.GA_1F_Ikss_A,null);assert.equal(rows[0].metrics.ikss1F.ga,null);
+ assert.ok(rows.some(r=>r.metrics.voltage?.ga!==null));assert.ok(rows.some(r=>r.metrics.angle?.ga!==null));
+
+ const sc3F=ctx.scResult!;
+ ctx.scResult1Lg={
+  ...sc3F,
+  profile:{...sc3F.profile,faultType:'1LG' as const},
+  identity:{...sc3F.identity,profileHash:'1LG_PROFILE_HASH'},
+  faults:sc3F.faults.map((f,i)=>({
+   ...f,
+   faultType:'1LG' as const,
+   status:i===0?'CALCULATED_NETWORK_APPROXIMATION' as const:'BLOCKED' as const,
+   reasons:i===0?['CALCULATED']:['NOT_COMPUTABLE: no grounding path'],
+   ikssKa:i===0?15.42:null,
+   z1Ohm:{re:.5,im:3.2},
+   z2Ohm:{re:.5,im:3.2},
+   z0Ohm:i===0?{re:1.2,im:7.8}:null
+  }))
+ };
+
+ rows=compactScRows(ctx);
+ const calculatedBus=rows.find(r=>r.fid===ctx.scResult1Lg!.faults[0].physicalTerminalFid);
+ assert.ok(calculatedBus);
+ assert.equal(calculatedBus.raw.status_1F,'CALCULATED_NETWORK_APPROXIMATION');
+ assert.equal(calculatedBus.metrics.ikss1F.ga,15.42);
+ assert.equal(calculatedBus.raw.GA_1F_Ikss_A,15420);
+ assert.equal(calculatedBus.raw.GA_1F_Ikss_kA,15.42);
+ assert.equal(calculatedBus.raw.Z0_R_ohm,1.2);
+ assert.equal(calculatedBus.raw.Z0_X_ohm,7.8);
+ assert.equal(calculatedBus.raw.PF_1F_Ikss_kA,null);
+
+ const blockedBus=rows.find(r=>r.fid===ctx.scResult1Lg!.faults[1].physicalTerminalFid);
+ assert.ok(blockedBus);
+ assert.equal(blockedBus.raw.status_1F,'NOT_COMPUTABLE');
+ assert.equal(blockedBus.metrics.ikss1F.ga,null);
+ assert.equal(blockedBus.raw.GA_1F_Ikss_A,null);
+ assert.match(String(blockedBus.raw.reason_1F),/NOT_COMPUTABLE/);
+
+ const sortedByMax=sortCompactRows(rows,'maxIkss',true);
+ const maxVal=(r:CompactRow)=>Math.max(r.metrics.ikss?.ga??-Infinity,r.metrics.ikss1F?.ga??-Infinity);
+ assert.ok(maxVal(sortedByMax[0])>=maxVal(sortedByMax[sortedByMax.length-1]));
+ const sortedBy1F=sortCompactRows(rows,'ikss1F',true);
+ assert.equal(sortedBy1F[0].fid,calculatedBus.fid);
+ const sortedBy3F=sortCompactRows(rows,'ikss3F',true);
+ assert.ok(sortedBy3F[0].raw.GA_3F_Ikss_kA!>=(sortedBy3F[sortedBy3F.length-1].raw.GA_3F_Ikss_kA??0));
+ const sortedByU=sortCompactRows(rows,'u',true);
+ assert.ok(sortedByU.length>0);
 });

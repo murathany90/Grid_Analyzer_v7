@@ -15,10 +15,11 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
     audit.push({sourceClass:cls,fid:String(row.FID??''),inService:row.outserv===0?true:row.outserv===1?false:null,field,actualValue:v??null,unit,physicalValidation:missing?'MISSING':bad?'NEGATIVE_NONFINITE_OR_SENTINEL':zero?'RECORDED_ZERO':'PRESENT',sourceRef:`DGS:${cls}:${row.FID}:${field}`,IECRequirement:'Positive sequence model / independently verified corrections',status,reason:status==='READY_VERIFIED_SUBSET'?'ATTRIBUTE_ONLY; NOT_NETWORK_READINESS':status});
   }
   const machineTypes=new Map(tables(raw,'TypSym').map(r=>[String(r.FID),r]));
-  const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
+  const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),cubicObj=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.obj_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
   const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999;
   const factor=options.externalGridFactor??externalGridFactor;
   const endpoint=(v:unknown)=>{const id=String(v??'');return cubicles.get(id)??(busIds.has(id)?id:'');};
+  const resolveNeutral=(v:unknown)=>{if(!v||String(v)==='null')return null;const s=String(v);return cubicObj.get(s)||cubicles.get(s)||s;};
   for(const cls of ['ElmXnet','ElmSym','ElmGenStat','ElmGenstat','ElmVac','ElmAsm','ElmVacbi','ElmVsc','ElmVscmono','ElmSvs','ElmTr3','ElmShnt'])for(const row of tables(raw,cls)){
     if(cls==='ElmGenstat'&&raw.ElmGenStat)continue;
     // Shunts are explicitly excluded from this series network approximation (documented in result).
@@ -89,8 +90,8 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
       const uk0tr=physical(type.uk0tr)&&Number(type.uk0tr)>0&&Number(type.uk0tr)!==99999&&Number(type.uk0tr)!==999999?Number(type.uk0tr):undefined;
       const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)>0&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
       const cneutcon=row?.cneutcon!==undefined&&row?.cneutcon!==null?Number(row.cneutcon):0;
-      const bushvn=row?.bushvn&&String(row.bushvn)!=='null'?String(row.bushvn):null;
-      const buslvn=row?.buslvn&&String(row.buslvn)!=='null'?String(row.buslvn):null;
+      const bushvn=resolveNeutral(row?.bushvn);
+      const buslvn=resolveNeutral(row?.buslvn);
       seqTrafos.set(t.sourceId,{
         transformerId:t.sourceId,vectorGroupHv:vgHv,vectorGroupLv:vgLv,
         uk0tr,ur0tr,x0tor0:physical(type.x0tor0)&&Number(type.x0tor0)!==99999&&Number(type.x0tor0)!==999999?Number(type.x0tor0):undefined,

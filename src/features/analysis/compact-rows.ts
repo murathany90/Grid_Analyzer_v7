@@ -1,7 +1,7 @@
 import type {AppContext} from '../../app/contracts';
 import type {HybridCase} from '../../analysis/contingency-hybrid';
 import {ytmN1Rows,ytmScRows,ytmReferenceRows,type StudyExportRow} from '../../analysis/ytm-study/export';
-import {currentScResult} from '../../domain/results/sc-selection';
+import {currentScResult,currentScResult1Lg} from '../../domain/results/sc-selection';
 import {metricRows,preflightBenchmark} from '../../domain/benchmark/comparison';
 import {rowObject} from '../../domain/benchmark/types';
 import {preflightPowerFactoryReference} from '../../analysis/validation/powerfactory-preflight';
@@ -51,14 +51,147 @@ export function compactN1Rows(ctx:AppContext):CompactRow[]{
 
 export function compactScRows(ctx:AppContext):CompactRow[]{
  const sc=currentScResult(ctx),n=ctx.network,study=currentStudy(ctx);if(!sc||!n||studyOwnsSc(ctx,sc)&&!study)return [];
+ const sc1F=currentScResult1Lg(ctx);
  const i=index(n),mode=sc.profile.calculateMode,reference=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw?ytmReferenceRows({identity:{modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,optionsHash:sc.identity.profileHash},scMax:mode==='MAX'?sc:null,scMin:mode==='MIN'?sc:null},n,ctx.benchmark):[],fullRows=new Map(study&&(sc===study.scMax||sc===study.scMin)?ytmScRows(study,n).map(r=>[String(r.FID),r]):[]);
  const refs=new Map(reference.map(r=>[String(r.FID),r])),groups=new Map<string,typeof sc.faults>();
  for(const f of scFaultsInScope(ctx,sc)){const key=f.electricalBusId??'UNRESOLVED:'+f.physicalTerminalFid,list=groups.get(key)??[];list.push(f);groups.set(key,list);}
  const scenarioKnown=scenarioSignature(ctx.scenario.current)===scenarioSignature(emptyScenario());
+
+ // 1LG compatibility: same modelHash, scenarioHash, calculateMode
+ const sc1FCompatible = !!(sc1F && sc1F.identity.modelHash === sc.identity.modelHash && sc1F.identity.scenarioHash === sc.identity.scenarioHash && sc1F.profile.calculateMode === mode);
+ const faults1FByBus = new Map<string, (typeof sc.faults)[number]>();
+ const faults1FByTerm = new Map<string, (typeof sc.faults)[number]>();
+ if (sc1FCompatible && sc1F) {
+   for (const f of sc1F.faults) {
+     if (f.electricalBusId) faults1FByBus.set(f.electricalBusId, f);
+     faults1FByTerm.set(f.physicalTerminalFid, f);
+   }
+ }
+
+ // Load Flow (LF) voltage and angle lookup for matching scenario/model
+ const lf = currentLf(ctx);
+ const lfValid = !!(lf && lf.converged && lf.identity.modelHash === n.modelHash && lf.identity.scenarioHash === sc.identity.scenarioHash);
+ const lfBusByTerm = new Map<string, NonNullable<typeof lf>['buses'][number]>();
+ if (lfValid && lf) {
+   for (const b of lf.buses) {
+     lfBusByTerm.set(b.id, b);
+     for (const term of b.terms) lfBusByTerm.set(term, b);
+   }
+ }
+
  return [...groups].map(([electrical,aliases])=>{
   const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(t?.siteIds??[]),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null,ga=f.status==='CALCULATED_NETWORK_APPROXIMATION'?finite(f.ikssKa):null;
-  const raw={...fullRows.get(f.physicalTerminalFid),FID:f.physicalTerminalFid,electricalBusId:electrical,physicalAliases:JSON.stringify([...new Set(aliases.flatMap(v=>v.physicalTerminalFids))]),TM:place.tm,YTM:place.ytm,kV:f.nominalKv,mode,GA_Ikss_kA:ga,PF_Ikss_kA:pf,delta_kA:delta,Skss_MVA:f.skssMva,Zkk_R_ohm:f.zkkOhm?.re??null,Zkk_X_ohm:f.zkkOhm?.im??null,ip_kA:f.ipKa,Ib_kA:f.ibKa,Ith_kA:f.ithKa,quality:f.quality??null,status:f.status,reason:f.reasons.join('; '),referenceStatus:r?.status??'PF_NOT_RECORDED',standardBasis:'IEC60909-0:2016',IEC_VERIFIED:'false',modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,sourceHash:sc.identity.sourceHash,profileHash:sc.identity.profileHash};
-  return finish({key:electrical,fid:f.physicalTerminalFid,faultId:f.physicalTerminalFid,name:t?.name??f.physicalTerminalFid,cls:'ElmTerm',kv:f.nominalKv,...place,status:f.status,metrics:{ikss:pair(ga,pf,delta,r?.reason?String(r.reason):'PF eşleşmesi/yöntemi doğrulanmadı')},raw,detail:{...raw,mode,physicalTerminalFids:[...new Set(aliases.flatMap(v=>v.physicalTerminalFids))],fault:f,sourceOmissions:f.sourceOmissions??[],assumptions:sc.assumptions,methodEvidence:sc.methodEvidence,comparison:r??null,identity:sc.identity,ip:f.ipKa,Ib:f.ibKa,Ith:f.ithKa}});
+  const status3F = f.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : 'BLOCKED';
+
+  // 1F fault lookup
+  const f1 = sc1FCompatible ? (
+   aliases.map(a => faults1FByTerm.get(a.physicalTerminalFid)).find(x => x?.status === 'CALCULATED_NETWORK_APPROXIMATION')
+   ?? faults1FByTerm.get(f.physicalTerminalFid)
+   ?? faults1FByBus.get(electrical)
+   ?? aliases.map(a => faults1FByTerm.get(a.physicalTerminalFid)).find(Boolean)
+  ) : undefined;
+  const ga1F = f1 && f1.status === 'CALCULATED_NETWORK_APPROXIMATION' ? finite(f1.ikssKa) : null;
+  const status1F = !sc1FCompatible ? 'NOT_RUN' : !f1 ? 'NOT_RUN' : f1.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f1.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : 'BLOCKED';
+  const reason1F = f1 ? f1.reasons.join('; ') : sc1FCompatible ? 'NO_FAULT_RECORD' : '1F_NOT_RUN';
+
+  // LF voltage and angle
+  const lfBus = lfValid ? (lfBusByTerm.get(electrical) ?? aliases.map(a => lfBusByTerm.get(a.physicalTerminalFid)).find(Boolean)) : undefined;
+  const voltageKv = lfBus ? finite(lfBus.vnKv * lfBus.vmPu) : null;
+  const angleDeg = lfBus ? finite((lfBus as {angleDeg?: number; angleRad?: number}).angleDeg ?? (lfBus.angleRad !== undefined ? lfBus.angleRad * 180 / Math.PI : null)) : null;
+
+  const raw = {
+   ...fullRows.get(f.physicalTerminalFid),
+   YTM: place.ytm,
+   TM: place.tm,
+   FID: f.physicalTerminalFid,
+   Bara_FID: f.physicalTerminalFid,
+   Bara_Adi: t?.name ?? f.physicalTerminalFid,
+   name: t?.name ?? f.physicalTerminalFid,
+   electricalBusId: electrical,
+   physicalAliases: JSON.stringify([...new Set(aliases.flatMap(v=>v.physicalTerminalFids))]),
+   Baz_kV: f.nominalKv,
+   kV: f.nominalKv,
+   mode,
+   U_kV: voltageKv,
+   Gerilim_kV: voltageKv,
+   Aci_deg: angleDeg,
+   GA_3F_Ikss_kA: ga,
+   GA_3F_Ikss_A: ga != null ? Math.round(ga * 1000) : null,
+   GA_1F_Ikss_kA: ga1F,
+   GA_1F_Ikss_A: ga1F != null ? Math.round(ga1F * 1000) : null,
+   GA_Ikss_kA: ga,
+   PF_Ikss_kA: pf,
+   delta_kA: delta,
+   PF_1F_Ikss_kA: null,
+   status_3F: status3F,
+   status_1F: status1F,
+   Hesap_Durumu: status3F === 'CALCULATED_NETWORK_APPROXIMATION' && status1F === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : status3F + ' / ' + status1F,
+   reason_3F: f.reasons.join('; '),
+   reason_1F: reason1F,
+   Skss_MVA: f.skssMva,
+   Z1_R_ohm: f1?.z1Ohm?.re ?? null,
+   Z1_X_ohm: f1?.z1Ohm?.im ?? null,
+   Z2_R_ohm: f1?.z2Ohm?.re ?? null,
+   Z2_X_ohm: f1?.z2Ohm?.im ?? null,
+   Z0_R_ohm: f1?.z0Ohm?.re ?? null,
+   Z0_X_ohm: f1?.z0Ohm?.im ?? null,
+   Zkk_R_ohm: f.zkkOhm?.re ?? null,
+   Zkk_X_ohm: f.zkkOhm?.im ?? null,
+   ip_kA: f.ipKa,
+   Ib_kA: f.ibKa,
+   Ith_kA: f.ithKa,
+   quality: f.quality ?? null,
+   status: f.status,
+   reason: f.reasons.join('; '),
+   referenceStatus: r?.status ?? 'PF_NOT_RECORDED',
+   standardBasis: 'IEC60909-0:2016',
+   IEC_VERIFIED: 'false',
+   modelHash: sc.identity.modelHash,
+   scenarioHash: sc.identity.scenarioHash,
+   sourceHash: sc.identity.sourceHash,
+   profileHash: sc.identity.profileHash
+  };
+
+  const metrics: Record<string, Triple> = {
+   ikss: pair(ga, pf, delta, r?.reason ? String(r.reason) : 'PF eşleşmesi/yöntemi doğrulanmadı'),
+   ikss1F: pair(ga1F, null, null, reason1F || 'PF 1F referansı yok'),
+   voltage: pair(voltageKv, null, null, lfBus ? 'LF AC' : 'LF çözümü yok'),
+   angle: pair(angleDeg, null, null, lfBus ? 'LF AC' : 'LF çözümü yok')
+  };
+
+  return finish({
+   key: electrical,
+   fid: f.physicalTerminalFid,
+   faultId: f.physicalTerminalFid,
+   name: t?.name ?? f.physicalTerminalFid,
+   cls: 'ElmTerm',
+   kv: f.nominalKv,
+   ...place,
+   status: f.status,
+   metrics,
+   raw,
+   detail: {
+     ...raw,
+     mode,
+     physicalTerminalFids: [...new Set(aliases.flatMap(v=>v.physicalTerminalFids))],
+     fault: f,
+     fault1F: f1 ?? null,
+     z1Ohm: f1?.z1Ohm ?? null,
+     z2Ohm: f1?.z2Ohm ?? null,
+     z0Ohm: f1?.z0Ohm ?? null,
+     zkkOhm: f.zkkOhm ?? null,
+     lfBus: lfBus ?? null,
+     sourceOmissions: f.sourceOmissions ?? [],
+     assumptions: sc.assumptions,
+     methodEvidence: sc.methodEvidence,
+     methodEvidence1F: sc1F?.methodEvidence ?? null,
+     comparison: r ?? null,
+     identity: sc.identity,
+     ip: f.ipKa,
+     Ib: f.ibKa,
+     Ith: f.ithKa
+   }
+  });
  }).sort((a,b)=>a.tm.localeCompare(b.tm,'tr')||a.name.localeCompare(b.name,'tr'));
 }
 
@@ -80,6 +213,25 @@ export function compactLfRows(ctx:AppContext,kind:LfList):CompactRow[]{
  });
 }
 export function sortCompactRows(rows:readonly CompactRow[],key:string,descending=false){
- const value=(r:CompactRow):string|number|null=>key==='kv'?r.kv:key==='loading'?r.loading??r.metrics.loading?.ga??null:key==='delta'?r.metrics.ikss?.delta??r.metrics.voltage?.delta??r.metrics.p?.delta??null:key==='ga'?r.metrics.ikss?.ga??r.metrics.voltage?.ga??r.metrics.p?.ga??null:key==='pf'?r.metrics.ikss?.pf??r.metrics.voltage?.pf??r.metrics.p?.pf??null:key==='p'||key==='q'?r.metrics[key]?.ga??null:key==='ac'?r.acLabel??r.status:key==='tm'?r.tm:r.name;
+ const value=(r:CompactRow):string|number|null=>{
+  if(key==='kv')return r.kv;
+  if(key==='loading')return r.loading??r.metrics.loading?.ga??null;
+  if(key==='delta')return r.metrics.ikss?.delta??r.metrics.voltage?.delta??r.metrics.p?.delta??null;
+  if(key==='ga'||key==='ikss'||key==='ikss3F')return r.metrics.ikss?.ga??r.metrics.voltage?.ga??r.metrics.p?.ga??null;
+  if(key==='ikss1F')return r.metrics.ikss1F?.ga??null;
+  if(key==='u'||key==='voltageKv')return r.metrics.voltage?.ga??null;
+  if(key==='angle'||key==='angleDeg')return r.metrics.angle?.ga??null;
+  if(key==='maxIkss'){
+    const v3=r.metrics.ikss?.ga, v1=r.metrics.ikss1F?.ga;
+    if(v3==null&&v1==null)return null;
+    return Math.max(v3??-Infinity,v1??-Infinity);
+  }
+  if(key==='pf')return r.metrics.ikss?.pf??r.metrics.voltage?.pf??r.metrics.p?.pf??null;
+  if(key==='p'||key==='q')return r.metrics[key]?.ga??null;
+  if(key==='ac')return r.acLabel??r.status;
+  if(key==='status')return r.status;
+  if(key==='tm')return r.tm;
+  return r.name;
+ };
  return [...rows].sort((a,b)=>{const x=value(a),y=value(b);if(x===null||y===null)return Number(x===null)-Number(y===null)||a.key.localeCompare(b.key);return (typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'tr',{numeric:true}))*(descending?-1:1)||a.key.localeCompare(b.key);});
 }

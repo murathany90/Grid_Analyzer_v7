@@ -537,3 +537,40 @@ test('B.1.2 Test 9: Transformer with cneutcon=1 and bushvn=null (open neutral) i
   assert.ok(resAmb.faults[0].reasons.some(r => r.includes('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:TR1')));
 });
 
+test('C.1 Test 10: Transformer with cneutcon=1 and bushvn pointing to StaCubic indirection grounds correctly', async () => {
+  // 110/10 kV YN/d transformer where ElmTr2.bushvn points to StaCubic 'C_NEUT'
+  // StaCubic 'C_NEUT' connects obj_id 'NEC1'
+  const raw = {
+    ...syntheticBenchmarkPair().raw,
+    ElmTerm: table(['FID', 'loc_name', 'fold_id', 'uknom', 'outserv', 'iUsage'], [
+      ['SYN-B0', 'B0', 'G0', 110, 0, 0],
+      ['SYN-B1', 'B1', 'G1', 10, 0, 0]
+    ]),
+    StaCubic: table(['FID', 'fold_id', 'obj_id'], [
+      ['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC'],
+      ['C_NEUT', 'SYN-B0', 'NEC1']
+    ]),
+    TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
+      ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
+    ]),
+    ElmTr2: table(
+      ['FID', 'loc_name', 'fold_id', 'typ_id', 'bushv', 'buslv', 'cneutcon', 'bushvn', 'buslvn', 'outserv'],
+      [['TR1', 'TR', 'G0', 'TYP-TR', 'C0', 'C1', 1, 'C_NEUT', null, 0]]
+    ),
+    ElmNec: table(
+      ['FID', 'loc_name', 'fold_id', 'bus1', 'outserv', 'iintgnd', 'bus1n', 'R0', 'X0'],
+      [['NEC1', 'Neutral Earthing Reactor', 'G0', 'C_NEUT', 0, 1, 'null', 25.0, 5.0]]
+    )
+  };
+  const loaded = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(raw)) })], 'm.zip'));
+  const network = { ...loaded.network, externalGrids: [] };
+  const context = adaptShortCircuitSources(raw, network);
+
+  const res = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B0'], profile1LG);
+  assert.equal(res.faults[0].status, 'CALCULATED_NETWORK_APPROXIMATION');
+  assert.ok(res.faults[0].z0Ohm !== null);
+});
+
+

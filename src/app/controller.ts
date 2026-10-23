@@ -38,14 +38,13 @@ import {engineeringSourceOptions} from '../analysis/short-circuit/engineering-pr
 import {initialResultView,WorkspaceResultCache,workspaceKey,type ScenarioResults} from '../domain/results/workspace';
 
 export class Application implements AppContext {
-  ytmStudy:YtmStudyResult|null=null;studyOptions?:YtmStudyOptions;studyResumeAvailable=true;
-  private ytmCheckpoint=false;private ytmPrevious:YtmStudyResult|null=null;private ytmFamilies:('N1'|'SC')[]=[];
-  private publishYtmStudy(r:YtmStudyResult){this.studyResumeAvailable=true;this.ytmCheckpoint=true;this.ytmStudy=retainStudyFamilies(r,this.ytmPrevious);if(this.ytmFamilies.includes('N1'))this.hybridResult=r.n1;if(this.ytmFamilies.includes('SC'))this.scResult=r.scMax??r.scMin;}
+  ytmStudy:YtmStudyResult|null=null;studyOptions?:YtmStudyOptions;studyResumeAvailable=true;ytmCheckpoint=false;ytmPrevious:YtmStudyResult|null=null;ytmFamilies:('N1'|'SC')[]=['N1'];
+  private publishYtmStudy(r:YtmStudyResult){this.studyResumeAvailable=true;this.ytmCheckpoint=true;this.ytmStudy=retainStudyFamilies(r,this.ytmPrevious);if(this.ytmFamilies.includes('N1'))this.hybridResult=r.n1;if(this.ytmFamilies.includes('SC')){this.scResult=r.scMax??r.scMin;this.scResult1Lg=r.scMax?r.sc1LgMax??null:r.sc1LgMin??r.sc1LgMax??null;}}
 
   private ytmStarted:number|null=null;
   resultView=initialResultView();private workspaceResults=new WorkspaceResultCache();private lastWorkspaceKey='';private lastScenarioId='B0';private lastScenarioBookStamp='';
   analysisTab:AppContext['analysisTab']='LF';helpId:string|null=null;comparisonOutage:AppContext['comparisonOutage']=null;powerFactoryReference:AppContext['powerFactoryReference']=null;
-  hybridResult:AppContext['hybridResult']=null;scContext:AppContext['scContext']=null;scResult:AppContext['scResult']=null;
+  hybridResult:AppContext['hybridResult']=null;scContext:AppContext['scContext']=null;scResult:AppContext['scResult']=null;scResult1Lg:AppContext['scResult1Lg']=null;
   scCatalog:AppContext['scCatalog']=null;
   private hybridAbort:AbortController|null=null;
   benchmark:AppContext['benchmark']=null;benchmarkReadiness:AppContext['benchmarkReadiness']=null;n1AcResults:AppContext['n1AcResults']=[];benchmarkMap:AppContext['benchmarkMap']=null;

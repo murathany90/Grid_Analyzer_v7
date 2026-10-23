@@ -22,7 +22,7 @@ export const studyScopeKey=(o:YtmStudyOptions)=>stableJson({...o,families:undefi
 export interface YtmStudyOptions {ytmId:string;tmId?:string;families?:StudyFamily[];scModes?:('MAX'|'MIN')[];profile?:YtmStudyProfile;timeBudgetMs?:number;voltageMinPu?:number;voltageMaxPu?:number;loadingLimitPercent?:number;voltageBands?:number[];analysisSettings?:AnalysisSettings}
 export interface YtmStudyResult {
  schemaVersion:1;identity:{studyCase?:string;modelHash:string;scenarioHash:string;optionsHash:string;sourceHashMAX?:string;sourceHashMIN?:string};options:YtmStudyOptions;status:'RUNNING'|'COMPLETE'|'BUDGET_EXHAUSTED'|'CANCELLED'|'FAILED';
- catalog:N1CatalogCandidate[];n1:HybridResult|null;scMax:ScResult|null;scMin:ScResult|null;faultTargets:string[];electricalTargets:number;
+ catalog:N1CatalogCandidate[];n1:HybridResult|null;scMax:ScResult|null;scMin:ScResult|null;sc1LgMax?:ScResult|null;sc1LgMin?:ScResult|null;faultTargets:string[];electricalTargets:number;
  stageMs:Record<YtmStage,number>;elapsedMs:number;qualityCounts:Record<ResultQuality,number>;assumptions:typeof SC_ENGINEERING_ASSUMPTIONS;messages:string[];
  pendingCounts?:{N1:number;SC_MAX:number;SC_MIN:number};
 }
@@ -51,9 +51,12 @@ export function retainStudyFamilies(r:YtmStudyResult,old:YtmStudyResult|null){
   for(const key of new Set([...cases,...old.n1.cases].flatMap(c=>Object.keys(c.constraintCounts??{}))))counts[key]=cases.reduce((sum,c)=>sum+(c.constraintCounts?.[key]??0),0);
  }
  const anchorSafe=!families.includes('SC')||(!r.scMax||!old.scMin||!!old.scMax)&&(!r.scMin||!old.scMax||!!old.scMin);
- const sameSources=anchorSafe&&(!r.scMax||!old.scMax||r.scMax.identity.sourceHash===old.scMax.identity.sourceHash)&&(!r.scMin||!old.scMin||r.scMin.identity.sourceHash===old.scMin.identity.sourceHash);
- if(sameSources){if(!families.includes('SC')||!studyScModes(r.options).includes('MAX'))r.scMax=old.scMax;if(!families.includes('SC')||!studyScModes(r.options).includes('MIN'))r.scMin=old.scMin;}
- return finishYtmStudy(r);
+  const sameSources=anchorSafe&&(!r.scMax||!old.scMax||r.scMax.identity.sourceHash===old.scMax.identity.sourceHash)&&(!r.scMin||!old.scMin||r.scMin.identity.sourceHash===old.scMin.identity.sourceHash);
+  if(sameSources){
+    if(!families.includes('SC')||!studyScModes(r.options).includes('MAX')){r.scMax=old.scMax;r.sc1LgMax=old.sc1LgMax;}
+    if(!families.includes('SC')||!studyScModes(r.options).includes('MIN')){r.scMin=old.scMin;r.sc1LgMin=old.sc1LgMin;}
+  }
+  return finishYtmStudy(r);
 }
 const absentFault=(fid:string,reason:string):ScFaultResult=>({physicalTerminalFid:fid,electricalBusId:null,physicalTerminalFids:[],nominalKv:null,componentId:null,status:'BLOCKED',quality:'NOT_COMPUTABLE',reasons:[reason],zkkOhm:null,ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,residual:null});
 /** Full source graph, scoped targets; one RHS per electrical bus, all physical aliases retained. */
@@ -65,7 +68,7 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
  if(scFamily&&modes.some(m=>!contexts[m]))throw Error('SC_CONTEXT_REQUIRED');
  const r:YtmStudyResult={schemaVersion:1,identity:{studyCase:network.studyCase,modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario),optionsHash:stableJson(options)},options,status:'RUNNING',catalog:[],n1:null,scMax:null,scMin:null,faultTargets:[],electricalTargets:0,stageMs:Object.fromEntries(YTM_STAGES.map(s=>[s,0])) as Record<YtmStage,number>,elapsedMs:0,qualityCounts:emptyQualities(),assumptions:!scFamily||options.profile==='STRICT'?[]:options.profile==='FAST'?SC_ENGINEERING_ASSUMPTIONS.filter(a=>['FAULT_VOLTAGE','SOURCE_OMISSION'].includes(a.id)):SC_ENGINEERING_ASSUMPTIONS,messages:['No PF result used as a calculation input. MAX/MIN engineering scenarios are not certified extrema.']};
  r.identity.optionsHash=stableJson({...options,timeBudgetMs:undefined});if(scFamily)for(const mode of modes){const hash=scSourceContextHash(contexts[mode]!);if(mode==='MAX')r.identity.sourceHashMAX=hash;else r.identity.sourceHashMIN=hash;}
- if(callbacks.resume){if(stableJson(r.identity)!==stableJson(callbacks.resume.identity))throw Error('YTM_STALE_RESUME');r.n1=callbacks.resume.n1;r.scMax=callbacks.resume.scMax;r.scMin=callbacks.resume.scMin;r.messages.push('Resumed: completed DC and SC modes retained; unfinished modes evaluated again. Timings describe this attempt.');}
+ if(callbacks.resume){if(stableJson(r.identity)!==stableJson(callbacks.resume.identity))throw Error('YTM_STALE_RESUME');r.n1=callbacks.resume.n1;r.scMax=callbacks.resume.scMax;r.scMin=callbacks.resume.scMin;r.sc1LgMax=callbacks.resume.sc1LgMax;r.sc1LgMin=callbacks.resume.sc1LgMin;r.messages.push('Resumed: completed DC and SC modes retained; unfinished modes evaluated again. Timings describe this attempt.');}
  const remaining=()=>Math.max(0,options.timeBudgetMs-(performance.now()-start)),checkpoint=()=>{r.elapsedMs=performance.now()-start;finishYtmStudy(r);callbacks.onCheckpoint?.(r);};
  const stage=async<T>(name:YtmStage,fn:()=>T|Promise<T>)=>{callbacks.onProgress?.(name,{message:name});const t=performance.now();try{return await fn();}finally{r.stageMs[name]+=performance.now()-t;checkpoint();await new Promise<void>(resolve=>setTimeout(resolve,0));}};
  const active=effectiveNetwork(network,scenario),topology=await stage('MODEL_PREPARATION',()=>buildTopology(active));
@@ -87,6 +90,15 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
   sc.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
   sc.counts={};for(const f of sc.faults)sc.counts[f.status]=(sc.counts[f.status]??0)+1;
   if(mode==='MAX')r.scMax=sc;else r.scMin=sc;checkpoint();
+  if(!callbacks.signal?.aborted&&remaining()>1){
+    const p1Lg:import('../short-circuit').ScProfile={...engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),faultType:'1LG'};
+    const sc1=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,p1Lg,{signal:callbacks.signal,onProgress:callbacks.onProgress}));
+    const byBus1=new Map(sc1.faults.map(f=>[f.electricalBusId,f]));
+    sc1.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus1.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
+    sc1.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
+    sc1.counts={};for(const f of sc1.faults)sc1.counts[f.status]=(sc1.counts[f.status]??0)+1;
+    if(mode==='MAX')r.sc1LgMax=sc1;else r.sc1LgMin=sc1;checkpoint();
+  }
  }
  // Full NR with real Q limits first. Detailed can spend more of the common budget.
  if(n1&&options.profile!=='FAST'&&!callbacks.signal?.aborted&&remaining()>100){
