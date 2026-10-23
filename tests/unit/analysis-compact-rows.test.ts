@@ -6,7 +6,7 @@ import {runEvidence} from '../../src/features/analysis/run-evidence';
 import {selectScMode} from '../../src/domain/results/sc-selection';
 import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../../src/domain/benchmark/comparison';
 import {createLightningScPanel} from '../../src/map/lightning-sc-panel';
-import {buildBenchmarkMapData} from '../../src/domain/benchmark/map-layer';
+import {buildBenchmarkMapData,benchmarkMapGate} from '../../src/domain/benchmark/map-layer';
 import {resultLayerColor} from '../../src/map/layer-policy';
 
 test('660 presentation rows retain independent AC/DC sets, names, missing POST and budget/divergence states',()=>{
@@ -214,4 +214,64 @@ test('C.2: resultLayerColor accurately computes 5-tier P95 quantile colors and g
  assert.equal(cNull,'#708596'); // Grey for uncomputed
  const cUndefined=resultLayerColor('#b8e1e3','site',s,undefined,true,p95);
  assert.equal(cUndefined,'#708596'); // Grey for missing
+});
+
+test('C.2.1: selectScMode preserves benchmarkMap when SC map layer is active and updates scMode', () => {
+ const {ctx} = analysisUiFixture();
+ ctx.analysisTab = 'SC';
+ ctx.benchmarkMap = {
+  analysis: 'SC',
+  source: 'GA',
+  metric: 'maxIkssKa',
+  table: 'SC_BusResults_Raw',
+  scMode: 'MAX'
+ };
+ const okMin = selectScMode(ctx, 'MIN');
+ assert.equal(okMin, true);
+ assert.ok(ctx.benchmarkMap, 'benchmarkMap should not be cleared to null');
+ assert.equal(ctx.benchmarkMap?.analysis, 'SC');
+ assert.equal(ctx.benchmarkMap?.scMode, 'MIN');
+
+ const okMax = selectScMode(ctx, 'MAX');
+ assert.equal(okMax, true);
+ assert.ok(ctx.benchmarkMap);
+ assert.equal(ctx.benchmarkMap?.scMode, 'MAX');
+});
+
+test('C.2.1: skss metric is exposed for GA, disallowed for PF, and legend omits Amperes for MVA', () => {
+ const {ctx} = analysisUiFixture();
+ ctx.analysisTab = 'SC';
+ const rows = compactScRows(ctx);
+ assert.ok(rows.length > 0);
+ const rowWithSkss = rows.find(r => r.raw.Skss_MVA != null);
+ assert.ok(rowWithSkss);
+ assert.equal(rowWithSkss.metrics.skss.ga, rowWithSkss.raw.Skss_MVA);
+ assert.equal(rowWithSkss.metrics.skss.pf, null);
+ assert.equal(rowWithSkss.metrics.skss.reason, 'PF Skss referansı yok');
+
+ // Benchmark gate rejections for PF
+ const gateSkss = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'skssMva', table: 'SC_BusResults_Raw'});
+ assert.equal(gateSkss.enabled, false);
+ assert.equal(gateSkss.reason, 'PF_SKSS_REFERENCE_NOT_AVAILABLE');
+
+ const gate1F = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'ikss1FKa', table: 'SC_BusResults_Raw'});
+ assert.equal(gate1F.enabled, false);
+ assert.equal(gate1F.reason, 'PF_1F_REFERENCE_NOT_AVAILABLE');
+
+ const gateMin = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'maxIkssKa', table: 'SC_BusResults_Raw', scMode: 'MIN'});
+ assert.equal(gateMin.enabled, false);
+ assert.equal(gateMin.reason, 'PF_SC_MIN_REFERENCE_NOT_AVAILABLE');
+});
+
+test('C.2.1: siteIds properly derived from terminals and deduplicated per electrical bus on map layer', () => {
+ const {ctx} = analysisUiFixture();
+ ctx.analysisTab = 'SC';
+ const rows = compactScRows(ctx);
+ assert.ok(rows.length > 0);
+ assert.ok(rows.every(r => Array.isArray(r.siteIds)));
+ assert.ok(rows.some(r => r.siteIds!.length > 0));
+
+ const mapData = buildBenchmarkMapData(ctx, {analysis: 'SC', source: 'GA', metric: 'skssMva', table: 'SC_BusResults_Raw'});
+ assert.ok(mapData.enabled);
+ assert.equal(mapData.scale?.unit, 'MVA');
 });

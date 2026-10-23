@@ -46,7 +46,14 @@ export function createLightningScPanel(ctx:AppContext){
 
   modeSelect.onchange=()=>{
     const mode=modeSelect.value as 'MAX'|'MIN';
-    selectScMode(ctx,mode);
+    const curMode=currentScResult(ctx)?.profile.calculateMode??'MAX';
+    if(mode!==curMode){
+      const ok=selectScMode(ctx,mode);
+      if(!ok){
+        modeSelect.value=curMode;
+        ctx.setMessage?.('Seçilen kısa devre modu ('+mode+') mevcut değil veya hesaplanmamış.');
+      }
+    }
     selectedRowKey='';
     ctx.notify();
   };
@@ -101,7 +108,7 @@ export function createLightningScPanel(ctx:AppContext){
     if(selectedSite){
       const siteObj=ctx.network?.sites.find(s=>s.id===selectedSite);
       const siteName=siteObj?.name;
-      rows=rows.filter(r=>r.tm===siteName||(siteObj&&Array.isArray(r.raw?.siteIds)&&r.raw.siteIds.includes(selectedSite)));
+      rows=rows.filter(r=>(r.siteIds&&r.siteIds.includes(selectedSite))||(Array.isArray(r.raw?.siteIds)&&r.raw.siteIds.includes(selectedSite))||(siteName&&r.tm===siteName));
     }
     if(q){
       rows=rows.filter(r=>r.name.toLocaleLowerCase('tr-TR').includes(q)||r.fid.toLocaleLowerCase('tr-TR').includes(q));

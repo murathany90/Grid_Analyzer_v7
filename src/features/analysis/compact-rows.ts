@@ -15,6 +15,7 @@ export interface Overload {caseId:string;fid:string;name:string;cls:string;perce
 export interface CompactRow {
  key:string;fid:string;name:string;tm:string;ytm:string;kv:number|null;cls:string;caseId?:string;faultId?:string;
  status:string;dcLabel?:string;acLabel?:string;loading?:number|null;loadingSource?:string;overloads?:Overload[];missingDetail?:string;
+ siteIds?:string[];
  metrics:Record<string,Triple>;raw:StudyExportRow;detail:unknown;searchText:string;
 }
 const finite=(v:unknown):number|null=>typeof v==='number'&&Number.isFinite(v)?v:null;
@@ -90,7 +91,8 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
  }
 
  return [...groups].map(([electrical,aliases])=>{
-  const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(t?.siteIds??[]),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null;
+  const siteIds = [...new Set(aliases.flatMap(a => i.terminals.get(a.physicalTerminalFid)?.siteIds ?? []))];
+  const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(siteIds.length ? siteIds : (t?.siteIds ?? [])),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null;
   const status3F = f.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : f.status === 'CANCELLED' ? 'NOT_RUN' : 'BLOCKED';
   const ga = status3F === 'CALCULATED_NETWORK_APPROXIMATION' && f.ikssKa != null && Number.isFinite(f.ikssKa) ? finite(f.ikssKa) : null;
 
@@ -120,6 +122,7 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
    name: t?.name ?? f.physicalTerminalFid,
    electricalBusId: electrical,
    physicalAliases: JSON.stringify([...new Set(aliases.flatMap(v=>v.physicalTerminalFids))]),
+   siteIds,
    Baz_kV: f.nominalKv,
    kV: f.nominalKv,
    mode,
@@ -163,9 +166,12 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
    profileHash: sc.identity.profileHash
   };
 
+  const skssGa = status3F === 'CALCULATED_NETWORK_APPROXIMATION' && f.skssMva != null && Number.isFinite(f.skssMva) ? finite(f.skssMva) : null;
+
   const metrics: Record<string, Triple> = {
    ikss: pair(ga, pf, delta, r?.reason ? String(r.reason) : 'PF eşleşmesi/yöntemi doğrulanmadı'),
    ikss1F: pair(ga1F, null, null, reason1F || 'PF 1F referansı yok'),
+   skss: pair(skssGa, null, null, 'PF Skss referansı yok'),
    voltage: pair(voltageKv, null, null, lfBus ? 'LF AC' : 'LF çözümü yok'),
    angle: pair(angleDeg, null, null, lfBus ? 'LF AC' : 'LF çözümü yok')
   };
@@ -177,6 +183,7 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
    name: t?.name ?? f.physicalTerminalFid,
    cls: 'ElmTerm',
    kv: f.nominalKv,
+   siteIds,
    ...place,
    status: f.status,
    metrics,

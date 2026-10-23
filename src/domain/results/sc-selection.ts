@@ -37,5 +37,10 @@ export function selectScMode(ctx:AppContext,mode:'MAX'|'MIN'){
  }else{
   ctx.scResult1Lg=null;
  }
- ctx.benchmarkMap=null;return true;
+ if(ctx.benchmarkMap?.analysis==='SC'){
+  ctx.benchmarkMap={...ctx.benchmarkMap,scMode:mode};
+ }else{
+  ctx.benchmarkMap=null;
+ }
+ return true;
 }

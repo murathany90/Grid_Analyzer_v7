@@ -199,7 +199,7 @@ export class CanvasMapRenderer implements MapRenderer {
       const unit=data.scale?.unit??'kA';
       const metricLabel=s.metric==='maxIkssKa'?'TM Maksimum Bara Akımı':s.metric==='ikss3FKa'?'3F Bara Akımı':s.metric==='ikss1FKa'?'1F Bara Akımı':s.metric==='skssMva'?'Kısa Devre Gücü':'Ikss Akımı';
       const p95=data.scale?.p95??0,min=data.scale?.min??0,max=data.scale?.max??0;
-      const scaleText=data.scale?`<span>min ${min.toFixed(2)} / maks ${max.toFixed(2)} ${unit} · P95: ${p95.toFixed(2)} ${unit} (${Math.round(p95*1000)} A)</span>`:'';
+      const scaleText=data.scale?`<span>min ${min.toFixed(2)} / maks ${max.toFixed(2)} ${unit} · P95: ${p95.toFixed(2)} ${unit}${unit==='kA'?` (${Math.round(p95*1000)} A)`:''}</span>`:'';
       return `<b>⚡ Kısa Devre · ${escapeHtml(metricLabel)}</b><span>Kaynak: ${s.source==='PF'?'PF Referansı':'GA IEC 60909'} · Mod: ${mode} Arıza</span><span><i style="background:#f43f5e"></i>&gt;1.15 P95 (Tepe)</span><span><i style="background:#fb923c"></i>0.85–1.15 P95 (Yüksek)</span><span><i style="background:#fbbf24"></i>0.55–0.85 P95 (Orta-Yüksek)</span><span><i style="background:#34d399"></i>0.25–0.55 P95 (Orta)</span><span><i style="background:#38bdf8"></i>&lt;0.25 P95 (Düşük)</span><span><i style="background:${this.ctx.settings.value.colorNoResult}"></i>Hesaplanmadı / Engellendi / Güncel Değil</span>${scaleText}<small>Görsel yoğunluk TM elektriksel baralarının maksimumudur</small>`;
     }
     const settings=this.ctx.settings.value,colors=[['400 kV',settings.color400],['220 kV',settings.color220],['154 kV',settings.color154],['66 kV',settings.color66],['≤36 kV',settings.colorLow]];

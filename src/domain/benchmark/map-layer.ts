@@ -11,7 +11,7 @@ import {resolveN1Post,lfSnapshotIsCurrent,selectN1Result} from './post-result-so
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import { stableJson } from '../calculation/identity';
 import {hasReference} from './reference-slots';
-export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
+export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';scMode?:'MAX'|'MIN';diagnostic?:boolean;side?:string;voltageKv?:number}
 export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
 export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;numericValues?:number;scale?:{p95:number;min:number;max:number;unit:string}}
 const gateCache=new WeakMap<AppContext,{benchmark:unknown;network:unknown;result:unknown;control:unknown;gate:ReturnType<typeof preflightBenchmark>}>();
@@ -19,7 +19,7 @@ function cachedPreflight(ctx:AppContext){const result=ctx.resultStore.get('base'
 const rowCache=new WeakMap<AppContext,{key:string;benchmark:AppContext['benchmark'];result:unknown;ac:unknown;dc:unknown;hybrid:unknown;sc:unknown;rows:BenchmarkMetricRow[]}>();
 function canonicalRows(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMetricRow[]{
   const table=ctx.benchmark?.groups[s.analysis].tables[s.table];if(!table||!ctx.network)return [];
-  const result=ctx.resultStore.get('base','powerFlow'),key=stableJson([{analysis:s.analysis,metric:s.metric,table:s.table,caseId:s.caseId,diagnostic:s.diagnostic,side:s.side,voltageKv:s.voltageKv},ctx.network.modelHash,scenarioSignature(ctx.scenario.current),ctx.analysisSettings?.value]),cached=rowCache.get(ctx);
+  const result=ctx.resultStore.get('base','powerFlow'),key=stableJson([{analysis:s.analysis,metric:s.metric,table:s.table,caseId:s.caseId,scMode:s.scMode,diagnostic:s.diagnostic,side:s.side,voltageKv:s.voltageKv},ctx.network.modelHash,scenarioSignature(ctx.scenario.current),ctx.analysisSettings?.value]),cached=rowCache.get(ctx);
   if(cached&&cached.key===key&&cached.benchmark===ctx.benchmark&&cached.result===result&&cached.ac===ctx.n1AcResults&&cached.dc===ctx.n1Result&&cached.hybrid===ctx.hybridResult&&cached.sc===ctx.scResult)return cached.rows;
   const gate=cachedPreflight(ctx);
   const rows=metricRows(table,gate,s.metric,{lfResult:result,diagnostic:s.diagnostic===true,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark,ac:ctx.n1AcResults}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(!s.voltageKv||r.nominalKv===s.voltageKv));
@@ -38,7 +38,11 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     return canonicalRows(ctx,s).some(r=>r.identityMatched&&r.diagnosticDelta!=null)?{enabled:true,reason:'EXPLORATORY_DELTA_METHOD_UNVERIFIED'}:{enabled:false,reason:'NO_IDENTITY_MATCHED_DIAGNOSTIC_CELLS; LOADING_DENOMINATOR_OR_METHOD_UNVERIFIED'};
   }
   if(s.analysis==='SC'&&s.source==='DELTA')return {enabled:false,reason:'GA_IEC60909_METHOD_AND_EDITION_UNVERIFIED'};
-  if(s.analysis==='SC'&&s.source==='PF'&&s.metric==='ikss1FKa')return {enabled:false,reason:'PF_1F_REFERENCE_NOT_AVAILABLE'};
+  if(s.analysis==='SC'&&s.source==='PF'){
+    if(s.metric==='skssMva')return {enabled:false,reason:'PF_SKSS_REFERENCE_NOT_AVAILABLE'};
+    if(s.metric==='ikss1FKa')return {enabled:false,reason:'PF_1F_REFERENCE_NOT_AVAILABLE'};
+    if(s.scMode==='MIN')return {enabled:false,reason:'PF_SC_MIN_REFERENCE_NOT_AVAILABLE'};
+  }
   if(s.analysis==='SC'&&s.source==='GA'){
     const sc=currentScResult(ctx),current=!!sc&&sc.identity.modelHash===ctx.network.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
     if(!current||!sc.faults.length)return {enabled:false,reason:'GA_IEC60909_NOT_COMPUTABLE'};
@@ -98,17 +102,29 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   if(s.analysis==='SC'){
     const rows=compactScRows(ctx);
     const unit=s.metric==='skssMva'?'MVA':'kA';
+    const rowsBySite=new Map<string, typeof rows>();
+    for(const row of rows){
+      const sIds=(Array.isArray(row.raw?.siteIds)&&row.raw.siteIds.length)?row.raw.siteIds:(row.siteIds??[]);
+      for(const sId of sIds){
+        let list=rowsBySite.get(sId);
+        if(!list){list=[];rowsBySite.set(sId,list);}
+        list.push(row);
+      }
+    }
     for(const site of network.sites){
-      const siteRows=rows.filter(r=>(Array.isArray(r.raw.siteIds)&&r.raw.siteIds.includes(site.id))||r.tm===site.name);
+      const siteRows=rowsBySite.get(site.id)??(site.name?rows.filter(r=>r.tm===site.name):[]);
       if(!siteRows.length){
         putSite(site.id,{value:null,unit,status:'NOT_RUN',details:['Seçili TM için elektriksel bara bulunamadı']},'',null);
         continue;
       }
       let bestVal:number|null=null,repFid=siteRows[0].fid,repKv=siteRows[0].kv,hasCalculated=false;
+      const seenBuses=new Set<string>();
       for(const row of siteRows){
+        if(seenBuses.has(row.key))continue;
+        seenBuses.add(row.key);
         let val:number|null=null;
         if(s.source==='PF'){
-          if(s.metric!=='ikss1FKa'){
+          if(s.metric==='maxIkssKa'||s.metric==='ikss3FKa'||s.metric==='ikssKa'){
             const pfVal=row.metrics.ikss?.pf;
             if(pfVal!=null&&Number.isFinite(pfVal))val=pfVal;
           }
@@ -130,7 +146,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
         }
       }
       if(hasCalculated&&bestVal!=null){
-        putSite(site.id,{value:bestVal,unit,status:'CALCULATED',details:[`${site.name} · Maks Ikss = ${bestVal} ${unit} (${repFid})`]},repFid,repKv);
+        putSite(site.id,{value:bestVal,unit,status:'CALCULATED',details:[`${site.name} · Maks ${s.metric==='skssMva'?'Skss':'Ikss'} = ${bestVal} ${unit} (${repFid})`]},repFid,repKv);
       }else{
         const dominantStatus=siteRows.some(r=>r.raw.status_1F==='STALE'||r.raw.status_3F==='STALE')?'STALE':siteRows.some(r=>r.raw.status_1F==='BLOCKED'||r.raw.status_3F==='BLOCKED')?'BLOCKED':siteRows.some(r=>r.raw.status_1F==='NOT_COMPUTABLE'||r.raw.status_3F==='NOT_COMPUTABLE')?'NOT_COMPUTABLE':String(siteRows[0]?.raw.Hesap_Durumu??'NOT_RUN');
         putSite(site.id,{value:null,unit,status:dominantStatus,details:[`${site.name} · ${dominantStatus}`]},repFid,repKv);
@@ -138,7 +154,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     }
     for(const row of rows){
       let val:number|null=null;
-      if(s.source==='PF'){val=s.metric==='ikss1FKa'?null:row.metrics.ikss?.pf??null;}
+      if(s.source==='PF'){val=(s.metric==='maxIkssKa'||s.metric==='ikss3FKa'||s.metric==='ikssKa')?row.metrics.ikss?.pf??null:null;}
       else if(s.metric==='ikss3FKa'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss?.ga??null:null;}
       else if(s.metric==='ikss1FKa'){val=row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss1F?.ga??null:null;}
       else if(s.metric==='skssMva'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.skss?.ga??null:null;}
