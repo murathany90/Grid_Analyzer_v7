@@ -26,7 +26,7 @@ Gerçek SN3 ölçüm portable SHA256: `0ef407c3a1ec9aea55f85e580e09c5a77a689786a
 
 Tümü **TANISAL / METOT DOĞRULANMADI**; IEC/PF yöntem paritesi veya genel doğruluk garantisi değildir. `GA-ENGINEERING-1.0`: MW/MVAr/MVA için 1 birim + %1 × |PF|; kV için 0.5 kV + %0.5 × |PF|; pu için 0.005 pu + %0.5 × |PF|.
 
-Kapsam = aynı kimlikte sayısal çift / uygun sayısal PF. Tolerans içi = toleransı geçen çift / eşleşmiş çift. Eksik/invalid/sentinel/NOT_RECORDED PF paydadan çıkarılır; mevcut ama eşleşmeyen sayısal PF kapsamı azaltır. 400/154/66 kV Vpu için sırasıyla 4340/20310/81 sayısal dışı PF hücresi çıkarıldı. Kısa tablo aşağıdadır; **120 strata**, FROM/TO, HV/LV, tüm P/Q/S ve V(kV/pu), neden sayıları ve boş katmanlar [tam toplulaştırılmış CSV](MAP_SCENARIO_PF_SCORECARD.csv) içindedir. Ham FID, ZIP/XLSX ve PF sonuç satırları yayımlanmadı.
+Kapsam = aynı kimlikte sayısal çift / uygun sayısal PF. Tolerans içi = toleransı geçen çift / eşleşmiş çift. Eksik/invalid/sentinel/NOT_RECORDED PF paydadan çıkarılır; mevcut ama eşleşmeyen sayısal PF kapsamı azaltır. 400/154/66 kV Vpu için sırasıyla 4340/20310/81 sayısal dışı PF hücresi çıkarıldı. Kısa tablo aşağıdadır; **120 strata**, FROM/TO, HV/LV, tüm P/Q/S ve V(kV/pu), neden sayıları ve boş katmanlar [tam toplulaştırılmış CSV](../../MAIN_INTEGRATION_PF_SCORECARD_20261010.csv) içindedir. Ham FID, ZIP/XLSX ve PF sonuç satırları yayımlanmadı.
 
 | kV | Tür / metrik | Eşleşen / uygun | Kapsam % | Tolerans içi çift / oran % | MAE / P95 / maksimum | Eşleşmeyen |
 |---:|---|---:|---:|---:|---|---:|

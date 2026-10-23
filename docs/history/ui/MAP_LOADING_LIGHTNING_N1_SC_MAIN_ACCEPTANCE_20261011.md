@@ -49,10 +49,10 @@ An initial full browser invocation timed out after a Vite page reload while the 
 
 | Viewport | Map height | N1/SC table viewport | Screenshot |
 | --- | ---: | ---: | --- |
-| 1920×1080 | 835.77 px | 449.44 px | [LF](screenshots/map-loading-20261011/1920.png) |
-| 1600×900 | 655.77 px | 269.44 px | [LF](screenshots/map-loading-20261011/1600.png) |
-| 1440×900 | 655.77 px | 269.44 px | [LF](screenshots/map-loading-20261011/1440.png) |
-| 1366×768 | 523.77 px | **137.44 px** | [LF](screenshots/map-loading-20261011/1366.png), [N1](screenshots/map-loading-20261011/N1-1366.png), [SC](screenshots/map-loading-20261011/SC-1366.png) |
+| 1920×1080 | 835.77 px | 449.44 px | [LF](../../screenshots/map-loading-20261011/1920.png) |
+| 1600×900 | 655.77 px | 269.44 px | [LF](../../screenshots/map-loading-20261011/1600.png) |
+| 1440×900 | 655.77 px | 269.44 px | [LF](../../screenshots/map-loading-20261011/1440.png) |
+| 1366×768 | 523.77 px | **137.44 px** | [LF](../../screenshots/map-loading-20261011/1366.png), [N1](../../screenshots/map-loading-20261011/N1-1366.png), [SC](../../screenshots/map-loading-20261011/SC-1366.png) |
 
 Two toolbar rows remain 34 px; panel header/tabs remain 34/36 px. The smallest table leaves room for its header and three ordinary rows. Opening reasons retains a scrollable table and reachable pager. No document overflow. The public SC screenshot deliberately shows NOT_RUN because that fixture has no native SC snapshot; real BLOCKED acceptance is recorded separately below. Long endpoint labels of 80/40 characters preserve ten numeric cells, the second row and footer, with full names accessible.
 

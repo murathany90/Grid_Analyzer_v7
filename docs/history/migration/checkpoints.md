@@ -5,7 +5,7 @@ All times are observations from this session; agent token counts are unavailable
 | Checkpoint | Concrete result | Evidence |
 |---|---|---|
 | Baseline preservation | Original v6.8 HTML copied unchanged into `legacy/`; the two actual 2026-09-23 snapshots copied from `kontrol1/` into `control1/` and uploaded through Git LFS. | Base commit `4fa11d8`; `docs/dgs-source-profile.md` |
-| Source inventory | Reachable views, version patch chains, active solvers, source immutability requirements and confirmed legacy issues recorded before replacement. | `docs/v6.8-feature-inventory.md`, `docs/module-dependency-map.md` |
+| Source inventory | Reachable views, version patch chains, active solvers, source immutability requirements and confirmed legacy issues recorded before replacement. | `docs/history/migration/v6.8-feature-inventory.md`, `docs/module-dependency-map.md` |
 | Domain foundation | Typed canonical model, overlays, six-part calculation identity, result store, settings/persistence and topology boundary. | Commit `77c3291` |
 | Numerical migration | Split Full NR and reduced Fast AC/DC kernels; seven legacy self-cases; explicit final-Q-limit failure; source-to-canonical and old/new solver audit. | `tests/unit/numerical.test.ts`, `docs/validation/numerical-parity.json` |
 | Worker/UI integration | Separate raw-import and calculation workers; paged catalogs; native TypeScript views; cached Canvas geometry; SVG SLD; portable Vite packaging. | `src/`, final build checks |

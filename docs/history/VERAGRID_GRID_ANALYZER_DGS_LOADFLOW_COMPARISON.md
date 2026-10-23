@@ -1519,7 +1519,7 @@ incele" amacını aşardı.
 
 ### 13.2 Grid Analyzer — katman bazlı süreler
 
-`docs/final-report.md:212-230` (Node ölçümü):
+`docs/history/migration/final-report.md:212-230` (Node ölçümü):
 
 | Katman | 12:00 modeli | 16:00 modeli |
 |---|---:|---:|
@@ -1983,7 +1983,7 @@ Her iddia için: repo · commit · dosya · sınıf/fonksiyon · satır aralığ
 | PowerFactory karşılaştırma | `kontrol1/GridAnalyzer_YTBS_FullNR_Karsilastirma_Raporu_20260928 (1).xlsx` | Sheet `00_Ozet`, `08_Metodoloji_Esikler` — tüm doğrulama metrikleri |
 | Ham DGS verisi | `kontrol1/20260923_1200_SN3_TR0.json` (143.026.320 B), `20260923_1600_SN3_TR0.json`, `20260928_0900_SN1_TR0.zip` (9.799.696 B → 143.737.437 B) | Kolon varlık/yokluk denetimi, değer dağılımları |
 | İç tutarlılık | `docs/validation/numerical-parity.json` | v6.8↔v7 `maxAbsDiff: 0` (**PowerFactory değil**) |
-| Performans | `docs/final-report.md:212-230`; `docs/validation/20260928-*.json`, `20260928-v74-final.json` | Katman süreleri, kontrol döngüsü maliyeti, gate durumu |
+| Performans | `docs/history/migration/final-report.md:212-230`; `docs/validation/20260928-*.json`, `20260928-v74-final.json` | Katman süreleri, kontrol döngüsü maliyeti, gate durumu |
 
 ---
 

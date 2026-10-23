@@ -42,7 +42,7 @@ teslimden önce yeniden doğrulanır.
 Raw DGS → CanonicalNetwork → ScenarioOverlay ile effective network → topology →
 analysis engine → CalculationResult → ResultStore → UI. Raw kaynak worker'da kalır;
 harita ve solver DGS tablolarından doğrudan elektriksel anlam çıkarmaz.
-Platform sınırları, akış diyagramı ve bellek sahipliği [architecture.md](architecture.md) içindedir.
+Platform sınırları, akış diyagramı ve bellek sahipliği [architecture.md](../../architecture.md) içindedir.
 
 ## 8. Module tree
 
@@ -95,7 +95,7 @@ indeksleri, class/FID indeksleri, parent ilişkileri, StaCubic uçları ve Matri
 koordinatları korundu. Kaynak tablolar/row/cell nesneleri yerinde dondurulur;
 katalog nesneleri ayrık kopyadır. Filtreli/sıralı satır indeksleri model başına
 16 sorgu / 1,5 milyon indeksle sınırlandırılmış önbellekte tutulur.
-[DGS profile](dgs-source-profile.md) kaynak şemalarını belgeliyor.
+[DGS profile](../../dgs-source-profile.md) kaynak şemalarını belgeliyor.
 
 ## 13. CanonicalNetwork
 
@@ -128,7 +128,7 @@ Fast AC/DC açıkça 66 kV+ indirgenmiş ağ olarak etiketlidir. DC; V/Q/kayıp
 hesaplamış gibi değer üretmez. Aynı sayısal girdide eski ve yeni NR'nin
 Vm/Va/P/Q sonuçları Node'da bit düzeyinde eşittir. Canonical hazırlamayla Vm farkı
 en çok yaklaşık 1,73e−13 pu; parametre farkları kayan nokta işlem sırasındadır.
-[Numerical parity evidence](validation/numerical-parity.json).
+[Numerical parity evidence](../../validation/numerical-parity.json).
 
 ## 17. Worker architecture
 
@@ -152,7 +152,7 @@ bölgesel görünüm vardır. Fiderler 20 kayıt/sayfa; seçme, aç/kapa, servis
 haritaya gitme ve SVG indirme sağlanır. SVG doğal ölçekte, kaydırılabilir alandadır.
 Bölgesel görünüm en fazla 37 TM/85 dal; ekipman stubları sınırlı ve ek adet etiketlidir.
 Kaynak ucu çözülemeyen bağlantı uydurulmaz. Düzenleyici veya özgün PowerFactory
-sayfa yerleşimi değildir. [SLD editor roadmap](SLD_DEVELOPMENT.md).
+sayfa yerleşimi değildir. [SLD editor roadmap](../../SLD_DEVELOPMENT.md).
 
 ## 20. Analysis migration
 
@@ -182,7 +182,7 @@ adlandırılmadan discovery ile kullanıldı.
 | 20260923_1600_SN3_TR0.json | 143047373 | 576074 | 4170 / 5256 | Yakınsadı, 10 adım / 3 tur | Yakınsadı, 10 adım |
 
 Her iki modelde Fast AC ve DC yakınsadı. Her ikisinde bir elektriksel bara
-referans adası dışındadır. [Tam rapor](validation/full-model-results.json).
+referans adası dışındadır. [Tam rapor](../../validation/full-model-results.json).
 
 ## 23. Numerical tests
 
@@ -200,7 +200,7 @@ Tarayıcıda küçük modelin baz/hat-outage/energization hesapları yakınsadı
 
 ## 25. UI tests
 
-[Browser observations](validation/browser-validation.json): JSON yükleme, gerçek
+[Browser observations](../../validation/browser-validation.json): JSON yükleme, gerçek
 model, hesap sırasında gezinme, iptal, line/trafo/bus tabloları, sayfalama,
 filtreler, baz/senaryo/fark, devreye alma/reset, kaynak worker'ın korunması,
 ayar kalıcılığı, boş tıklama tercihi, kapasite değişimi, SLD ve responsive ölçümler.
@@ -241,30 +241,30 @@ LFS modellerini indirmez; büyük model kanıtı yerel çalışmaya aittir.
 
 ## 28. Rust/WASM roadmap
 
-[Roadmap](rust-wasm-roadmap.md): typed buffer ABI, memory sahipliği, hata/ilerleme
+[Roadmap](../../roadmaps/rust-wasm-roadmap.md): typed buffer ABI, memory sahipliği, hata/ilerleme
 sözleşmesi, engine adapter ve JS/WASM sayısal parity kapıları. Bu sprintte Rust portu yok.
 
 ## 29. Short-circuit roadmap
 
-[Roadmap](short-circuit-architecture.md): IEC 60909 kapsamı, pozitif/negatif/sıfır
+[Roadmap](../../short-circuit-architecture.md): IEC 60909 kapsamı, pozitif/negatif/sıfır
 sekans veri yeterliliği, topraklama/trafo/inverter katkı gereksinimleri ve doğrulama
 vakaları. Analiz uygulanmadı; model capability bunu açıkça BLOCKED gösterir.
 
 ## 30. N-1 roadmap
 
-[Roadmap](contingency-architecture.md): değişmez outage senaryoları, islanding,
+[Roadmap](../../contingency-architecture.md): değişmez outage senaryoları, islanding,
 DC screening sonrası AC doğrulama, paralel iş sınırı, sonuç kimlikleri ve
 başarısız vakaların görünürlüğü. Contingency çözümü uygulanmadı.
 
 ## 31. Tauri roadmap
 
-[Roadmap](tauri-roadmap.md): aynı domain/engine sınırı üstünde gelecekteki masaüstü
+[Roadmap](../../roadmaps/tauri-roadmap.md): aynı domain/engine sınırı üstünde gelecekteki masaüstü
 adapter'ı, güvenli dosya erişimi, packaging ve WebView/WASM doğrulaması. Tauri
 kurulmadı ve build başlatılmadı.
 
 ## 32. Browser testing instructions
 
-1. [Portable HTML](../dist-portable/GridAnalyzer_v7.html) dosyasını GitHub'da
+1. [Portable HTML](../../../dist-portable/GridAnalyzer_v7.html) dosyasını GitHub'da
    **Download raw file** ile indirin; Chromium/Edge'de açın.
 2. Model → JSON seç. Hızlı başlangıç için `tests/fixtures/small-dgs.json`; gerçek
    model için clone sonrası `git lfs pull` ile `control1/` dosyalarını alın.

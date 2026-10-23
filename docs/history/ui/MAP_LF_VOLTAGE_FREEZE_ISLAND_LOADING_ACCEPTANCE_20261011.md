@@ -156,7 +156,7 @@ Ortak `formatEngineering`: tr-TR, precision 0–8, nonfinite/null `—`, negativ
 | Servis/kapasite/sezon/operational/unknown | Unit + SYNTHETIC_BROWSER_PASS; iki gerçek modelde nominal known/unknown haritası REAL_SN3_PASS/REAL_SN4_PASS; yeni gerçek yaz/kış geçişi NOT_TESTED |
 | Mobile UI geliştirmesi | NOT_TESTED / kapsam dışı; mevcut smoke'ın eski mobile kontrolü korunur |
 
-Anonim masaüstü görüntüleri: [1366](screenshots/map-freeze-20261011/1366.png), [1920](screenshots/map-freeze-20261011/1920.png). Görsel olarak incelendi. Önceki altı metrik görüntüleri değiştirilmedi. Gerçek isim/FID içeren görüntüler ve ham ZIP/JSON/loglar yalnız ignore edilen yerel kabul dizinindedir; commit edilmedi.
+Anonim masaüstü görüntüleri: [1366](../../screenshots/map-freeze-20261011/1366.png), [1920](../../screenshots/map-freeze-20261011/1920.png). Görsel olarak incelendi. Önceki altı metrik görüntüleri değiştirilmedi. Gerçek isim/FID içeren görüntüler ve ham ZIP/JSON/loglar yalnız ignore edilen yerel kabul dizinindedir; commit edilmedi.
 
 ## Gates, portable ve dosya kapsamı
 

@@ -9,7 +9,8 @@ import { solveNR as solvePorted } from '../src/analysis/power-flow/js/index';
 
 const root = process.cwd();
 const sourcePath = resolve(root, 'YTBS_PowerFactory_Sebeke_Goruntuleyici_v6_8.html');
-const inputPath = resolve(root, 'control1/20260923_1200_SN3_TR0.json');
+if(!process.env.LEGACY_MODEL_JSON)throw Error('LEGACY_MODEL_JSON must explicitly select the original 20260923 baseline JSON; use test:full for current ZIP models.');
+const inputPath = resolve(root, process.env.LEGACY_MODEL_JSON);
 const html = await readFile(sourcePath, 'utf8');
 const sourceHash = createHash('sha256').update(html).digest('hex');
 const tempDir = resolve(root, '.tmp/numerical-parity');

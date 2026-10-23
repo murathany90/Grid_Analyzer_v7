@@ -54,7 +54,7 @@ the JS boundary; the future WASM ABI will pack their columns into owned buffers.
 Result numeric buffers already use transfer lists. Display metadata stays outside
 these buffers. See `rust-wasm-roadmap.md` for memory ownership and error contracts.
 
-There are two worker instances with separate lifetimes. Cancelling a calculation
+Import, calculation and comparison workers have separate lifetimes. Cancelling a calculation
 terminates only its worker; a replacement worker receives the same canonical
 network without reparsing the raw file. Cancelling an import terminates the source
 worker. Request IDs and an application generation counter suppress late progress
@@ -92,4 +92,6 @@ src/
 ```
 
 The source is modular. Only distribution is bundled as a single portable HTML.
-There are no production package dependencies and no global monkey-patch chain.
+Bundled runtime dependencies include fflate, klu-js, @noble/hashes and saxes; see package.json and licenses/. There is no global monkey-patch chain.
+
+Current N-1/SC batching, three-phase positive-sequence approximation, compact LF/N-1/SC lists and result quality gates are documented in [the current README](../README.md), [SC architecture](short-circuit-architecture.md) and [analysis UI design](analysis-workspace-ui-design.md). SLD production scope is the selected station; a regional YTM SCADA diagram is not implemented.

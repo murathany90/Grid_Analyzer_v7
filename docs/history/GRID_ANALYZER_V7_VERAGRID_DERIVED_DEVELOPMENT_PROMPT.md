@@ -1,7 +1,7 @@
 # Grid_Analyzer_v7 — VeraGrid Kaynak Kodundan Türetilmiş Geliştirme Promptu
 
 > **Bu dosya, bir sonraki kodlama ajanına doğrudan verilebilir.**
-> Dayanak: `VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` (aynı dal, aynı base commit).
+> Dayanak: `docs/history/VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` (aynı dal, aynı base commit).
 > **Her iddia aşağıda kanıt referansı taşır. Kanıt referansı olmayan hiçbir madde yoktur.**
 
 ---
@@ -501,7 +501,7 @@ olmalıdır** (yeni alan, opsiyonel).
    tekrar çalıştırma**. Üç başarısız denemeden sonra dur ve rapor et.
 4. `docs/validation/` altına **her koşunun** `2026MMdd-HHMM-<kısa-ad>-benchmark-v75.json`
    adıyla çıktısı yazılır. Ham DGS/JSON/ZIP **commitlenmez.**
-5. `docs/final-report.md:212-230` katman süreleri tablosu **güncellenir** (JSON parse,
+5. `docs/history/migration/final-report.md:212-230` katman süreleri tablosu **güncellenir** (JSON parse,
    DGS import, canonical map, topology/prep, Full AC).
 6. `checkpoints.md:17` ilkesi korunur: *"No historical performance values were inferred from
    current runs."*
@@ -519,10 +519,10 @@ olmalıdır** (yeni alan, opsiyonel).
 |---|---|
 | `docs/dgs-source-profile.md` | `tr2cn_h`/`tr2cn_l` **distinct dağılımı** ekle (U1 kapatılır) |
 | `docs/validation/` | Her P0 için yeni benchmark JSON'u (§10.4) |
-| `docs/final-report.md` | Katman süreleri tablosunu güncelle; transformerPhase semantiğini belgele |
-| `docs/checkpoints.md` | Yeni kontrol noktaları: P0-1, P0-2, P0-3 |
-| `VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` | **Değiştirme** — kaynak denetim kaydıdır |
-| `GRID_ANALYZER_V7_VERAGRID_DERIVED_DEVELOPMENT_PROMPT.md` | **Değiştirme** |
+| `docs/history/migration/final-report.md` | Katman süreleri tablosunu güncelle; transformerPhase semantiğini belgele |
+| `docs/history/migration/checkpoints.md` | Yeni kontrol noktaları: P0-1, P0-2, P0-3 |
+| `docs/history/VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` | **Değiştirme** — kaynak denetim kaydıdır |
+| `docs/history/GRID_ANALYZER_V7_VERAGRID_DERIVED_DEVELOPMENT_PROMPT.md` | **Değiştirme** |
 
 **Yeni doküman:** `docs/transformer-vector-group.md` — vektör grubu tablosu, saat işareti
 kuralı, HV/LV yön kuralı ve U15 kararının gerekçesi.
@@ -635,7 +635,7 @@ Bu iş **şunlar sağlandığında tamamlanmıştır:**
    raporlanmış. Başarısızsa **açıkça yazılmış** — saklanmamış, iyileştirilmemiş.
 5. `docs/` güncellenmiş, `transformer-vector-group.md` yazılmış.
 6. Branch push edilmiş, **`main` ve `release/v7.4-final` değişmemiştir**.
-7. `VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` **değiştirilmemiştir**.
+7. `docs/history/VERAGRID_GRID_ANALYZER_DGS_LOADFLOW_COMPARISON.md` **değiştirilmemiştir**.
 
 **Başarı kriteri:** "VeraGrid'i inceledim" demek değildir. Başarı, **üç sayısal kapının
 gerçek model üzerinde ölçülmesidir** — kökten gelen varsayımla değil, XLSX'teki
