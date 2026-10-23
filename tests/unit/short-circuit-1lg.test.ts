@@ -376,3 +376,164 @@ test('Targeted Test 5: Out of service sources and ElmVac R2/X2 overrides behave 
   near(res.faults[0].z0Ohm!.im, 15.0);
 });
 
+test('B.1.2 Test 6: Network with alternative grounding path but missing branch Z0 does NOT return false SOLVED', async () => {
+  // Bus B0 has grounded source (R0=10, X0=10).
+  // Line L1 connects B0 to B1, but L1 is missing rline0/xline0 in DGS!
+  // Trafo T1 (YNd) connects B0 to B2 (providing local grounding at B0).
+  // Even though B0 is grounded by T1, line L1 is an active in-service element without verified Z0!
+  // Fault at B1 must NOT silently drop L1 and return SOLVED; it must return NOT_COMPUTABLE!
+  const raw = {
+    ...syntheticBenchmarkPair().raw,
+    ElmTerm: table(['FID', 'loc_name', 'fold_id', 'uknom', 'outserv', 'iUsage'], [
+      ['SYN-B0', 'B0', 'G0', 110, 0, 0],
+      ['SYN-B1', 'B1', 'G0', 110, 0, 0]
+    ]),
+    StaCubic: table(['FID', 'fold_id', 'obj_id'], [
+      ['C0', 'SYN-B0', 'L1'], ['C1', 'SYN-B1', 'L1'], ['CX', 'SYN-B0', 'VAC']
+    ]),
+    // Line type has rline/xline but MISSING rline0/xline0
+    TypLne: table(['FID', 'loc_name', 'rline', 'xline'], [['TYP-NO-Z0', 'Line No Z0', 0.1, 0.5]]),
+    ElmLne: table(['FID', 'loc_name', 'fold_id', 'typ_id', 'bus1', 'bus2', 'dline', 'outserv'], [
+      ['L1', 'Line 1', 'G0', 'TYP-NO-Z0', 'C0', 'C1', 10, 0]
+    ]),
+    ElmXnet: table(['FID'], []),
+    ElmVac: table(
+      ['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'R0', 'X0', 'R2', 'X2', 'usetp'],
+      [['VAC', 'Grounded Source', 'CX', 0, 0, 10, 0, 10, 0, 10, 1]]
+    ),
+    TypTr2: table(['FID'], []), ElmTr2: table(['FID'], [])
+  };
+  const loaded = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(raw)) })], 'm.zip'));
+  const network = { ...loaded.network, externalGrids: [] };
+  const context = adaptShortCircuitSources(raw, network);
+
+  const res = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B1'], profile1LG);
+  assert.equal(res.faults[0].status, 'BLOCKED');
+  assert.ok(res.faults[0].reasons.some(r => r.includes('NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:L1')));
+});
+
+test('B.1.2 Test 7: Missing Z0 in one component does NOT block a separate healthy electrical component', async () => {
+  // Component 1: B0 <--- L1 (missing Z0) ---> B1
+  // Component 2: B2 with grounded source VAC2 (completely separate)
+  const raw = {
+    ...syntheticBenchmarkPair().raw,
+    ElmTerm: table(['FID', 'loc_name', 'fold_id', 'uknom', 'outserv', 'iUsage'], [
+      ['SYN-B0', 'B0', 'G0', 110, 0, 0],
+      ['SYN-B1', 'B1', 'G0', 110, 0, 0],
+      ['SYN-B2', 'B2', 'G1', 110, 0, 0]
+    ]),
+    StaCubic: table(['FID', 'fold_id', 'obj_id'], [
+      ['C0', 'SYN-B0', 'L1'], ['C1', 'SYN-B1', 'L1'], ['CX1', 'SYN-B0', 'VAC1'],
+      ['CX2', 'SYN-B2', 'VAC2']
+    ]),
+    TypLne: table(['FID', 'loc_name', 'rline', 'xline'], [['TYP-NO-Z0', 'Line No Z0', 0.1, 0.5]]),
+    ElmLne: table(['FID', 'loc_name', 'fold_id', 'typ_id', 'bus1', 'bus2', 'dline', 'outserv'], [
+      ['L1', 'Line 1', 'G0', 'TYP-NO-Z0', 'C0', 'C1', 10, 0]
+    ]),
+    ElmXnet: table(['FID'], []),
+    ElmVac: table(
+      ['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'R0', 'X0', 'R2', 'X2', 'usetp'],
+      [
+        ['VAC1', 'Src1', 'CX1', 0, 0, 10, 0, 10, 0, 10, 1],
+        ['VAC2', 'Src2', 'CX2', 0, 0, 5, 0, 5, 0, 5, 1]
+      ]
+    ),
+    TypTr2: table(['FID'], []), ElmTr2: table(['FID'], [])
+  };
+  const loaded = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(raw)) })], 'm.zip'));
+  const network = { ...loaded.network, externalGrids: [] };
+  const context = adaptShortCircuitSources(raw, network);
+
+  // Component 1 (B1): BLOCKED due to missing line Z0
+  const resB1 = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B1'], profile1LG);
+  assert.equal(resB1.faults[0].status, 'BLOCKED');
+  assert.ok(resB1.faults[0].reasons.some(r => r.includes('NOT_COMPUTABLE')));
+
+  // Component 2 (B2): Completely healthy -> must be CALCULATED_NETWORK_APPROXIMATION
+  const resB2 = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B2'], profile1LG);
+  assert.equal(resB2.faults[0].status, 'CALCULATED_NETWORK_APPROXIMATION');
+  near(resB2.faults[0].z0Ohm!.im, 5.0);
+  near(resB2.faults[0].z1Ohm!.im, 5.0);
+});
+
+test('B.1.2 Test 8: Transformer with cneutcon=1 and bushvn connected to ElmNec grounds correctly', async () => {
+  // 110/10 kV YN/d transformer with cneutcon=1 (separate neutral)
+  // bushvn points to 'NEC1', an in-service ElmNec with R0=20, X0=5
+  const raw = {
+    ...syntheticBenchmarkPair().raw,
+    ElmTerm: table(['FID', 'loc_name', 'fold_id', 'uknom', 'outserv', 'iUsage'], [
+      ['SYN-B0', 'B0', 'G0', 110, 0, 0],
+      ['SYN-B1', 'B1', 'G1', 10, 0, 0]
+    ]),
+    StaCubic: table(['FID', 'fold_id', 'obj_id'], [
+      ['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC']
+    ]),
+    TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
+      ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
+    ]),
+    ElmTr2: table(
+      ['FID', 'loc_name', 'fold_id', 'typ_id', 'bushv', 'buslv', 'cneutcon', 'bushvn', 'buslvn', 'outserv'],
+      [['TR1', 'TR', 'G0', 'TYP-TR', 'C0', 'C1', 1, 'NEC1', null, 0]]
+    ),
+    ElmNec: table(
+      ['FID', 'loc_name', 'fold_id', 'bus1', 'outserv', 'iintgnd', 'bus1n', 'R0', 'X0'],
+      [['NEC1', 'Neutral Earthing Reactor', 'G0', 'NEC1', 0, 1, 'null', 20.0, 5.0]]
+    )
+  };
+  const loaded = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(raw)) })], 'm.zip'));
+  const network = { ...loaded.network, externalGrids: [] };
+  const context = adaptShortCircuitSources(raw, network);
+
+  const res = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B0'], profile1LG);
+  assert.equal(res.faults[0].status, 'CALCULATED_NETWORK_APPROXIMATION');
+  assert.ok(res.faults[0].z0Ohm !== null);
+  // Neutral is verified connected via NEC1
+});
+
+test('B.1.2 Test 9: Transformer with cneutcon=1 and bushvn=null (open neutral) is ungrounded and blocks 1LG', async () => {
+  // Same 110/10 kV YN/d transformer with cneutcon=1, but bushvn is null (open circuit neutral)
+  const raw = {
+    ...syntheticBenchmarkPair().raw,
+    ElmTerm: table(['FID', 'loc_name', 'fold_id', 'uknom', 'outserv', 'iUsage'], [
+      ['SYN-B0', 'B0', 'G0', 110, 0, 0],
+      ['SYN-B1', 'B1', 'G1', 10, 0, 0]
+    ]),
+    StaCubic: table(['FID', 'fold_id', 'obj_id'], [
+      ['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC']
+    ]),
+    TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
+      ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
+    ]),
+    ElmTr2: table(
+      ['FID', 'loc_name', 'fold_id', 'typ_id', 'bushv', 'buslv', 'cneutcon', 'bushvn', 'buslvn', 'outserv'],
+      [['TR1', 'TR', 'G0', 'TYP-TR', 'C0', 'C1', 1, null, null, 0]]
+    )
+  };
+  const loaded = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(raw)) })], 'm.zip'));
+  const network = { ...loaded.network, externalGrids: [] };
+  const context = adaptShortCircuitSources(raw, network);
+
+  const res = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B0'], profile1LG);
+  assert.equal(res.faults[0].status, 'BLOCKED');
+  assert.ok(res.faults[0].reasons.some(r => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK')));
+
+  // Ambiguous neutral: bushvn points to an unknown/unverified entity
+  const rawAmbiguous = {
+    ...raw,
+    ElmTr2: table(
+      ['FID', 'loc_name', 'fold_id', 'typ_id', 'bushv', 'buslv', 'cneutcon', 'bushvn', 'buslvn', 'outserv'],
+      [['TR1', 'TR', 'G0', 'TYP-TR', 'C0', 'C1', 1, 'UNKNOWN_NEC_FID', null, 0]]
+    )
+  };
+  const loadedAmb = await loadBenchmarkModel(new File([zipSync({ 'm.json': strToU8(JSON.stringify(rawAmbiguous)) })], 'm.zip'));
+  const netAmb = { ...loadedAmb.network, externalGrids: [] };
+  const ctxAmb = adaptShortCircuitSources(rawAmbiguous, netAmb);
+  const resAmb = await calculateThreePhase(netAmb, emptyScenario(), ctxAmb, ['SYN-B0'], profile1LG);
+  assert.equal(resAmb.faults[0].status, 'BLOCKED');
+  assert.ok(resAmb.faults[0].reasons.some(r => r.includes('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:TR1')));
+});
+

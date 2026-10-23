@@ -17,6 +17,9 @@ export interface ScZeroSequenceTransformer {
   uk0tr?: number; // %
   ur0tr?: number; // %
   x0tor0?: number;
+  cneutcon?: number; // 0=none/internal, 1=separate, 2=common
+  bushvn?: string | null;
+  buslvn?: string | null;
   re0tr_h?: number; // Ohm
   re0tr_l?: number; // Ohm
 }
@@ -173,6 +176,7 @@ export function buildNegativeSequenceEngine(
  * Uses active lines and transformers directly from effectiveNetwork(network, scenario)
  * to respect open lines, opened transformers, switch states, and topology partitioning.
  * No fabricated 3*R1/X1 fallbacks or default YN/D vector groups are assumed.
+ * Missing in-service equipment parameters reliably invalidate affected components.
  */
 export function buildZeroSequenceEngine(
   n: number,
@@ -180,6 +184,8 @@ export function buildZeroSequenceEngine(
   activeLines: readonly CanonicalLine[],
   activeTransformers: readonly CanonicalTransformer[],
   baseMva: number,
+  componentOf: Int32Array,
+  components: number[][],
   context: ScSourceContext
 ): ZeroSequenceEngine {
   const zbase = (bus: number) => topology.buses[bus].vnKv ** 2 / baseMva;
@@ -188,7 +194,7 @@ export function buildZeroSequenceEngine(
   const z0Branches: SequenceBranch[] = [];
   const z0GroundShunts: SequenceSource[] = [];
   const adj = Array.from({ length: n }, () => [] as number[]);
-  const missingElementReasons = new Map<number, string>();
+  const componentMissingZ0 = new Map<number, string>();
 
   // 1. Lines in zero sequence
   for (const l of activeLines) {
@@ -200,8 +206,10 @@ export function buildZeroSequenceEngine(
     const lineSeq = seqData?.lines.get(l.sourceId);
     // Explicit, verified R0/X0 required; no 3*R1 fallback assumption
     if (!lineSeq || !(lineSeq.x0Ohm > 0) || !Number.isFinite(lineSeq.r0Ohm) || !Number.isFinite(lineSeq.x0Ohm)) {
-      missingElementReasons.set(a, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:${l.sourceId}`);
-      missingElementReasons.set(b, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:${l.sourceId}`);
+      const cId = componentOf[a];
+      if (cId >= 0 && !componentMissingZ0.has(cId)) {
+        componentMissingZ0.set(cId, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:${l.sourceId}`);
+      }
       continue;
     }
 
@@ -222,35 +230,79 @@ export function buildZeroSequenceEngine(
   }
 
   // 2. Transformers in zero sequence
+  const usedNecFids = new Set<string>();
   for (const tr of activeTransformers) {
     if (!tr.inService || topology.blockedEquipment.has(tr.id)) continue;
     const a = topology.terminalToBus.get(tr.from); // HV
     const b = topology.terminalToBus.get(tr.to); // LV
     if (a === undefined || b === undefined) continue;
 
+    const cId = componentOf[a];
     const trSeq = seqData?.transformers.get(tr.sourceId);
     if (!trSeq || !trSeq.vectorGroupHv || !trSeq.vectorGroupLv) {
-      // No assumed YN/D vector group
-      missingElementReasons.set(a, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_VECTOR_GROUP:${tr.sourceId}`);
-      missingElementReasons.set(b, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_VECTOR_GROUP:${tr.sourceId}`);
+      if (cId >= 0 && !componentMissingZ0.has(cId)) {
+        componentMissingZ0.set(cId, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_VECTOR_GROUP:${tr.sourceId}`);
+      }
       continue;
     }
 
     const vgHv = trSeq.vectorGroupHv.toUpperCase();
     const vgLv = trSeq.vectorGroupLv.toUpperCase();
 
-    const isHvGrounded = vgHv.includes('N');
-    const isLvGrounded = vgLv.includes('N');
-    const isHvDelta = vgHv === 'D';
-    const isLvDelta = vgLv === 'D';
-
     // Must have verified zero-sequence short circuit impedance (uk0tr)
     const uk0tr = trSeq.uk0tr;
     const isUk0trValid = Number.isFinite(uk0tr) && (uk0tr ?? 0) > 0 && (uk0tr ?? 0) < 100 && uk0tr !== 99999 && uk0tr !== 999999;
     if (!isUk0trValid) {
-      missingElementReasons.set(a, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_IMPEDANCE:${tr.sourceId}`);
-      missingElementReasons.set(b, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_IMPEDANCE:${tr.sourceId}`);
+      if (cId >= 0 && !componentMissingZ0.has(cId)) {
+        componentMissingZ0.set(cId, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_TRANSFORMER_IMPEDANCE:${tr.sourceId}`);
+      }
       continue;
+    }
+
+    let isHvGrounded = vgHv.includes('N');
+    let isLvGrounded = vgLv.includes('N');
+    const isHvDelta = vgHv === 'D';
+    const isLvDelta = vgLv === 'D';
+
+    // Verify neutral connection mode (cneutcon)
+    // If cneutcon === 1 (separate external neutral), neutral is only grounded if bushvn/buslvn has a valid connection
+    let necHv: import('./sequence-network').ScZeroSequenceGroundCompensator | undefined;
+    let necLv: import('./sequence-network').ScZeroSequenceGroundCompensator | undefined;
+    if (trSeq.cneutcon === 1) {
+      if (isHvGrounded) {
+        if (trSeq.bushvn && trSeq.bushvn !== 'null') {
+          necHv = seqData?.groundCompensators.find((n) => n.inService && (n.bus === trSeq.bushvn || n.fid === trSeq.bushvn));
+          if (!necHv && !(trSeq.re0tr_h && trSeq.re0tr_h > 0)) {
+            // Ambiguous neutral connection: specified neutral terminal could not be verified
+            if (cId >= 0 && !componentMissingZ0.has(cId)) {
+              componentMissingZ0.set(cId, `NOT_COMPUTABLE: AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:${tr.sourceId}`);
+            }
+            isHvGrounded = false;
+          } else if (necHv) {
+            usedNecFids.add(necHv.fid);
+          }
+        } else if (!(trSeq.re0tr_h && trSeq.re0tr_h > 0)) {
+          // Open neutral terminal
+          isHvGrounded = false;
+        }
+      }
+      if (isLvGrounded) {
+        if (trSeq.buslvn && trSeq.buslvn !== 'null') {
+          necLv = seqData?.groundCompensators.find((n) => n.inService && (n.bus === trSeq.buslvn || n.fid === trSeq.buslvn));
+          if (!necLv && !(trSeq.re0tr_l && trSeq.re0tr_l > 0)) {
+            // Ambiguous neutral connection: specified neutral terminal could not be verified
+            if (cId >= 0 && !componentMissingZ0.has(cId)) {
+              componentMissingZ0.set(cId, `NOT_COMPUTABLE: AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:${tr.sourceId}`);
+            }
+            isLvGrounded = false;
+          } else if (necLv) {
+            usedNecFids.add(necLv.fid);
+          }
+        } else if (!(trSeq.re0tr_l && trSeq.re0tr_l > 0)) {
+          // Open neutral terminal
+          isLvGrounded = false;
+        }
+      }
     }
 
     const z0pu =
@@ -267,14 +319,24 @@ export function buildZeroSequenceEngine(
         ((tr.typeLvKv ?? tr.lvKv) / tr.lvKv) ** 2;
     }
 
-    // Neutral grounding resistance (3 * Re)
-    const reHvPu = trSeq.re0tr_h && trSeq.re0tr_h > 0 ? (3 * trSeq.re0tr_h) / zbase(a) : 0;
-    const reLvPu = trSeq.re0tr_l && trSeq.re0tr_l > 0 ? (3 * trSeq.re0tr_l) / zbase(b) : 0;
+    // Neutral grounding resistance and reactance (from re0tr or connected ElmNec)
+    let reHvPu = trSeq.re0tr_h && trSeq.re0tr_h > 0 ? (3 * trSeq.re0tr_h) / zbase(a) : 0;
+    let reLvPu = trSeq.re0tr_l && trSeq.re0tr_l > 0 ? (3 * trSeq.re0tr_l) / zbase(b) : 0;
+    let xeHvPu = 0;
+    let xeLvPu = 0;
+    if (necHv) {
+      reHvPu += (necHv.r0Ohm) / zbase(a);
+      xeHvPu += (necHv.x0Ohm) / zbase(a);
+    }
+    if (necLv) {
+      reLvPu += (necLv.r0Ohm) / zbase(b);
+      xeLvPu += (necLv.x0Ohm) / zbase(b);
+    }
 
     // A. YN / d (or YN / D): Grounded star on HV, delta on LV
     if (isHvGrounded && isLvDelta) {
       const shuntR = r0Pu + reHvPu;
-      const shuntX = x0Pu;
+      const shuntX = x0Pu + xeHvPu;
       if (shuntX > 0 || shuntR > 0) {
         z0GroundShunts.push({ bus: a, rPu: shuntR, xPu: shuntX });
       }
@@ -282,7 +344,7 @@ export function buildZeroSequenceEngine(
     // B. d / YN (or D / YN): Delta on HV, grounded star on LV
     else if (isHvDelta && isLvGrounded) {
       const shuntR = r0Pu + reLvPu;
-      const shuntX = x0Pu;
+      const shuntX = x0Pu + xeLvPu;
       if (shuntX > 0 || shuntR > 0) {
         z0GroundShunts.push({ bus: b, rPu: shuntR, xPu: shuntX });
       }
@@ -290,7 +352,7 @@ export function buildZeroSequenceEngine(
     // C. YN / YN (or YN / yn): Grounded star on both sides (series transmission)
     else if (isHvGrounded && isLvGrounded) {
       const seriesR = r0Pu + reHvPu + reLvPu;
-      const seriesX = x0Pu;
+      const seriesX = x0Pu + xeHvPu + xeLvPu;
       const neutralRatio =
         tr.typeHvKv && tr.typeLvKv && tr.vnKv && tr.lvKv
           ? (tr.typeHvKv / tr.vnKv) / (tr.typeLvKv / tr.lvKv)
@@ -312,11 +374,11 @@ export function buildZeroSequenceEngine(
     // D. Ungrounded star or delta-delta: no zero sequence connection
   }
 
-  // 3. ElmNec (Neutral earthing compensators / grounding transformers)
+  // 3. ElmNec (Neutral earthing compensators / grounding transformers connected directly to buses)
   // Supports pure resistive earthing (R0 > 0, X0 = 0) as well as reactive
   if (seqData?.groundCompensators) {
     for (const nec of seqData.groundCompensators) {
-      if (!nec.inService) continue;
+      if (!nec.inService || usedNecFids.has(nec.fid)) continue;
       const busIdx = topology.terminalToBus.get(nec.bus);
       if (busIdx === undefined) continue;
 
@@ -348,33 +410,33 @@ export function buildZeroSequenceEngine(
   }
 
   // 5. Partition zero-sequence graph into connected components
-  const componentOf = new Int32Array(n).fill(-1);
-  const components: number[][] = [];
+  const z0ComponentOf = new Int32Array(n).fill(-1);
+  const z0Components: number[][] = [];
 
   for (let root = 0; root < n; root++) {
-    if (componentOf[root] < 0) {
+    if (z0ComponentOf[root] < 0) {
       const group: number[] = [];
-      const id = components.length;
+      const id = z0Components.length;
       const stack = [root];
-      componentOf[root] = id;
+      z0ComponentOf[root] = id;
       while (stack.length) {
         const u = stack.pop()!;
         group.push(u);
         for (const v of adj[u]) {
-          if (componentOf[v] < 0) {
-            componentOf[v] = id;
+          if (z0ComponentOf[v] < 0) {
+            z0ComponentOf[v] = id;
             stack.push(v);
           }
         }
       }
-      components.push(group);
+      z0Components.push(group);
     }
   }
 
   // Determine which components have at least one ground shunt
-  const componentGrounded = new Uint8Array(components.length);
+  const componentGrounded = new Uint8Array(z0Components.length);
   for (const s of z0GroundShunts) {
-    const cId = componentOf[s.bus];
+    const cId = z0ComponentOf[s.bus];
     if (cId >= 0) componentGrounded[cId] = 1;
   }
 
@@ -387,30 +449,48 @@ export function buildZeroSequenceEngine(
 
   return {
     drivingPoint: (busIndex: number): SequenceImpedanceResult => {
-      const cId = componentOf[busIndex];
-      if (cId < 0 || !componentGrounded[cId]) {
-        const specificReason = missingElementReasons.get(busIndex);
+      const posCId = componentOf[busIndex];
+      if (posCId < 0) {
         return {
           z0Ohm: null,
-          status: 'UNEARTHED',
-          reason: specificReason || 'ISOLATED_ZERO_SEQUENCE_NETWORK: NO_GROUNDING_PATH',
+          status: 'FAILED',
+          reason: 'INVALID_BUS_COMPONENT',
         };
       }
 
-      let entry = factorCache.get(cId);
+      // Check if this electrical component has any in-service equipment with missing Z0 data
+      const missingReason = componentMissingZ0.get(posCId);
+      if (missingReason) {
+        return {
+          z0Ohm: null,
+          status: 'FAILED',
+          reason: missingReason,
+        };
+      }
+
+      const z0CId = z0ComponentOf[busIndex];
+      if (z0CId < 0 || !componentGrounded[z0CId]) {
+        return {
+          z0Ohm: null,
+          status: 'UNEARTHED',
+          reason: 'ISOLATED_ZERO_SEQUENCE_NETWORK: NO_GROUNDING_PATH',
+        };
+      }
+
+      let entry = factorCache.get(z0CId);
       if (!entry) {
-        const group = components[cId];
+        const group = z0Components[z0CId];
         const local = new Map(group.map((b, i) => [b, i]));
         const compBranches = z0Branches
-          .filter((b) => componentOf[b.a] === cId)
+          .filter((b) => z0ComponentOf[b.a] === z0CId)
           .map((b) => ({ ...b, a: local.get(b.a)!, b: local.get(b.b)! }));
         const compShunts = z0GroundShunts
-          .filter((s) => componentOf[s.bus] === cId)
+          .filter((s) => z0ComponentOf[s.bus] === z0CId)
           .map((s) => ({ ...s, bus: local.get(s.bus)! }));
 
         const factor = factorPositiveSequence(group.length, compBranches, compShunts);
         entry = { factor, local };
-        factorCache.set(cId, entry);
+        factorCache.set(z0CId, entry);
       }
 
       const localIdx = entry.local.get(busIndex)!;

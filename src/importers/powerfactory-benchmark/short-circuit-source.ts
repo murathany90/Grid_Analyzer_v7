@@ -88,23 +88,26 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
       const vgLv=type.tr2cn_l?String(type.tr2cn_l):undefined;
       const uk0tr=physical(type.uk0tr)&&Number(type.uk0tr)>0&&Number(type.uk0tr)!==99999&&Number(type.uk0tr)!==999999?Number(type.uk0tr):undefined;
       const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)>0&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
+      const cneutcon=row?.cneutcon!==undefined&&row?.cneutcon!==null?Number(row.cneutcon):0;
+      const bushvn=row?.bushvn&&String(row.bushvn)!=='null'?String(row.bushvn):null;
+      const buslvn=row?.buslvn&&String(row.buslvn)!=='null'?String(row.buslvn):null;
       seqTrafos.set(t.sourceId,{
         transformerId:t.sourceId,vectorGroupHv:vgHv,vectorGroupLv:vgLv,
         uk0tr,ur0tr,x0tor0:physical(type.x0tor0)&&Number(type.x0tor0)!==99999&&Number(type.x0tor0)!==999999?Number(type.x0tor0):undefined,
-        re0tr_h:row?.re0tr_h&&Number(row.re0tr_h)>0?Number(row.re0tr_h):0,
-        re0tr_l:row?.re0tr_l&&Number(row.re0tr_l)>0?Number(row.re0tr_l):0
+        cneutcon,bushvn,buslvn,
+        re0tr_h:row?.re0tr_h&&Number(row.re0tr_h)>0&&Number(row.re0tr_h)!==99999?Number(row.re0tr_h):0,
+        re0tr_l:row?.re0tr_l&&Number(row.re0tr_l)>0&&Number(row.re0tr_l)!==99999?Number(row.re0tr_l):0
       });
     }
   }
   const groundCompensators:import('../../analysis/short-circuit/sequence-network').ScZeroSequenceGroundCompensator[]=[];
   for(const row of tables(raw,'ElmNec')){
     if(row.outserv===1)continue;
-    if(row.iintgnd===1&&(!row.bus1n||row.bus1n==='null'||row.bus1n==='0'))continue;
-    const r0=physical(row.R0)&&Number(row.R0)!==99999?Number(row.R0):0;
-    const x0=physical(row.X0)&&Number(row.X0)!==99999?Number(row.X0):0;
+    const r0=physical(row.R0)&&Number(row.R0)!==99999&&Number(row.R0)!==999999?Number(row.R0):0;
+    const x0=physical(row.X0)&&Number(row.X0)!==99999&&Number(row.X0)!==999999?Number(row.X0):0;
     if(r0>0||x0>0){
       const b=endpoint(row.bus1);
-      if(b)groundCompensators.push({fid:String(row.FID),bus:b,r0Ohm:r0,x0Ohm:x0,inService:true});
+      groundCompensators.push({fid:String(row.FID),bus:b||String(row.bus1??''),r0Ohm:r0,x0Ohm:x0,inService:true});
     }
   }
   const negativeSources=new Map<string,import('../../analysis/short-circuit/sequence-network').ScNegativeSequenceSource>();

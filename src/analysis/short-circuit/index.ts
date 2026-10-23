@@ -70,7 +70,7 @@ function prepareSources(network:CanonicalNetwork,scenario:ScenarioOverlay,contex
   const componentIssues=components.map(group=>[...new Set([...group.flatMap(b=>issues.get(b)??[]),...unresolved.map(s=>`${s.reason}:${s.sourceClass}:${s.fid}`)])]);
   const componentOmissions=components.map(group=>[...new Set(group.flatMap(b=>omissions.get(b)??[]))]);
   const negativeEngine=buildNegativeSequenceEngine(topology,network,componentOf,components,branches,sources,context);
-  const zeroEngine=buildZeroSequenceEngine(n,topology,active.lines,active.transformers,network.baseMva,context);
+  const zeroEngine=buildZeroSequenceEngine(n,topology,active.lines,active.transformers,network.baseMva,componentOf,components,context);
   return {busById,topology,branches,componentOf,components,sources,currentSources,componentIssues,componentOmissions,factors:new Map<number,ComponentFactor>(),negativeEngine,zeroEngine};
 }
 type Preparation={network:CanonicalNetwork;scenarioHash:string;sourceHash:string;value:ReturnType<typeof prepareSources>;users:number;retired:boolean};
@@ -139,12 +139,16 @@ export async function calculateThreePhase(network:CanonicalNetwork,scenario:Scen
       if(profile.faultType==='1LG'){
         const neg=entry.value.negativeEngine.drivingPoint(bus,z,solved.residual);
         const z0Res=entry.value.zeroEngine.drivingPoint(bus);
-        if(z0Res.status==='UNEARTHED'||!z0Res.z0Ohm){
+        if(z0Res.status!=='SOLVED'||!z0Res.z0Ohm){
           row.status='BLOCKED';
           row.quality='NOT_COMPUTABLE';
-          const compSources=sources.filter(s=>componentOf[s.bus]===componentOf[bus]);
-          const hasXnetInComp=compSources.some(s=>s.sourceClass==='ElmXnet');
-          row.reasons=[hasXnetInComp?'NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_SOURCE_MODEL:ElmXnet':(z0Res.reason||'ISOLATED_ZERO_SEQUENCE_NETWORK: NO_GROUNDING_PATH')];
+          if(z0Res.reason?.startsWith('NOT_COMPUTABLE')){
+            row.reasons=[z0Res.reason];
+          }else{
+            const compSources=sources.filter(s=>componentOf[s.bus]===componentOf[bus]);
+            const hasXnetInComp=compSources.some(s=>s.sourceClass==='ElmXnet');
+            row.reasons=[hasXnetInComp?'NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_SOURCE_MODEL:ElmXnet':(z0Res.reason||'ISOLATED_ZERO_SEQUENCE_NETWORK: NO_GROUNDING_PATH')];
+          }
           continue;
         }
         const rTot=z.re+neg.z2Ohm.re+z0Res.z0Ohm.re+3*profile.rfOhm,xTot=z.im+neg.z2Ohm.im+z0Res.z0Ohm.im+3*profile.xfOhm;
