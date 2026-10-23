@@ -2,14 +2,32 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Keep the image and version guard in sync with package-lock.json.
+    # Browsers, fonts and shared libraries are baked in; no per-run apt downloads.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
+    defaults:
+      run:
+        shell: bash
+    env:
+      PLAYWRIGHT_IMAGE_VERSION: '1.63.0'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
       - name: Check out source without large model files
         uses: actions/checkout@v4
@@ -21,25 +39,46 @@ jobs:
           node-version: 22
           cache: npm
       - name: Install locked dependencies
+        timeout-minutes: 3
         run: npm ci
       - name: Typecheck
+        timeout-minutes: 2
         run: npm run typecheck
       - name: Architecture lint
+        timeout-minutes: 2
         run: npm run lint
       - name: Unit and regression tests
+        timeout-minutes: 3
         run: npm test
-      - name: Install Chromium for browser smoke
-        run: npx playwright install --with-deps chromium
+      - name: Verify preinstalled Chromium matches lockfile
+        timeout-minutes: 1
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const locked = require('./package-lock.json').packages;
+          const version = require('playwright/package.json').version;
+          assert.equal(version, process.env.PLAYWRIGHT_IMAGE_VERSION, 'Update the pinned container when Playwright changes');
+          assert.equal(version, locked['node_modules/playwright'].version);
+          assert.equal(version, locked['node_modules/playwright-core'].version);
+          const executable = require('playwright').chromium.executablePath();
+          fs.accessSync(executable, fs.constants.X_OK);
+          console.log('PREINSTALLED_CHROMIUM OK', {version, executable});
+          NODE
       - name: Browser smoke
+        timeout-minutes: 8
         run: npm run test:e2e
       - name: Build standard app
+        timeout-minutes: 3
         run: npm run build
       - name: Build portable app
+        timeout-minutes: 3
         run: npm run build:portable
       # The committed portable artifact is hashed byte-for-byte, so CI must compare raw
       # bytes, not text. A CRLF checkout would previously produce different bytes and this
       # gate is what makes that impossible to merge silently.
       - name: Verify committed portable bytes match the CI build
+        timeout-minutes: 1
         run: |
           set -euo pipefail
           built_sha=$(sha256sum dist-portable/GridAnalyzer_v7.html | cut -d' ' -f1)
@@ -57,6 +96,7 @@ jobs:
           fi
           echo "COMMITTED_PORTABLE_BYTES OK ($built_sha)"
       - name: Upload portable build
+        timeout-minutes: 2
         uses: actions/upload-artifact@v4
         with:
           name: ytbs-v7-portable
