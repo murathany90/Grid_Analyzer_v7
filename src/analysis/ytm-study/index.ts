@@ -32,8 +32,8 @@ export function ytmStudyIsCurrent(r:YtmStudyResult,n:CanonicalNetwork,s:Scenario
 export function finishYtmStudy(r:YtmStudyResult,status:YtmStudyResult['status']=r.status){
  r.status=status;const q=emptyQualities(),pending={N1:0,SC_MAX:0,SC_MIN:0,SC1_MAX:0,SC1_MIN:0};for(const c of r.n1?.cases??[])if(c.quality)q[c.quality]++;else pending.N1++;if(!r.n1&&studyFamilies(r.options).includes('N1'))pending.N1+=r.catalog.length;
  const scFamilies=studyFamilies(r.options).includes('SC'),scModes=studyScModes(r.options);
- for(const [key,sc,mode] of [['SC_MAX',r.scMax,'MAX'],['SC_MIN',r.scMin,'MIN']] as const){for(const f of sc?.faults??[])if(f.quality&&f.status!=='CANCELLED')q[f.quality]++;else pending[key]++;if(!sc&&scFamilies&&scModes.includes(mode))pending[key]+=r.faultTargets.length;}
- for(const [key,sc1,mode] of [['SC1_MAX',r.sc1LgMax,'MAX'],['SC1_MIN',r.sc1LgMin,'MIN']] as const){for(const f of sc1?.faults??[])if(f.quality&&f.status!=='CANCELLED')q[f.quality]++;else pending[key]++;if(!sc1&&scFamilies&&scModes.includes(mode))pending[key]+=r.faultTargets.length;}
+ for(const [key,sc,mode] of [['SC_MAX',r.scMax,'MAX'],['SC_MIN',r.scMin,'MIN']] as const){if(sc){for(const f of sc.faults)if(f.status==='CANCELLED')pending[key]++;else if(f.quality)q[f.quality]++;else pending[key]++;if(scFamilies&&scModes.includes(mode)&&sc.faults.length<r.faultTargets.length)pending[key]+=Math.max(0,r.faultTargets.length-sc.faults.length);}else if(scFamilies&&scModes.includes(mode)){pending[key]+=r.faultTargets.length;}}
+ for(const [key,sc1,mode] of [['SC1_MAX',r.sc1LgMax,'MAX'],['SC1_MIN',r.sc1LgMin,'MIN']] as const){if(sc1){for(const f of sc1.faults)if(f.status==='CANCELLED')pending[key]++;else if(f.quality)q[f.quality]++;else pending[key]++;if(scFamilies&&scModes.includes(mode)&&sc1.faults.length<r.faultTargets.length)pending[key]+=Math.max(0,r.faultTargets.length-sc1.faults.length);}else if(scFamilies&&scModes.includes(mode)){pending[key]+=r.faultTargets.length;}}
  const hasPending=(studyFamilies(r.options).includes('N1')&&pending.N1>0)||(scFamilies&&scModes.some(m=>m==='MAX'?(pending.SC_MAX>0||pending.SC1_MAX>0):(pending.SC_MIN>0||pending.SC1_MIN>0)));
  if(r.status==='COMPLETE'&&hasPending)r.status='BUDGET_EXHAUSTED';
  r.qualityCounts=q;r.pendingCounts=pending;return r;
@@ -126,7 +126,7 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
  await stage('REPORT',()=>{
   const scUnfinished=scFamily&&modes.some(m=>{
    const sc=m==='MAX'?r.scMax:r.scMin,sc1=m==='MAX'?r.sc1LgMax:r.sc1LgMin;
-   return !sc||!sc1||sc.faults.some(f=>f.status==='CANCELLED')||sc1.faults.some(f=>f.status==='CANCELLED');
+   return !sc||!sc1||sc.faults.length<r.faultTargets.length||sc1.faults.length<r.faultTargets.length||sc.faults.some(f=>f.status==='CANCELLED')||sc1.faults.some(f=>f.status==='CANCELLED');
   });
   if(scUnfinished)r.messages.push('SC mode unfinished: time budget or cancellation; no zero currents substituted.');
   r.status=callbacks.signal?.aborted?'CANCELLED':(remaining()<=0||scUnfinished)?'BUDGET_EXHAUSTED':'COMPLETE';

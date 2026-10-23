@@ -8,6 +8,7 @@ import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../../src/domain/b
 import {createLightningScPanel} from '../../src/map/lightning-sc-panel';
 import {buildBenchmarkMapData,benchmarkMapGate} from '../../src/domain/benchmark/map-layer';
 import {resultLayerColor} from '../../src/map/layer-policy';
+import {finishYtmStudy,type YtmStudyResult} from '../../src/analysis/ytm-study';
 
 test('660 presentation rows retain independent AC/DC sets, names, missing POST and budget/divergence states',()=>{
  const {ctx}=analysisUiFixture(),rows=compactN1Rows(ctx);assert.equal(rows.length,660);assert.equal(runEvidence(ctx).acCalculated,30);assert.equal(runEvidence(ctx).acAttempted,37);assert.equal(runEvidence(ctx).acVerified,0);assert.equal(runEvidence(ctx).distinctNumerical,298);
@@ -275,3 +276,81 @@ test('C.2.1: siteIds properly derived from terminals and deduplicated per electr
  assert.ok(mapData.enabled);
  assert.equal(mapData.scale?.unit, 'MVA');
 });
+
+test('C.2.1: partial SC targets (3F=3, 1F=1 of 3 targets) marks study BUDGET_EXHAUSTED and pending=2', () => {
+ const study: YtmStudyResult = {
+  schemaVersion: 1,
+  identity: { modelHash: 'm1', scenarioHash: 's1', optionsHash: 'o1' },
+  options: { ytmId: 'A', families: ['SC'], scModes: ['MAX'] },
+  status: 'COMPLETE',
+  catalog: [],
+  n1: null,
+  scMax: {
+   identity: { modelHash: 'm1', scenarioHash: 's1', sourceHash: 'src1', profileHash: 'p1' },
+   profile: { calculateMode: 'MAX', faultType: '3PH' },
+   method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
+   faults: [
+    { physicalTerminalFid: 'T1', electricalBusId: 'B1', physicalTerminalFids: ['T1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 20, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
+    { physicalTerminalFid: 'T2', electricalBusId: 'B2', physicalTerminalFids: ['T2'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 25, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
+    { physicalTerminalFid: 'T3', electricalBusId: 'B3', physicalTerminalFids: ['T3'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 30, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
+   ]
+  } as any,
+  sc1LgMax: {
+   identity: { modelHash: 'm1', scenarioHash: 's1', sourceHash: 'src1', profileHash: 'p1' },
+   profile: { calculateMode: 'MAX', faultType: '1LG' },
+   method: 'GA_SEQUENCE_1LG_MAX',
+   faults: [
+    { physicalTerminalFid: 'T1', electricalBusId: 'B1', physicalTerminalFids: ['T1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 15, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
+   ]
+  } as any,
+  scMin: null,
+  faultTargets: ['T1', 'T2', 'T3'],
+  electricalTargets: 3,
+  stageMs: { MODEL_PREPARATION: 0, CATALOG: 0, DC_SCREEN: 0, AC_APPROX: 0, AC_FULL: 0, SC_SOURCE_PREP: 0, SC_FACTORIZATION: 0, SC_BATCH: 0, REPORT: 0 },
+  elapsedMs: 100,
+  qualityCounts: { REFERENCE_VALIDATED: 0, NATIVE_COMPUTED: 0, ENGINEERING_APPROX: 0, DC_SCREEN_ONLY: 0, NOT_COMPUTABLE: 0, REFERENCE_ONLY: 0 },
+  assumptions: [],
+  messages: []
+ };
+
+ finishYtmStudy(study, 'COMPLETE');
+ assert.equal(study.status, 'BUDGET_EXHAUSTED', 'Study with partial 1F results must not be COMPLETE');
+ assert.equal(study.pendingCounts?.SC_MAX, 0, 'All 3 3F faults present');
+ assert.equal(study.pendingCounts?.SC1_MAX, 2, '2 missing 1F faults must be marked pending');
+
+ // Physically blocked fault (quality = NOT_COMPUTABLE) is counted in qualityCounts, NOT as pending
+ study.sc1LgMax!.faults.push({
+  physicalTerminalFid: 'T2', electricalBusId: 'B2', physicalTerminalFids: ['T2'], nominalKv: 154, componentId: null,
+  status: 'BLOCKED', quality: 'NOT_COMPUTABLE', reasons: ['NOT_COMPUTABLE: no grounding path'],
+  zkkOhm: null, ikssKa: null, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null
+ });
+ finishYtmStudy(study, 'COMPLETE');
+ assert.equal(study.pendingCounts?.SC1_MAX, 1, 'Only the 1 genuinely missing fault should be pending');
+ assert.equal(study.qualityCounts.NOT_COMPUTABLE, 1, 'Physically blocked fault is in qualityCounts');
+});
+
+test('C.2.1: workspace save/sync retains and clears scResult1Lg consistently', () => {
+ const {ctx} = analysisUiFixture();
+ const sc3F = ctx.scResult!;
+ const sc1F: any = {
+  ...sc3F,
+  method: 'GA_SEQUENCE_1LG_MAX',
+  profile: { ...sc3F.profile, faultType: '1LG' as const },
+  identity: { ...sc3F.identity, profileHash: '1LG_PROFILE' }
+ };
+ ctx.scResult1Lg = sc1F;
+
+ const app = ctx as any;
+ if (typeof app.saveWorkspace === 'function' && typeof app.syncWorkspace === 'function') {
+  app.saveWorkspace();
+  ctx.scResult1Lg = null;
+  app.syncWorkspace();
+  assert.equal(ctx.scResult1Lg, sc1F, 'scResult1Lg should be restored from workspace');
+ }
+
+ if (typeof app.clearModel === 'function') {
+  app.clearModel();
+  assert.equal(ctx.scResult1Lg, null, 'clearModel should reset scResult1Lg to null');
+ }
+});
+
