@@ -69,3 +69,18 @@ test('inconsistent collapsed kV, negative line resistance and invalid transforme
   const switched={...base,buses:base.buses.map(b=>({...b,vnKv:b.id==='B1'?99:100})),switches:[{...base.lines[0],id:'SW',sourceId:'SW',sourceClass:'ElmCoup',closed:true}]};assert.equal((await calculateThreePhase(switched,emptyScenario(),context(switched),['B2'],profile)).faults[0].status,'BLOCKED');
   const c=context(base);c.invalidBranches=[{sourceClass:'ElmLne',fid:'L0',reason:'INVALID_UNIT_OR_UNVERIFIED_TRANSFORMER_BASE_TAP'}];assert.equal((await calculateThreePhase(base,emptyScenario(),c,['B2'],profile)).faults[0].ikssKa,null);
 });
+test('transformer with tap changer uses neutral tap position in short-circuit as per IEC 60909 and PF TechRef 4.1',async()=>{
+  const base=acNetwork(2);
+  // Base network has B0 at 100 kV and B1 at 10 kV
+  // Transformer has operational tap = 1.15 (e.g. tap position +7 in load flow), but type nominals are 100 kV / 10 kV
+  const n={...base,buses:base.buses.map(b=>({...b,vnKv:b.id==='B0'?100:10})),lines:[],transformers:[{...base.lines[0],sourceClass:'ElmTr2',sourceId:'T',id:'T',vnKv:100,lvKv:10,typeHvKv:100,typeLvKv:10,rPu:.01,xPu:.1,tap:1.15,phase:0,ratingMva:100,tapPosition:7,gPu:0,bPu:0}]};
+  const r=await calculateThreePhase(n,emptyScenario(),context(n),['B1'],profile);
+  // Because neutral tap = (100/100)/(10/10) = 1.0, impedance is NOT scaled by 1.15^2
+  // High-side source: rPu = 0.01, xPu = 0.1 on 100 kV base -> reflected with neutral tap 1.0 -> same in p.u.
+  // Total Zpu = (0.01 + 0.01) + j(0.1 + 0.1) = 0.02 + j0.2
+  // zBase at 10 kV = 10^2 / 100 = 1.0 ohm. So zOhm = 0.02 + j0.2 ohm
+  near(r.faults[0].zkkOhm!.re,.02);
+  near(r.faults[0].zkkOhm!.im,.2);
+  near(r.faults[0].ikssKa,11/(Math.sqrt(3)*Math.hypot(.02,.2)));
+});
+
