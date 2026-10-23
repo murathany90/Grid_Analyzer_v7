@@ -7,6 +7,7 @@ import {formatEngineering} from '../ui/components/engineering-format';
 import {voltageMatches} from '../domain/model/voltage-band';
 import {mapLoadingValues} from './loading-presentation';
 import {mapTopologyPresentation} from './topology-presentation';
+import {currentScResult} from '../domain/results/sc-selection';
 import {currentMapLf,representativeStationBus,representativeReferenceBySite,angleHasReference,matchedVoltageKv,transformerFromIsHv,finiteNumber,mapPresentationGate,mapReferenceRows,selectedN1Presentation,selectedScPresentation,buildMapPresentationData} from './layer-policy';
 import {workspaceMapSelection} from '../domain/results/workspace';
 import {solutionCompleteness} from '../domain/results/diagnostics';
@@ -79,10 +80,21 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
     card.note=p.post?'Mevcut Full AC post-vaka kaydı; aynı kesinti ve senaryo.':'DC P-only · Q/U/açı ve AC ihlal: NOT_RUN';if(card.details)card.note+=' · '+card.details;return card;
   }
   if(v.analysis==='SC'){
-    const p=selectedScPresentation(ctx),f=p.fault,relevant=e.sourceClass==='ElmSite'&&(f?.physicalTerminalFids.length?f.physicalTerminalFids:[f?.physicalTerminalFid]).some(id=>id&&modelPresentationIndex(ctx.network!).physicalTerminalById.get(id)?.siteIds.includes(e.id));
-    card.context+=` · 3PH ${p.sc?.profile.calculateMode??'—'}`;card.status=relevant?p.status:'NOT_RECORDED';
-    card.headers=['Ikss (kA)','Skss (MVA)','Nominal (kV)'];card.rows=[[number(relevant?f?.ikssKa:null),number(relevant?f?.skssMva:null),number(relevant?f?.nominalKv:null)]];
-    card.note=relevant&&p.status.includes('APPROXIMATION')?'NETWORK_APPROXIMATION · IEC eşdeğeri değil · Ip/Ib/Ith: desteklenmiyor.':p.reason+' · Analizler > Kısa Devre';return card;
+    const sc=currentScResult(ctx),curMode=sc?.profile.calculateMode??'MAX';
+    card.context+=` · SC ${curMode}`;
+    if(e.sourceClass==='ElmSite'){
+      const siteVal=buildMapPresentationData(ctx,selection).sites.get(e.id);
+      card.status=siteVal?.status??'NOT_RUN';
+      card.headers=['Maks Ikss','Birim','Durum'];
+      card.rows=[[siteVal?.value!=null?number(siteVal.value)+' kA ('+Math.round(siteVal.value*1000).toLocaleString('tr-TR')+' A)':'Hesaplanmadı',siteVal?.unit??'kA',siteVal?.status??'NOT_RUN']];
+      card.note=siteVal?.value!=null?'TM elektriksel baralarının maksimumudur · Ayrıntı için TM\'yi seçin veya ⚡ paneline bakın.':'Bu TM için hesaplanmış SC sonucu bulunamadı.';
+      return card;
+    }
+    const p=selectedScPresentation(ctx),f=p.fault;
+    card.status=f?f.status:'NOT_RECORDED';
+    card.headers=['Ikss (kA)','Skss (MVA)','Nominal (kV)'];card.rows=[[number(f?.ikssKa),number(f?.skssMva),number(f?.nominalKv)]];
+    card.note=f&&f.status.includes('APPROXIMATION')?'NETWORK_APPROXIMATION · IEC eşdeğeri değil · Ip/Ib/Ith: desteklenmiyor.':p.reason+' · Analizler > Kısa Devre';
+    return card;
   }
   const gate=mapPresentationGate(ctx,selection);if(!gate.enabled){card.status='BLOCKED';card.note=gate.reason+' · Analizler / referans ayrıntısı.';return card;}
   const r=currentMapLf(ctx),isGa=selection.source==='GA',isDelta=['DELTA','EXPLORATORY_DELTA'].includes(selection.source),scenarioDelta=selection.source==='SCENARIO_DELTA';

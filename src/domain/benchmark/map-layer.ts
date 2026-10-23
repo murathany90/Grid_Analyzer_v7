@@ -1,4 +1,5 @@
 import {currentScResult} from '../results/sc-selection';
+import {compactScRows} from '../../features/analysis/compact-rows';
 import {scenarioLfComparison} from '../results/lf-comparison';
 import {postResultAssembler} from '../../analysis/contingency-ac/post-results';
 import type { BenchmarkAnalysis } from './types';
@@ -37,10 +38,11 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     return canonicalRows(ctx,s).some(r=>r.identityMatched&&r.diagnosticDelta!=null)?{enabled:true,reason:'EXPLORATORY_DELTA_METHOD_UNVERIFIED'}:{enabled:false,reason:'NO_IDENTITY_MATCHED_DIAGNOSTIC_CELLS; LOADING_DENOMINATOR_OR_METHOD_UNVERIFIED'};
   }
   if(s.analysis==='SC'&&s.source==='DELTA')return {enabled:false,reason:'GA_IEC60909_METHOD_AND_EDITION_UNVERIFIED'};
+  if(s.analysis==='SC'&&s.source==='PF'&&s.metric==='ikss1FKa')return {enabled:false,reason:'PF_1F_REFERENCE_NOT_AVAILABLE'};
   if(s.analysis==='SC'&&s.source==='GA'){
     const sc=currentScResult(ctx),current=!!sc&&sc.identity.modelHash===ctx.network.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
     if(!current||!sc.faults.length)return {enabled:false,reason:'GA_IEC60909_NOT_COMPUTABLE'};
-    if(!['ikssKa','skssMva'].includes(s.metric))return {enabled:false,reason:'SC_METRIC_NOT_IMPLEMENTED'};
+    if(!['ikssKa','maxIkssKa','ikss3FKa','ikss1FKa','skssMva'].includes(s.metric))return {enabled:false,reason:'SC_METRIC_NOT_IMPLEMENTED'};
   }
   if(s.analysis==='N1'&&s.source==='DELTA')return {enabled:false,reason:'NOT_COMPARABLE_PF_MISSING'};
   if(s.analysis==='LF'&&s.source==='GA'&&!currentLf(ctx))return {enabled:false,reason:'GA_LF_NOT_CALCULATED'};
@@ -84,7 +86,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     for(const id of siteIds){putSite(id,value,fid,bus?.vnKv??null);const site=siteById.get(id);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
     if(!hasGeometry)data.noGeometry++;
   };
-  const baseView=s.analysis==='LF'&&ctx.resultStore.role==='base',result=ctx.resultStore.get((s.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'base':'scenario','powerFlow');
+  const baseView=s.analysis==='LF'&&ctx.resultStore?.role==='base',result=typeof ctx.resultStore?.get==='function'?ctx.resultStore.get((s.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'base':'scenario','powerFlow'):ctx.resultStore?.active;
   if(s.source==='SCENARIO_DELTA'){
     const pair=scenarioLfComparison(ctx,s.metric),details=(v:import('../results/lf-comparison').LfComparisonCell)=>['Senaryo−Baz · GA ONLY',v.reason||pair.status,'PRE '+v.pre+' · POST '+v.post+' · Δ '+v.delta+' '+v.unit];
     if(!['voltageKv','voltagePu','angleDeg'].includes(s.metric))for(const e of [...network.lines,...network.transformers]){const v=pair.branches.get(e.sourceClass+':'+e.id);if(v)put(e.sourceClass,e.sourceId,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});}
@@ -93,8 +95,59 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:pair.branches.values().next().value?.unit??pair.terminals.values().next().value?.unit??''};
     return data;
   }
-  if(s.analysis==='SC'&&s.source==='GA'&&ctx.scResult){
-    for(const f of ctx.scResult.faults){if(ctx.resultView?.faultId&&!f.physicalTerminalFids.includes(ctx.resultView.faultId)&&f.physicalTerminalFid!==ctx.resultView.faultId)continue;const value=s.metric==='ikssKa'?f.ikssKa:f.skssMva;for(const fid of f.physicalTerminalFids.length?f.physicalTerminalFids:[f.physicalTerminalFid])put('ElmTerm',fid,{value,unit:s.metric==='ikssKa'?'kA':'MVA',status:f.status,details:[`${fid} → ${f.electricalBusId??'—'} · ${f.status} · ${f.reasons.slice(0,3).join('; ')}`]});}return data;
+  if(s.analysis==='SC'){
+    const rows=compactScRows(ctx);
+    const unit=s.metric==='skssMva'?'MVA':'kA';
+    for(const site of network.sites){
+      const siteRows=rows.filter(r=>(Array.isArray(r.raw.siteIds)&&r.raw.siteIds.includes(site.id))||r.tm===site.name);
+      if(!siteRows.length){
+        putSite(site.id,{value:null,unit,status:'NOT_RUN',details:['Seçili TM için elektriksel bara bulunamadı']},'',null);
+        continue;
+      }
+      let bestVal:number|null=null,repFid=siteRows[0].fid,repKv=siteRows[0].kv,hasCalculated=false;
+      for(const row of siteRows){
+        let val:number|null=null;
+        if(s.source==='PF'){
+          if(s.metric!=='ikss1FKa'){
+            const pfVal=row.metrics.ikss?.pf;
+            if(pfVal!=null&&Number.isFinite(pfVal))val=pfVal;
+          }
+        }else if(s.metric==='ikss3FKa'){
+          if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss?.ga!=null)val=row.metrics.ikss.ga;
+        }else if(s.metric==='ikss1FKa'){
+          if(row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss1F?.ga!=null)val=row.metrics.ikss1F.ga;
+        }else if(s.metric==='skssMva'){
+          if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.skss?.ga!=null)val=row.metrics.skss.ga;
+        }else{
+          const c:number[]=[];
+          if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss?.ga!=null)c.push(row.metrics.ikss.ga);
+          if(row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss1F?.ga!=null)c.push(row.metrics.ikss1F.ga);
+          if(c.length)val=Math.max(...c);
+        }
+        if(val!=null&&Number.isFinite(val)){
+          hasCalculated=true;
+          if(bestVal===null||val>bestVal){bestVal=val;repFid=row.fid;repKv=row.kv;}
+        }
+      }
+      if(hasCalculated&&bestVal!=null){
+        putSite(site.id,{value:bestVal,unit,status:'CALCULATED',details:[`${site.name} · Maks Ikss = ${bestVal} ${unit} (${repFid})`]},repFid,repKv);
+      }else{
+        const dominantStatus=siteRows.some(r=>r.raw.status_1F==='STALE'||r.raw.status_3F==='STALE')?'STALE':siteRows.some(r=>r.raw.status_1F==='BLOCKED'||r.raw.status_3F==='BLOCKED')?'BLOCKED':siteRows.some(r=>r.raw.status_1F==='NOT_COMPUTABLE'||r.raw.status_3F==='NOT_COMPUTABLE')?'NOT_COMPUTABLE':String(siteRows[0]?.raw.Hesap_Durumu??'NOT_RUN');
+        putSite(site.id,{value:null,unit,status:dominantStatus,details:[`${site.name} · ${dominantStatus}`]},repFid,repKv);
+      }
+    }
+    for(const row of rows){
+      let val:number|null=null;
+      if(s.source==='PF'){val=s.metric==='ikss1FKa'?null:row.metrics.ikss?.pf??null;}
+      else if(s.metric==='ikss3FKa'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss?.ga??null:null;}
+      else if(s.metric==='ikss1FKa'){val=row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss1F?.ga??null:null;}
+      else if(s.metric==='skssMva'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.skss?.ga??null:null;}
+      else{const c:number[]=[];if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss?.ga!=null)c.push(row.metrics.ikss.ga);if(row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss1F?.ga!=null)c.push(row.metrics.ikss1F.ga);val=c.length?Math.max(...c):null;}
+      put('ElmTerm',row.fid,{value:val!=null&&Number.isFinite(val)?val:null,unit,status:String(row.raw.Hesap_Durumu??'NOT_RUN'),details:[`${row.name} (${row.fid}) · 3F: ${row.raw.status_3F} · 1F: ${row.raw.status_1F}`]});
+    }
+    const siteVals=[...data.sites.values()].map(v=>v.value).filter((v):v is number=>v!==null&&Number.isFinite(v)),sortedVals=[...siteVals].sort((a,b)=>a-b);
+    data.scale={p95:sortedVals.length?sortedVals[Math.max(0,Math.ceil(sortedVals.length*.95)-1)]||sortedVals.at(-1)||1:1,min:sortedVals.length?sortedVals[0]:0,max:sortedVals.length?sortedVals[sortedVals.length-1]:0,unit};
+    return data;
   }
   if(s.analysis==='LF'&&s.source==='GA'&&result){
     for(const b of result.buses){const value=s.metric==='voltagePu'?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:s.metric==='angleDeg'?b.angleRad*180/Math.PI:null;if(value!==null)for(const fid of b.terms)put('ElmTerm',fid,{value,unit:s.metric==='voltagePu'?'pu':s.metric==='voltageKv'?'kV':'deg',status:'GA_AC_BALANCED',details:[`ElmTerm:${fid} · ${value} · GA AC · ${b.islandId??'ada bilinmiyor'} · NO_PF_DELTA`]});}

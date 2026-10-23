@@ -1,3 +1,4 @@
+import {currentScResult} from '../domain/results/sc-selection';
 import {n1RiskColor,n1RiskColors} from './n1-risk-style';
 import {beginPresentationTiming,endPresentationTiming} from './presentation-timing';
 import {voltageMatches} from '../domain/model/voltage-band';
@@ -144,7 +145,28 @@ export class CanvasMapRenderer implements MapRenderer {
       const n1Island=this.n1IslandForBranch(line.id);if((settings.displayMode==='n1-island'||settings.displayMode==='n1-risk')&&n1Island&&this.ctx.selectedN1IslandId===n1Island.componentId){selection.beginPath();path.forEach(([x,y],i)=>i?selection.lineTo(x,y):selection.moveTo(x,y));selection.strokeStyle='#e8f2ff';selection.lineWidth=style.width+3;selection.setLineDash([2,4]);selection.stroke();}
       if(this.ctx.selection?.id===line.id){selection.beginPath();path.forEach(([x,y],i)=>i?selection.lineTo(x,y):selection.moveTo(x,y));selection.strokeStyle='#fff2b0';selection.lineWidth=style.width+2;selection.setLineDash(style.dash);selection.stroke();}
     }
-    let splitCount=0;g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';for(const s of this.visibleSites){
+    let splitCount=0;g.globalAlpha=1;g.setLineDash([]);g.font='10px system-ui';
+    if(this.ctx.benchmarkMap?.analysis==='SC'&&this.benchmarkData?.enabled){
+      const p95=this.benchmarkData.scale?.p95??30;
+      for(const s of this.visibleSites){
+        const valObj=this.benchmarkData.sites.get(s.id);
+        if(valObj&&valObj.value!==null&&Number.isFinite(valObj.value)){
+          const[x,y]=this.point(s.lon!,s.lat!);
+          const ratio=Math.min(2.5,valObj.value/(p95>0?p95:1));
+          const glowRadius=Math.max(8,Math.min(32,8+ratio*10));
+          const glowColor=resultLayerColor('#b8e1e3','site',this.ctx.benchmarkMap,valObj,true,p95,settings);
+          const radGrad=g.createRadialGradient(x,y,2,x,y,glowRadius);
+          radGrad.addColorStop(0,glowColor+'55');
+          radGrad.addColorStop(0.6,glowColor+'22');
+          radGrad.addColorStop(1,glowColor+'00');
+          g.fillStyle=radGrad;
+          g.beginPath();
+          g.arc(x,y,glowRadius,0,Math.PI*2);
+          g.fill();
+        }
+      }
+    }
+    for(const s of this.visibleSites){
       const[x,y]=this.point(s.lon!,s.lat!),selected=this.ctx.selection?.id===s.id,delta=this.voltageDeltas.get(s.id),siteIsland=this.islandMap?.siteIslands.get(s.id),dominant=siteIsland?.dominant;
       const splitMode=this.splitVisible(),splitStations=(this.splitGroupsBySite.get(s.id)||[]).filter(station=>voltageMatches(station.voltageKv,volts)),drawSplit=splitMode&&this.zoom>=2&&splitStations.length>0;
       const n1SiteIslands=this.n1Lookups()?.islandsBySite.get(s.id)||[],n1Island=n1SiteIslands.find(island=>island.hasReference)||n1SiteIslands[0];
@@ -172,8 +194,16 @@ export class CanvasMapRenderer implements MapRenderer {
     if(s.source==='SCENARIO_DELTA'){const colors=this.ctx.settings.value;return '<b>Senaryo−Baz · '+escapeHtml(mapMetricLabel(s.metric))+'</b><span><i style="background:'+colors.deltaDown+'"></i>Azalma (−)</span><span><i style="background:'+colors.deltaNeutral+'"></i>Nötr (0)</span><span><i style="background:'+colors.deltaUp+'"></i>Artış (+)</span><span>Birim: '+(s.metric==='loadingPercent'?'pp':escapeHtml(data.scale?.unit??''))+' · '+escapeHtml(data.reason)+'</span><span>Eksik / uyumsuz: —</span>';}
     if(s.analysis==='N1'&&s.source==='GA'&&s.n1Layer!=='CHANGE'&&/LoadingPercent|thermalRisk/.test(s.metric)){const warning=this.ctx.settings.value.riskWarningPercent;return `<b>N-1 yüklenme (%)</b>${['&lt;'+warning+'%',warning+'–&lt;100%','≥100%'].map((label,i)=>`<span><i style="background:${n1RiskColors[i]}"></i>${label}</span>`).join('')}<span>Risk uyarısı ${warning}% · fiziksel limit 100% · DC ise tahmini</span>`;}
     if(s.metric==='loadingPercent'){const settings=this.ctx.settings.value,colors=[settings.loadingColor0,settings.loadingColor1,settings.loadingColor2,settings.loadingColor3,settings.loadingColor4,settings.loadingColor5,settings.loadingColor6],edges=[0,...settings.thresholds];return '<b>'+escapeHtml(s.source+' · Yüklenme (%)')+'</b>'+colors.map((color,i)=>'<span><i style="background:'+color+'"></i>'+edges[i]+(i<6?'–'+edges[i+1]:' üzeri')+' %</span>').join('')+'<span>Hat: doğrulanmış akım/sezon · Trafo: rated MVA</span><span><i style="background:'+settings.colorNoResult+'"></i>UNKNOWN_CAPACITY / sonuç yok</span>';}
+    if(s.analysis==='SC'){
+      const mode=currentScResult(this.ctx)?.profile.calculateMode??'MAX';
+      const unit=data.scale?.unit??'kA';
+      const metricLabel=s.metric==='maxIkssKa'?'TM Maksimum Bara Akımı':s.metric==='ikss3FKa'?'3F Bara Akımı':s.metric==='ikss1FKa'?'1F Bara Akımı':s.metric==='skssMva'?'Kısa Devre Gücü':'Ikss Akımı';
+      const p95=data.scale?.p95??0,min=data.scale?.min??0,max=data.scale?.max??0;
+      const scaleText=data.scale?`<span>min ${min.toFixed(2)} / maks ${max.toFixed(2)} ${unit} · P95: ${p95.toFixed(2)} ${unit} (${Math.round(p95*1000)} A)</span>`:'';
+      return `<b>⚡ Kısa Devre · ${escapeHtml(metricLabel)}</b><span>Kaynak: ${s.source==='PF'?'PF Referansı':'GA IEC 60909'} · Mod: ${mode} Arıza</span><span><i style="background:#f43f5e"></i>&gt;1.15 P95 (Tepe)</span><span><i style="background:#fb923c"></i>0.85–1.15 P95 (Yüksek)</span><span><i style="background:#fbbf24"></i>0.55–0.85 P95 (Orta-Yüksek)</span><span><i style="background:#34d399"></i>0.25–0.55 P95 (Orta)</span><span><i style="background:#38bdf8"></i>&lt;0.25 P95 (Düşük)</span><span><i style="background:${this.ctx.settings.value.colorNoResult}"></i>Hesaplanmadı / Engellendi / Güncel Değil</span>${scaleText}<small>Görsel yoğunluk TM elektriksel baralarının maksimumudur</small>`;
+    }
     const settings=this.ctx.settings.value,colors=[['400 kV',settings.color400],['220 kV',settings.color220],['154 kV',settings.color154],['66 kV',settings.color66],['≤36 kV',settings.colorLow]];
-    const fault=this.ctx.scResult?.faults.find(f=>f.physicalTerminalFid===s.caseId),status=!data.enabled?data.reason:(data.numericValues??0)>0?'Kayıtlı sayısal sonuç':s.analysis==='SC'?fault?.status??'NOT_RUN / NO_DATA':'NOT_RUN / NO_POST_RESULT';
+    const status=!data.enabled?data.reason:(data.numericValues??0)>0?'Kayıtlı sayısal sonuç':'NOT_RUN / NO_POST_RESULT';
     const scale=data.scale?'<span>'+escapeHtml((s.n1Layer==='CHANGE'?'POST − PRE':'GA − PF')+' · min '+data.scale.min+' / maks '+data.scale.max+' '+data.scale.unit+' · p95 ±'+data.scale.p95)+'</span>':'';
     return '<b>'+escapeHtml(s.analysis+' · '+s.source+' · '+(s.analysis==='LF'?LF_MAP_METRICS.find(m=>m.metric===s.metric)?.label??mapMetricLabel(s.metric):mapMetricLabel(s.metric)))+'</b><span>'+escapeHtml(status)+'</span><span>Sayısal: '+(data.numericValues??0)+'</span><span class="ga-map-voltage-key">'+colors.map(([label,color])=>'<span><i style="background:'+color+'"></i>'+label+'</span>').join('')+'</span>'+scale+(s.source==='EXPLORATORY_DELTA'?'<span>EXPLORATORY_DELTA_METHOD_UNVERIFIED · tanısal</span>':'')+'<span>Eksik / uyumsuz sonuç: nominal topoloji korunur</span>'+(data.noGeometry?'<span>NO_GEOMETRY · '+data.noGeometry+' kayıt</span>':'')+'<small>Altlık: geoBoundaries / OSM · CC BY-SA 2.0</small>';
   }

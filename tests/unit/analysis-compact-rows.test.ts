@@ -5,6 +5,9 @@ import {compactN1Rows,compactScRows,compactLfRows,sortCompactRows,acStatus,type 
 import {runEvidence} from '../../src/features/analysis/run-evidence';
 import {selectScMode} from '../../src/domain/results/sc-selection';
 import {seedBenchmarkPreflight,type BenchmarkPreflight} from '../../src/domain/benchmark/comparison';
+import {createLightningScPanel} from '../../src/map/lightning-sc-panel';
+import {buildBenchmarkMapData} from '../../src/domain/benchmark/map-layer';
+import {resultLayerColor} from '../../src/map/layer-policy';
 
 test('660 presentation rows retain independent AC/DC sets, names, missing POST and budget/divergence states',()=>{
  const {ctx}=analysisUiFixture(),rows=compactN1Rows(ctx);assert.equal(rows.length,660);assert.equal(runEvidence(ctx).acCalculated,30);assert.equal(runEvidence(ctx).acAttempted,37);assert.equal(runEvidence(ctx).acVerified,0);assert.equal(runEvidence(ctx).distinctNumerical,298);
@@ -138,4 +141,77 @@ test('C.1: Turkish number formatting for SC satisfies 26.795 A = 26,795 kA and n
  assert.equal(fmt(null,'kA'),'—');
  assert.notEqual(fmt(null,'A'),'0');
  assert.notEqual(fmt(null,'kA'),'0');
+});
+
+test('C.2: Lightning SC Panel renders selected TM electrical buses and shows bus details upon selection',()=>{
+ const makeEl=(tag:string)=>{
+  const el={
+   tagName:tag.toUpperCase(),
+   className:'',
+   textContent:'',
+   title:'',
+   value:'',
+   type:'',
+   hidden:false,
+   placeholder:'',
+   children:[] as any[],
+   style:{},
+   dataset:{},
+   setAttribute:()=>{},
+   append:(...kids:any[])=>el.children.push(...kids),
+   replaceChildren:(...kids:any[])=>{el.children=kids;},
+   querySelector:()=>null,
+   querySelectorAll:()=>[],
+   classList:{add:()=>{},remove:()=>{},toggle:()=>{}}
+  };
+  return el as any;
+ };
+ (globalThis as any).document={createElement:makeEl};
+ try{
+  const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
+  const panel=createLightningScPanel(ctx);
+  assert.ok(panel.element);
+  assert.equal(typeof panel.render,'function');
+  panel.render();
+ }finally{
+  delete (globalThis as any).document;
+ }
+});
+
+test('C.2: Map SC layer aggregates maximum bus current per TM and assigns grey to uncomputed/stale sites',()=>{
+ const {ctx}=analysisUiFixture();ctx.analysisTab='SC';
+ const data=buildBenchmarkMapData(ctx,{analysis:'SC',source:'GA',metric:'maxIkssKa',table:'SC_BusResults_Raw'});
+ assert.ok(data.enabled);
+ assert.ok(data.sites.size>0);
+ const values=[...data.sites.values()].map(v=>v.value).filter((v):v is number=>v!==null);
+ assert.ok(values.length>0);
+ assert.ok(data.scale);
+ assert.ok(data.scale.p95>0);
+ assert.ok(data.scale.max>=data.scale.min);
+ const uncomputedSite=ctx.network!.sites.find(s=>![...data.sites.entries()].some(([id,v])=>id===s.id&&v.value!==null));
+ if(uncomputedSite){
+  const v=data.sites.get(uncomputedSite.id);
+  assert.equal(v?.value,null);
+  const color=resultLayerColor('#b8e1e3','site',{analysis:'SC',source:'GA',metric:'maxIkssKa',table:'SC_BusResults_Raw'},v,true,data.scale.p95);
+  assert.equal(color,'#708596');
+ }
+});
+
+test('C.2: resultLayerColor accurately computes 5-tier P95 quantile colors and grey for SC',()=>{
+ const s={analysis:'SC' as const,source:'GA' as const,metric:'maxIkssKa',table:'SC_BusResults_Raw'};
+ const p95=30;
+ const cPeak=resultLayerColor('#b8e1e3','site',s,{value:38,unit:'kA',status:'CALCULATED',details:[]},true,p95);
+ assert.equal(cPeak,'#f43f5e'); // >1.15 P95
+ const cHigh=resultLayerColor('#b8e1e3','site',s,{value:28,unit:'kA',status:'CALCULATED',details:[]},true,p95);
+ assert.equal(cHigh,'#fb923c'); // 0.85 - 1.15 P95
+ const cMidHigh=resultLayerColor('#b8e1e3','site',s,{value:20,unit:'kA',status:'CALCULATED',details:[]},true,p95);
+ assert.equal(cMidHigh,'#fbbf24'); // 0.55 - 0.85 P95
+ const cMid=resultLayerColor('#b8e1e3','site',s,{value:10,unit:'kA',status:'CALCULATED',details:[]},true,p95);
+ assert.equal(cMid,'#34d399'); // 0.25 - 0.55 P95
+ const cLow=resultLayerColor('#b8e1e3','site',s,{value:2,unit:'kA',status:'CALCULATED',details:[]},true,p95);
+ assert.equal(cLow,'#38bdf8'); // <0.25 P95
+ const cNull=resultLayerColor('#b8e1e3','site',s,{value:null,unit:'kA',status:'NOT_RUN',details:[]},true,p95);
+ assert.equal(cNull,'#708596'); // Grey for uncomputed
+ const cUndefined=resultLayerColor('#b8e1e3','site',s,undefined,true,p95);
+ assert.equal(cUndefined,'#708596'); // Grey for missing
 });
