@@ -8,6 +8,7 @@ import {emptyScenario} from '../../src/domain/scenario/overlay';
 import {acNetwork} from '../helpers/ac-network';
 import {syntheticBenchmarkPair} from '../helpers/benchmark-model';
 import {loadBenchmarkModel} from '../../src/importers/powerfactory-benchmark/model';
+import {zipSync,strToU8} from 'fflate';
 const profile:ScProfile={faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'EXPLICIT_ANALYTICAL_TEST_PROFILE; NOT_IEC_CERTIFICATION',edition:null,rfOhm:0,xfOhm:0,maxFaults:10,timeBudgetMs:30000};
 const context=(n:ReturnType<typeof acNetwork>):ScSourceContext=>({modelHash:n.modelHash,audit:[],invalidBranches:[],sources:[{sourceClass:'ElmXnet',fid:'SLACK',bus:'B0',inService:true,rOhm:1,xOhm:10,reason:'',sourceRef:'INDEPENDENT_PHYSICAL_TEST_SOURCE_OHM'}]});
 const near=(a:number|null,b:number)=>assert.ok(a!==null&&Math.abs(a-b)<1e-8*Math.max(1,Math.abs(b)),`${a} vs ${b}`);
@@ -83,4 +84,54 @@ test('transformer with tap changer uses neutral tap position in short-circuit as
   near(r.faults[0].zkkOhm!.im,.2);
   near(r.faults[0].ikssKa,11/(Math.sqrt(3)*Math.hypot(.02,.2)));
 });
+test('DGS transformer with HV tap changer maintains neutral impedance in short-circuit',async()=>{
+  const pair=syntheticBenchmarkPair(),table=(Attributes:string[],Values:unknown[][])=>({Attributes,Values});
+  // Replace line with a 100/10 kV transformer with HV tap changer (tap_side=0, dutap=2.5%, pos=+4 -> rel=1.10)
+  const raw={...pair.raw,
+    ElmTerm:table(['FID','loc_name','fold_id','uknom','outserv','iUsage'],[['SYN-B0','Bara 0','G0',100,0,0],['SYN-B1','Bara 1','G1',10,0,0]]),
+    StaCubic:table(['FID','fold_id','obj_id'],[['SYN-C0','SYN-B0','TR-HV'],['SYN-C1','SYN-B1','TR-HV'],['SYN-CX','SYN-B0','VAC']]),
+    TypLne:table(['FID'],[]),ElmLne:table(['FID'],[]),
+    ElmXnet:table(['FID'],[]),
+    ElmVac:table(['FID','loc_name','bus1','outserv','r1','x1','usetp'],[['VAC','Vac source','SYN-CX',0,1,10,1]]),
+    TypTr2:table(['FID','loc_name','utrn_h','utrn_l','strn','uktr','pcutr','itapch','tap_side','dutap','nntap0','pfe','curmg'],
+      [['TYP-TR','Trafo Tipi',100,10,100,10,1000,1,0,2.5,0,0,0]]),
+    ElmTr2:table(['FID','loc_name','fold_id','typ_id','bushv','buslv','nntap','outserv'],
+      [['TR-HV','HV Tap Trafo','G0','TYP-TR','SYN-C0','SYN-C1',4,0]])
+  };
+  const loaded=await loadBenchmarkModel(new File([zipSync({'test.json':strToU8(JSON.stringify(raw))})],'test.zip'));
+  const n={...loaded.network,externalGrids:[]},c=adaptShortCircuitSources(raw,n);
+  // Canonical LF tap is 1.10, but neutral tap is (100/100)/(10/10) = 1.0
+  const r=await calculateThreePhase(n,emptyScenario(),c,['SYN-B1'],profile);
+  assert.equal(r.faults[0].status,'CALCULATED_NETWORK_APPROXIMATION');
+  const xExpected=0.1+Math.sqrt(0.1**2-0.01**2);
+  near(r.faults[0].zkkOhm!.re,.02);
+  near(r.faults[0].zkkOhm!.im,xExpected);
+  near(r.faults[0].ikssKa,11/(Math.sqrt(3)*Math.hypot(.02,xExpected)));
+});
+test('DGS transformer with LV tap changer undoes rho^2 operational scaling for neutral short-circuit',async()=>{
+  const pair=syntheticBenchmarkPair(),table=(Attributes:string[],Values:unknown[][])=>({Attributes,Values});
+  // Replace line with a 100/10 kV transformer with LV tap changer (tap_side=1, dutap=2.5%, pos=+4 -> rel=1.10)
+  const raw={...pair.raw,
+    ElmTerm:table(['FID','loc_name','fold_id','uknom','outserv','iUsage'],[['SYN-B0','Bara 0','G0',100,0,0],['SYN-B1','Bara 1','G1',10,0,0]]),
+    StaCubic:table(['FID','fold_id','obj_id'],[['SYN-C0','SYN-B0','TR-LV'],['SYN-C1','SYN-B1','TR-LV'],['SYN-CX','SYN-B0','VAC']]),
+    TypLne:table(['FID'],[]),ElmLne:table(['FID'],[]),
+    ElmXnet:table(['FID'],[]),
+    ElmVac:table(['FID','loc_name','bus1','outserv','r1','x1','usetp'],[['VAC','Vac source','SYN-CX',0,1,10,1]]),
+    TypTr2:table(['FID','loc_name','utrn_h','utrn_l','strn','uktr','pcutr','itapch','tap_side','dutap','nntap0','pfe','curmg'],
+      [['TYP-TR','Trafo Tipi',100,10,100,10,1000,1,1,2.5,0,0,0]]),
+    ElmTr2:table(['FID','loc_name','fold_id','typ_id','bushv','buslv','nntap','outserv'],
+      [['TR-LV','LV Tap Trafo','G0','TYP-TR','SYN-C0','SYN-C1',4,0]])
+  };
+  const loaded=await loadBenchmarkModel(new File([zipSync({'test.json':strToU8(JSON.stringify(raw))})],'test.zip'));
+  const n={...loaded.network,externalGrids:[]},c=adaptShortCircuitSources(raw,n);
+  // In canonical.ts, LF rPu and xPu were multiplied by rho^2 = 1.21.
+  // In SC, neutral tap position undoes rho^2 so neutral impedance remains exact 0.02 + j0.1995 ohm!
+  const r=await calculateThreePhase(n,emptyScenario(),c,['SYN-B1'],profile);
+  assert.equal(r.faults[0].status,'CALCULATED_NETWORK_APPROXIMATION');
+  const xExpected=0.1+Math.sqrt(0.1**2-0.01**2);
+  near(r.faults[0].zkkOhm!.re,.02);
+  near(r.faults[0].zkkOhm!.im,xExpected);
+  near(r.faults[0].ikssKa,11/(Math.sqrt(3)*Math.hypot(.02,xExpected)));
+});
+
 

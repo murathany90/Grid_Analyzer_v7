@@ -33,12 +33,18 @@ function prepareSources(network:CanonicalNetwork,scenario:ScenarioOverlay,contex
       if(!Number.isFinite(e.rPu)||e.rPu<0||!(e.xPu>0)||!Number.isFinite(e.xPu)||!(e.tap>0)){issue(a,'INVALID_UNIT: TRANSFORMER');continue;}
       // IEC 60909-0:2016 & PowerFactory 2024 TechRef Section 4.1:
       // "Transformers with tap changers use the neutral tap position."
-      let tap = e.tap;
+      let tap = e.tap, rPu = e.rPu, xPu = e.xPu;
       if(e.typeHvKv&&e.typeLvKv&&e.vnKv&&e.lvKv&&e.typeHvKv>0&&e.typeLvKv>0&&e.vnKv>0&&e.lvKv>0){
         const neutralRatio=(e.typeHvKv/e.vnKv)/(e.typeLvKv/e.lvKv);
-        if(Number.isFinite(neutralRatio)&&neutralRatio>.5&&neutralRatio<1.6)tap=neutralRatio;
+        if(Number.isFinite(neutralRatio)&&neutralRatio>.5&&neutralRatio<1.6){
+          tap=neutralRatio;
+          if(e.tapSide===1&&e.relativeTapVoltage&&e.relativeTapVoltage>0){
+            const rho2=e.relativeTapVoltage*e.relativeTapVoltage;
+            rPu/=rho2;xPu/=rho2;
+          }
+        }
       }
-      branches.push({a,b,rPu:e.rPu,xPu:e.xPu,tap,phaseRad:e.phase});
+      branches.push({a,b,rPu,xPu,tap,phaseRad:e.phase});
     }
     else if('rOhm'in e){if(!Number.isFinite(e.rOhm)||e.rOhm<0||!Number.isFinite(e.xOhm)||e.xOhm===0||!(base>0)||Math.abs(topology.buses[b].vnKv/kv-1)>1e-6){issue(a,'INVALID_UNIT: LINE_BASE_R_X');continue;}branches.push({a,b,rPu:e.rOhm/base,xPu:e.xOhm/base,tap:1,phaseRad:0});}
   }
