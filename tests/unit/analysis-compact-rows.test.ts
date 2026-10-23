@@ -57,6 +57,7 @@ test('C.1: SC compact rows integrate 3F and 1F side-by-side with LF operating po
  const sc3F=ctx.scResult!;
  ctx.scResult1Lg={
   ...sc3F,
+  method:'GA_SEQUENCE_1LG_MAX',
   profile:{...sc3F.profile,faultType:'1LG' as const},
   identity:{...sc3F.identity,profileHash:'1LG_PROFILE_HASH'},
   faults:sc3F.faults.map((f,i)=>({
@@ -98,4 +99,43 @@ test('C.1: SC compact rows integrate 3F and 1F side-by-side with LF operating po
  assert.ok(sortedBy3F[0].raw.GA_3F_Ikss_kA!>=(sortedBy3F[sortedBy3F.length-1].raw.GA_3F_Ikss_kA??0));
  const sortedByU=sortCompactRows(rows,'u',true);
  assert.ok(sortedByU.length>0);
+});
+
+test('C.1: Stale 1F result is rejected and marked STALE when sourceHash or mode mismatches',()=>{
+ const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
+ const sc3F=ctx.scResult!;
+ // Incompatible 1F (e.g. sourceHash mismatch)
+ ctx.scResult1Lg={
+  ...sc3F,
+  method:'GA_SEQUENCE_1LG_MAX',
+  profile:{...sc3F.profile,faultType:'1LG' as const},
+  identity:{...sc3F.identity,sourceHash:'DIFFERENT_SOURCE_HASH'},
+  faults:sc3F.faults.map(f=>({...f,faultType:'1LG' as const,status:'CALCULATED_NETWORK_APPROXIMATION' as const,ikssKa:12.5}))
+ };
+ const rows=compactScRows(ctx);
+ assert.ok(rows.length>0);
+ assert.equal(rows[0].raw.status_1F,'STALE');
+ assert.equal(rows[0].raw.GA_1F_Ikss_A,null);
+ assert.equal(rows[0].raw.GA_1F_Ikss_kA,null);
+ assert.equal(rows[0].raw.Hesap_Durumu,'PARTIAL');
+ assert.match(String(rows[0].raw.reason_1F),/STALE/);
+});
+
+test('C.1: Turkish number formatting for SC satisfies 26.795 A = 26,795 kA and never produces 0 for uncomputed',()=>{
+ const fmt=(valKa:number|null|undefined,unit:'A'|'kA'):string=>{
+  if(valKa===null||valKa===undefined||!Number.isFinite(valKa))return '—';
+  if(unit==='A')return Math.round(valKa*1000).toLocaleString('tr-TR',{maximumFractionDigits:0});
+  return Number(valKa).toLocaleString('tr-TR',{minimumFractionDigits:3,maximumFractionDigits:3});
+ };
+
+ assert.equal(fmt(26.7946,'A'),'26.795');
+ assert.equal(fmt(26.7946,'kA'),'26,795');
+ assert.equal(fmt(0.313,'A'),'313');
+ assert.equal(fmt(0.313,'kA'),'0,313');
+ assert.equal(fmt(38.178,'A'),'38.178');
+ assert.equal(fmt(38.178,'kA'),'38,178');
+ assert.equal(fmt(null,'A'),'—');
+ assert.equal(fmt(null,'kA'),'—');
+ assert.notEqual(fmt(null,'A'),'0');
+ assert.notEqual(fmt(null,'kA'),'0');
 });

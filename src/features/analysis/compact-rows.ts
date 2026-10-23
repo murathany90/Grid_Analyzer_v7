@@ -52,13 +52,23 @@ export function compactN1Rows(ctx:AppContext):CompactRow[]{
 export function compactScRows(ctx:AppContext):CompactRow[]{
  const sc=currentScResult(ctx),n=ctx.network,study=currentStudy(ctx);if(!sc||!n||studyOwnsSc(ctx,sc)&&!study)return [];
  const sc1F=currentScResult1Lg(ctx);
+ const raw1F=ctx.scResult1Lg;
  const i=index(n),mode=sc.profile.calculateMode,reference=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw?ytmReferenceRows({identity:{modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,optionsHash:sc.identity.profileHash},scMax:mode==='MAX'?sc:null,scMin:mode==='MIN'?sc:null},n,ctx.benchmark):[],fullRows=new Map(study&&(sc===study.scMax||sc===study.scMin)?ytmScRows(study,n).map(r=>[String(r.FID),r]):[]);
  const refs=new Map(reference.map(r=>[String(r.FID),r])),groups=new Map<string,typeof sc.faults>();
  for(const f of scFaultsInScope(ctx,sc)){const key=f.electricalBusId??'UNRESOLVED:'+f.physicalTerminalFid,list=groups.get(key)??[];list.push(f);groups.set(key,list);}
  const scenarioKnown=scenarioSignature(ctx.scenario.current)===scenarioSignature(emptyScenario());
 
- // 1LG compatibility: same modelHash, scenarioHash, calculateMode
- const sc1FCompatible = !!(sc1F && sc1F.identity.modelHash === sc.identity.modelHash && sc1F.identity.scenarioHash === sc.identity.scenarioHash && sc1F.profile.calculateMode === mode);
+ // 1LG compatibility: same modelHash, scenarioHash, calculateMode, sourceHash, and method
+ const sc1FCompatible = !!(
+   sc1F &&
+   sc &&
+   sc1F.identity.modelHash === sc.identity.modelHash &&
+   sc1F.identity.scenarioHash === sc.identity.scenarioHash &&
+   sc1F.identity.sourceHash === sc.identity.sourceHash &&
+   sc1F.profile.calculateMode === mode &&
+   (sc1F.profile.faultType === '1LG' && (mode === 'MAX' ? (sc1F.method === 'GA_SEQUENCE_1LG_MAX' || !sc1F.method) : (sc1F.method === 'GA_SEQUENCE_1LG_MIN' || !sc1F.method)))
+ );
+ const is1FStale = !!((raw1F || sc1F) && !sc1FCompatible);
  const faults1FByBus = new Map<string, (typeof sc.faults)[number]>();
  const faults1FByTerm = new Map<string, (typeof sc.faults)[number]>();
  if (sc1FCompatible && sc1F) {
@@ -80,8 +90,9 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
  }
 
  return [...groups].map(([electrical,aliases])=>{
-  const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(t?.siteIds??[]),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null,ga=f.status==='CALCULATED_NETWORK_APPROXIMATION'?finite(f.ikssKa):null;
-  const status3F = f.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : 'BLOCKED';
+  const f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.delta_kA==='number')??aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(t?.siteIds??[]),pf=finite(r?.PF_Ikss_kA),delta=scenarioKnown?finite(r?.delta_kA):null;
+  const status3F = f.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : f.status === 'CANCELLED' ? 'NOT_RUN' : 'BLOCKED';
+  const ga = status3F === 'CALCULATED_NETWORK_APPROXIMATION' && f.ikssKa != null && Number.isFinite(f.ikssKa) ? finite(f.ikssKa) : null;
 
   // 1F fault lookup
   const f1 = sc1FCompatible ? (
@@ -90,9 +101,9 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
    ?? faults1FByBus.get(electrical)
    ?? aliases.map(a => faults1FByTerm.get(a.physicalTerminalFid)).find(Boolean)
   ) : undefined;
-  const ga1F = f1 && f1.status === 'CALCULATED_NETWORK_APPROXIMATION' ? finite(f1.ikssKa) : null;
-  const status1F = !sc1FCompatible ? 'NOT_RUN' : !f1 ? 'NOT_RUN' : f1.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f1.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : 'BLOCKED';
-  const reason1F = f1 ? f1.reasons.join('; ') : sc1FCompatible ? 'NO_FAULT_RECORD' : '1F_NOT_RUN';
+  const status1F = is1FStale ? 'STALE' : !sc1FCompatible ? 'NOT_RUN' : !f1 ? 'NOT_RUN' : f1.status === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : f1.reasons.some(r => r.includes('NOT_COMPUTABLE')) ? 'NOT_COMPUTABLE' : f1.status === 'CANCELLED' ? 'NOT_RUN' : 'BLOCKED';
+  const ga1F = status1F === 'CALCULATED_NETWORK_APPROXIMATION' && f1?.ikssKa != null && Number.isFinite(f1.ikssKa) ? finite(f1.ikssKa) : null;
+  const reason1F = is1FStale ? 'STALE_1F_RESULT: MISMATCH_MODEL_SCENARIO_SOURCE_OR_MODE' : f1 ? f1.reasons.join('; ') : sc1FCompatible ? 'NO_FAULT_RECORD' : '1F_NOT_RUN';
 
   // LF voltage and angle
   const lfBus = lfValid ? (lfBusByTerm.get(electrical) ?? aliases.map(a => lfBusByTerm.get(a.physicalTerminalFid)).find(Boolean)) : undefined;
@@ -125,7 +136,7 @@ export function compactScRows(ctx:AppContext):CompactRow[]{
    PF_1F_Ikss_kA: null,
    status_3F: status3F,
    status_1F: status1F,
-   Hesap_Durumu: status3F === 'CALCULATED_NETWORK_APPROXIMATION' && status1F === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED_NETWORK_APPROXIMATION' : status3F + ' / ' + status1F,
+   Hesap_Durumu: status3F === 'CALCULATED_NETWORK_APPROXIMATION' && status1F === 'CALCULATED_NETWORK_APPROXIMATION' ? 'CALCULATED' : (status3F === 'CALCULATED_NETWORK_APPROXIMATION' || status1F === 'CALCULATED_NETWORK_APPROXIMATION') ? 'PARTIAL' : status1F === 'STALE' ? 'STALE' : (status3F === 'NOT_RUN' && status1F === 'NOT_RUN') ? 'NOT_RUN' : 'BLOCKED_OR_UNCOMPUTABLE',
    reason_3F: f.reasons.join('; '),
    reason_1F: reason1F,
    Skss_MVA: f.skssMva,

@@ -24,14 +24,18 @@ export interface YtmStudyResult {
  schemaVersion:1;identity:{studyCase?:string;modelHash:string;scenarioHash:string;optionsHash:string;sourceHashMAX?:string;sourceHashMIN?:string};options:YtmStudyOptions;status:'RUNNING'|'COMPLETE'|'BUDGET_EXHAUSTED'|'CANCELLED'|'FAILED';
  catalog:N1CatalogCandidate[];n1:HybridResult|null;scMax:ScResult|null;scMin:ScResult|null;sc1LgMax?:ScResult|null;sc1LgMin?:ScResult|null;faultTargets:string[];electricalTargets:number;
  stageMs:Record<YtmStage,number>;elapsedMs:number;qualityCounts:Record<ResultQuality,number>;assumptions:typeof SC_ENGINEERING_ASSUMPTIONS;messages:string[];
- pendingCounts?:{N1:number;SC_MAX:number;SC_MIN:number};
+ pendingCounts?:{N1:number;SC_MAX:number;SC_MIN:number;SC1_MAX?:number;SC1_MIN?:number};
 }
 export interface YtmCallbacks {resume?:YtmStudyResult;signal?:AbortSignal;onProgress?:(stage:string,detail?:Record<string,unknown>)=>void;onCheckpoint?:(result:YtmStudyResult)=>void;hybrid?:Pick<HybridOptions,'solveBase'|'solveOutage'|'screen'|'onCaseDetail'>}
 const emptyQualities=():Record<ResultQuality,number>=>({REFERENCE_VALIDATED:0,NATIVE_COMPUTED:0,ENGINEERING_APPROX:0,DC_SCREEN_ONLY:0,NOT_COMPUTABLE:0,REFERENCE_ONLY:0});
 export function ytmStudyIsCurrent(r:YtmStudyResult,n:CanonicalNetwork,s:ScenarioOverlay,settings?:AnalysisSettings,options?:YtmStudyOptions){return (!r.identity.studyCase||r.identity.studyCase===n.studyCase)&&(!options||studyScopeKey(options)===studyScopeKey(r.options))&& r.identity.modelHash===n.modelHash&&r.identity.scenarioHash===scenarioSignature(s)&&(!settings||!r.options.analysisSettings||stableJson(settings)===stableJson(r.options.analysisSettings));}
 export function finishYtmStudy(r:YtmStudyResult,status:YtmStudyResult['status']=r.status){
- r.status=status;const q=emptyQualities(),pending={N1:0,SC_MAX:0,SC_MIN:0};for(const c of r.n1?.cases??[])if(c.quality)q[c.quality]++;else pending.N1++;if(!r.n1)pending.N1+=r.catalog.length;
- for(const [key,sc] of [['SC_MAX',r.scMax],['SC_MIN',r.scMin]] as const){for(const f of sc?.faults??[])if(f.quality)q[f.quality]++;else pending[key]++;if(!sc&&studyFamilies(r.options).includes('SC')&&studyScModes(r.options).includes(key==='SC_MAX'?'MAX':'MIN'))pending[key]+=r.faultTargets.length;}
+ r.status=status;const q=emptyQualities(),pending={N1:0,SC_MAX:0,SC_MIN:0,SC1_MAX:0,SC1_MIN:0};for(const c of r.n1?.cases??[])if(c.quality)q[c.quality]++;else pending.N1++;if(!r.n1&&studyFamilies(r.options).includes('N1'))pending.N1+=r.catalog.length;
+ const scFamilies=studyFamilies(r.options).includes('SC'),scModes=studyScModes(r.options);
+ for(const [key,sc,mode] of [['SC_MAX',r.scMax,'MAX'],['SC_MIN',r.scMin,'MIN']] as const){for(const f of sc?.faults??[])if(f.quality&&f.status!=='CANCELLED')q[f.quality]++;else pending[key]++;if(!sc&&scFamilies&&scModes.includes(mode))pending[key]+=r.faultTargets.length;}
+ for(const [key,sc1,mode] of [['SC1_MAX',r.sc1LgMax,'MAX'],['SC1_MIN',r.sc1LgMin,'MIN']] as const){for(const f of sc1?.faults??[])if(f.quality&&f.status!=='CANCELLED')q[f.quality]++;else pending[key]++;if(!sc1&&scFamilies&&scModes.includes(mode))pending[key]+=r.faultTargets.length;}
+ const hasPending=(studyFamilies(r.options).includes('N1')&&pending.N1>0)||(scFamilies&&scModes.some(m=>m==='MAX'?(pending.SC_MAX>0||pending.SC1_MAX>0):(pending.SC_MIN>0||pending.SC1_MIN>0)));
+ if(r.status==='COMPLETE'&&hasPending)r.status='BUDGET_EXHAUSTED';
  r.qualityCounts=q;r.pendingCounts=pending;return r;
 }
 /** REPORT includes result marshalling/checkpoints and unassigned orchestration time. */
@@ -81,23 +85,29 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
  const hybridOptions:HybridOptions={...callbacks.hybrid,preferDirectAcSample:true,allowSuppliedIslandResults:!strict,preserveDcOnAcFailure:!strict,analysisSettings:settings,studyProfile:strict?'CURRENT_SETTINGS':'NATIVE_PARTIAL_CONTROLS',filter:{ytmIds:[options.ytmId],tmId:options.tmId,endpointScope:'BOTH',voltageBands:options.voltageBands},policy:{acBudgetCases:0,globalTimeLimitMs:Math.max(1,remaining()),operationalLoadingLimitPercent:options.loadingLimitPercent??100,voltageMinPu:options.voltageMinPu??.9,voltageMaxPu:options.voltageMaxPu??1.1,limitsProvenance:'EDITABLE_USER_ENGINEERING_LIMITS; NOT_TEIAS_APPROVED'},signal:callbacks.signal,onProgress:callbacks.onProgress};
  if(n1&&!r.n1?.cases.length)r.n1=await stage('DC_SCREEN',()=>runHybridN1(network,scenario,{...hybridOptions,screenOnly:true}));
  for(const mode of scFamily?modes:[]){
-  const old=mode==='MAX'?r.scMax:r.scMin;if(old&&old.faults.length===r.faultTargets.length&&old.faults.every(f=>f.status!=='CANCELLED'))continue;
-  if(callbacks.signal?.aborted||remaining()<1)break;
-  const sc=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),{signal:callbacks.signal,onProgress:callbacks.onProgress}));
-  r.stageMs.SC_FACTORIZATION+=sc.timings?.factorizationMs??0;r.stageMs.SC_SOURCE_PREP+=sc.timings?.sourcePreparationMs??0;r.stageMs.SC_BATCH-=Math.min(r.stageMs.SC_BATCH,(sc.timings?.factorizationMs??0)+(sc.timings?.sourcePreparationMs??0));
-  const byBus=new Map(sc.faults.map(f=>[f.electricalBusId,f]));
-  sc.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
-  sc.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
-  sc.counts={};for(const f of sc.faults)sc.counts[f.status]=(sc.counts[f.status]??0)+1;
-  if(mode==='MAX')r.scMax=sc;else r.scMin=sc;checkpoint();
-  if(!callbacks.signal?.aborted&&remaining()>1){
-    const p1Lg:import('../short-circuit').ScProfile={...engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),faultType:'1LG'};
-    const sc1=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,p1Lg,{signal:callbacks.signal,onProgress:callbacks.onProgress}));
-    const byBus1=new Map(sc1.faults.map(f=>[f.electricalBusId,f]));
-    sc1.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus1.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
-    sc1.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
-    sc1.counts={};for(const f of sc1.faults)sc1.counts[f.status]=(sc1.counts[f.status]??0)+1;
-    if(mode==='MAX')r.sc1LgMax=sc1;else r.sc1LgMin=sc1;checkpoint();
+  const old3F=mode==='MAX'?r.scMax:r.scMin;
+  const need3F=!old3F||old3F.faults.length<r.faultTargets.length||old3F.faults.some(f=>f.status==='CANCELLED');
+  if(need3F){
+   if(callbacks.signal?.aborted||remaining()<1)break;
+   const sc=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),{signal:callbacks.signal,onProgress:callbacks.onProgress}));
+   r.stageMs.SC_FACTORIZATION+=sc.timings?.factorizationMs??0;r.stageMs.SC_SOURCE_PREP+=sc.timings?.sourcePreparationMs??0;r.stageMs.SC_BATCH-=Math.min(r.stageMs.SC_BATCH,(sc.timings?.factorizationMs??0)+(sc.timings?.sourcePreparationMs??0));
+   const byBus=new Map(sc.faults.map(f=>[f.electricalBusId,f]));
+   sc.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
+   sc.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
+   sc.counts={};for(const f of sc.faults)sc.counts[f.status]=(sc.counts[f.status]??0)+1;
+   if(mode==='MAX')r.scMax=sc;else r.scMin=sc;checkpoint();
+  }
+  const old1F=mode==='MAX'?r.sc1LgMax:r.sc1LgMin;
+  const need1F=!old1F||old1F.faults.length<r.faultTargets.length||old1F.faults.some(f=>f.status==='CANCELLED');
+  if(need1F){
+   if(callbacks.signal?.aborted||remaining()<1)break;
+   const p1Lg:import('../short-circuit').ScProfile={...engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),faultType:'1LG'};
+   const sc1=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,p1Lg,{signal:callbacks.signal,onProgress:callbacks.onProgress}));
+   const byBus1=new Map(sc1.faults.map(f=>[f.electricalBusId,f]));
+   sc1.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus1.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
+   sc1.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
+   sc1.counts={};for(const f of sc1.faults)sc1.counts[f.status]=(sc1.counts[f.status]??0)+1;
+   if(mode==='MAX')r.sc1LgMax=sc1;else r.sc1LgMin=sc1;checkpoint();
   }
  }
  // Full NR with real Q limits first. Detailed can spend more of the common budget.
@@ -113,5 +123,12 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
    await stage('AC_APPROX',async()=>{const result=await runHybridN1(network,scenario,{...hybridOptions,analysisSettings:approx,studyProfile:'GA_APPROX_STATION_OFF',policy:{...hybridOptions.policy,acBudgetCases:2,globalTimeLimitMs:Math.max(1,remaining()),perCaseTimeLimitMs:Math.max(1,Math.min(remaining(),15000))}});if(result.cases.some(c=>c.acSolved))r.n1=result;});
   }
  }
- await stage('REPORT',()=>{if(scFamily&&modes.some(m=>m==='MAX'?!r.scMax:!r.scMin))r.messages.push('SC mode unfinished: time budget or cancellation; no zero currents substituted.');r.status=callbacks.signal?.aborted?'CANCELLED':remaining()<=0?'BUDGET_EXHAUSTED':'COMPLETE';});checkpoint();reconcileYtmTimings(r);return r;
+ await stage('REPORT',()=>{
+  const scUnfinished=scFamily&&modes.some(m=>{
+   const sc=m==='MAX'?r.scMax:r.scMin,sc1=m==='MAX'?r.sc1LgMax:r.sc1LgMin;
+   return !sc||!sc1||sc.faults.some(f=>f.status==='CANCELLED')||sc1.faults.some(f=>f.status==='CANCELLED');
+  });
+  if(scUnfinished)r.messages.push('SC mode unfinished: time budget or cancellation; no zero currents substituted.');
+  r.status=callbacks.signal?.aborted?'CANCELLED':(remaining()<=0||scUnfinished)?'BUDGET_EXHAUSTED':'COMPLETE';
+ });checkpoint();reconcileYtmTimings(r);return r;
 }

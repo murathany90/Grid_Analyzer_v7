@@ -11,6 +11,13 @@ import {runEvidence,selectedCaseEvidence} from './run-evidence';
 import {compactN1Rows,compactScRows,compactLfRows,sortCompactRows,type CompactRow,type LfList,type Triple} from './compact-rows';
 import {analysisDialog} from './analysis-dialog';
 
+const formatScVal=(valKa:number|null|undefined,unit:'A'|'kA'):string=>{
+ if(valKa===null||valKa===undefined||!Number.isFinite(valKa))return '—';
+ if(unit==='A'){
+  return Math.round(valKa*1000).toLocaleString('tr-TR',{maximumFractionDigits:0});
+ }
+ return Number(valKa).toLocaleString('tr-TR',{minimumFractionDigits:3,maximumFractionDigits:3});
+};
 export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Feature{
  const root=element('div','ga-ytm-study ga-compact-study'),controls=element('div','ga-compact-controls'),status=element('p','ga-compact-status'),scNotice=element('p','ga-sc-notice'),kpis=element('div','ga-compact-kpis'),lists=element('nav','ga-compact-lists'),filters=element('div','ga-compact-filters'),host=element('div','ga-compact-table-host'),pager=element('div','ga-compact-pager');
  const area=element('select'),tm=element('select'),voltage=element('select'),profile=element('select'),mode=element('select'),search=element('input'),state=element('select'),metric=element('select');
@@ -181,23 +188,26 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
     else if(key==='angle'){const aVal=row.metrics.angle?.ga;td.textContent=aVal!=null?format(aVal,1)+'°':'—';td.title=aVal!=null?`${format(aVal,1)}° (LF)`:'LF sonucu yok';}
     else if(key==='ikss3F'){
      const ga=row.metrics.ikss?.ga,pf=row.metrics.ikss?.pf,delta=row.metrics.ikss?.delta,st3F=row.raw.status_3F;
-     if(st3F==='CALCULATED_NETWORK_APPROXIMATION'&&ga!=null){
-      const valStr=scUnit==='A'?format(Math.round(ga*1000),0):format(ga,3);td.textContent=valStr;
-      const diffStr=delta!=null?` (PF: ${format(pf,3)} kA, Δ: ${delta>0?'+':''}${format(delta,3)} kA)`:'';
+     if(st3F==='CALCULATED_NETWORK_APPROXIMATION'&&ga!=null&&Number.isFinite(ga)){
+      const valStr=formatScVal(ga,scUnit);td.textContent=valStr;
+      const diffStr=delta!=null?` (PF: ${formatScVal(pf,scUnit)} ${scUnit}, Δ: ${delta>0?'+':''}${formatScVal(delta,scUnit)} ${scUnit})`:'';
       td.title=`3F Ikss: ${valStr} ${scUnit}${diffStr}`;
-     }else if(st3F==='NOT_COMPUTABLE'||st3F==='BLOCKED'){td.textContent='Hesaplanamadı';td.className='ga-sc-status-uncomputed';td.title=(st3F==='BLOCKED'?'Engellendi: ':'Hesaplanamadı: ')+(row.raw.reason_3F||st3F);}
-     else if(st3F==='NOT_RUN'){td.textContent='Hesaplanmadı';td.title='3F hesabı çalıştırılmadı';}
-     else{td.textContent='Hesaplanamadı';td.title=String(row.raw.reason_3F||st3F);}
+     }else if(st3F==='BLOCKED'){td.textContent='Engellendi';td.className='ga-sc-status-blocked';td.title='Engellendi: '+(row.raw.reason_3F||st3F);}
+     else if(st3F==='NOT_COMPUTABLE'){td.textContent='Hesaplanamaz';td.className='ga-sc-status-uncomputed';td.title='Hesaplanamaz: '+(row.raw.reason_3F||st3F);}
+     else if(st3F==='NOT_RUN'){td.textContent='Hesaplanmadı';td.className='ga-sc-status-notrun';td.title='3F hesabı çalıştırılmadı';}
+     else if(st3F==='STALE'){td.textContent='Güncel Değil';td.className='ga-sc-status-stale';td.title='3F sonucu güncel değil (STALE)';}
+     else{td.textContent=String(st3F||'Hesaplanamadı');td.className='ga-sc-status-uncomputed';td.title=String(row.raw.reason_3F||st3F);}
     }
     else if(key==='ikss1F'){
      const ga1F=row.metrics.ikss1F?.ga,st1F=row.raw.status_1F;
-     if(st1F==='CALCULATED_NETWORK_APPROXIMATION'&&ga1F!=null){
-      const valStr=scUnit==='A'?format(Math.round(ga1F*1000),0):format(ga1F,3);td.textContent=valStr;
+     if(st1F==='CALCULATED_NETWORK_APPROXIMATION'&&ga1F!=null&&Number.isFinite(ga1F)){
+      const valStr=formatScVal(ga1F,scUnit);td.textContent=valStr;
       td.title=`1F Ikss: ${valStr} ${scUnit} (PF 1F referansı yok)`;
-     }else if(st1F==='NOT_COMPUTABLE'||st1F==='BLOCKED'){td.textContent='Hesaplanamadı';td.className='ga-sc-status-uncomputed';td.title=(st1F==='BLOCKED'?'Engellendi: ':'Hesaplanamadı: ')+(row.raw.reason_1F||st1F);}
-     else if(st1F==='NOT_RUN'){td.textContent='Hesaplanmadı';td.title='1F hesabı çalıştırılmadı';}
+     }else if(st1F==='BLOCKED'){td.textContent='Engellendi';td.className='ga-sc-status-blocked';td.title='Engellendi: '+(row.raw.reason_1F||st1F);}
+     else if(st1F==='NOT_COMPUTABLE'){td.textContent='Hesaplanamaz';td.className='ga-sc-status-uncomputed';td.title='Hesaplanamaz: '+(row.raw.reason_1F||st1F);}
+     else if(st1F==='NOT_RUN'){td.textContent='Hesaplanmadı';td.className='ga-sc-status-notrun';td.title='1F hesabı çalıştırılmadı';}
      else if(st1F==='STALE'){td.textContent='Güncel Değil';td.className='ga-sc-status-stale';td.title='1F sonucu model/senaryo ile uyumsuz (STALE)';}
-     else{td.textContent='Hesaplanamadı';td.title=String(row.raw.reason_1F||st1F);}
+     else{td.textContent=String(st1F||'Hesaplanamadı');td.className='ga-sc-status-uncomputed';td.title=String(row.raw.reason_1F||st1F);}
     }
     else if(key==='dc')td.textContent=row.dcLabel??'Taranmadı';
     else if(key==='ac'){td.textContent=row.acLabel??row.status;td.title=row.status;}
