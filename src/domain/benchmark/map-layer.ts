@@ -73,14 +73,14 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   const busById=new Map(network.buses.map(b=>[b.id,b])),lineByKey=new Map([...network.lines,...network.transformers].map(e=>[`${e.sourceClass}:${e.sourceId}`,e]));
   const siteById=new Map(network.sites.map(site=>[site.id,site]));
   const putSite=(id:string,value:BenchmarkMapValue,fid:string,kv:number|null)=>{
-    let previous=data.sites.get(id);if(!previous){previous={...value,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
+    let previous=data.sites.get(id);if(!previous){previous={...value,representativeFid:fid,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
     if(value.value===null)return;
     if(value.unit==='pu'&&s.n1Layer!=='CHANGE'&&!['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){
       const v=value.value,deviation=Math.abs(v-1),level=String(kv??'UNKNOWN');previous.voltageLevels??={};const old=previous.voltageLevels[level];
       previous.voltageLevels[level]=old?{minVpu:Math.min(old.minVpu,v),maxVpu:Math.max(old.maxVpu,v),maxDeviationPu:Math.max(old.maxDeviationPu,deviation),representativeFid:deviation>old.maxDeviationPu?fid:old.representativeFid}:{minVpu:v,maxVpu:v,maxDeviationPu:deviation,representativeFid:fid};
       previous.minVpu=Math.min(previous.minVpu??v,v);previous.maxVpu=Math.max(previous.maxVpu??v,v);
       if(previous.maxDeviationPu===undefined||deviation>previous.maxDeviationPu){previous.value=v;previous.maxDeviationPu=deviation;previous.representativeFid=fid;}
-    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
+    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||previous.representativeFid===undefined||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
   };
   const put=(sourceClass:string,fid:string,value:BenchmarkMapValue)=>{
     const line=lineByKey.get(`${sourceClass}:${fid}`),bus=sourceClass==='ElmTerm'?busById.get(fid):undefined,siteIds=line?.siteIds||bus?.siteIds||[];if(s.voltageKv&&(bus?.vnKv??line?.vnKv)!==s.voltageKv)return;
@@ -99,6 +99,37 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:pair.branches.values().next().value?.unit??pair.terminals.values().next().value?.unit??''};
     return data;
   }
+  if(s.analysis==='SC'&&s.source==='PF'){
+    const gate=benchmarkMapGate(ctx,s);
+    if(!gate.enabled)return {...data,enabled:false,reason:gate.reason};
+    const pRows=canonicalRows(ctx,{...s,metric:'ikssKa',table:'SC_BusResults_Raw'});
+    const unit='kA';
+    for(const r of pRows){
+      if(s.voltageKv&&(r.nominalKv==null||Math.abs(r.nominalKv-s.voltageKv)>=0.1))continue;
+      const available=r.reason!=='NOT_RECORDED'&&r.pf.availability!=='INVALID'&&!r.pf.qualityFlags.includes('SENTINEL_CANDIDATE');
+      const val=available&&r.pf.value!=null&&Number.isFinite(r.pf.value)?r.pf.value:null;
+      put('ElmTerm',r.fid,{
+        value:val,
+        unit,
+        status:val!==null?r.status:r.reason,
+        details:[`${r.name} (${r.fid}) · PF 3PH MAX: ${r.pf.rawText||(val!=null?val+' kA':'—')}`,r.status,r.reason]
+      });
+    }
+    for(const site of network.sites){
+      if(!data.sites.has(site.id)){
+        const hasMatchingBus=s.voltageKv?network.buses.some(b=>b.siteIds.includes(site.id)&&Math.abs(b.vnKv-s.voltageKv!)<0.1):network.buses.some(b=>b.siteIds.includes(site.id));
+        data.sites.set(site.id,{
+          value:null,
+          unit,
+          status:s.voltageKv&&!hasMatchingBus?'NO_VOLTAGE_MATCH':'NOT_RUN',
+          details:[s.voltageKv&&!hasMatchingBus?`${site.name} · ${s.voltageKv} kV seviyesinde bara yok`:`${site.name} · PF referansı yok`]
+        });
+      }
+    }
+    const siteVals=[...data.sites.values()].map(v=>v.value).filter((v):v is number=>v!==null&&Number.isFinite(v)),sortedVals=[...siteVals].sort((a,b)=>a-b);
+    data.scale={p95:sortedVals.length?sortedVals[Math.max(0,Math.ceil(sortedVals.length*.95)-1)]||sortedVals.at(-1)||1:1,min:sortedVals.length?sortedVals[0]:0,max:sortedVals.length?sortedVals[sortedVals.length-1]:0,unit};
+    return data;
+  }
   if(s.analysis==='SC'){
     const rows=compactScRows(ctx);
     const unit=s.metric==='skssMva'?'MVA':'kA';
@@ -112,23 +143,23 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
       }
     }
     for(const site of network.sites){
-      const siteRows=rowsBySite.get(site.id)??(site.name?rows.filter(r=>r.tm===site.name):[]);
+      const siteRows=rowsBySite.get(site.id)??[];
       if(!siteRows.length){
-        putSite(site.id,{value:null,unit,status:'NOT_RUN',details:['Seçili TM için elektriksel bara bulunamadı']},'',null);
+        putSite(site.id,{value:null,unit,status:'NOT_RUN',details:['Seçili TM için elektriksel bara veya eşleşmiş site kimliği bulunamadı']},'',null);
         continue;
       }
-      let bestVal:number|null=null,repFid=siteRows[0].fid,repKv=siteRows[0].kv,hasCalculated=false;
+      const matchingRows=s.voltageKv?siteRows.filter(r=>r.kv!=null&&Math.abs(r.kv-s.voltageKv!)<0.1):siteRows;
+      if(!matchingRows.length){
+        putSite(site.id,{value:null,unit,status:'NO_VOLTAGE_MATCH',details:[`${site.name} · ${s.voltageKv} kV seviyesinde bara yok`]},'',s.voltageKv??null);
+        continue;
+      }
+      let bestVal:number|null=null,repFid=matchingRows[0].fid,repKv=matchingRows[0].kv,hasCalculated=false;
       const seenBuses=new Set<string>();
-      for(const row of siteRows){
+      for(const row of matchingRows){
         if(seenBuses.has(row.key))continue;
         seenBuses.add(row.key);
         let val:number|null=null;
-        if(s.source==='PF'){
-          if(s.metric==='maxIkssKa'||s.metric==='ikss3FKa'||s.metric==='ikssKa'){
-            const pfVal=row.metrics.ikss?.pf;
-            if(pfVal!=null&&Number.isFinite(pfVal))val=pfVal;
-          }
-        }else if(s.metric==='ikss3FKa'){
+        if(s.metric==='ikss3FKa'){
           if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss?.ga!=null)val=row.metrics.ikss.ga;
         }else if(s.metric==='ikss1FKa'){
           if(row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss1F?.ga!=null)val=row.metrics.ikss1F.ga;
@@ -148,14 +179,14 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
       if(hasCalculated&&bestVal!=null){
         putSite(site.id,{value:bestVal,unit,status:'CALCULATED',details:[`${site.name} · Maks ${s.metric==='skssMva'?'Skss':'Ikss'} = ${bestVal} ${unit} (${repFid})`]},repFid,repKv);
       }else{
-        const dominantStatus=siteRows.some(r=>r.raw.status_1F==='STALE'||r.raw.status_3F==='STALE')?'STALE':siteRows.some(r=>r.raw.status_1F==='BLOCKED'||r.raw.status_3F==='BLOCKED')?'BLOCKED':siteRows.some(r=>r.raw.status_1F==='NOT_COMPUTABLE'||r.raw.status_3F==='NOT_COMPUTABLE')?'NOT_COMPUTABLE':String(siteRows[0]?.raw.Hesap_Durumu??'NOT_RUN');
+        const dominantStatus=matchingRows.some(r=>r.raw.status_1F==='STALE'||r.raw.status_3F==='STALE')?'STALE':matchingRows.some(r=>r.raw.status_1F==='BLOCKED'||r.raw.status_3F==='BLOCKED')?'BLOCKED':matchingRows.some(r=>r.raw.status_1F==='NOT_COMPUTABLE'||r.raw.status_3F==='NOT_COMPUTABLE')?'NOT_COMPUTABLE':String(matchingRows[0]?.raw.Hesap_Durumu??'NOT_RUN');
         putSite(site.id,{value:null,unit,status:dominantStatus,details:[`${site.name} · ${dominantStatus}`]},repFid,repKv);
       }
     }
     for(const row of rows){
+      if(s.voltageKv&&(row.kv==null||Math.abs(row.kv-s.voltageKv)>=0.1))continue;
       let val:number|null=null;
-      if(s.source==='PF'){val=(s.metric==='maxIkssKa'||s.metric==='ikss3FKa'||s.metric==='ikssKa')?row.metrics.ikss?.pf??null:null;}
-      else if(s.metric==='ikss3FKa'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss?.ga??null:null;}
+      if(s.metric==='ikss3FKa'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss?.ga??null:null;}
       else if(s.metric==='ikss1FKa'){val=row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.ikss1F?.ga??null:null;}
       else if(s.metric==='skssMva'){val=row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'?row.metrics.skss?.ga??null:null;}
       else{const c:number[]=[];if(row.raw.status_3F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss?.ga!=null)c.push(row.metrics.ikss.ga);if(row.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION'&&row.metrics.ikss1F?.ga!=null)c.push(row.metrics.ikss1F.ga);val=c.length?Math.max(...c):null;}

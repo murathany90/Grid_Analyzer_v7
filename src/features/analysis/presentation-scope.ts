@@ -8,7 +8,7 @@ import type {ScResult} from '../../analysis/short-circuit';
 /** Read-only selection; a stale workspace must never fall back to its own old family. */
 export function currentStudy(ctx:AppContext){
  const r=ctx.ytmStudy,n=ctx.network;
- return r&&n&&(!ctx.filters.areaId||r.options.ytmId===ctx.filters.areaId)&&(!ctx.filters.siteId||r.options.tmId===ctx.filters.siteId)&&ytmStudyIsCurrent(r,n,ctx.scenario.current,ctx.analysisSettings.value,ctx.studyOptions)?r:null;
+ return r&&n&&(!ctx.filters.areaId||r.options.ytmId===ctx.filters.areaId)&&(!ctx.filters.siteId||!r.options.tmId||r.options.tmId===ctx.filters.siteId)&&ytmStudyIsCurrent(r,n,ctx.scenario.current,ctx.analysisSettings.value,ctx.studyOptions)?r:null;
 }
 export function currentHybrid(ctx:AppContext){
  if(ctx.ytmStudy?.n1&&ctx.hybridResult&&stableJson(ctx.ytmStudy.n1.identity)===stableJson(ctx.hybridResult.identity))return currentStudy(ctx)?ctx.hybridResult:null;

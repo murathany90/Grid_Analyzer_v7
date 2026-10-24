@@ -106,9 +106,7 @@ export function createLightningScPanel(ctx:AppContext){
 
     let rows=allRows;
     if(selectedSite){
-      const siteObj=ctx.network?.sites.find(s=>s.id===selectedSite);
-      const siteName=siteObj?.name;
-      rows=rows.filter(r=>(r.siteIds&&r.siteIds.includes(selectedSite))||(Array.isArray(r.raw?.siteIds)&&r.raw.siteIds.includes(selectedSite))||(siteName&&r.tm===siteName));
+      rows=rows.filter(r=>(r.siteIds&&r.siteIds.includes(selectedSite))||(Array.isArray(r.raw?.siteIds)&&r.raw.siteIds.includes(selectedSite)));
     }
     if(q){
       rows=rows.filter(r=>r.name.toLocaleLowerCase('tr-TR').includes(q)||r.fid.toLocaleLowerCase('tr-TR').includes(q));
