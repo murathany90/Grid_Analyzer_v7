@@ -1,8 +1,10 @@
-# SC final acceptance — implementation evidence
+# SC final acceptance — independently accepted by Codex
 
 2026-10-24 · approved plan: `SC_CODEX_FINAL_EXECUTION_PLAN.md` · branch `feature/sc-pf-parity-ui`.
 
-**Implementation proposal: FUNCTIONAL PASS, pending Codex root's independent acceptance.** PF 3F parity is **NOT_VERIFIED**; PF 1F is **REFERENCE_MISSING**. This is an uncertified network approximation, never a normative IEC/PF parity claim.
+**İŞLEVSEL KABUL: PASS. NİHAİ KARAR: PASS.** Codex root independently accepted the delivered engineering work. PF 3F parity is **NOT_VERIFIED**; PF 1F is **REFERENCE_MISSING**. This is an uncertified network approximation, never a normative IEC/PF parity claim. No reproduced P0 or unresolved functional test failure remains in the evaluated scope; the numerical reference limitations below remain open.
+
+Actual routing: the single read-only audit used `gpt-6-astra` / `high`; implementation used `gpt-6.1-sol` / `xhigh`, resumed in the same agent after its quota interruption. Codex root performed the separate acceptance. No Luna or replacement audit was used.
 
 ## Delivered changes and task dispositions
 
@@ -17,7 +19,7 @@
 | C2 | DONE: seven primary headers, exact nominal SC voltage filters, distinct site IDs despite equal TM names, blocked/stale/null states, search, exports and separate 3F driving-point/1F-loop impedance labels. Existing Lightning-to-analysis action is visible in the dedicated SC toolbar. |
 | D1 | DONE as bounded diagnostic evidence; see numerical limits below. One native SN4 parse/run only; no country-wide calculation. |
 | D2 | DONE: final desktop-only E2E **9/9 scripts PASS**, process exit 0; `local-benchmark-results/sc-resumed-final-desktop-e2e.log`, final summary `failed:[]`. |
-| D3 | DONE: built/committed portable HTML, exact HEAD byte identity and actual file:// native import/calculation/reload acceptance PASS. Root final Git/acceptance verification pending. |
+| D3 | DONE: built/committed portable HTML, exact HEAD byte identity and actual file:// native import/calculation/reload acceptance PASS. Root independently verified the raw bytes, final desktop log, tracked tree and local/remote implementation HEAD. |
 
 ## Numerical and lifecycle tests
 
@@ -31,7 +33,7 @@
 
 The earlier targeted map audit's LF convergence assertion failed once while the implementation was still changing, then passed on the stable tree without any LF solver/settings/fixture/convergence-assertion change. No numerical root cause was established for that transient; the later map audit verifies real LF, scenario history, source-worker/controller and IndexedDB behavior. This is separate from the reproducible hidden-SC-panel test mismatch, which was fixed by testing the current visible component.
 
-Root independently reran the final critical numerical suite: **4/4**, `local-benchmark-results/sc-root-independent-critical.log` (3340.9996 ms). Root has directly inspected the decisive code/assertions, unit/provenance logs, class-B proof, portable screenshot/proof and raw HEAD artifact bytes. Final independent acceptance still waits for desktop completion and Git checks.
+Root independently reran the final critical numerical suite: **4/4**, `local-benchmark-results/sc-root-independent-critical.log` (3340.9996 ms). Root directly inspected the decisive code/assertions, unit/provenance logs, class-B proof, portable screenshot/proof and raw HEAD artifact bytes. Final desktop completion and Git checks also passed. The full unit run is accurately recorded as 755/756 followed by the successful targeted closure; it is not represented as a fresh 756/756 full run. No hosted CI run is claimed; these are the recorded local Windows checks.
 
 ## Evidence classes and browser proof
 
@@ -82,8 +84,19 @@ GA and PF model/scenario identity constructions differ; native source/correction
 
 ## Portable and Git delivery
 
-Code/plan commit: `0def3ddd7cf7066130f0cfbe33e5f15a8a926840`. Portable commit: `4ffb4db15a8ee6a4ab59657af317b26e49276000`.
+Initial HEAD: `48cb5d80bb5a671e767d18fb75e6638d4be165b1`. Independently verified implementation/evidence HEAD: `6cf630afbf98f1566cbbccd532081085618f6500`; `git ls-remote origin refs/heads/feature/sc-pf-parity-ui` returned that exact SHA. Main remains `e04a9e99a0a2bf23cbe88f9e34ba1bb5a6bd043f`.
+
+Delivery commits:
+
+- `0def3ddd7cf7066130f0cfbe33e5f15a8a926840`: numerical guards, lifecycle/UI corrections, tests and approved plan.
+- `4ffb4db15a8ee6a4ab59657af317b26e49276000`: rebuilt portable HTML.
+- `6cf630afbf98f1566cbbccd532081085618f6500`: actual portable-browser acceptance and evidence report.
+- The commit containing this independent decision only finalizes this report; its final delivery SHA is supplied in the user-facing handoff. It changes neither tested source nor HTML.
+
+Changed-file scope: 44 files from the initial HEAD: 13 SC/ytm/controller/results/analysis/map source files, 10 synthetic fixture/helper/unit-test files, 17 browser/diagnostic test tools, `package.json`, two short documents and the portable HTML. The exact inventory is reproducible with `git diff --name-only 48cb5d80bb5a671e767d18fb75e6638d4be165b1..6cf630afbf98f1566cbbccd532081085618f6500`. Root reviewed the decisive source diff and assertions and `git diff --check` passed.
 
 `dist-portable/GridAnalyzer_v7.html`: **2,059,224 bytes**, SHA256 **`db56b112e65474b96c2af12935b385d74f155ff3ee61272c38807635d4613ae6`**, exact raw-byte equality with the HEAD blob. `npm run build:portable` passed. `tools/sc-portable-browser.mjs` opened the actual artifact through **file://**, with HTTP(S) blocked: analytical native 3F/1F MAX/MIN computation and reload/reimport retained identical exported values/identities; errors=[]; external requests=[]. Proof: `local-benchmark-results/sc-portable/proof.json`.
 
-Only explicit source/tests, the approved plan, this short report and final HTML are committed. User-owned untracked docs, ZIPs, SLD folders and scratch remain untouched/uncommitted. No branch creation/reset/rebase/force push/PR/merge/deletion. **Root acceptance and final remote-HEAD verification remain pending.**
+Only explicit source/tests, the approved plan, this short report and final HTML are committed. The tracked working tree was clean at the inspected implementation HEAD. The whole directory is deliberately not described as clean: the five preexisting untracked entries remain untouched and uncommitted (`docs/Grid_Analyzer_SC_3F_1F_PF_UI_TAM_AGENT_PROMPT_20261023.md`, `docs/PF_GA_IEC60909_2016_Agent_Paketi (1).zip`, `docs/sld-v36/`, `docs/tek_hat_ornekleri/`, `scratch/`). Private inputs and benchmark evidence remain ignored. No branch creation/reset/rebase/force push/PR/merge/deletion occurred.
+
+Root independently recomputed the SN4 aggregate from the saved per-row diagnostic evidence: n=12, MAE=42.107621926743185 kA, P95/max=239.5726196769776 kA. This confirms the reported statistic, not physical or PF equivalence. Final decision: **functional PASS; PF 3F NOT_VERIFIED; PF 1F REFERENCE_MISSING**.
