@@ -11,6 +11,7 @@ import {resultLayerColor} from '../../src/map/layer-policy';
 import {finishYtmStudy,type YtmStudyResult} from '../../src/analysis/ytm-study';
 import {WorkspaceResultCache,workspaceKey,type ScenarioResults} from '../../src/domain/results/workspace';
 import {scenarioSignature} from '../../src/domain/scenario/overlay';
+import {SC_STATUS_FILTER_OPTIONS, scStateMatches} from '../../src/features/analysis/compact-study-view';
 
 test('660 presentation rows retain independent AC/DC sets, names, missing POST and budget/divergence states',()=>{
  const {ctx}=analysisUiFixture(),rows=compactN1Rows(ctx);assert.equal(rows.length,660);assert.equal(runEvidence(ctx).acCalculated,30);assert.equal(runEvidence(ctx).acAttempted,37);assert.equal(runEvidence(ctx).acVerified,0);assert.equal(runEvidence(ctx).distinctNumerical,298);
@@ -507,4 +508,104 @@ test('C.2.2: PF-only 3F MAX map functions independently when GA SC is NOT_RUN', 
  assert.equal(mapData.enabled, true);
  assert.ok((mapData.numericValues ?? 0) > 0, 'PF numerical values must be populated on map');
 });
+
+test('C.2.3: SC status filter exposes functional options and partitions compact rows accurately', () => {
+ // Verify functional options contract
+ assert.deepEqual(SC_STATUS_FILTER_OPTIONS.map(o => o.value), [
+  '',
+  'CALCULATED_BOTH',
+  'CALCULATED_3F_ONLY',
+  'BLOCKED_OR_UNCOMPUTABLE',
+  'PF_AVAILABLE',
+  'NOT_RUN_OR_STALE'
+ ]);
+
+ assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('DC tarandı')), false, 'N-1 DC option must NOT exist in SC');
+ assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('%100 üzeri')), false, 'N-1 OVER option must NOT exist in SC');
+ assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('AC sayısal')), false, 'N-1 AC option must NOT exist in SC');
+
+ // Test scStateMatches predicate against representative rows
+ const rowBoth = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'CALCULATED_NETWORK_APPROXIMATION' }, metrics: { ikss: { pf: 25.5 } } };
+ const row3FOnly = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'NOT_COMPUTABLE' }, metrics: { ikss: { pf: null } } };
+ const rowBlocked = { raw: { status_3F: 'BLOCKED', status_1F: 'BLOCKED' }, metrics: { ikss: { pf: null } } };
+ const rowNotRun = { raw: { status_3F: 'NOT_RUN', status_1F: 'NOT_RUN' }, metrics: { ikss: { pf: null } } };
+ const rowStale = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'STALE' }, metrics: { ikss: { pf: null } } };
+
+ // '' (ALL)
+ assert.equal(scStateMatches('', rowBoth), true);
+ assert.equal(scStateMatches('', rowBlocked), true);
+
+ // CALCULATED_BOTH
+ assert.equal(scStateMatches('CALCULATED_BOTH', rowBoth), true);
+ assert.equal(scStateMatches('CALCULATED_BOTH', row3FOnly), false);
+ assert.equal(scStateMatches('CALCULATED_BOTH', rowBlocked), false);
+
+ // CALCULATED_3F_ONLY
+ assert.equal(scStateMatches('CALCULATED_3F_ONLY', row3FOnly), true);
+ assert.equal(scStateMatches('CALCULATED_3F_ONLY', rowBoth), false);
+
+ // BLOCKED_OR_UNCOMPUTABLE
+ assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', rowBlocked), true);
+ assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', row3FOnly), true);
+ assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', rowBoth), false);
+
+ // PF_AVAILABLE
+ assert.equal(scStateMatches('PF_AVAILABLE', rowBoth), true);
+ assert.equal(scStateMatches('PF_AVAILABLE', rowBlocked), false);
+
+ // NOT_RUN_OR_STALE
+ assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowNotRun), true);
+ assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowStale), true);
+ assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowBoth), false);
+});
+
+test('C.2.3: Incompatible 3F/1F pair with mismatched sourceHash, calculateMode, or faultType is strictly rejected during standalone restore', () => {
+ const {ctx} = analysisUiFixture();
+ const loadedModelHash = ctx.network!.modelHash;
+ const scenarioSig = scenarioSignature(ctx.scenario.current);
+
+ const baseSc = {
+  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
+  profile: { calculateMode: 'MAX' as const, faultType: '3PH' },
+  method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
+  faults: []
+ };
+
+ const incompatibleSourceHash = {
+  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_BETA_DIFFERENT', profileHash: 'PRF' },
+  profile: { calculateMode: 'MAX' as const, faultType: '1LG' as const },
+  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MAX',
+  faults: []
+ };
+
+ const incompatibleMode = {
+  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
+  profile: { calculateMode: 'MIN' as const, faultType: '1LG' as const },
+  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MIN',
+  faults: []
+ };
+
+ const canRestore1Lg = (sc: typeof baseSc, sc1: any) => {
+  return (
+   sc1 &&
+   sc1.identity.modelHash === loadedModelHash &&
+   sc1.identity.scenarioHash === scenarioSig &&
+   sc1.identity.sourceHash === sc.identity.sourceHash &&
+   sc1.profile.calculateMode === sc.profile.calculateMode &&
+   sc1.profile.faultType === '1LG'
+  );
+ };
+
+ assert.equal(canRestore1Lg(baseSc, incompatibleSourceHash), false, 'Mismatched sourceHash must reject sc1Lg');
+ assert.equal(canRestore1Lg(baseSc, incompatibleMode), false, 'Mismatched calculateMode must reject sc1Lg');
+
+ const compatibleSc1 = {
+  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
+  profile: { calculateMode: 'MAX' as const, faultType: '1LG' as const },
+  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MAX',
+  faults: []
+ };
+ assert.equal(canRestore1Lg(baseSc, compatibleSc1), true, 'Matching sc1Lg must be accepted');
+});
+
 

@@ -18,13 +18,38 @@ const formatScVal=(valKa:number|null|undefined,unit:'A'|'kA'):string=>{
  }
  return Number(valKa).toLocaleString('tr-TR',{minimumFractionDigits:3,maximumFractionDigits:3});
 };
+
+export const SC_STATUS_FILTER_OPTIONS = [
+ { value: '', label: 'Tümü' },
+ { value: 'CALCULATED_BOTH', label: '3F ve 1F hesaplandı' },
+ { value: 'CALCULATED_3F_ONLY', label: '3F hesaplandı, 1F hesaplanamadı' },
+ { value: 'BLOCKED_OR_UNCOMPUTABLE', label: 'Hesaplanamadı / engellendi' },
+ { value: 'PF_AVAILABLE', label: 'PF 3F referansı mevcut' },
+ { value: 'NOT_RUN_OR_STALE', label: 'Henüz çalıştırılmadı / eski sonuç' }
+] as const;
+
+export function scStateMatches(stateValue:string,r:{raw:Record<string,unknown>;metrics:{ikss?:{pf:number|null}}}):boolean{
+ if(!stateValue)return true;
+ const s3=String(r.raw.status_3F??''),s1=String(r.raw.status_1F??'');
+ if(stateValue==='CALCULATED_BOTH')return s3==='CALCULATED_NETWORK_APPROXIMATION'&&s1==='CALCULATED_NETWORK_APPROXIMATION';
+ if(stateValue==='CALCULATED_3F_ONLY')return s3==='CALCULATED_NETWORK_APPROXIMATION'&&s1!=='CALCULATED_NETWORK_APPROXIMATION';
+ if(stateValue==='BLOCKED_OR_UNCOMPUTABLE'){
+  return ['BLOCKED','NOT_COMPUTABLE'].includes(s3)||['BLOCKED','NOT_COMPUTABLE'].includes(s1)||(s3!=='CALCULATED_NETWORK_APPROXIMATION'&&!['NOT_RUN','STALE'].includes(s3))||(s1!=='CALCULATED_NETWORK_APPROXIMATION'&&!['NOT_RUN','STALE'].includes(s1));
+ }
+ if(stateValue==='PF_AVAILABLE')return r.metrics.ikss?.pf!=null&&Number.isFinite(r.metrics.ikss.pf);
+ if(stateValue==='NOT_RUN_OR_STALE')return s3==='NOT_RUN'||s1==='NOT_RUN'||s3==='STALE'||s1==='STALE';
+ return true;
+}
+
 export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Feature{
  const root=element('div','ga-ytm-study ga-compact-study'),controls=element('div','ga-compact-controls'),status=element('p','ga-compact-status'),scNotice=element('p','ga-sc-notice'),kpis=element('div','ga-compact-kpis'),lists=element('nav','ga-compact-lists'),filters=element('div','ga-compact-filters'),host=element('div','ga-compact-table-host'),pager=element('div','ga-compact-pager');
  const area=element('select'),tm=element('select'),voltage=element('select'),profile=element('select'),mode=element('select'),search=element('input'),state=element('select'),metric=element('select');
  const selectLabel=(s:HTMLSelectElement,label:string)=>{s.setAttribute('aria-label',label);return s;};
  selectLabel(area,'Toplu analiz YTM');selectLabel(tm,'Toplu analiz TM');selectLabel(voltage,'Toplu analiz gerilim seviyesi');selectLabel(profile,'Toplu analiz profili');selectLabel(mode,'Görüntülenen SC modu');selectLabel(state,'Sonuç durum filtresi');selectLabel(metric,'Gösterilen LF metriği');search.setAttribute('aria-label','Toplu analiz sonuç filtresi');search.type='search';search.placeholder='Ekipman, TM, YTM veya FID ara';
  for(const [value,label] of [['','Tüm gerilimler'],['400','400 kV'],['154','154 kV'],['66','66 kV'],['33','33 kV']]){const o=element('option','',label);o.value=value;voltage.append(o);}
- profile.innerHTML='<option value="BALANCED">Dengeli</option><option value="FAST">Hızlı</option><option value="DETAILED">Ayrıntılı</option><option value="STRICT">Strict</option>';mode.innerHTML='<option>MAX</option><option>MIN</option>';state.innerHTML='<option value="">Tüm durumlar</option><option value="AC">AC sayısal / Hesaplanan</option><option value="DC">DC tarandı</option><option value="OVER">%100 üzeri</option><option value="PF">PF kaydı olan</option><option value="MISSING">Sayısal sonuç yok / Engellenen</option>';metric.innerHTML='<option value="p">P (MW)</option><option value="q">Q (MVAr)</option><option value="loading">Yük (%)</option>';
+ const n1StateOptions='<option value="">Tüm durumlar</option><option value="AC">AC sayısal / Hesaplanan</option><option value="DC">DC tarandı</option><option value="OVER">%100 üzeri</option><option value="PF">PF kaydı olan</option><option value="MISSING">Sayısal sonuç yok / Engellenen</option>';
+ const scStateOptions=SC_STATUS_FILTER_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
+ profile.innerHTML='<option value="BALANCED">Dengeli</option><option value="FAST">Hızlı</option><option value="DETAILED">Ayrıntılı</option><option value="STRICT">Strict</option>';mode.innerHTML='<option>MAX</option><option>MIN</option>';state.innerHTML=ctx.analysisTab==='SC'?scStateOptions:n1StateOptions;metric.innerHTML='<option value="p">P (MW)</option><option value="q">Q (MVAr)</option><option value="loading">Yük (%)</option>';
  scNotice.textContent='⚠️ IEC 60909-0:2016 ağ yaklaşımı; IEC / PF paritesi doğrulanmadı. Eksik/engellenen sayılar sıfır kabul edilmez.';
  const settings=analysisDialog('Gelişmiş ayarlar'),evidence=analysisDialog('Yöntem ve kanıt'),detail=analysisDialog('Sonuç ayrıntısı');
  const number=(label:string,value:number)=>{const l=element('label','ga-field',label),input=element('input');input.type='number';input.step='any';input.value=String(value);input.setAttribute('aria-label',label);l.append(input);settings.body.append(l);return input;};
@@ -62,12 +87,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
   };
   const stateMatches=(r:CompactRow)=>{
    if(!state.value)return true;
-   if(family==='SC'){
-    if(state.value==='AC')return r.status==='CALCULATED_NETWORK_APPROXIMATION'&&r.raw.status_1F==='CALCULATED_NETWORK_APPROXIMATION';
-    if(state.value==='MISSING')return r.status!=='CALCULATED_NETWORK_APPROXIMATION'||r.raw.status_1F!=='CALCULATED_NETWORK_APPROXIMATION';
-    if(state.value==='PF')return r.metrics.ikss?.pf!==null;
-    return true;
-   }
+   if(family==='SC')return scStateMatches(state.value,r);
    return state.value==='AC'&&r.acLabel?.startsWith('Sayısal')||state.value==='DC'&&r.dcLabel?.startsWith('Tarandı')||state.value==='OVER'&&(r.loading!=null&&r.loading>100||r.overloads?.length)||state.value==='PF'&&(Object.values(r.metrics).some(v=>v.pf!==null)||r.overloads?.some(v=>v.source==='PF'))||state.value==='MISSING'&&!Object.values(r.metrics).some(v=>v.ga!==null)&&!r.acLabel?.startsWith('Sayısal')&&!r.dcLabel?.startsWith('Tarandı');
   };
   return sortCompactRows(rows.filter(r=>(!q||r.searchText.includes(q))&&voltageMatches(r)&&stateMatches(r)),sort,descending);
@@ -166,7 +186,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
   if(ctx.filters.areaId&&area.value!==ctx.filters.areaId)area.value=ctx.filters.areaId;
   if(lastTmArea!==area.value){lastTmArea=area.value;tm.replaceChildren(element('option','','Tüm TM'));tm.options[0].value='';for(const s of ctx.network?.sites.filter(s=>s.areaId===area.value)??[]){const o=element('option','',s.name);o.value=s.id;tm.append(o);}tm.value=ctx.filters.siteId;if(tm.selectedIndex<0)tm.value='';}
   const stored=ctx.studyOptions??ctx.ytmStudy?.options;if(stored&&lastOptions!==stored){lastOptions=stored;profile.value=stored.profile??'BALANCED';profileSelect.value=stored.profile??'BALANCED';low.value=String(stored.voltageMinPu??.9);high.value=String(stored.voltageMaxPu??1.1);loading.value=String(stored.loadingLimitPercent??100);budget.value=String((stored.timeBudgetMs??178000)/1000);voltage.value=String(stored.voltageBands?.[0]??'');modes.value=stored.scModes?.length===1?stored.scModes[0]:'BOTH';}
-  if(lastFamily!==family){lastFamily=family;tab=family==='LF'?'lines':family==='SC'?'sc':'cases';lists.replaceChildren();if(family==='LF'){list('lines','Hatlar');list('transformers','Trafolar');list('buses','Baralar');}else if(family==='N1'){list('cases','Kesintiler');list('overloads','Aşırı yüklenen ekipmanlar');}else list('sc','Bara akımları · 3F ve 1F');page=0;lastKey='';}
+  if(lastFamily!==family){lastFamily=family;tab=family==='LF'?'lines':family==='SC'?'sc':'cases';lists.replaceChildren();if(family==='LF'){list('lines','Hatlar');list('transformers','Trafolar');list('buses','Baralar');}else if(family==='N1'){list('cases','Kesintiler');list('overloads','Aşırı yüklenen ekipmanlar');}else list('sc','Bara akımları · 3F ve 1F');state.innerHTML=family==='SC'?scStateOptions:n1StateOptions;state.value='';page=0;lastKey='';}
   mode.hidden=family!=='SC';profile.hidden=family!=='N1';modes.hidden=family!=='SC';scNotice.hidden=family!=='SC';unitBtn.hidden=family!=='SC';maxSortBtn.hidden=family!=='SC';if(ctx.scResult)mode.value=ctx.scResult.profile.calculateMode;metric.hidden=family!=='LF'||tab==='buses';root.dataset.metric=metric.value;root.dataset.family=family;run.disabled=ctx.busy||!ctx.network||family!=='LF'&&!area.value;cancel.hidden=!ctx.busy;cancel.disabled=!ctx.busy;
   const current=!!(ctx.ytmStudy&&ctx.network&&ytmStudyIsCurrent(ctx.ytmStudy,ctx.network,ctx.scenario.current,ctx.analysisSettings.value,ctx.studyOptions));const pending=family==='N1'?ctx.ytmStudy?.n1?.cases.some(c=>['NOT_RUN_BUDGET','NOT_EVALUATED_BUDGET','CANCELLED','DC_UNSCREENABLE'].includes(c.status)):ctx.ytmStudy&&(ctx.ytmStudy.options.scModes??['MAX','MIN']).some(m=>{const sc=m==='MAX'?ctx.ytmStudy!.scMax:ctx.ytmStudy!.scMin,sc1=m==='MAX'?ctx.ytmStudy!.sc1LgMax:ctx.ytmStudy!.sc1LgMin;return !sc||!sc1||sc.faults.length<ctx.ytmStudy!.faultTargets.length||sc1.faults.length<ctx.ytmStudy!.faultTargets.length||sc.faults.some(f=>['NOT_RUN_BUDGET','NOT_RUN','CANCELLED'].includes(f.status))||sc1.faults.some(f=>['NOT_RUN_BUDGET','NOT_RUN','CANCELLED'].includes(f.status));});resume.hidden=family==='LF'||!ctx.ytmStudy||!pending;resume.disabled=ctx.busy||!current||ctx.studyResumeAvailable===false||!ctx.ytmStudy||!studyFamilies(ctx.ytmStudy.options).includes(family==='SC'?'SC':'N1');
   voltage.options[0].textContent='Tüm gerilimler';
