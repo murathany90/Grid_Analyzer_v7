@@ -58,7 +58,7 @@ export class Application implements AppContext {
   private comparison=new WorkerTransport();
   private calculation=new WorkerTransport((stage,detail)=>this.progress(stage,detail));
   subscribe(fn:()=>void){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
-  private saveWorkspace(){if(!this.lastWorkspaceKey)return;const results:ScenarioResults={n1:this.n1Result,ac:this.n1AcResults,hybrid:this.hybridResult,sc:this.scResult,sc1Lg:this.scResult1Lg,scContext:this.scContext,ytm:this.ytmStudy,studyOptions:this.studyOptions};this.workspaceResults.set(this.lastWorkspaceKey,results);for(const type of ['powerFlow','fastAc','dc'] as const){const lf=this.resultStore.getSnapshot(this.lastScenarioId,type);if(lf)void this.database.put('lf:'+this.lastWorkspaceKey+':'+type,lf).catch(()=>{});}void this.database.put('workspace:'+this.lastWorkspaceKey,results).catch(e=>logger.log('WARN','workspace','Workspace IndexedDB kaydedilemedi',e));}
+  private saveWorkspace(){if(!this.lastWorkspaceKey)return;const results:ScenarioResults={n1:this.n1Result,ac:this.n1AcResults,hybrid:this.hybridResult,sc:this.scResult,sc1Lg:this.scResult1Lg,scContext:this.scContext,ytm:this.ytmStudy,studyOptions:this.studyOptions};this.workspaceResults.set(this.lastWorkspaceKey,results);for(const type of ['powerFlow','fastAc','dc'] as const){const lf=this.resultStore.getSnapshot(this.lastScenarioId,type);if(lf)void this.database.put('lf:'+this.lastWorkspaceKey+':'+type,lf).catch(()=>{});}void this.database.put('workspace:'+this.lastWorkspaceKey,results).catch(e=>{logger.log('WARN','workspace','Workspace IndexedDB kaydedilemedi',e);this.setMessage('Uyarı: Çalışma alanı yerel depolamaya kaydedilemedi.');});}
   private syncWorkspace(){if(!this.network){this.workspaceResults.clear();this.lastWorkspaceKey='';return;}const key=workspaceKey(this);if(this.lastWorkspaceKey&&key!==this.lastWorkspaceKey){this.saveWorkspace();const saved=this.workspaceResults.get(key);this.n1Result=saved?.n1??null;this.n1AcResults=saved?.ac??[];this.hybridResult=saved?.hybrid??null;this.scResult=saved?.sc??null;this.scResult1Lg=saved?.sc1Lg??null;this.ytmStudy=saved?.ytm??null;this.studyOptions=saved?.studyOptions;if(saved?.scContext)this.scContext=saved.scContext;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.n1Detail=null;this.selectedN1CandidateId=null;}this.lastWorkspaceKey=key;this.lastScenarioId=this.scenario.selectedId;this.resultView.scenarioId=this.scenario.selectedId;this.resultStore.selectScenario(this.scenario.selectedId);
     for(const role of ['base','scenario'] as const)for(const type of ['powerFlow','fastAc','dc'] as const){const snapshot=this.analysisSettings.value;this.resultStore.expect(role,identity(this.network.modelHash,calculationScenario(this.scenario.current,role),type,{analysisSettings:activeAnalysisSettings(snapshot,type),analysisSettingsHash:analysisSettingsHash(snapshot,type),controlContextHash:this.powerFactoryControlContextHash}));}
   }
@@ -186,8 +186,10 @@ export class Application implements AppContext {
           this.ytmStudy=saved.ytm;this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;this.scResult=saved.sc;this.scResult1Lg=saved.sc1Lg??null;this.scContext=saved.scContext;this.filters.areaId=saved.ytm.options.ytmId;this.filters.siteId=saved.ytm.options.tmId??'';
         }else if(saved.sc&&saved.sc.identity.modelHash===loaded.network.modelHash&&saved.sc.identity.scenarioHash===scenarioSig){
           this.scResult=saved.sc;
-          if(saved.sc1Lg&&saved.sc1Lg.identity.modelHash===loaded.network.modelHash&&saved.sc1Lg.identity.scenarioHash===scenarioSig){
+          if(saved.sc1Lg&&saved.sc1Lg.identity.modelHash===loaded.network.modelHash&&saved.sc1Lg.identity.scenarioHash===scenarioSig&&saved.sc1Lg.identity.sourceHash===saved.sc.identity.sourceHash&&saved.sc1Lg.profile.calculateMode===saved.sc.profile.calculateMode&&saved.sc1Lg.profile.faultType==='1LG'){
             this.scResult1Lg=saved.sc1Lg;
+          }else{
+            this.scResult1Lg=null;
           }
           if(saved.scContext)this.scContext=saved.scContext;
         }
