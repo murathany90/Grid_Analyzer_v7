@@ -1,3 +1,4 @@
+import {desktopOnly,desktopWidths,testViewport} from './desktop-test-options.mjs';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {unzipSync} from 'fflate';
 import {createServer} from 'vite';
@@ -7,7 +8,7 @@ const [path,tag='SN3',area='Y9']=process.argv.slice(2);
 if(!path)throw Error('Usage: node tools/n1-sc-browser-acceptance.mjs model.zip tag area');
 const port=5387,out='local-benchmark-results/n1-sc-20261022',input=await readFile(path),json=path.endsWith('.zip')?Object.entries(unzipSync(input)).find(([name])=>name.endsWith('.json'))[1]:input;
 const server=await createServer({plugins:[{name:'private-model-http',configureServer(s){s.middlewares.use((req,res,next)=>{if(req.url!=='/private-model.json')return next();res.setHeader('Content-Type','application/json');res.end(Buffer.from(json.buffer,json.byteOffset,json.byteLength));});}}],logLevel:'error',server:{hmr:false,host:'127.0.0.1',port,strictPort:true,watch:{ignored:['**/local-benchmark-results/**','**/.tmp/**']}}});await server.listen();
-const browser=await chromium.launch({headless:true,args:['--js-flags=--max-old-space-size=6144']}),page=await browser.newPage({viewport:{width:640,height:800}}),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));page.on('crash',()=>console.error('BROWSER_RENDERER_CRASH'));page.on('console',m=>{if(m.type()==='error')console.error('BROWSER_CONSOLE '+m.text());});
+const browser=await chromium.launch({headless:true,args:['--js-flags=--max-old-space-size=6144']}),page=await browser.newPage({viewport:testViewport(640,800)}),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));page.on('crash',()=>console.error('BROWSER_RENDERER_CRASH'));page.on('console',m=>{if(m.type()==='error')console.error('BROWSER_CONSOLE '+m.text());});
 try{
  await mkdir(out,{recursive:true});console.log('BROWSER '+browser.version());
  await page.route('**/ytm-harness',r=>r.fulfill({contentType:'text/html',body:`<!doctype html><html lang="tr"><meta charset="utf-8"><body><main id="app"></main><script type="module">
@@ -26,7 +27,7 @@ try{
  assert.equal(result.catalog,result.cases);assert.ok(result.targets>0);assert.ok(result.clickToPaintMs<=180000,JSON.stringify(result));
  const detailCache=await page.evaluate(async()=>{const first=ctx.hybridResult?.cases.find(c=>c.acSolved);return first?{caseId:first.outage.caseId,loaded:await ctx.loadHybridCaseDetail(first.outage.caseId)}:null;});if(detailCache)assert.equal(detailCache.loaded,true);
  const geometry=[];
- for(const width of [640,420]){await page.setViewportSize({width,height:800});await page.getByRole('button',{name:'Bara bazlı kısa devre',exact:true}).click();await page.screenshot({path:`${out}/${tag}-${area}-ytm-${width}-private.png`});const g=await page.evaluate(()=>({width:innerWidth,document:document.documentElement.scrollWidth,rows:document.querySelectorAll('tbody tr').length,cells:document.querySelectorAll('tbody td').length}));assert.ok(g.document<=g.width,JSON.stringify(g));assert.ok(g.rows<=50);geometry.push(g);}
+ for(const width of (desktopOnly?[640]:[640,420])){await page.setViewportSize(testViewport(width,800));await page.getByRole('button',{name:'Bara bazlı kısa devre',exact:true}).click();await page.screenshot({path:`${out}/${tag}-${area}-ytm-${width}-private.png`});const g=await page.evaluate(()=>({width:innerWidth,document:document.documentElement.scrollWidth,rows:document.querySelectorAll('tbody tr').length,cells:document.querySelectorAll('tbody td').length}));assert.ok(g.document<=g.width,JSON.stringify(g));assert.ok(g.rows<=50);geometry.push(g);}
  if(tag==='PUBLIC'){
   await page.evaluate(async()=>{const l=ctx.network.lines.find(l=>l.inService);await ctx.setStatus('lineStatus',l.id,false,l.inService,false);});assert.equal(await page.locator('tbody tr').count(),0);
   await page.evaluate(()=>ctx.undoScenario());assert.ok(await page.locator('tbody tr').count()>0,'undo must restore the table after invalidating its row cache');

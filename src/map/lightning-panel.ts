@@ -27,7 +27,7 @@ export function createLightningPanel(ctx:AppContext){
     const family=ctx.resultView.analysis,r=ctx.resultStore.active,lf=!scenariosOpen&&family==='LF',sc=!scenariosOpen&&family==='SC',n1=!scenariosOpen&&family==='N1';panel.dataset.scenarioId=ctx.scenario.selectedId;panel.dataset.resultId=activeResultId(ctx)??'NOT_RUN';identity.textContent=(family==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'Baz':'Senaryo';if(ctx.view!=='map')hide();
     for(const b of families.querySelectorAll<HTMLButtonElement>('button'))b.setAttribute('aria-pressed',String(b.dataset.family===(scenariosOpen?'SCENARIOS':family)));scenarios.element.hidden=!scenariosOpen;shared.element.hidden=scenariosOpen||lf||sc;scPanel.element.hidden=scenariosOpen||lf||n1;
     if(scenariosOpen)scenarios.render();if(!shared.element.hidden&&!panel.hidden)shared.render();if(!scPanel.element.hidden&&!panel.hidden)scPanel.render();
-    const actionHost=!scenariosOpen&&!lf?shared.element.querySelector('.ga-study-exports-menu>div')??shared.element.querySelector('.ga-study-actions'):null;
+    const actionHost=sc?scPanel.element.querySelector('.ga-lightning-sc-toolbar'):n1?shared.element.querySelector('.ga-study-exports-menu>div')??shared.element.querySelector('.ga-study-actions'):null;
     if(actionHost){if(exportTools.parentElement!==actionHost)actionHost.append(exportTools);}else if(exportTools.parentElement!==exports)exports.append(exportTools);
     for(const item of [context,controls,container,baseNotice.element,paging])item.hidden=!lf;footer.hidden=!lf;xlsx.hidden=calculate.hidden=!lf;xlsx.disabled=!r;calculate.textContent=calculationLabel(ctx);calculate.setAttribute('aria-label',calculate.textContent);calculate.disabled=ctx.busy||!ctx.network;
     if(lf){

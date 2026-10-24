@@ -1,0 +1,25 @@
+/** One bounded 15-bus fresh SN4 diagnostic run. All private evidence stays ignored. */
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {basename,join} from 'node:path';
+import {loadBenchmarkModel} from '../src/importers/powerfactory-benchmark/model';
+import {readWorkbook} from '../src/importers/powerfactory-benchmark/workbook';
+import {RAW_SCHEMA} from '../src/importers/powerfactory-benchmark/schema';
+import {rowObject,type BenchmarkPackage} from '../src/domain/benchmark/types';
+import {adaptShortCircuitSources} from '../src/importers/powerfactory-benchmark/short-circuit-source';
+import {engineeringSourceOptions,engineeringScProfile} from '../src/analysis/short-circuit/engineering-profile';
+import {calculateThreePhase,scSourceContextHash,clearScPreparationCache} from '../src/analysis/short-circuit';
+import {emptyScenario,scenarioSignature} from '../src/domain/scenario/overlay';
+import {ytmReferenceRows,ytmReferenceSummary} from '../src/analysis/ytm-study/export';
+import assert from 'node:assert/strict';
+const dir='.local-fixtures/sc-final',stem='PowerFactory_ShortCircuit_20261008_1000_SN4_TR0_20261009_153244',manifest=JSON.parse(await readFile(join(dir,stem+'.Reference_Package.json'),'utf8')),bytes=await readFile(join(dir,stem+'.xlsx')),sha=createHash('sha256').update(bytes).digest('hex');assert.equal(sha,manifest.workbook.sha256);assert.equal(sha,'d9bd6a635d25c458042606d1c7c91f99c22a8b6450af9d63ecd271566f6962cd');
+const tables=await readWorkbook(new File([bytes],stem+'.xlsx'),'SC',sha,RAW_SCHEMA.SC),m=rowObject(tables.Analysis_Manifest_Raw,tables.Analysis_Manifest_Raw.rows[0]);for(const k of ['studyCase','modelHash','scenarioHash','topologyHash','effectiveMethod','requestedMethod'])assert.equal(m[k],manifest.identity[k]);
+const log=await readFile(join(dir,'PowerFactory_GridAnalyzer_SC_Diagnostic_20261008_1000_SN4_TR0_20261009_152934_460083.log'),'utf8');assert.match(log,/3PH/);assert.match(log,/MAX/);const settings=log.split(/\r?\n/).filter(l=>/SETTINGS\s*\|\s*SC-RUN-001/.test(l));
+const started=performance.now(),loaded=await loadBenchmarkModel(new File([await readFile(join(dir,'20261008_1000_SN4_TR0.zip'))],'20261008_1000_SN4_TR0.zip'),stage=>{if(['HASH','CANONICAL'].includes(stage))console.log(stage);});console.log('MODEL_PARSED_ONCE '+loaded.network.buses.length);
+const network=loaded.network;assert.equal(network.studyCase,manifest.identity.studyCase);const scenario=emptyScenario(),context=adaptShortCircuitSources(loaded.raw,network,undefined,engineeringSourceOptions('MAX'));
+const known=['B9027','B9445','B6005','B9410','B4206','B4351','B3337'],table=tables.SC_BusResults_Raw,refRows=table.rows.map(r=>rowObject(table,r)),available=new Set(network.buses.map(b=>b.sourceId)),ids=[...new Set([...known,...refRows.filter(r=>Number(r.nominalKv)===400).map(r=>String(r.physicalTerminalFid))])].filter(id=>available.has(id)).slice(0,15);
+const result=await calculateThreePhase(network,scenario,context,ids,engineeringScProfile('MAX','ENGINEERING_EXTENDED',60000));
+const reference={groups:{SC:{identity:manifest.identity,tables,workbook:manifest.workbook}}} as unknown as BenchmarkPackage;
+const rows=ytmReferenceRows({identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario),optionsHash:''},scMax:result,scMin:null},network,reference),summary=ytmReferenceSummary(rows);
+const proof={classification:'A_ACTUAL_SN4_PF_INPUTS; FID_KV_PARTITION_SUBSET_DIAGNOSTIC_ONLY; PF_PARITY_NOT_VERIFIED',parsedModelOnce:true,selected:ids.length,settings,pfIdentity:manifest.identity,modelJsonSha256:loaded.modelJsonSha256,gaModelHash:network.modelHash,gaScenarioHash:scenarioSignature(scenario),sourceHash:scSourceContextHash(context),workbookSha256:sha,profile:result.profile,engineRevision:result.engineRevision,summary,rows,elapsedMs:performance.now()-started,outliers:'B3337/B4351 UNRESOLVED_CAUSE; device contributions NOT_RECORDED',pf1F:'REFERENCE_MISSING',reason:'PF model/scenario/topology hashes use a different identity construction than GA native JSON/overlay hashes; source assumptions and IEC correction factors are unverified. FID/kV/subset agreement cannot certify parity.'};
+await writeFile('local-benchmark-results/sc-final-sn4-private.json',JSON.stringify(proof,null,2));console.log(JSON.stringify(proof,null,2));clearScPreparationCache();

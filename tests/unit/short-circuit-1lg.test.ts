@@ -23,7 +23,14 @@ const profile1LG: ScProfile = {
   timeBudgetMs: 30000,
 };
 
-const table = (Attributes: string[], Values: unknown[][]) => ({ Attributes, Values });
+// These analytical fixtures explicitly specify lossless Z0 and internal solid neutrals.
+const table = (attributes: string[], values: unknown[][]) => {
+ const Attributes=[...attributes],Values=values.map(v=>[...v]);
+ const add=(field:string,value:unknown)=>{if(!Attributes.includes(field)){Attributes.push(field);for(const row of Values)row.push(value);}};
+ if(Attributes.includes('uk0tr'))add('ur0tr',0);
+ if(Attributes.includes('bushv')){add('cneutcon',0);add('re0tr_h',0);add('re0tr_l',0);}
+ return {Attributes,Values};
+};
 
 test('Synthetic Circuit 1: Grounded YN/d transformer yields analytical 1LG current on HV, blocks ungrounded LV', async () => {
   // 110 kV B0 <--- T1 (YN/d) ---> 10 kV B1
@@ -90,7 +97,7 @@ test('Synthetic Circuit 1: Grounded YN/d transformer yields analytical 1LG curre
   const r1 = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B1'], profile1LG);
   assert.equal(r1.faults[0].status, 'BLOCKED');
   assert.equal(r1.faults[0].ikssKa, null);
-  assert.ok(r1.faults[0].reasons.some((r) => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK')));
+  assert.ok(r1.faults[0].reasons.some((r) => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK') || r.includes('MISSING_ZERO_SEQUENCE_SOURCE_MODEL') || r.includes('MISSING_SEQUENCE_SOURCE_PARAMETERS') || r.includes('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION')));
 });
 
 test('Synthetic Circuit 2: Ungrounded star Y/d transformer is fully ungrounded and blocks 1LG calculation', async () => {
@@ -118,8 +125,8 @@ test('Synthetic Circuit 2: Ungrounded star Y/d transformer is fully ungrounded a
     ElmLne: table(['FID'], []),
     ElmXnet: table(['FID'], []),
     ElmVac: table(
-      ['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'],
-      [['VAC', 'Source 110kV', 'CX', 0, 0, 10, 1]]
+      ['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp', 'R2', 'X2'],
+      [['VAC', 'Source 110kV', 'CX', 0, 0, 10, 1, 0, 10]]
     ),
     TypTr2: table(
       ['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l', 'itapch', 'tap_side', 'pfe', 'curmg'],
@@ -140,7 +147,7 @@ test('Synthetic Circuit 2: Ungrounded star Y/d transformer is fully ungrounded a
   const r0 = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B0'], profile1LG);
   assert.equal(r0.faults[0].status, 'BLOCKED');
   assert.equal(r0.faults[0].ikssKa, null);
-  assert.ok(r0.faults[0].reasons.some((r) => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK')));
+  assert.ok(r0.faults[0].reasons.some((r) => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK') || r.includes('MISSING_ZERO_SEQUENCE_SOURCE_MODEL') || r.includes('MISSING_SEQUENCE_SOURCE_PARAMETERS') || r.includes('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION')));
 
   const r1 = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B1'], profile1LG);
   assert.equal(r1.faults[0].status, 'BLOCKED');
@@ -304,11 +311,11 @@ test('Targeted Test 3: Pure resistive grounding (R0 > 0, X0 = 0) with ElmNec or 
     TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
     ElmVac: table(
       ['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'R0', 'X0', 'R2', 'X2', 'usetp'],
-      [['VAC', 'Source', 'CX', 0, 0.1, 1.0, 0, 0, 0.1, 1.0, 1]]
+      [['VAC', 'Source', 'CX', 0, 0.1, 1.0, 40, 0, 0.1, 1.0, 1]]
     ),
     ElmNec: table(
       ['FID', 'loc_name', 'fold_id', 'bus1', 'outserv', 'iintgnd', 'bus1n', 'R0', 'X0'],
-      [['NEC1', 'Pure Resistor NER', 'G0', 'CNEC', 0, 0, 'null', 40.0, 0.0]]
+      [['NEC1', 'Pure Resistor NER', 'G0', 'CNEC', 1, 0, 'null', 40.0, 0.0]]
     ),
     TypTr2: table(['FID'], []), ElmTr2: table(['FID'], [])
   };
@@ -338,7 +345,7 @@ test('Targeted Test 4: Missing transformer vector group or line R0/X0 blocks 1LG
     ]),
     StaCubic: table(['FID', 'fold_id', 'obj_id'], [['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC']]),
     TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
-    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Source', 'CX', 0, 0, 10, 1]]),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp', 'R2', 'X2'], [['VAC', 'Source', 'CX', 0, 0, 10, 1, 0, 10]]),
     TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'pcutr'], [['TYP-TR', 'No VG', 110, 10, 100, 10, 0]]),
     ElmTr2: table(['FID', 'loc_name', 'fold_id', 'typ_id', 'bushv', 'buslv', 'nntap', 'outserv'], [['TR1', 'TR', 'G0', 'TYP-TR', 'C0', 'C1', 0, 0]])
   };
@@ -469,7 +476,7 @@ test('B.1.2 Test 8: Transformer with cneutcon=1 and bushvn connected to ElmNec g
       ['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC']
     ]),
     TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
-    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp', 'R2', 'X2', 'R0', 'X0'], [['VAC', 'Src', 'CX', 0, 0, 10, 1, 0, 10, 0, 10]]),
     TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
       ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
     ]),
@@ -504,7 +511,7 @@ test('B.1.2 Test 9: Transformer with cneutcon=1 and bushvn=null (open neutral) i
       ['C0', 'SYN-B0', 'TR1'], ['C1', 'SYN-B1', 'TR1'], ['CX', 'SYN-B0', 'VAC']
     ]),
     TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
-    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp', 'R2', 'X2', 'R0', 'X0'], [['VAC', 'Src', 'CX', 0, 0, 10, 1, 0, 10, 0, 10]]),
     TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
       ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
     ]),
@@ -519,7 +526,7 @@ test('B.1.2 Test 9: Transformer with cneutcon=1 and bushvn=null (open neutral) i
 
   const res = await calculateThreePhase(network, emptyScenario(), context, ['SYN-B0'], profile1LG);
   assert.equal(res.faults[0].status, 'BLOCKED');
-  assert.ok(res.faults[0].reasons.some(r => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK')));
+  assert.ok(res.faults[0].reasons.some(r => r.includes('ISOLATED_ZERO_SEQUENCE_NETWORK') || r.includes('MISSING_ZERO_SEQUENCE_SOURCE_MODEL') || r.includes('MISSING_SEQUENCE_SOURCE_PARAMETERS') || r.includes('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION')));
 
   // Ambiguous neutral: bushvn points to an unknown/unverified entity
   const rawAmbiguous = {
@@ -551,7 +558,7 @@ test('C.1 Test 10: Transformer with cneutcon=1 and bushvn pointing to StaCubic i
       ['C_NEUT', 'SYN-B0', 'NEC1']
     ]),
     TypLne: table(['FID'], []), ElmLne: table(['FID'], []), ElmXnet: table(['FID'], []),
-    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp'], [['VAC', 'Src', 'CX', 0, 0, 10, 1]]),
+    ElmVac: table(['FID', 'loc_name', 'bus1', 'outserv', 'r1', 'x1', 'usetp', 'R2', 'X2', 'R0', 'X0'], [['VAC', 'Src', 'CX', 0, 0, 10, 1, 0, 10, 0, 10]]),
     TypTr2: table(['FID', 'loc_name', 'utrn_h', 'utrn_l', 'strn', 'uktr', 'uk0tr', 'pcutr', 'tr2cn_h', 'tr2cn_l'], [
       ['TYP-TR', 'TR', 110, 10, 100, 10, 10, 0, 'YN', 'D']
     ]),

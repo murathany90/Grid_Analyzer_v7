@@ -88,6 +88,11 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
       card.headers=['Maks Ikss','Birim','Durum'];
       card.rows=[[siteVal?.value!=null?number(siteVal.value)+' kA ('+Math.round(siteVal.value*1000).toLocaleString('tr-TR')+' A)':'Hesaplanmadı',siteVal?.unit??'kA',siteVal?.status??'NOT_RUN']];
       card.note=siteVal?.value!=null?'TM elektriksel baralarının maksimumudur · Ayrıntı için TM\'yi seçin veya ⚡ paneline bakın.':'Bu TM için hesaplanmış SC sonucu bulunamadı.';
+      if(siteVal?.value==null&&sc){
+        const terminalIds=new Set(modelPresentationIndex(ctx.network).busIdsBySite.get(e.id)??[]);
+        const blocked=sc.faults.filter(f=>f.status==='BLOCKED'&&[f.physicalTerminalFid,...f.physicalTerminalFids].some(id=>terminalIds.has(id)));
+        if(blocked.length){card.status='BLOCKED';card.rows=[['—',siteVal?.unit??'kA','BLOCKED']];card.note=[...new Set(blocked.flatMap(f=>f.reasons))].join('; ');}
+      }
       return card;
     }
     const p=selectedScPresentation(ctx),f=p.fault;

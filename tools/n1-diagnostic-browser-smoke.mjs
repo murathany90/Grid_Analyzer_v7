@@ -1,10 +1,11 @@
+import {desktopOnly,desktopWidths,testViewport} from './desktop-test-options.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 
 const port=5376,out='local-benchmark-results/n1-diagnostic-20261021';
-const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:1000,height:800}});
+const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:testViewport(1000,800)});
 const server=await createServer({logLevel:'error',server:{host:'127.0.0.1',port,strictPort:true,watch:{ignored:['**/local-benchmark-results/**','**/.tmp/**']}}});
 await server.listen();console.log('Diagnostic smoke: server ready');
 try{
@@ -74,7 +75,7 @@ try{
   await settings.click();await shared.getByLabel('Hibrit kontrol profili',{exact:true}).selectOption('CURRENT_SETTINGS');await page.keyboard.press('Escape');
   await shared.getByRole('button',{name:'Harita N1 Başlat',exact:true}).click();await page.waitForFunction(()=>!ctx.busy&&ctx.n1AcResults.length===1);
   assert.equal(await page.evaluate(()=>ctx.n1AcResults[0].status),'UNSUPPORTED_CONTROL_CONFIGURATION');
-  await page.setViewportSize({width:434,height:800});await panel.evaluate(p=>p.style.width='420px');assert.equal(await shared.locator('.ga-table-wrap').evaluate(e=>e.scrollWidth>e.clientWidth),false);
+  await page.setViewportSize(testViewport(434,800));await panel.evaluate(p=>p.style.width='420px');assert.equal(await shared.locator('.ga-table-wrap').evaluate(e=>e.scrollWidth>e.clientWidth),false);
   assert.deepEqual(errors,[]);const proof={fixture:'SYNTHETIC_REAL_WORKER',strict,diagnostic,geometry,initialHeight,errors};
   await writeFile(out+'/proof.json',JSON.stringify(proof,null,2));console.log('N1_DIAGNOSTIC_BROWSER_SMOKE '+JSON.stringify(proof));
 }finally{await browser?.close();await server.close();}

@@ -4,7 +4,7 @@ import type {ScAuditField,ScSource,ScSourceContext,ScAdapterOptions} from '../..
 import type {CanonicalNetwork} from '../../domain/model/network';
 const fields:Record<string,Record<string,string>>={TypLne:{rline:'ohm/km',xline:'ohm/km'},TypTr2:{uktr:'%',urtr:'%',pcutr:'kW',strn:'MVA',utrn_h:'kV',utrn_l:'kV'},TypSym:{rstr:'pu (machine base)',xdss:'pu (machine base)',sgn:'MVA',ugn:'kV',cosn:'1'},ElmVac:{R1:'ohm',X1:'ohm',r1:'ohm',x1:'ohm',usetp:'pu'},ElmXnet:{ikss:'kA (native input)',ikssmin:'kA (native input)',snss:'MVA (native input)',snssmin:'MVA (native input)',rntxn:'R/X',rntxnmin:'R/X'},ElmLnesec:{typ_id:'FID',fold_id:'FID',dline:'km'},ElmTr2:{typ_id:'FID',nntap:'tap position'},ElmGenStat:{Ikss3PF:'kA (native current input)',psutype:'enum',typ_id:'FID',sgn:'MVA',ugn:'kV',cosn:'1',kpf:'1',ikss:'kA (native input; mode unverified)'},ElmSym:{typ_id:'FID'}};
 const tables=(raw:DgsRawData,cls:string)=>{const t=raw[cls] as {Attributes:string[];Values:unknown[][]}|undefined;return t?.Values.map(v=>Object.fromEntries(t.Attributes.map((a,i)=>[a,v[i]??null])))??[];};
-const valid=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)!==99999;
+const valid=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)!==99999&&Math.abs(v)!==999999;
 /** Native model attributes only. Never consumes any PF result sheet or result-package number. */
 export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork,externalGridFactor?:ExternalGridFactor,options:ScAdapterOptions={}):ScSourceContext {
   const audit:ScAuditField[]=[],sources:ScSource[]=[],invalidBranches:ScSourceContext['invalidBranches']=[];
@@ -16,7 +16,7 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   }
   const machineTypes=new Map(tables(raw,'TypSym').map(r=>[String(r.FID),r]));
   const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),cubicObj=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.obj_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
-  const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999;
+  const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999&&v!==999999;
   const factor=options.externalGridFactor??externalGridFactor;
   const endpoint=(v:unknown)=>{const id=String(v??'');return cubicles.get(id)??(busIds.has(id)?id:'');};
   const resolveNeutral=(v:unknown)=>{if(!v||String(v)==='null')return null;const s=String(v);return cubicObj.get(s)||cubicles.get(s)||s;};
@@ -79,7 +79,7 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
       if(!type||!physical(type.rline0)||!physical(type.xline0)||!physical(part.dline)||Number(type.xline0)===99999||Number(type.xline0)===999999){ok=false;break;}
       r0+=Number(type.rline0)*Number(part.dline);x0+=Number(type.xline0)*Number(part.dline);
     }
-    if(ok&&x0>0)seqLines.set(l.sourceId,{lineId:l.sourceId,r0Ohm:r0,x0Ohm:x0});
+    if(ok&&Math.hypot(r0,x0)>0)seqLines.set(l.sourceId,{lineId:l.sourceId,r0Ohm:r0,x0Ohm:x0});
   }
   const seqTrafos=new Map<string,import('../../analysis/short-circuit/sequence-network').ScZeroSequenceTransformer>();
   for(const t of network.transformers){
@@ -88,27 +88,27 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
       const vgHv=type.tr2cn_h?String(type.tr2cn_h):undefined;
       const vgLv=type.tr2cn_l?String(type.tr2cn_l):undefined;
       const uk0tr=physical(type.uk0tr)&&Number(type.uk0tr)>0&&Number(type.uk0tr)!==99999&&Number(type.uk0tr)!==999999?Number(type.uk0tr):undefined;
-      const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)>0&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
-      const cneutcon=row?.cneutcon!==undefined&&row?.cneutcon!==null?Number(row.cneutcon):0;
+      const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
+      const cneutcon=row?.cneutcon!==undefined&&row?.cneutcon!==null?Number(row.cneutcon):undefined;
       const bushvn=resolveNeutral(row?.bushvn);
       const buslvn=resolveNeutral(row?.buslvn);
       seqTrafos.set(t.sourceId,{
         transformerId:t.sourceId,vectorGroupHv:vgHv,vectorGroupLv:vgLv,
         uk0tr,ur0tr,x0tor0:physical(type.x0tor0)&&Number(type.x0tor0)!==99999&&Number(type.x0tor0)!==999999?Number(type.x0tor0):undefined,
         cneutcon,bushvn,buslvn,
-        re0tr_h:row?.re0tr_h&&Number(row.re0tr_h)>0&&Number(row.re0tr_h)!==99999?Number(row.re0tr_h):0,
-        re0tr_l:row?.re0tr_l&&Number(row.re0tr_l)>0&&Number(row.re0tr_l)!==99999?Number(row.re0tr_l):0
+        re0tr_h:physical(row?.re0tr_h)?Number(row!.re0tr_h):undefined,
+        re0tr_l:physical(row?.re0tr_l)?Number(row!.re0tr_l):undefined
       });
     }
   }
   const groundCompensators:import('../../analysis/short-circuit/sequence-network').ScZeroSequenceGroundCompensator[]=[];
   for(const row of tables(raw,'ElmNec')){
     if(row.outserv===1)continue;
-    const r0=physical(row.R0)&&Number(row.R0)!==99999&&Number(row.R0)!==999999?Number(row.R0):0;
-    const x0=physical(row.X0)&&Number(row.X0)!==99999&&Number(row.X0)!==999999?Number(row.X0):0;
-    if(r0>0||x0>0){
+    const r0=row.outserv===0&&physical(row.R0)&&Number(row.R0)!==99999&&Number(row.R0)!==999999?Number(row.R0):NaN;
+    const x0=row.outserv===0&&physical(row.X0)&&Number(row.X0)!==99999&&Number(row.X0)!==999999?Number(row.X0):NaN;
+    {
       const b=endpoint(row.bus1);
-      groundCompensators.push({fid:String(row.FID),bus:b||String(row.bus1??''),r0Ohm:r0,x0Ohm:x0,inService:true});
+      groundCompensators.push({fid:String(row.FID),bus:b||String(row.bus1??''),r0Ohm:r0,x0Ohm:x0,inService:row.outserv!==1});
     }
   }
   const negativeSources=new Map<string,import('../../analysis/short-circuit/sequence-network').ScNegativeSequenceSource>();
@@ -119,8 +119,7 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
       const base=t.ugn**2/t.sgn/count;
       let r2:number|null=null;
       if(physical(t.r2sy)&&Number(t.r2sy)>=0&&Number(t.r2sy)!==99999){r2=Number(t.r2sy)*base;}
-      else if(options.missingMachineRPu!==undefined&&options.missingMachineRPu>=0){r2=options.missingMachineRPu*base;}
-      else if(physical(t.r1)&&Number(t.r1)>=0){r2=Number(t.r1)*base;}
+      else if(physical(options.missingMachineRPu)&&options.provenance?.trim()){r2=options.missingMachineRPu*base;}
       if(r2!==null){
         negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmSym',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:Number(t.x2sy)*base});
       }

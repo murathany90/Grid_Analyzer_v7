@@ -1,3 +1,4 @@
+import {scResultIsAdmissible} from '../short-circuit/result-validity';
 import {n1CaseCounts} from '../contingency-hybrid/case-summary';
 import type {CanonicalNetwork} from '../../domain/model/network';
 import type {ScenarioOverlay} from '../../domain/scenario/overlay';
@@ -35,7 +36,9 @@ export function finishYtmStudy(r:YtmStudyResult,status:YtmStudyResult['status']=
  for(const [key,sc,mode] of [['SC_MAX',r.scMax,'MAX'],['SC_MIN',r.scMin,'MIN']] as const){
   if(sc){
    const seen=new Set<string>();
+   const counted=new Set<string>();
    for(const f of sc.faults){
+    const keyId=f.electricalBusId??f.physicalTerminalFid;if(counted.has(keyId))continue;counted.add(keyId);
     if(f.physicalTerminalFid)seen.add(f.physicalTerminalFid);
     if(Array.isArray(f.physicalTerminalFids))for(const id of f.physicalTerminalFids)seen.add(id);
     if(f.status==='CANCELLED')pending[key]++;else if(f.quality)q[f.quality]++;else pending[key]++;
@@ -49,7 +52,9 @@ export function finishYtmStudy(r:YtmStudyResult,status:YtmStudyResult['status']=
  for(const [key,sc1,mode] of [['SC1_MAX',r.sc1LgMax,'MAX'],['SC1_MIN',r.sc1LgMin,'MIN']] as const){
   if(sc1){
    const seen=new Set<string>();
+   const counted=new Set<string>();
    for(const f of sc1.faults){
+    const keyId=f.electricalBusId??f.physicalTerminalFid;if(counted.has(keyId))continue;counted.add(keyId);
     if(f.physicalTerminalFid)seen.add(f.physicalTerminalFid);
     if(Array.isArray(f.physicalTerminalFids))for(const id of f.physicalTerminalFids)seen.add(id);
     if(f.status==='CANCELLED')pending[key]++;else if(f.quality)q[f.quality]++;else pending[key]++;
@@ -88,6 +93,17 @@ export function retainStudyFamilies(r:YtmStudyResult,old:YtmStudyResult|null){
   }
   return finishYtmStudy(r);
 }
+/** A completed electrical bus covers all physical aliases exactly once. */
+function missingElectricalTargets(result:ScResult|null,targets:string[],topology:ReturnType<typeof buildTopology>){
+ const completed=new Set((result?.faults??[]).filter(f=>f.status!=='CANCELLED'&&!!f.quality).map(f=>f.electricalBusId));
+ return targets.filter(fid=>{const b=topology.terminalToBus.get(fid);return b===undefined||!completed.has(topology.buses[b].id);});
+}
+function mergeElectricalFaults(previous:ScResult|null,next:ScResult){
+ const byBus=new Map<string|null,ScFaultResult>();
+ for(const f of previous?.faults??[])if(f.status!=='CANCELLED'&&f.quality&&!byBus.has(f.electricalBusId))byBus.set(f.electricalBusId,f);
+ for(const f of next.faults)byBus.set(f.electricalBusId,f);
+ return byBus;
+}
 const absentFault=(fid:string,reason:string):ScFaultResult=>({physicalTerminalFid:fid,electricalBusId:null,physicalTerminalFids:[],nominalKv:null,componentId:null,status:'BLOCKED',quality:'NOT_COMPUTABLE',reasons:[reason],zkkOhm:null,ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,residual:null});
 /** Full source graph, scoped targets; one RHS per electrical bus, all physical aliases retained. */
 export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOverlay,contexts:Partial<Record<'MAX'|'MIN',ScSourceContext>>,input:YtmStudyOptions,callbacks:YtmCallbacks={}):Promise<YtmStudyResult>{
@@ -112,25 +128,29 @@ export async function runYtmStudy(network:CanonicalNetwork,scenario:ScenarioOver
  if(n1&&!r.n1?.cases.length)r.n1=await stage('DC_SCREEN',()=>runHybridN1(network,scenario,{...hybridOptions,screenOnly:true}));
  for(const mode of scFamily?modes:[]){
   const old3F=mode==='MAX'?r.scMax:r.scMin;
-  const need3F=!old3F||old3F.faults.length<r.faultTargets.length||old3F.faults.some(f=>f.status==='CANCELLED');
+  const valid3F=scResultIsAdmissible(old3F,{...r.identity,mode,faultType:'3PH',context:contexts[mode],verifyProfile:true});
+  const missing3F=missingElectricalTargets(valid3F?old3F:null,targets,topology);
+  const need3F=missing3F.length>0;
   if(need3F){
    if(callbacks.signal?.aborted||remaining()<1)break;
-   const sc=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),{signal:callbacks.signal,onProgress:callbacks.onProgress}));
+   const sc=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,missing3F,engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),{signal:callbacks.signal,onProgress:callbacks.onProgress}));
    r.stageMs.SC_FACTORIZATION+=sc.timings?.factorizationMs??0;r.stageMs.SC_SOURCE_PREP+=sc.timings?.sourcePreparationMs??0;r.stageMs.SC_BATCH-=Math.min(r.stageMs.SC_BATCH,(sc.timings?.factorizationMs??0)+(sc.timings?.sourcePreparationMs??0));
-   const byBus=new Map(sc.faults.map(f=>[f.electricalBusId,f]));
-   sc.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
+   const byBus=mergeElectricalFaults(valid3F?old3F:null,sc);
+   sc.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus.get(topology.buses[index].id);return f?(f.physicalTerminalFid===fid?f:{...f,physicalTerminalFid:fid}):absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
    sc.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
    sc.counts={};for(const f of sc.faults)sc.counts[f.status]=(sc.counts[f.status]??0)+1;
    if(mode==='MAX')r.scMax=sc;else r.scMin=sc;checkpoint();
   }
   const old1F=mode==='MAX'?r.sc1LgMax:r.sc1LgMin;
-  const need1F=!old1F||old1F.faults.length<r.faultTargets.length||old1F.faults.some(f=>f.status==='CANCELLED');
+  const valid1F=scResultIsAdmissible(old1F,{...r.identity,mode,faultType:'1LG',context:contexts[mode],verifyProfile:true});
+  const missing1F=missingElectricalTargets(valid1F?old1F:null,targets,topology);
+  const need1F=missing1F.length>0;
   if(need1F){
    if(callbacks.signal?.aborted||remaining()<1)break;
    const p1Lg:import('../short-circuit').ScProfile={...engineeringScProfile(mode,strict?'IEC_REFERENCE_VERIFIED':'ENGINEERING_EXTENDED',Math.max(1,Math.min(remaining(),60000))),faultType:'1LG'};
-   const sc1=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,targets,p1Lg,{signal:callbacks.signal,onProgress:callbacks.onProgress}));
-   const byBus1=new Map(sc1.faults.map(f=>[f.electricalBusId,f]));
-   sc1.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus1.get(topology.buses[index].id);return f?{...f,physicalTerminalFid:fid}:absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
+   const sc1=await stage('SC_BATCH',()=>calculateThreePhase(network,scenario,contexts[mode]!,missing1F,p1Lg,{signal:callbacks.signal,onProgress:callbacks.onProgress}));
+   const byBus1=mergeElectricalFaults(valid1F?old1F:null,sc1);
+   sc1.faults=r.faultTargets.map(fid=>{const index=topology.terminalToBus.get(fid),f=index===undefined?undefined:byBus1.get(topology.buses[index].id);return f?(f.physicalTerminalFid===fid?f:{...f,physicalTerminalFid:fid}):absentFault(fid,'NO_ACTIVE_ELECTRICAL_BUS');});
    sc1.workspaceScope={ytmId:options.ytmId,optionsKey:studyScopeKey(options),settingsHash:stableJson(settings)};
    sc1.counts={};for(const f of sc1.faults)sc1.counts[f.status]=(sc1.counts[f.status]??0)+1;
    if(mode==='MAX')r.sc1LgMax=sc1;else r.sc1LgMin=sc1;checkpoint();

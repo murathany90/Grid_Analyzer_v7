@@ -1,3 +1,4 @@
+import {SC_ENGINE_REVISION} from '../../src/analysis/short-circuit';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type {AppContext} from '../../src/app/contracts';
@@ -56,7 +57,7 @@ test('DC N1 case gates Q/U; recorded case identity and native worsened constrain
   const newLayer=buildMapPresentationData(ctx,{...s,caseId:ctx.resultView.caseId,metric:'postLoadingPercent',n1Layer:'NEW_CONSTRAINTS'}),equipment=n.lines.find(e=>e.sourceId===worsened.fid)!;assert.equal(newLayer.branches.get('ElmLne:'+equipment.id)?.status,'WORSENED');assert.equal(newLayer.branches.get('ElmLne:'+equipment.id)?.value,worsened.post);
 });
 test('SC BLOCKED stays null with explicit source/partition reason and rejects stale identities',()=>{
-  const {ctx}=context();ctx.resultView.analysis='SC';ctx.resultView.faultId='B0';ctx.scResult={identity:{modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current)},profile:{faultType:'3PH',calculateMode:'MAX'},faults:[{physicalTerminalFid:'B0',physicalTerminalFids:['B0'],nominalKv:400,status:'BLOCKED',ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,reasons:['PARTITION_NOT_VERIFIED']}]} as unknown as AppContext['scResult'];
+  const {ctx}=context();ctx.resultView.analysis='SC';ctx.resultView.faultId='B0';ctx.scResult={engineRevision:SC_ENGINE_REVISION,method:'GA_POSITIVE_SEQUENCE_3PH_MAX',identity:{modelHash:ctx.network!.modelHash,scenarioHash:scenarioSignature(ctx.scenario.current)},profile:{faultType:'3PH',calculateMode:'MAX'},faults:[{physicalTerminalFid:'B0',physicalTerminalFids:['B0'],nominalKv:400,status:'BLOCKED',ikssKa:null,skssMva:null,ipKa:null,ibKa:null,ithKa:null,reasons:['PARTITION_NOT_VERIFIED']}]} as unknown as AppContext['scResult'];
   assert.equal(selectedScPresentation(ctx).status,'BLOCKED');const card=equipmentCard(ctx,ctx.network!.sites[0]);assert.equal(card.rows[0][0],'—');assert.ok(card.note.includes('PARTITION_NOT_VERIFIED'));assert.ok(!card.context.includes('IEC 60909 hazır'));ctx.scResult!.identity.modelHash='wrong';assert.equal(selectedScPresentation(ctx).fault,null);
 });
 test('footer keeps partial LF honesty and switches to active N1/SC; equipment card clamp fits every desktop corner',()=>{

@@ -12,7 +12,8 @@
     "test:e2e": "node tools/browser-smoke.mjs && node --import tsx tools/pf-benchmark-browser-smoke.ts && node tools/map-lightning-audit-browser-smoke.mjs && node tools/n1-diagnostic-browser-smoke.mjs && node tools/sld-browser-smoke.mjs && node tools/n1-sc-browser-acceptance.mjs tests/fixtures/small-dgs.json PUBLIC AUTO && node tools/workspace-unification-browser.mjs && node tools/analysis-ux-browser.mjs",
     "test:full": "node --import tsx tools/full-model.ts",
     "build": "vite build",
-    "build:portable": "vite build --mode portable"
+    "build:portable": "vite build --mode portable",
+    "test:e2e:desktop": "node tools/run-desktop-e2e.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

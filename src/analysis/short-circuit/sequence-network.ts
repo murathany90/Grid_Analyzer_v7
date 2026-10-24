@@ -3,6 +3,9 @@ import { factorPositiveSequence } from './positive-sequence';
 import type { ElectricalTopology } from '../../topology/electrical-topology';
 import type { CanonicalNetwork, Line as CanonicalLine, Transformer2W as CanonicalTransformer } from '../../domain/model/network';
 import type { ScSourceContext } from './source-adapter';
+/** Physical sequence data accepts explicit zero, never missing, negative or sentinel values. */
+const physical = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v !== 99999 && v !== 999999;
+const impedance = (r: unknown, x: unknown) => physical(r) && physical(x) && Math.hypot(r, x) > 0;
 
 export interface ScZeroSequenceLine {
   lineId: string;
@@ -70,7 +73,7 @@ export interface NegativeSequenceEngine {
 
 /**
  * Builds and factorizes the Negative-Sequence Network (Z2) on demand per component.
- * If a component has no generator/voltage source negative-sequence overrides, Z2 is physically identical to Z1.
+ * Every effective voltage source requires explicit Z2; no source-equality fallback is inferred.
  */
 export function buildNegativeSequenceEngine(
   topology: ElectricalTopology,
@@ -78,13 +81,11 @@ export function buildNegativeSequenceEngine(
   componentOf: Int32Array,
   components: number[][],
   branches: SequenceBranch[],
-  positiveSources: { bus: number; rPu: number; xPu: number }[],
+  positiveSources: { bus: number; rPu: number; xPu: number; fid: string }[],
   context: ScSourceContext
 ): NegativeSequenceEngine {
   const zbase = (bus: number) => topology.buses[bus].vnKv ** 2 / network.baseMva;
   const negSourceMap = context.sequenceData?.negativeSources;
-  const hasAnyOverride = negSourceMap && negSourceMap.size > 0;
-
   type FactorEntry = {
     factor: ReturnType<typeof factorPositiveSequence>;
     local: Map<number, number>;
@@ -100,28 +101,11 @@ export function buildNegativeSequenceEngine(
       const cId = componentOf[busIndex];
       if (cId < 0) throw Error('INVALID_BUS_COMPONENT');
 
-      // Check if this component has any negative sequence override
       const group = components[cId];
-      let compHasOverride = false;
-      if (hasAnyOverride) {
-        for (const s of context.sources) {
-          if (!s.inService || s.bus === undefined) continue;
-          const bIdx = topology.terminalToBus.get(s.bus);
-          if (bIdx !== undefined && componentOf[bIdx] === cId && negSourceMap.has(s.fid)) {
-            compHasOverride = true;
-            break;
-          }
-        }
+      for (const source of positiveSources.filter(s => componentOf[s.bus] === cId)) {
+        const seq = negSourceMap?.get(source.fid);
+        if (!seq || !impedance(seq.r2Ohm, seq.x2Ohm)) throw Error(`NOT_COMPUTABLE: MISSING_NEGATIVE_SEQUENCE_SOURCE_MODEL:${source.fid}`);
       }
-
-      // If no override in this component, Z2 = Z1 exactly
-      if (!compHasOverride && posZ) {
-        return {
-          z2Ohm: { re: posZ.re, im: posZ.im },
-          residual: posResidual,
-        };
-      }
-
       let entry = factorCache.get(cId);
       if (!entry) {
         const local = new Map(group.map((b, i) => [b, i]));
@@ -130,28 +114,12 @@ export function buildNegativeSequenceEngine(
           .map((b) => ({ ...b, a: local.get(b.a)!, b: local.get(b.b)! }));
 
         const compSources: SequenceSource[] = [];
-        for (const s of context.sources) {
-          if (!s.inService || s.bus === undefined) continue;
-          const bIdx = topology.terminalToBus.get(s.bus);
-          if (bIdx === undefined || componentOf[bIdx] !== cId) continue;
-          const zb = zbase(bIdx);
-          if (!(zb > 0)) continue;
-
-          const neg = negSourceMap?.get(s.fid);
-          if (neg && (neg.x2Ohm > 0 || neg.r2Ohm > 0)) {
-            compSources.push({ bus: local.get(bIdx)!, rPu: neg.r2Ohm / zb, xPu: neg.x2Ohm / zb });
-          } else if (s.rOhm !== null && s.xOhm !== null && s.rOhm >= 0 && s.xOhm > 0) {
-            compSources.push({ bus: local.get(bIdx)!, rPu: s.rOhm / zb, xPu: s.xOhm / zb });
-          }
+        for (const source of positiveSources.filter(s => componentOf[s.bus] === cId)) {
+          const neg = negSourceMap!.get(source.fid)!;
+          const zb = zbase(source.bus);
+          compSources.push({bus: local.get(source.bus)!, rPu: neg.r2Ohm / zb, xPu: neg.x2Ohm / zb});
         }
-
-        const activeSources = compSources.length
-          ? compSources
-          : positiveSources
-              .filter((s) => componentOf[s.bus] === cId)
-              .map((s) => ({ ...s, bus: local.get(s.bus)! }));
-
-        const factor = factorPositiveSequence(group.length, compBranches, activeSources);
+        const factor = factorPositiveSequence(group.length, compBranches, compSources);
         entry = { factor, local };
         factorCache.set(cId, entry);
       }
@@ -186,7 +154,8 @@ export function buildZeroSequenceEngine(
   baseMva: number,
   componentOf: Int32Array,
   components: number[][],
-  context: ScSourceContext
+  context: ScSourceContext,
+  activeSources: { bus: number; fid: string }[]
 ): ZeroSequenceEngine {
   const zbase = (bus: number) => topology.buses[bus].vnKv ** 2 / baseMva;
   const seqData = context.sequenceData;
@@ -205,7 +174,7 @@ export function buildZeroSequenceEngine(
 
     const lineSeq = seqData?.lines.get(l.sourceId);
     // Explicit, verified R0/X0 required; no 3*R1 fallback assumption
-    if (!lineSeq || !(lineSeq.x0Ohm > 0) || !Number.isFinite(lineSeq.r0Ohm) || !Number.isFinite(lineSeq.x0Ohm)) {
+    if (!lineSeq || !impedance(lineSeq.r0Ohm, lineSeq.x0Ohm)) {
       const cId = componentOf[a];
       if (cId >= 0 && !componentMissingZ0.has(cId)) {
         componentMissingZ0.set(cId, `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:${l.sourceId}`);
@@ -215,7 +184,7 @@ export function buildZeroSequenceEngine(
 
     const kv = topology.buses[a].vnKv;
     const base = (kv * kv) / baseMva;
-    if (base > 0 && lineSeq.x0Ohm > 0) {
+    if (base > 0) {
       z0Branches.push({
         a,
         b,
@@ -264,79 +233,34 @@ export function buildZeroSequenceEngine(
     const isHvDelta = vgHv === 'D';
     const isLvDelta = vgLv === 'D';
 
-    // Verify neutral connection mode (cneutcon)
-    // If cneutcon === 1 (separate external neutral), neutral is only grounded if bushvn/buslvn has a valid connection
-    let necHv: import('./sequence-network').ScZeroSequenceGroundCompensator | undefined;
-    let necLv: import('./sequence-network').ScZeroSequenceGroundCompensator | undefined;
-    if (trSeq.cneutcon === 1) {
-      if (isHvGrounded) {
-        if (trSeq.bushvn && trSeq.bushvn !== 'null') {
-          necHv = seqData?.groundCompensators.find((n) => n.inService && (n.bus === trSeq.bushvn || n.fid === trSeq.bushvn));
-          if (!necHv && !(trSeq.re0tr_h && trSeq.re0tr_h > 0)) {
-            // Ambiguous neutral connection: specified neutral terminal could not be verified
-            if (cId >= 0 && !componentMissingZ0.has(cId)) {
-              componentMissingZ0.set(cId, `NOT_COMPUTABLE: AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:${tr.sourceId}`);
-            }
-            isHvGrounded = false;
-          } else if (necHv) {
-            usedNecFids.add(necHv.fid);
-          }
-        } else if (!(trSeq.re0tr_h && trSeq.re0tr_h > 0)) {
-          // Open neutral terminal
-          isHvGrounded = false;
-        }
-      }
-      if (isLvGrounded) {
-        if (trSeq.buslvn && trSeq.buslvn !== 'null') {
-          necLv = seqData?.groundCompensators.find((n) => n.inService && (n.bus === trSeq.buslvn || n.fid === trSeq.buslvn));
-          if (!necLv && !(trSeq.re0tr_l && trSeq.re0tr_l > 0)) {
-            // Ambiguous neutral connection: specified neutral terminal could not be verified
-            if (cId >= 0 && !componentMissingZ0.has(cId)) {
-              componentMissingZ0.set(cId, `NOT_COMPUTABLE: AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION:${tr.sourceId}`);
-            }
-            isLvGrounded = false;
-          } else if (necLv) {
-            usedNecFids.add(necLv.fid);
-          }
-        } else if (!(trSeq.re0tr_l && trSeq.re0tr_l > 0)) {
-          // Open neutral terminal
-          isLvGrounded = false;
-        }
-      }
-    }
-
-    const z0pu =
-      ((uk0tr!) / 100) *
-      (baseMva / tr.ratingMva) *
-      ((tr.typeLvKv ?? tr.lvKv) / tr.lvKv) ** 2;
-    const x0Pu = z0pu;
-
-    let r0Pu = tr.rPu;
-    if (trSeq.ur0tr && Number.isFinite(trSeq.ur0tr) && trSeq.ur0tr > 0 && trSeq.ur0tr !== 99999 && trSeq.ur0tr !== 999999) {
-      r0Pu =
-        (trSeq.ur0tr / 100) *
-        (baseMva / tr.ratingMva) *
-        ((tr.typeLvKv ?? tr.lvKv) / tr.lvKv) ** 2;
-    }
-
-    // Neutral grounding resistance and reactance (from re0tr or connected ElmNec)
-    let reHvPu = trSeq.re0tr_h && trSeq.re0tr_h > 0 ? (3 * trSeq.re0tr_h) / zbase(a) : 0;
-    let reLvPu = trSeq.re0tr_l && trSeq.re0tr_l > 0 ? (3 * trSeq.re0tr_l) / zbase(b) : 0;
-    let xeHvPu = 0;
-    let xeLvPu = 0;
-    if (necHv) {
-      reHvPu += (necHv.r0Ohm) / zbase(a);
-      xeHvPu += (necHv.x0Ohm) / zbase(a);
-    }
-    if (necLv) {
-      reLvPu += (necLv.r0Ohm) / zbase(b);
-      xeLvPu += (necLv.x0Ohm) / zbase(b);
-    }
+    // Unknown modes, vector groups or neutral fields must never imply solid grounding.
+    const fail = (reason: string) => componentMissingZ0.set(cId, `NOT_COMPUTABLE: ${reason}:${tr.sourceId}`);
+    if (![vgHv, vgLv].every(v => ['Y', 'YN', 'D'].includes(v))) { fail('UNSUPPORTED_TRANSFORMER_VECTOR_GROUP'); continue; }
+    if (trSeq.cneutcon !== 0 && trSeq.cneutcon !== 1) { fail('UNKNOWN_TRANSFORMER_NEUTRAL_MODE'); continue; }
+    if (isHvGrounded && !physical(trSeq.re0tr_h) || isLvGrounded && !physical(trSeq.re0tr_l)) { fail('INVALID_OR_MISSING_TRANSFORMER_NEUTRAL_IMPEDANCE'); continue; }
+    const neutral = (ref: string | null | undefined) => seqData?.groundCompensators.find(n => n.inService && (n.bus === ref || n.fid === ref));
+    const necHv = trSeq.cneutcon === 1 && isHvGrounded ? neutral(trSeq.bushvn) : undefined;
+    const necLv = trSeq.cneutcon === 1 && isLvGrounded ? neutral(trSeq.buslvn) : undefined;
+    if (trSeq.cneutcon === 1 && (isHvGrounded && !necHv || isLvGrounded && !necLv)) { fail('AMBIGUOUS_TRANSFORMER_NEUTRAL_CONNECTION'); continue; }
+    if ([necHv, necLv].some(n => n && !impedance(n.r0Ohm, n.x0Ohm))) { fail('INVALID_NEUTRAL_COMPENSATOR_IMPEDANCE'); continue; }
+    if (necHv) usedNecFids.add(necHv.fid);
+    if (necLv) usedNecFids.add(necLv.fid);
+    if (!physical(trSeq.ur0tr) || trSeq.ur0tr > uk0tr!) { fail('INVALID_OR_MISSING_ZERO_SEQUENCE_RX_DECOMPOSITION'); continue; }
+    // uk0 and ur0 are percentages on the type LV winding base, converted to canonical LV base.
+    const scale = baseMva / tr.ratingMva * ((tr.typeLvKv ?? tr.lvKv) / tr.lvKv) ** 2;
+    const z0pu = uk0tr! / 100 * scale;
+    const r0Pu = trSeq.ur0tr / 100 * scale;
+    const x0Pu = Math.sqrt(Math.max(0, z0pu ** 2 - r0Pu ** 2));
+    const neutralRatio = tr.typeHvKv && tr.typeLvKv && tr.vnKv && tr.lvKv ? (tr.typeHvKv / tr.vnKv) / (tr.typeLvKv / tr.lvKv) : 1;
+    const reHvPu = (3 * (trSeq.re0tr_h ?? 0) + (necHv?.r0Ohm ?? 0)) / zbase(a);
+    const reLvPu = (3 * (trSeq.re0tr_l ?? 0) + (necLv?.r0Ohm ?? 0)) / zbase(b);
+    const xeHvPu = (necHv?.x0Ohm ?? 0) / zbase(a);
+    const xeLvPu = (necLv?.x0Ohm ?? 0) / zbase(b);
 
     // A. YN / d (or YN / D): Grounded star on HV, delta on LV
     if (isHvGrounded && isLvDelta) {
-      const shuntR = r0Pu + reHvPu;
-      const shuntX = x0Pu + xeHvPu;
+      const shuntR = r0Pu * neutralRatio ** 2 + reHvPu;
+      const shuntX = x0Pu * neutralRatio ** 2 + xeHvPu;
       if (shuntX > 0 || shuntR > 0) {
         z0GroundShunts.push({ bus: a, rPu: shuntR, xPu: shuntX });
       }
@@ -351,12 +275,8 @@ export function buildZeroSequenceEngine(
     }
     // C. YN / YN (or YN / yn): Grounded star on both sides (series transmission)
     else if (isHvGrounded && isLvGrounded) {
-      const seriesR = r0Pu + reHvPu + reLvPu;
-      const seriesX = x0Pu + xeHvPu + xeLvPu;
-      const neutralRatio =
-        tr.typeHvKv && tr.typeLvKv && tr.vnKv && tr.lvKv
-          ? (tr.typeHvKv / tr.vnKv) / (tr.typeLvKv / tr.lvKv)
-          : 1;
+      const seriesR = r0Pu + reHvPu / neutralRatio ** 2 + reLvPu;
+      const seriesX = x0Pu + xeHvPu / neutralRatio ** 2 + xeLvPu;
 
       if (seriesX > 0 || seriesR > 0) {
         z0Branches.push({
@@ -383,6 +303,7 @@ export function buildZeroSequenceEngine(
       if (busIdx === undefined) continue;
 
       const zb = zbase(busIdx);
+      if (!impedance(nec.r0Ohm, nec.x0Ohm)) { componentMissingZ0.set(componentOf[busIdx], `NOT_COMPUTABLE: INVALID_NEUTRAL_COMPENSATOR_IMPEDANCE:${nec.fid}`); continue; }
       if (zb > 0 && (nec.x0Ohm > 0 || nec.r0Ohm > 0) && Math.hypot(nec.r0Ohm, nec.x0Ohm) > 0) {
         z0GroundShunts.push({
           bus: busIdx,
@@ -395,7 +316,8 @@ export function buildZeroSequenceEngine(
 
   // 4. ElmVac / Grounded Voltage Sources (supports pure resistive R0 > 0, X0 = 0)
   if (seqData?.zeroSources) {
-    for (const [, s] of seqData.zeroSources) {
+    for (const [fid, s] of seqData.zeroSources) {
+      if (!activeSources.some(source => source.fid === fid)) continue;
       const busIdx = topology.terminalToBus.get(s.bus);
       if (busIdx === undefined) continue;
       const zb = zbase(busIdx);
@@ -458,6 +380,10 @@ export function buildZeroSequenceEngine(
         };
       }
 
+      for (const source of activeSources.filter(s => componentOf[s.bus] === posCId)) {
+        const seq = seqData?.zeroSources.get(source.fid);
+        if (!seq || !impedance(seq.r0Ohm, seq.x0Ohm)) return {z0Ohm: null, status: 'FAILED', reason: `NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_SOURCE_MODEL:${source.fid}`};
+      }
       // Check if this electrical component has any in-service equipment with missing Z0 data
       const missingReason = componentMissingZ0.get(posCId);
       if (missingReason) {

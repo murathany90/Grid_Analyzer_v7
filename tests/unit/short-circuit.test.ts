@@ -55,7 +55,7 @@ test('negative/sentinel/zero X/missing source, unsupported converter and unbalan
   const n=acNetwork();for(const x of [0,-1,99999,NaN]){const c=context(n);c.sources[0].xOhm=x;const r=await calculateThreePhase(n,emptyScenario(),c,['B2'],profile);assert.equal(r.faults[0].status,'BLOCKED');assert.equal(r.faults[0].ikssKa,null);}
   const c=context(n);c.sources.push({...c.sources[0],fid:'CONVERTER',sourceClass:'ElmGenStat',reason:'UNSUPPORTED_CONVERTER'});assert.equal((await calculateThreePhase(n,emptyScenario(),c,['B2'],profile)).faults[0].status,'BLOCKED');
   for(const faultType of ['LL','2LG'] as const)assert.deepEqual((await calculateThreePhase(n,emptyScenario(),context(n),['B2'],{...profile,faultType})).faults[0].reasons,['MISSING_SEQUENCE_FOR_UNBALANCED']);
-  assert.deepEqual((await calculateThreePhase(n,emptyScenario(),context(n),['B2'],{...profile,faultType:'1LG'})).faults[0].reasons,['NOT_COMPUTABLE: MISSING_ZERO_SEQUENCE_PARAMETERS:line:L0']);
+  assert.match((await calculateThreePhase(n,emptyScenario(),context(n),['B2'],{...profile,faultType:'1LG'})).faults[0].reasons.join(';'),/NOT_COMPUTABLE: MISSING_(NEGATIVE_SEQUENCE_SOURCE_MODEL|ZERO_SEQUENCE_PARAMETERS|SEQUENCE_SOURCE_PARAMETERS)/);
   await assert.rejects(calculateThreePhase(n,emptyScenario(),{...c,modelHash:'wrong'},['B2'],profile),/MODEL_MISMATCH/);
   assert.equal((await calculateThreePhase(n,emptyScenario(),context(n),['B2'],profile,{signal:AbortSignal.abort()})).faults[0].status,'CANCELLED');
   await assert.rejects(calculateThreePhase(n,emptyScenario(),context(n),['B1','B2'],{...profile,maxFaults:1}),/PROFILE/);

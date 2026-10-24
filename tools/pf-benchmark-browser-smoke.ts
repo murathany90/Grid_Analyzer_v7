@@ -1,3 +1,4 @@
+import {desktopOnly,desktopWidths,testViewport} from './desktop-test-options.mjs';
 import {navigateAnalysis,openAnalysisTools,closeAnalysisDialogs} from './analysis-navigation.mjs';
 import {createServer as createViteServer} from 'vite';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -97,8 +98,8 @@ try{
   await page.locator('#modelFileInput').setInputFiles({name:stressModel.name,mimeType:'application/zip',buffer:Buffer.from(await stressModel.arrayBuffer())});await page.waitForTimeout(1100);if(!(await page.locator('footer [role="status"]').textContent())?.includes('süre'))throw Error('Loading elapsed/bytes heartbeat missing: '+JSON.stringify({status:await page.locator('footer [role="status"]').textContent(),errors,terminated:await page.evaluate(()=>(window as typeof window&{loadTerminated:number}).loadTerminated)}));
   await page.getByRole('button',{name:'Model yüklemesini iptal et',exact:true}).click();if(!await page.evaluate(()=>(window as typeof window&{loadTerminated:number}).loadTerminated))throw Error('Load cancel did not terminate source worker');await page.evaluate(()=>{window.Worker=(window as typeof window&{loadNativeWorker:typeof Worker}).loadNativeWorker;});
   await loadPair({model:stressModel,benchmark:stressBenchmark});if(!await view.locator('tbody tr').count())throw Error('Stress import has no ready reference view');
-  await page.setViewportSize({width:390,height:844});await navigateAnalysis(page,'Karşılaştırma');await view.locator('tbody tr').first().waitFor();
-  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Benchmark mobile page overflows the viewport');
+  await page.setViewportSize(testViewport(390,844));await navigateAnalysis(page,'Karşılaştırma');await view.locator('tbody tr').first().waitFor();
+  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Benchmark page overflows the viewport');
   if(portable){await mkdir('local-benchmark-results',{recursive:true});await page.screenshot({path:'local-benchmark-results/portable-benchmark-mobile.png',fullPage:true});}
-  if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: active model + independent reference / PF-only / LF / N1 partial + hybrid / CPU worker timeout + recovery / independent SC + diagnostic / export / signed canvas pixels + hybrid case / reduced JSON+OOXML stress / load cancellation+recovery / mobile');
+  if(errors.length)throw Error(errors.join('\n'));console.log('BENCHMARK_BROWSER_SMOKE OK: active model + independent reference / PF-only / LF / N1 partial + hybrid / CPU worker timeout + recovery / independent SC + diagnostic / export / signed canvas pixels + hybrid case / reduced JSON+OOXML stress / load cancellation+recovery / '+(desktopOnly?'desktop-only':'mobile'));
 }finally{await browser.close();await server.close();}

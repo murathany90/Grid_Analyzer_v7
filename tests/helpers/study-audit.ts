@@ -1,3 +1,4 @@
+import {SC_ENGINE_REVISION} from '../../src/analysis/short-circuit';
 import type {AppContext} from '../../src/app/contracts';
 import type {BenchmarkPackage,RawTable} from '../../src/domain/benchmark/types';
 import type {ScResult,ScFaultResult} from '../../src/analysis/short-circuit';
@@ -16,6 +17,6 @@ export function scAuditFixture(count=3){
   const benchmark={groups:{LF:group('LF'),N1:group('N1'),SC:group('SC')}} as unknown as BenchmarkPackage;
   const ctx={network,benchmark,scenario,analysisSettings,resultStore:new ResultStore(),settings:{value:defaultSettings()},filters:{areaId:'',siteId:'',voltages:allVoltageBands(),search:''},resultView:{...initialResultView(),analysis:'SC',faultId:'B0',metric:'ikssKa',phase:'POST'},scResult:null,scCatalog:null,n1AcResults:[],hybridResult:null,n1Result:null,busy:false,view:'map'} as unknown as AppContext;
   const fault=(i:number,status:ScFaultResult['status']='BLOCKED'):ScFaultResult=>({physicalTerminalFid:'B'+i,physicalTerminalFids:['B'+i],electricalBusId:'E'+i,nominalKv:100,componentId:0,status,reasons:status==='BLOCKED'?['MISSING_IEC_FACTOR']:[],ikssKa:status==='CALCULATED_NETWORK_APPROXIMATION'?i: null,skssMva:status==='CALCULATED_NETWORK_APPROXIMATION'?Math.sqrt(3)*100*i:null,zkkOhm:null,ipKa:null,ibKa:null,ithKa:null,residual:null});
-  const result=(faults:ScFaultResult[]):ScResult=>({identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario.current),profileHash:'PROFILE',sourceHash:'SOURCE'},method:'GA_POSITIVE_SEQUENCE_3PH_MAX',profile:{faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'TEST_APPROXIMATION',edition:null,rfOhm:0,xfOhm:0,maxFaults:10,timeBudgetMs:1000},faults,counts:{},componentEvidence:[],assumptions:[],factorizations:0,rhsCount:0,dimensions:[],elapsedMs:0});
+  const result=(faults:ScFaultResult[]):ScResult=>({engineRevision:SC_ENGINE_REVISION,identity:{modelHash:network.modelHash,scenarioHash:scenarioSignature(scenario.current),profileHash:'PROFILE',sourceHash:'SOURCE'},method:'GA_POSITIVE_SEQUENCE_3PH_MAX',profile:{faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'TEST_APPROXIMATION',edition:null,rfOhm:0,xfOhm:0,maxFaults:10,timeBudgetMs:1000},faults,counts:{},componentEvidence:[],assumptions:[],factorizations:0,rhsCount:0,dimensions:[],elapsedMs:0});
   return {ctx,network,benchmark,table,fault,result};
 }

@@ -1,3 +1,5 @@
+import {SC_ENGINE_REVISION} from '../analysis/short-circuit';
+import {scResultIsAdmissible} from '../analysis/short-circuit/result-validity';
 import {workspaceMapSelection} from '../domain/results/workspace';
 import type { AppContext,CatalogQuery,CatalogPage } from './contracts';
 import type { CanonicalNetwork } from '../domain/model/network';
@@ -182,17 +184,29 @@ export class Application implements AppContext {
       const saved=await this.database.get<ScenarioResults>('workspace:'+workspaceKey(this)).catch(()=>undefined);
       if(job===this.job&&saved){
         const scenarioSig=scenarioSignature(this.scenario.current);
+        const contextCache=new Map<string,NonNullable<AppContext['scContext']>>();
+        const validate=async (r:AppContext['scResult'],faultType:'3PH'|'1LG',sourceHash?:string)=>{
+          if(!r?.profile||!r.identity||r.engineRevision!==SC_ENGINE_REVISION||!['MAX','MIN'].includes(r.profile.calculateMode))return false;
+          const mode=r.profile.calculateMode,options=r.sourceOptions??saved.scContext?.adapterOptions??{mode};
+          const key=stableJson(options);let context=contextCache.get(key);
+          if(!context){context=await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network:loaded.network,options});contextCache.set(key,context);}
+          return scResultIsAdmissible(r,{modelHash:loaded.network.modelHash,scenarioHash:scenarioSig,mode,faultType,sourceHash,context,verifyProfile:true});
+        };
         if(saved.ytm&&ytmStudyIsCurrent(saved.ytm,loaded.network,this.scenario.current,this.analysisSettings.value)){
-          this.ytmStudy=saved.ytm;this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;this.scResult=saved.sc;this.scResult1Lg=saved.sc1Lg??null;this.scContext=saved.scContext;this.filters.areaId=saved.ytm.options.ytmId;this.filters.siteId=saved.ytm.options.tmId??'';
-        }else if(saved.sc&&saved.sc.identity.modelHash===loaded.network.modelHash&&saved.sc.identity.scenarioHash===scenarioSig){
-          this.scResult=saved.sc;
-          if(saved.sc1Lg&&saved.sc1Lg.identity.modelHash===loaded.network.modelHash&&saved.sc1Lg.identity.scenarioHash===scenarioSig&&saved.sc1Lg.identity.sourceHash===saved.sc.identity.sourceHash&&saved.sc1Lg.profile.calculateMode===saved.sc.profile.calculateMode&&saved.sc1Lg.profile.faultType==='1LG'){
-            this.scResult1Lg=saved.sc1Lg;
-          }else{
-            this.scResult1Lg=null;
+          const study=saved.ytm;
+          for(const [key,mode,faultType] of [['scMax','MAX','3PH'],['scMin','MIN','3PH'],['sc1LgMax','MAX','1LG'],['sc1LgMin','MIN','1LG']] as const){
+            if(!await validate(study[key]??null,faultType,mode==='MAX'?study.identity.sourceHashMAX:study.identity.sourceHashMIN))study[key]=null;
           }
-          if(saved.scContext)this.scContext=saved.scContext;
+          this.ytmStudy=finishYtmStudy(study);this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;
+          const mode=saved.sc?.profile.calculateMode??'MAX';this.scResult=mode==='MAX'?study.scMax:study.scMin;this.scResult1Lg=mode==='MAX'?study.sc1LgMax??null:study.sc1LgMin??null;
+          this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';
+        }else if(await validate(saved.sc,'3PH')){
+          this.scResult=saved.sc;
+          this.scResult1Lg=await validate(saved.sc1Lg??null,'1LG',saved.sc!.identity.sourceHash)?saved.sc1Lg??null:null;
         }
+        const restored=this.scResult;
+        if(restored){const context=contextCache.get(stableJson(restored.sourceOptions??saved.scContext?.adapterOptions??{mode:restored.profile.calculateMode}));if(context)this.scContext=context;}
+
       }
     }catch(e){if(job===this.job){this.status=`Model yüklenemedi: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','import',this.status,e);}}
     finally{if(job===this.job){this.stopLoadHeartbeat();this.loadingModel=false;this.busy=false;this.notify();}}

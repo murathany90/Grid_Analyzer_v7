@@ -234,7 +234,7 @@ export function createLightningScPanel(ctx:AppContext){
         <tr><td>Pozitif Bileşen (Z₁)</td><td>${fmtZ(rawObj.Z1_R_ohm as number|null,rawObj.Z1_X_ohm as number|null)}</td></tr>
         <tr><td>Negatif Bileşen (Z₂)</td><td>${fmtZ(rawObj.Z2_R_ohm as number|null,rawObj.Z2_X_ohm as number|null)}</td></tr>
         <tr><td>Sıfır Bileşen (Z₀)</td><td>${fmtZ(rawObj.Z0_R_ohm as number|null,rawObj.Z0_X_ohm as number|null)}</td></tr>
-        <tr><td>Eşdeğer Çevrim Empedansı (Zkk)</td><td>${fmtZ(rawObj.Zkk_R_ohm as number|null,rawObj.Zkk_X_ohm as number|null)}</td></tr>
+        <tr><td>3F Sürme Noktası Empedansı (Zkk)</td><td>${fmtZ(rawObj.Zkk_R_ohm as number|null,rawObj.Zkk_X_ohm as number|null)}</td></tr><tr><td>1F Çevrim (Z₁+Z₂+Z₀+3Zf)</td><td>${fmtZ(rawObj.Z1F_Loop_R_ohm as number|null,rawObj.Z1F_Loop_X_ohm as number|null)}</td></tr>
       </tbody>
     `;
 

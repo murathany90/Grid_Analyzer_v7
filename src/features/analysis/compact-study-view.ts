@@ -46,7 +46,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
  const area=element('select'),tm=element('select'),voltage=element('select'),profile=element('select'),mode=element('select'),search=element('input'),state=element('select'),metric=element('select');
  const selectLabel=(s:HTMLSelectElement,label:string)=>{s.setAttribute('aria-label',label);return s;};
  selectLabel(area,'Toplu analiz YTM');selectLabel(tm,'Toplu analiz TM');selectLabel(voltage,'Toplu analiz gerilim seviyesi');selectLabel(profile,'Toplu analiz profili');selectLabel(mode,'Görüntülenen SC modu');selectLabel(state,'Sonuç durum filtresi');selectLabel(metric,'Gösterilen LF metriği');search.setAttribute('aria-label','Toplu analiz sonuç filtresi');search.type='search';search.placeholder='Ekipman, TM, YTM veya FID ara';
- for(const [value,label] of [['','Tüm gerilimler'],['400','400 kV'],['154','154 kV'],['66','66 kV'],['33','33 kV']]){const o=element('option','',label);o.value=value;voltage.append(o);}
+ for(const [value,label] of [['','Tüm gerilimler'],['400','400 kV'],['154','154 kV'],['66','66 kV'],['33','33 kV'],['34.5','34.5 kV']]){const o=element('option','',label);o.value=value;voltage.append(o);}
  const n1StateOptions='<option value="">Tüm durumlar</option><option value="AC">AC sayısal / Hesaplanan</option><option value="DC">DC tarandı</option><option value="OVER">%100 üzeri</option><option value="PF">PF kaydı olan</option><option value="MISSING">Sayısal sonuç yok / Engellenen</option>';
  const scStateOptions=SC_STATUS_FILTER_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
  profile.innerHTML='<option value="BALANCED">Dengeli</option><option value="FAST">Hızlı</option><option value="DETAILED">Ayrıntılı</option><option value="STRICT">Strict</option>';mode.innerHTML='<option>MAX</option><option>MIN</option>';state.innerHTML=ctx.analysisTab==='SC'?scStateOptions:n1StateOptions;metric.innerHTML='<option value="p">P (MW)</option><option value="q">Q (MVAr)</option><option value="loading">Yük (%)</option>';
@@ -56,7 +56,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
  const budget=number('Toplu analiz bütçe s',178),low=number('YTM min Vpu',.9),high=number('YTM max Vpu',1.1),loading=number('YTM yüklenme limiti %',100),modes=selectLabel(element('select'),'SC hesap modları');modes.innerHTML='<option value="BOTH">MAX + MIN</option><option>MAX</option><option>MIN</option>';
  const profileSetting=element('div','ga-field'),profileLabel=element('label','','N-1 Çalışma Profili'),profileSelect=selectLabel(element('select'),'N-1 Profil');
  profileSelect.innerHTML='<option value="BALANCED">Dengeli (DC tarama + kritik AC)</option><option value="FAST">Hızlı (Yalnız DC tarama)</option><option value="DETAILED">Ayrıntılı (Genişletilmiş AC)</option><option value="STRICT">Strict (Tam AC doğrulama)</option>';
- profileSetting.append(profileLabel,profileSelect,element('small','ga-muted','Not: SC hesabı IEC 60909 motorunu kullanır ve MAX/MIN seçimiyle yönetilir; N-1 profilinden bağımsızdır.'));
+ profileSetting.append(profileLabel,profileSelect,element('small','ga-muted','SC hesabı ağ yaklaşımını kullanır; MAX/MIN kaynak varsayımları ve veri yeterliliği ayrıca gösterilir. IEC/PF paritesi doğrulanmadı.'));
  settings.body.append(modes,profileSetting,element('p','ga-muted','Limitler düzenlenebilir kullanıcı eşikleridir. IEC 60909-0:2016 · ağ yaklaşımı; IEC doğrulanmadı.'));
  let lastNetwork:unknown,lastOptions:unknown,lastFamily='',lastTmArea='',tab='cases',page=0,sort='name',descending=false,rows:CompactRow[]=[],selected:CompactRow|null=null,lastRefs:unknown[]=[],lastKey='';
  let scUnit:'A'|'kA'='A';
@@ -79,6 +79,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
    if(!voltage.value)return true;
    if(r.kv===null)return false;
    const v=Number(voltage.value);
+   if(family==='SC')return Math.abs(r.kv-v)<.1;
    if(v===33)return r.kv<60;
    if(v===66)return r.kv>=60&&r.kv<110;
    if(v===154)return r.kv>=110&&r.kv<300;
@@ -122,8 +123,12 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
     Z2_X_ohm:r.raw.Z2_X_ohm,
     Z0_R_ohm:r.raw.Z0_R_ohm,
     Z0_X_ohm:r.raw.Z0_X_ohm,
-    Zkk_R_ohm:r.raw.Zkk_R_ohm,
-    Zkk_X_ohm:r.raw.Zkk_X_ohm,
+    electricalBusId:r.raw.electricalBusId,
+    siteIds:r.raw.siteIds,
+    Z3F_DrivingPoint_R_ohm:r.raw.Z3F_DrivingPoint_R_ohm,
+    Z3F_DrivingPoint_X_ohm:r.raw.Z3F_DrivingPoint_X_ohm,
+    Z1F_Loop_R_ohm:r.raw.Z1F_Loop_R_ohm,
+    Z1F_Loop_X_ohm:r.raw.Z1F_Loop_X_ohm,
     Standard:'IEC60909-0:2016',
     IEC_Dogrulandi:0,
     identity_json:JSON.stringify(identity),
@@ -157,7 +162,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
     return `${format(r,4)} + j${format(x,4)} Ω (|Z| = ${format(Math.hypot(r,x),4)} Ω)`;
    };
    const zTable=element('table','ga-compact-detail-table');
-   zTable.innerHTML=`<thead><tr><th>Bileşen Empedansı</th><th>Değer (R + jX)</th></tr></thead><tbody><tr><td>Pozitif Bileşen (Z₁)</td><td>${fmtZ(rawObj.Z1_R_ohm as number|null,rawObj.Z1_X_ohm as number|null)}</td></tr><tr><td>Negatif Bileşen (Z₂)</td><td>${fmtZ(rawObj.Z2_R_ohm as number|null,rawObj.Z2_X_ohm as number|null)}</td></tr><tr><td>Sıfır Bileşen (Z₀)</td><td>${fmtZ(rawObj.Z0_R_ohm as number|null,rawObj.Z0_X_ohm as number|null)}</td></tr><tr><td>Eşdeğer Çevrim Empedansı (Zkk)</td><td>${fmtZ(rawObj.Zkk_R_ohm as number|null,rawObj.Zkk_X_ohm as number|null)}</td></tr></tbody>`;
+   zTable.innerHTML=`<thead><tr><th>Bileşen Empedansı</th><th>Değer (R + jX)</th></tr></thead><tbody><tr><td>Pozitif Bileşen (Z₁)</td><td>${fmtZ(rawObj.Z1_R_ohm as number|null,rawObj.Z1_X_ohm as number|null)}</td></tr><tr><td>Negatif Bileşen (Z₂)</td><td>${fmtZ(rawObj.Z2_R_ohm as number|null,rawObj.Z2_X_ohm as number|null)}</td></tr><tr><td>Sıfır Bileşen (Z₀)</td><td>${fmtZ(rawObj.Z0_R_ohm as number|null,rawObj.Z0_X_ohm as number|null)}</td></tr><tr><td>3F Sürme Noktası Empedansı (Zkk)</td><td>${fmtZ(rawObj.Zkk_R_ohm as number|null,rawObj.Zkk_X_ohm as number|null)}</td></tr><tr><td>1F Çevrim (Z₁+Z₂+Z₀+3Zf)</td><td>${fmtZ(rawObj.Z1F_Loop_R_ohm as number|null,rawObj.Z1F_Loop_X_ohm as number|null)}</td></tr></tbody>`;
 
    const lfInfo=element('div','ga-compact-triple');
    lfInfo.innerHTML=`<p><strong>LF Çalışma Noktası:</strong> Gerilim U = ${row.metrics.voltage?.ga!=null?format(row.metrics.voltage.ga,2)+' kV':'—'} · Açı θ = ${row.metrics.angle?.ga!=null?format(row.metrics.angle.ga,1)+'°':'—'}</p>`;
@@ -197,7 +202,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
   const cards=family==='N1'?[['Aday',proof.candidateCount],['DC taranan',proof.dcScreened],['AC denenen',proof.acAttempted],['AC sayısal',proof.acCalculated],['AC doğrulanan',proof.acVerified],['DC∪AC farklı',proof.distinctNumerical]]:family==='SC'?[['Elektriksel bara',proof.electricalBuses],['Fiziksel terminal',proof.physicalTerminals],['Yaklaşık hesaplanan',proof.numericalAvailable],['PF 3F eşleşen',values.filter(r=>r.metrics.ikss?.delta!==null).length]]:[['Sayısal bara',proof.numericalAvailable],['Listede kayıt',rows.length],['Kontrol',proof.numericalAvailable?'Kısmi':'—']];kpis.replaceChildren(...cards.map(([label,value])=>{const card=element('div');card.append(element('small','',String(label)),element('strong','',String(value)));return card;}));for(const b of lists.querySelectorAll<HTMLButtonElement>('[data-list]'))b.setAttribute('aria-pressed',String(b.dataset.list===tab));
   host.replaceChildren();if(!ctx.network||proof.stale){host.append(element('p','ga-notice',proof.stale?'Sonuç farklı model, senaryo, kapsam veya ayara ait. Güncel liste ve dışa aktarıma alınmadı.':'Önce bir model yükleyin.'));return;}
   const table=element('table','ga-compact-table'),cols=element('colgroup'),thead=element('thead'),tr=element('tr'),tbody=element('tbody');
-  const columns=family==='SC'?[['tm','TM'],['name','Bara'],['kv','Baz kV'],['u','U(kV)'],['angle','Açı(°)'],['ikss3F',scUnit==='A'?'3F Kısa Devre(A)':'3F Kısa Devre(kA)'],['ikss1F',scUnit==='A'?'1F Kısa Devre(A)':'1F Kısa Devre(kA)'],['detail','Detay']]:family==='N1'?[['name',tab==='overloads'?'Ekipman':'Kesinti'],['kv','kV'],['dc','DC'],['ac','AC'],['loading','Maks. yük (%)'],['over','>%100 etkilenen'],['detail','Detay']]:tab==='buses'?[['tm','TM'],['name','Bara'],['kv','kV'],['ga','GA U (kV)'],['pf','PF U (kV)'],['delta','ΔU (kV)'],['detail','Detay']]:[['name',tab==='lines'?'Hat':'Trafo'],['kv',tab==='lines'?'kV':'HV kV'],['p',tab==='lines'?'P (MW)':'P HV (MW)'],['q',tab==='lines'?'Q (MVAr)':'Q HV (MVAr)'],['loading','Yük (%)'],['detail','Detay']];
+  const columns=family==='SC'?[['tm','TM'],['name','Bara'],['kv','Baz kV'],['u','U(kV)'],['angle','Açı(°)'],['ikss3F',scUnit==='A'?'3F Ikss(A)':'3F Ikss(kA)'],['ikss1F',scUnit==='A'?'1F Ikss(A)':'1F Ikss(kA)'],['detail','Detay']]:family==='N1'?[['name',tab==='overloads'?'Ekipman':'Kesinti'],['kv','kV'],['dc','DC'],['ac','AC'],['loading','Maks. yük (%)'],['over','>%100 etkilenen'],['detail','Detay']]:tab==='buses'?[['tm','TM'],['name','Bara'],['kv','kV'],['ga','GA U (kV)'],['pf','PF U (kV)'],['delta','ΔU (kV)'],['detail','Detay']]:[['name',tab==='lines'?'Hat':'Trafo'],['kv',tab==='lines'?'kV':'HV kV'],['p',tab==='lines'?'P (MW)':'P HV (MW)'],['q',tab==='lines'?'Q (MVAr)':'Q HV (MVAr)'],['loading','Yük (%)'],['detail','Detay']];
   for(const [key,label] of columns){const col=element('col');col.dataset.column=key;cols.append(col);const th=element('th');th.dataset.column=key;th.scope='col';th.append(key==='detail'?element('span','',label):button(label,()=>{descending=sort===key?!descending:false;sort=key;page=0;render();}));tr.append(th);}thead.append(tr);table.append(cols,thead,tbody);
   for(const row of values.slice(page*50,(page+1)*50)){const line=element('tr');line.tabIndex=0;line.dataset.fid=row.fid;line.dataset.caseId=row.caseId??'';line.dataset.rowKey=row.key;line.onclick=()=>{selected=row;line.setAttribute('aria-selected','true');};line.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();showDetail(row);}};line.ondblclick=()=>toMap(row);
    for(const [key,label] of columns){const td=element('td');td.dataset.column=key;td.dataset.label=label;

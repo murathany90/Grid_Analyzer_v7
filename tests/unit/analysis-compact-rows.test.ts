@@ -1,3 +1,4 @@
+import {SC_ENGINE_REVISION} from '../../src/analysis/short-circuit';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {analysisUiFixture,installLfFixture} from '../helpers/analysis-ui';
@@ -431,6 +432,7 @@ test('C.2.2: multi-voltage single TM applies voltageKv filter prior to maximum c
   ]
  } as any;
  ctx.scResult = {
+  engineRevision:SC_ENGINE_REVISION,
   identity: { modelHash: ctx.network!.modelHash, scenarioHash: scenarioSignature(ctx.scenario.current), sourceHash: 'SRC_MV', profileHash: 'PRF' },
   profile: { calculateMode: 'MAX', faultType: '3PH' },
   method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
@@ -472,6 +474,7 @@ test('C.2.2: two sites with identical names never cross-contaminate and name fal
   ]
  } as any;
  ctx.scResult = {
+  engineRevision:SC_ENGINE_REVISION,
   identity: { modelHash: ctx.network!.modelHash, scenarioHash: scenarioSignature(ctx.scenario.current), sourceHash: 'SRC_K', profileHash: 'PRF' },
   profile: { calculateMode: 'MAX', faultType: '3PH' },
   method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
