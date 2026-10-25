@@ -1,6 +1,6 @@
 # GitHub Pages
 
-Web URL: https://murathany90.github.io/Grid_Analyzer_v7/
+Web URL: https://gridfreq.info/
 
 Pages uses the existing browser application, file importer, Web Workers and
 IndexedDB. No backend, new calculation feature or Tauri host is introduced.
@@ -8,10 +8,10 @@ IndexedDB. No backend, new calculation feature or Tauri host is introduced.
 | Command | Vite base | Output |
 |---|---|---|
 | `npm run build` | `./` | `dist/` |
-| `npm run build:pages` | `/Grid_Analyzer_v7/` | `dist/` |
+| `npm run build:pages` | `/` | `dist/` |
 | `npm run build:portable` | `./` | `dist-portable/GridAnalyzer_v7.html` |
 
-Only Pages mode changes the base URL. The portable pipeline and the relative
+Pages is served at the custom-domain root, so only Pages mode uses `/`. The portable pipeline and the relative
 asset behavior available to a future desktop host remain unchanged. The Tauri
 roadmap is still a roadmap; no Tauri build is claimed or added.
 
@@ -21,6 +21,26 @@ the previous artifact byte-for-byte. The rebuilt committed portable artifact
 is 2,058,588 bytes, SHA-256
 `42c89ba4077a5657fe26115cc69cd34cf2b7c4aabb06b7222709aa11011f891a`;
 the existing CI raw-byte integrity gate still applies.
+
+## Custom domain and DNS
+
+The Pages custom domain is `gridfreq.info`; the canonical site is
+`https://gridfreq.info/`. The existing Actions workflow is retained. No `CNAME`
+file is required or added for this workflow deployment.
+
+The authoritative delegation must use ns1/ns2/ns3.turkticaret.net. The apex
+must have exactly these A records: 185.199.108.153, 185.199.109.153,
+185.199.110.153 and 185.199.111.153. `www` is a CNAME to
+`murathany90.github.io` (without the repository path). The old 31.186.11.254 A
+record must be absent. Report unexpected apex AAAA/CNAME and conflicting
+records; provider ALIAS/ANAME entries also require inspection in the DNS panel
+because their flattened responses do not identify the provider record type.
+
+Check authoritative servers and independent recursive resolvers separately
+from local caches. Do not call DNS propagation or HTTPS successful until the
+actual site can be reached with normal TLS validation. Pages **Enforce HTTPS**
+must be enabled once GitHub's certificate is ready. Confirm HTTP → HTTPS and
+`https://www.gridfreq.info/` → `https://gridfreq.info/` redirects.
 
 ## Deployment
 
@@ -44,7 +64,7 @@ module injection:
 ```powershell
 npm run build:pages
 node --import tsx tools/pages-browser-smoke.mjs --local
-node --import tsx tools/pages-browser-smoke.mjs https://murathany90.github.io/Grid_Analyzer_v7/
+node --import tsx tools/pages-browser-smoke.mjs https://gridfreq.info/
 ```
 
 The Windows local test creates a short-lived loopback TLS certificate using
@@ -60,7 +80,7 @@ One optional targeted real-model test is available when the local SN4 ZIP and
 combined reference ZIP exist in `.local-fixtures/sc-final/`:
 
 ```powershell
-node --import tsx tools/pages-browser-smoke.mjs https://murathany90.github.io/Grid_Analyzer_v7/ --private-only
+node --import tsx tools/pages-browser-smoke.mjs https://gridfreq.info/ --private-only
 ```
 
 This imports the native 1,619-TM model, loads the combined PF reference and tests

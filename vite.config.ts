@@ -44,7 +44,7 @@ const portablePlugin:Plugin={
 };
 
 export default defineConfig(({mode})=>({
-  base:mode==='pages'?'/Grid_Analyzer_v7/':'./',
+  base:mode==='pages'?'/':'./',
   // Evidence galleries contain large embedded SVG/model strings. They are
   // delivery files, not application entry points for dependency discovery.
   optimizeDeps:{entries:['index.html']},
