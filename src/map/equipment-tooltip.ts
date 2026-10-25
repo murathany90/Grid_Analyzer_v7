@@ -1,3 +1,4 @@
+import {scCurrentKa,nominalKv} from '../domain/results/sc-node';
 import {scenarioLfComparison} from '../domain/results/lf-comparison';
 import type {AppContext} from '../app/contracts';
 import type {Site,Line,Transformer2W} from '../domain/model/network';
@@ -7,13 +8,14 @@ import {formatEngineering} from '../ui/components/engineering-format';
 import {voltageMatches} from '../domain/model/voltage-band';
 import {mapLoadingValues} from './loading-presentation';
 import {mapTopologyPresentation} from './topology-presentation';
+import {currentScResult} from '../domain/results/sc-selection';
 import {currentMapLf,representativeStationBus,representativeReferenceBySite,angleHasReference,matchedVoltageKv,transformerFromIsHv,finiteNumber,mapPresentationGate,mapReferenceRows,selectedN1Presentation,selectedScPresentation,buildMapPresentationData} from './layer-policy';
 import {workspaceMapSelection} from '../domain/results/workspace';
 import {solutionCompleteness} from '../domain/results/diagnostics';
 import {modelPresentationIndex,resultPresentationIndex,solutionPresentationIndex,partitionKey} from './presentation-index';
 import {postBranchMetric} from '../analysis/contingency-ac/post-results';
 export type TooltipEquipment=Site|Line|Transformer2W;
-export interface EquipmentCard {title:string;context:string;status:string;headers:string[];rows:string[][];note:string;details?:string}
+export interface EquipmentCard {title:string;context:string;status:string;headers:string[];rows:string[][];note:string;details?:string;sourceFaultFid?:string;displayFid?:string;sourceCellKey?:string}
 export const engineeringNumber=(v:unknown,signed=false,precision=1)=>formatEngineering(v,precision,{signed});
 /** Canonical endpoint convention: positive means injection from that terminal into the branch. */
 export function verifiedPowerDirection(from:unknown,to:unknown):'FROM_TO'|'TO_FROM'|'UNKNOWN'{return finiteNumber(from)&&finiteNumber(to)?from>0&&to<0?'FROM_TO':from<0&&to>0?'TO_FROM':'UNKNOWN':'UNKNOWN';}
@@ -39,6 +41,10 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
   if(selection.analysis==='LF'&&selection.source==='GA'&&selection.metric==='island'){
     const topology=mapTopologyPresentation(ctx),stations=e.sourceClass==='ElmSite'?topology?.bySite.get(e.id)?.filter(s=>voltageMatches(s.voltageKv,ctx.filters.voltages))??[]:[],on=e.sourceClass==='ElmLne'?ctx.scenario.current.lineStatus[e.id]??e.inService:e.sourceClass==='ElmTr2'?ctx.scenario.current.transformerStatus[e.id]??e.inService:true;
     card.context='GA • '+(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' • Yapısal topoloji';card.status=on?'Serviste':'Servis dışı';card.headers=['Kuplaj','Bağlı bileşen','Güven'];card.rows=stations.slice(0,2).map(s=>['Açık · '+number(s.voltageKv)+' kV',s.sameConnectedComponent?'Başka yoldan aynı ada':'Ayrı elektrik adaları',s.confidence]);card.note=stations.length?stations.some(s=>s.sameConnectedComponent)?'SAME_COMPONENT_VIA_ALTERNATE_PATH · Açık kuplaj, beslemesiz ada değildir.':'SEPARATE_COMPONENTS · Referans/kaynak durumunu ayrıntıda inceleyin.':'Açık 154 kV kuplaj işareti yok; ada rengi bağlı bileşeni gösterir.';return card;
+  }
+  if(v.analysis==='SC'&&selection.source==='PF'&&e.sourceClass==='ElmSite'){
+    const data=buildMapPresentationData(ctx,selection),value=data.sites.get(e.id);card.context+=' · PF 3PH MAX';card.status=data.enabled?'PF_REFERENCE_ONLY':'BLOCKED';card.sourceFaultFid=value?.sourceFaultFid;card.displayFid=value?.representativeFid;card.sourceCellKey=value?.sourceCellKey;card.headers=['PF Ikss (kA)','Kaynak FID','Nominal (kV)'];
+    card.rows=[[scCurrentKa(value?.value),value?.sourceFaultFid||'—',nominalKv(value?.nominalKv)]];card.note=!data.enabled?data.reason:value?.value==null?'Seçili gerilim ve TM için PF 3F kaydı yok.':'TM elektriksel düğümlerinin seçili gerilimdeki maksimumudur. PF referansı mevcuttur; GA/PF sayısal paritesi doğrulanmadı.';return card;
   }
   if(v.analysis!=='LF'&&selection.source!=='GA'){
     const gate=mapPresentationGate(ctx,selection);card.status=gate.enabled?'PF_REFERENCE_ONLY':'BLOCKED';if(!gate.enabled){card.note=gate.reason;return card;}
@@ -79,10 +85,26 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
     card.note=p.post?'Mevcut Full AC post-vaka kaydı; aynı kesinti ve senaryo.':'DC P-only · Q/U/açı ve AC ihlal: NOT_RUN';if(card.details)card.note+=' · '+card.details;return card;
   }
   if(v.analysis==='SC'){
-    const p=selectedScPresentation(ctx),f=p.fault,relevant=e.sourceClass==='ElmSite'&&(f?.physicalTerminalFids.length?f.physicalTerminalFids:[f?.physicalTerminalFid]).some(id=>id&&modelPresentationIndex(ctx.network!).physicalTerminalById.get(id)?.siteIds.includes(e.id));
-    card.context+=` · 3PH ${p.sc?.profile.calculateMode??'—'}`;card.status=relevant?p.status:'NOT_RECORDED';
-    card.headers=['Ikss (kA)','Skss (MVA)','Nominal (kV)'];card.rows=[[number(relevant?f?.ikssKa:null),number(relevant?f?.skssMva:null),number(relevant?f?.nominalKv:null)]];
-    card.note=relevant&&p.status.includes('APPROXIMATION')?'NETWORK_APPROXIMATION · IEC eşdeğeri değil · Ip/Ib/Ith: desteklenmiyor.':p.reason+' · Analizler > Kısa Devre';return card;
+    const sc=currentScResult(ctx),curMode=sc?.profile.calculateMode??'MAX';
+    card.context+=` · SC ${curMode}`;
+    if(e.sourceClass==='ElmSite'){
+      const siteVal=buildMapPresentationData(ctx,selection).sites.get(e.id);
+      card.status=siteVal?.status??'NOT_RUN';
+      card.headers=['Maks Ikss (kA)','Kaynak FID','Nominal (kV)'];
+      card.sourceFaultFid=siteVal?.sourceFaultFid;card.displayFid=siteVal?.representativeFid;card.sourceCellKey=siteVal?.sourceCellKey;card.rows=[[scCurrentKa(siteVal?.value),siteVal?.sourceFaultFid||'—',nominalKv(siteVal?.nominalKv)]];
+      card.note=siteVal?.value!=null?'TM elektriksel baralarının maksimumudur · Ayrıntı için TM\'yi seçin veya ⚡ paneline bakın.':'Bu TM için hesaplanmış SC sonucu bulunamadı.';
+      if(siteVal?.value==null&&sc){
+        const terminalIds=new Set(modelPresentationIndex(ctx.network).busIdsBySite.get(e.id)??[]);
+        const blocked=sc.faults.filter(f=>f.status==='BLOCKED'&&[f.physicalTerminalFid,...f.physicalTerminalFids].some(id=>terminalIds.has(id)));
+        if(blocked.length){card.status='BLOCKED';card.rows=[['—',siteVal?.representativeFid||'—',nominalKv(siteVal?.nominalKv)]];card.note=[...new Set(blocked.flatMap(f=>f.reasons))].join('; ');}
+      }
+      return card;
+    }
+    const p=selectedScPresentation(ctx),f=p.fault;
+    card.status=f?f.status:'NOT_RECORDED';
+    card.headers=['Ikss (kA)','Skss (MVA)','Nominal (kV)'];card.rows=[[number(f?.ikssKa),number(f?.skssMva),number(f?.nominalKv)]];
+    card.note=f&&f.status.includes('APPROXIMATION')?'NETWORK_APPROXIMATION · IEC eşdeğeri değil · Ip/Ib/Ith: desteklenmiyor.':p.reason+' · Analizler > Kısa Devre';
+    return card;
   }
   const gate=mapPresentationGate(ctx,selection);if(!gate.enabled){card.status='BLOCKED';card.note=gate.reason+' · Analizler / referans ayrıntısı.';return card;}
   const r=currentMapLf(ctx),isGa=selection.source==='GA',isDelta=['DELTA','EXPLORATORY_DELTA'].includes(selection.source),scenarioDelta=selection.source==='SCENARIO_DELTA';
@@ -132,6 +154,6 @@ export function renderEquipmentCard(host:HTMLElement,card:EquipmentCard){
   const head=element('header'),title=element('strong','',card.title),context=element('small','',card.context),state=element('p','ga-equipment-status',card.status),table=element('table','ga-equipment-table');head.append(title,context);host.replaceChildren(head,state);
   title.title=card.title;context.title=card.context;
   if(card.headers.length){const tr=element('tr');for(const h of card.headers)tr.append(element('th','',h));table.append(tr);for(const row of card.rows){const tr=element('tr');row.forEach((value,i)=>{const td=element('td','',value);if(i===0&&card.headers[0]==='TM / Uç'){td.className='ga-endpoint-name';td.title=value;td.setAttribute('aria-label',value);}tr.append(td);});table.append(tr);}host.append(table);}
-  host.append(element('p','ga-equipment-note',card.note));if(card.details){const details=element('details','ga-equipment-details'),summary=element('summary','','Detay');details.open=open;summary.title=card.details;details.append(summary,element('p','',card.details));host.append(details);if(focused)summary.focus({preventScroll:true});}host.dataset.status=card.status;
+  host.append(element('p','ga-equipment-note',card.note));if(card.details){const details=element('details','ga-equipment-details'),summary=element('summary','','Detay');details.open=open;summary.title=card.details;details.append(summary,element('p','',card.details));host.append(details);if(focused)summary.focus({preventScroll:true});}host.dataset.status=card.status;host.dataset.sourceFaultFid=card.sourceFaultFid??'';host.dataset.displayFid=card.displayFid??'';host.dataset.sourceCellKey=card.sourceCellKey??'';
 }
 export function tooltipPosition(x:number,y:number,width:number,height:number,viewportWidth:number,viewportHeight:number){return {left:Math.max(8,Math.min(x+14,viewportWidth-width-8)),top:Math.max(8,Math.min(y+14,viewportHeight-height-8))};}

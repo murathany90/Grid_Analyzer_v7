@@ -32,16 +32,16 @@ export function scMethodPreflight(profile:ScProfile,context:ScSourceContext,netw
     sourceCoverage:{scope:'CANONICAL_GENERATORS_AND_EXTERNAL_GRIDS_ONLY',adapterOnlyFamiliesAreNotCompleteNativeInventory:true,modelHash:network?.modelHash??null,scenarioHash:scenario?scenarioSignature(scenario):null,identityMatched,expected:expected.length,observed:active.length,missingAdapters,duplicateAdapters,canonicalComplete:network?identityMatched===true&&!missingAdapters.length&&!duplicateAdapters.length:null},
     sourceFamilies:families,corrections:{KT:'NOT_IMPLEMENTED',KG:'NOT_IMPLEMENTED',KKW:'NOT_IMPLEMENTED'},
     correctionEvidence:['KT','KG','KKW'].map(kind=>({kind,equationSource:null,applicability:'2016_EDITION_AND_NETWORK_OR_POWER_STATION_CLASSIFICATION_UNVERIFIED',inputs:kind==='KT'?['transformer rated power/voltage/impedance','tap reference','network vs power-station unit']:kind==='KG'?['machine rated power/voltage/power factor','subtransient reactance','unit classification']:['generator-transformer unit identity','tap/control range','unit impedance and ratings'],units:'dimensionless factor; source impedances must retain their own bases',calculatedFactor:null,assumptions:[] as string[],verificationStatus:'BLOCKED',appliedToNetwork:false})),
-    sequenceEvidence:{positive:'NETWORK_APPROXIMATION_ONLY',negative:'NOT_IMPLEMENTED',zero:'NOT_IMPLEMENTED',grounding:'NOT_IMPLEMENTED',faultTypes:{'3PH':'NETWORK_APPROXIMATION_ONLY',LL:'BLOCKED', '1LG':'BLOCKED','2LG':'BLOCKED'}},
+    sequenceEvidence:{positive:'NETWORK_APPROXIMATION_ONLY',faultTypes:{'3PH':'NETWORK_APPROXIMATION_ONLY'}},
     equipmentDutyEvidence:{nativeRatingAdapter:'NOT_IMPLEMENTED',automaticVerdict:'UNVERIFIED_METHOD',reason:'IB_IP_ITH_METHODS_AND_PHYSICAL_RATING_CONNECTION_NOT_VERIFIED'},
-    blockers:[...IEC_2016_BLOCKERS,...(requestedNormative&&profile.frequencyHz!==50?['REQUESTED_50_HZ_PROFILE_NOT_RECORDED']:[]),...(profile.faultType!=='3PH'?['SEQUENCE_AND_GROUNDING_MODEL_NOT_IMPLEMENTED']:[])],
+    blockers:[...IEC_2016_BLOCKERS,...(requestedNormative&&profile.frequencyHz!==50?['REQUESTED_50_HZ_PROFILE_NOT_RECORDED']:[])],
     times:{breakerOpeningTimeS:profile.breakerOpeningTimeS??null,thermalClearingTimeS:profile.thermalClearingTimeS??null},
     interpretation:requestedNormative?'BLOCKED; no numerical normative result produced':'NETWORK_APPROXIMATION; numerical network solution is not normative IEC or PF parity'};
 }
 export function scQuantitySupport(fault:ScFaultResult):ScQuantitySupport{
   const solved=fault.status==='CALCULATED_NETWORK_APPROXIMATION';
   return {
-    ikssKa:{status:solved?'ENGINE_CALCULATED':'BLOCKED',unit:'kA',reason:solved?'POSITIVE_SEQUENCE_NETWORK_APPROXIMATION':fault.reasons.join('; ')},
+    ikssKa:{status:solved?'ENGINE_CALCULATED':'BLOCKED',unit:'kA',reason:solved?'NETWORK_SEQUENCE_APPROXIMATION':fault.reasons.join('; ')},
     skssMva:{status:solved?'ENGINE_CALCULATED':'BLOCKED',unit:'MVA',reason:solved?'DERIVED_FROM_NETWORK_IKSS; NOT_NORMATIVE_VERIFICATION':fault.reasons.join('; ')},
     ipKa:{status:'BLOCKED',unit:'kA',reason:'KAPPA_RADIAL_MESHED_AND_SOURCE_CONTRIBUTIONS_UNVERIFIED'},
     ibKa:{status:'BLOCKED',unit:'kA',reason:'SOURCE_DECAY_NEAR_FAR_CLASSIFICATION_AND_BREAKER_OPENING_TIME_UNVERIFIED'},

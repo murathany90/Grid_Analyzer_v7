@@ -10,3 +10,54 @@
 .ga-comparison-filters select,.ga-comparison-filters input{max-width:13rem}
 .ga-comparison-group th{background:var(--ga-surface-alt,#233445);text-align:left}
 .ga-comparison-group .ga-button{padding:.25rem .5rem}
+
+/* Lightning SC Panel (⚡ Kısa Devre) */
+.ga-lightning-sc-panel{display:flex;flex-direction:column;flex:1;min-height:0;padding:6px 8px;gap:6px;overflow:hidden}
+.ga-lightning-sc-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.ga-lightning-sc-toolbar select,.ga-lightning-sc-toolbar input{font-size:11px;padding:4px 7px;border-radius:5px;border:1px solid #3c5d72;background:#132d42;color:#e2eef7;min-width:0}
+.ga-lightning-sc-toolbar select{max-width:180px}
+.ga-lightning-sc-toolbar input{flex:1 1 140px;max-width:220px}
+.ga-lightning-sc-toolbar button{font-size:11px;padding:4px 8px;border-radius:5px;background:#18536b;border:1px solid #4a849e;color:#fff;cursor:pointer}
+.ga-lightning-sc-toolbar button:hover{background:#216f90}
+.ga-lightning-sc-status{font-size:10px;color:#9bc3d7;padding:2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ga-lightning-sc-table-host{flex:1 1 50%;min-height:120px;max-height:48vh;overflow:auto;border:1px solid #2d4c60;border-radius:6px;background:#0d2334}
+.ga-lightning-sc-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:auto}
+.ga-lightning-sc-table th{position:sticky;top:0;background:#173d54;padding:5px 6px;text-align:left;font-size:10px;color:#cde3ef;border-bottom:1px solid #3d647c;z-index:1;white-space:nowrap}
+.ga-lightning-sc-table th:nth-child(3),.ga-lightning-sc-table th:nth-child(4),.ga-lightning-sc-table th:nth-child(5){text-align:right}
+.ga-lightning-sc-table td{padding:4px 6px;border-bottom:1px solid #1a394e;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ga-lightning-sc-table td:nth-child(3),.ga-lightning-sc-table td:nth-child(4),.ga-lightning-sc-table td:nth-child(5){text-align:right}
+.ga-lightning-sc-table tr{cursor:pointer}
+.ga-lightning-sc-table tr:hover{background:#19415a}
+.ga-lightning-sc-table tr.is-selected{background:#1d5577;font-weight:600}
+
+
+
+
+
+
+@media(max-width:768px){
+  .ga-lightning-sc-toolbar select{max-width:calc(50% - 4px);flex:1 1 calc(50% - 4px)}
+  .ga-lightning-sc-toolbar input{max-width:100%;flex:1 1 100%}
+  .ga-lightning-sc-table-host{max-height:35vh}
+}
+@media(max-width:390px){
+  .ga-lightning-sc-toolbar select,.ga-lightning-sc-toolbar button{flex:1 1 100%;max-width:100%}
+  .ga-lightning-sc-table{font-size:10px}
+}
+
+.ga-lightning-sc-table-host{flex:1 1 auto;min-height:125px;max-height:none;overflow:auto}
+
+
+.ga-lightning-sc-toolbar{flex-wrap:wrap;gap:5px}.ga-lightning-sc-toolbar select{min-width:90px;max-width:190px}.ga-lightning-sc-toolbar input{min-width:120px}
+.ga-lightning-sc-table th button{padding:3px 0;background:none;border:0;color:inherit;font-size:inherit;white-space:nowrap}.ga-lightning-sc-table td:nth-child(5){text-align:left}
+.ga-lightning-sc-table td[data-column="ikss"],.ga-lightning-sc-table td[data-column="kv"]{text-align:right;font-variant-numeric:tabular-nums}
+.ga-lightning-sc-table td[data-column="type"],.ga-lightning-sc-table td[data-column="status"]{text-align:left;font-size:10px;white-space:normal}
+.ga-lightning-sc-table th:nth-child(2){min-width:90px}.ga-lightning-sc-table td[data-column="name"]{white-space:normal}
+.ga-lightning-sc-status{white-space:normal;line-height:1.4}.ga-lightning-sc-pager{display:flex;align-items:center;gap:8px}
+.ga-lightning-sc-pager[hidden]{display:none}.ga-map-toolbar>.ga-map-tools-row{min-width:0;flex-wrap:wrap}.ga-map-tools-row>*{min-width:0;max-width:100%}
+.ga-lightning-sc-table{table-layout:fixed}.ga-lightning-sc-table th:nth-child(1){width:17%}.ga-lightning-sc-table th:nth-child(2){width:27%;min-width:0}.ga-lightning-sc-table th:nth-child(3){width:17%;text-align:left}.ga-lightning-sc-table th:nth-child(4){width:9%}.ga-lightning-sc-table th:nth-child(5){width:16%}.ga-lightning-sc-table th:nth-child(6){width:14%}
+.ga-lightning-sc-table td{overflow-wrap:anywhere}.ga-lightning-sc-table td[data-column="tm"]{white-space:normal}
+.ga-lightning-sc-status{flex:0 0 auto;min-height:28px;overflow:visible;text-overflow:clip}.ga-lightning-sc-toolbar,.ga-lightning-sc-pager{flex:0 0 auto}
+
+.ga-sc-popup-connector{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}.ga-sc-popup-connector line{stroke:#84c3c9;stroke-width:1.5;stroke-dasharray:3 3}
+.ga-sc-bus-popup{position:absolute;width:310px;max-width:calc(100% - 16px);box-sizing:border-box;padding:8px 10px;background:#071928f5;color:#dcecf4;border:1px solid #598697;border-radius:7px;box-shadow:0 5px 18px #0008;font-size:11px;line-height:1.35;z-index:8;overflow-wrap:anywhere}.ga-sc-bus-popup[hidden]{display:none}.ga-sc-bus-popup header{display:flex;align-items:flex-start;gap:5px}.ga-sc-bus-popup header strong{flex:1;font-size:12px}.ga-sc-bus-popup header button{flex:none;padding:0 5px;font-size:18px;line-height:20px;background:transparent;border:0}.ga-sc-bus-popup p{margin:4px 0}.ga-sc-popup-meta,.ga-sc-popup-identity{color:#b8d0df}.ga-sc-popup-current{display:block;font-size:17px;margin:7px 0}.ga-sc-bus-popup>button{padding:3px 6px;font-size:11px;margin-top:3px}.ga-lightning-sc-table tr.is-selected{font-weight:inherit}

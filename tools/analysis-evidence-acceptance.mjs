@@ -1,3 +1,4 @@
+import {desktopOnly,desktopWidths,testViewport} from './desktop-test-options.mjs';
 import {navigateAnalysis,openAnalysisTools,closeAnalysisDialogs} from './analysis-navigation.mjs';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -9,7 +10,7 @@ import path from 'node:path';
 
 /** Real components + actual tiny native results; no mocked solver requests or real-model recalculation. */
 export async function auditAnalysisEvidence(browser,url){
-  const page=await browser.newPage({viewport:{width:1440,height:900}}),errors=[];
+  const page=await browser.newPage({viewport:testViewport(1440,900)}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000);
   const css=['tokens','layout','catalog','components','analysis','responsive','benchmark','ui-workspace'].map(f=>`import '/src/styles/${f}.css';`).join('');
   const html=`<!doctype html><html lang="tr"><meta charset="utf-8"><body><main id="app"></main><script type="module">
@@ -47,10 +48,10 @@ window.ready=true;
     await n1.getByRole('button',{name:'Özel limitleri temizle',exact:true}).click();assert.equal(await n1.getByRole('button',{name:'Otomatik hibrit (DC → Full AC)',exact:true}).isEnabled(),true);
     await page.evaluate(()=>{window.largeSc();ctx.resultView.faultId=undefined;ctx.notify();});const sc=page.locator('#ga-analysis-SC');await openLegacy(sc,'SC');await sc.locator('.ga-workspace-results[data-status="SC_BATCH_NETWORK_APPROXIMATION"]').waitFor();
     assert.equal(await sc.locator('.ga-workspace-results').getAttribute('data-status'),'SC_BATCH_NETWORK_APPROXIMATION');assert.match(await sc.locator('.ga-result-context').textContent(),/Toplu ağ yaklaşımı sonuçları/);
-    for(const type of ['LL','1LG','2LG'])assert.equal(await sc.getByLabel('SC arıza türü',{exact:true}).locator('option[value="'+type+'"]').isDisabled(),true);
+    assert.deepEqual(await sc.getByLabel('SC arıza türü',{exact:true}).locator('option').evaluateAll(o=>o.map(v=>v.value)),['3PH']);
     assert.equal(await sc.getByLabel('SC yöntem edisyonu',{exact:true}).locator('option[value=IEC2016]').isDisabled(),true);
     await sc.getByText('Gelişmiş / Açık varsayımlar',{exact:true}).click();assert.equal(await sc.getByLabel('Kesici açma süresi s',{exact:true}).isDisabled(),true);assert.equal(await sc.getByLabel('Termik temizleme süresi s',{exact:true}).isDisabled(),true);
-    for(const width of [1366,1440,1600,1920,768,390]){
+    for(const width of desktopWidths([1366,1440,1600,1920,768,390])){
       await page.setViewportSize({width,height:width===1366?768:width===1920?1080:width===390?844:900});
       for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
         await closeAnalysisDialogs(page);await workspace.getByRole('button',{name:label,exact:true}).click();await openAnalysisTools(page);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' '+width);
@@ -60,7 +61,7 @@ window.ready=true;
       proof.geometry.push({width,rows:await sc.locator('.ga-study-table tbody tr').count(),overflow:false});assert.ok(proof.geometry.at(-1).rows<=50);
     }
     await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('skssMva');await navigateAnalysis(page,'Yük Akışı Analizi');await navigateAnalysis(page,'Kısa Devre Analizi');assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'skssMva');await sc.getByLabel('Ortak sonuç metriği',{exact:true}).selectOption('ikssKa');
-    await page.setViewportSize({width:1440,height:900});const shared=sc.locator('.ga-workspace-results');assert.equal(Number(await shared.getAttribute('data-ga-calculated-count')),2);assert.equal(Number(await shared.getAttribute('data-ga-blocked-count')),1);
+    await page.setViewportSize(testViewport(1440,900));const shared=sc.locator('.ga-workspace-results');assert.equal(Number(await shared.getAttribute('data-ga-calculated-count')),2);assert.equal(Number(await shared.getAttribute('data-ga-blocked-count')),1);
     proof.filters=await shared.evaluate(e=>{const input=e.querySelector('[aria-label="Ortak sonuçlarda FID ara"]'),times=[];for(let i=0;i<25;i++){input.value=i%2?'Terminal 1':'';const t=performance.now();input.dispatchEvent(new Event('input'));if(i>=5)times.push(performance.now()-t);if(e.querySelectorAll('tbody tr').length>50)throw Error('Unbounded rows');}input.value='';input.dispatchEvent(new Event('input'));times.sort((a,b)=>a-b);return {catalog:Number(e.dataset.totalFaultCatalogCount),samples:times.length,medianMs:(times[9]+times[10])/2,p95Ms:times[18],maxMs:times.at(-1)};});assert.equal(proof.filters.catalog,6278);
     assert.deepEqual(await page.evaluate(()=>workerRequests),[]);assert.deepEqual(errors,[]);
     await page.evaluate(()=>{ctx.network=null;ctx.notify();});assert.equal(await sc.getByText('Kısa devre analizi için önce bir şebeke modeli yükleyin.',{exact:true}).isVisible(),true);assert.equal(await sc.getByLabel('SC yöntem edisyonu',{exact:true}).isVisible(),false);

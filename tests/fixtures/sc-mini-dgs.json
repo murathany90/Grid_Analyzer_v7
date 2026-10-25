@@ -1,0 +1,190 @@
+{
+  "IntCase": {
+    "Attributes": [
+      "FID",
+      "loc_name"
+    ],
+    "Values": [
+      [
+        "CASE",
+        "SC_MINI_NATIVE_20261024"
+      ]
+    ]
+  },
+  "ElmSite": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id"
+    ],
+    "Values": [
+      [
+        "S0",
+        "Çığlı TM",
+        "AREA"
+      ],
+      [
+        "S1",
+        "Çığlı TM",
+        "AREA"
+      ]
+    ]
+  },
+  "ElmSubstat": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "GPSlat",
+      "GPSlon"
+    ],
+    "Values": [
+      [
+        "G0",
+        "Üst Şalt",
+        "S0",
+        39,
+        35.5
+      ],
+      [
+        "G1",
+        "Alt Şalt",
+        "S1",
+        39.5,
+        36
+      ]
+    ]
+  },
+  "ElmTerm": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "uknom",
+      "outserv",
+      "iUsage"
+    ],
+    "Values": [
+      [
+        "SYN-B0",
+        "Üst Bara İĞÜŞÖÇ",
+        "G0",
+        110,
+        0,
+        0
+      ],
+      [
+        "SYN-B1",
+        "Alt Bara İĞÜŞÖÇ",
+        "G1",
+        10,
+        0,
+        0
+      ]
+    ]
+  },
+  "StaCubic": {
+    "Attributes": [
+      "FID",
+      "fold_id",
+      "obj_id"
+    ],
+    "Values": [
+      [
+        "C0",
+        "SYN-B0",
+        "TR1"
+      ],
+      [
+        "C1",
+        "SYN-B1",
+        "TR1"
+      ],
+      [
+        "CX",
+        "SYN-B0",
+        "VAC"
+      ]
+    ]
+  },
+  "ElmVac": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "bus1",
+      "outserv",
+      "R1",
+      "X1",
+      "usetp"
+    ],
+    "Values": [
+      [
+        "VAC",
+        "Native sequence source",
+        "CX",
+        0,
+        0,
+        10,
+        1
+      ]
+    ]
+  },
+  "TypTr2": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "utrn_h",
+      "utrn_l",
+      "strn",
+      "uktr",
+      "pcutr",
+      "tr2cn_h",
+      "tr2cn_l",
+      "itapch",
+      "tap_side",
+      "pfe",
+      "curmg"
+    ],
+    "Values": [
+      [
+        "TYP",
+        "Analytical DYN",
+        110,
+        10,
+        100,
+        10,
+        0,
+        "D",
+        "YN",
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "ElmTr2": {
+    "Attributes": [
+      "FID",
+      "loc_name",
+      "fold_id",
+      "typ_id",
+      "bushv",
+      "buslv",
+      "nntap",
+      "outserv"
+    ],
+    "Values": [
+      [
+        "TR1",
+        "Topraklı Trafo",
+        "G0",
+        "TYP",
+        "C0",
+        "C1",
+        0,
+        0
+      ]
+    ]
+  }
+}

@@ -4,7 +4,7 @@ import type {ScAuditField,ScSource,ScSourceContext,ScAdapterOptions} from '../..
 import type {CanonicalNetwork} from '../../domain/model/network';
 const fields:Record<string,Record<string,string>>={TypLne:{rline:'ohm/km',xline:'ohm/km'},TypTr2:{uktr:'%',urtr:'%',pcutr:'kW',strn:'MVA',utrn_h:'kV',utrn_l:'kV'},TypSym:{rstr:'pu (machine base)',xdss:'pu (machine base)',sgn:'MVA',ugn:'kV',cosn:'1'},ElmVac:{R1:'ohm',X1:'ohm',r1:'ohm',x1:'ohm',usetp:'pu'},ElmXnet:{ikss:'kA (native input)',ikssmin:'kA (native input)',snss:'MVA (native input)',snssmin:'MVA (native input)',rntxn:'R/X',rntxnmin:'R/X'},ElmLnesec:{typ_id:'FID',fold_id:'FID',dline:'km'},ElmTr2:{typ_id:'FID',nntap:'tap position'},ElmGenStat:{Ikss3PF:'kA (native current input)',psutype:'enum',typ_id:'FID',sgn:'MVA',ugn:'kV',cosn:'1',kpf:'1',ikss:'kA (native input; mode unverified)'},ElmSym:{typ_id:'FID'}};
 const tables=(raw:DgsRawData,cls:string)=>{const t=raw[cls] as {Attributes:string[];Values:unknown[][]}|undefined;return t?.Values.map(v=>Object.fromEntries(t.Attributes.map((a,i)=>[a,v[i]??null])))??[];};
-const valid=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)!==99999;
+const valid=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&Math.abs(v)!==99999&&Math.abs(v)!==999999;
 /** Native model attributes only. Never consumes any PF result sheet or result-package number. */
 export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork,externalGridFactor?:ExternalGridFactor,options:ScAdapterOptions={}):ScSourceContext {
   const audit:ScAuditField[]=[],sources:ScSource[]=[],invalidBranches:ScSourceContext['invalidBranches']=[];
@@ -16,7 +16,7 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   }
   const machineTypes=new Map(tables(raw,'TypSym').map(r=>[String(r.FID),r]));
   const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
-  const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999;
+  const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999&&v!==999999;
   const factor=options.externalGridFactor??externalGridFactor;
   const endpoint=(v:unknown)=>{const id=String(v??'');return cubicles.get(id)??(busIds.has(id)?id:'');};
   for(const cls of ['ElmXnet','ElmSym','ElmGenStat','ElmGenstat','ElmVac','ElmAsm','ElmVacbi','ElmVsc','ElmVscmono','ElmSvs','ElmTr3','ElmShnt'])for(const row of tables(raw,cls)){
@@ -67,5 +67,6 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   if(options.overrides?.some(o=>!sources.some(s=>s.sourceClass===o.sourceClass&&s.fid===o.fid)))throw Error('SC_UNKNOWN_OVERRIDE_FID');
   if(options.allowMixedNominalKv&&!options.provenance?.trim())throw Error('SC_NOMINAL_NORMALIZATION_PROVENANCE_REQUIRED');
   if(options.sourcePolicy==='ENGINEERING_PARTIAL'&&!options.provenance?.trim())throw Error('SC_PARTIAL_SOURCE_PROVENANCE_REQUIRED');
+  
   return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
 }

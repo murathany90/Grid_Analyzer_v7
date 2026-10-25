@@ -1,3 +1,4 @@
+import {scAuditFixture} from '../helpers/study-audit';
 import {identity} from '../../src/domain/calculation/identity';
 import {emptyScenario} from '../../src/domain/scenario/overlay';
 import test from 'node:test';
@@ -10,7 +11,7 @@ import { ResultStore } from '../../src/domain/results/store';
 import { ScenarioStore } from '../../src/domain/scenario/overlay';
 
 test('SC GA and difference, N1 difference and uncalculated LF are disabled with reasons',async()=>{
-  const ctx={network:acNetwork(),benchmark:await loadBenchmark(syntheticBenchmark()),resultStore:new ResultStore(),n1AcResults:[],n1Result:null,scenario:new ScenarioStore()} as never;
+  const {ctx}=scAuditFixture(1);Object.assign(ctx,{scResult:null,network:acNetwork(),benchmark:await loadBenchmark(syntheticBenchmark(undefined,undefined,{SC:{SC_BusResults_Raw:[{physicalTerminalFid:'SYNTHETIC-B1',nominalKv:100,faultType:'3PH',calculateMode:'MAX',rfOhm:0,xfOhm:0,ikssKa:0}]}})),resultStore:new ResultStore(),n1AcResults:[],n1Result:null,scenario:new ScenarioStore()});
   assert.equal(benchmarkMapGate(ctx,{analysis:'SC',source:'GA',metric:'ikssKa',table:'SC_BusResults_Raw'}).reason,'GA_IEC60909_NOT_COMPUTABLE');
   assert.equal(benchmarkMapGate(ctx,{analysis:'N1',source:'DELTA',metric:'postPmw',table:'N1_RecordedExtrema_Raw'}).reason,'NOT_COMPARABLE_PF_MISSING');
   assert.equal(benchmarkMapGate(ctx,{analysis:'LF',source:'GA',metric:'voltagePu',table:'GA_Reference_Raw'}).reason,'GA_LF_NOT_CALCULATED');

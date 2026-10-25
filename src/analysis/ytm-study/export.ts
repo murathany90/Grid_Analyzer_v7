@@ -4,7 +4,7 @@ import type {BenchmarkPackage} from '../../domain/benchmark/types';
 import {rowObject} from '../../domain/benchmark/types';
 import {auditScPartition,auditScPartitionSubset} from '../../domain/benchmark/sc-partition';
 import {postBranchMetric} from '../contingency-ac/post-results';
-export type StudyExportRow=Record<string,string|number|null>;
+export type StudyExportRow=Record<string,string|number|null|string[]>;
 /** These exact rows drive the table and every export format. No per-column case maxima. */
 export function ytmScRows(r:YtmStudyResult,n:CanonicalNetwork):StudyExportRow[]{
  const buses=new Map(n.buses.map(b=>[b.sourceId,b])),sites=new Map(n.sites.map(s=>[s.id,s])),max=new Map(r.scMax?.faults.map(f=>[f.physicalTerminalFid,f])),min=new Map(r.scMin?.faults.map(f=>[f.physicalTerminalFid,f]));
@@ -18,7 +18,7 @@ export function ytmConstraintRows(r:YtmStudyResult):StudyExportRow[]{
  return (r.n1?.cases??[]).flatMap<StudyExportRow>(c=>c.constraintChanges?.map(v=>({caseId:c.outage.caseId,outageFID:c.outage.fid,sourceClass:v.sourceClass,FID:v.fid,metric:v.metric,state:v.state,pre:v.base,post:v.post,delta:v.delta,limit:v.limit,quality:c.quality??'NOT_COMPUTABLE',method:'GA_FULL_NR',capacityBasis:v.loading?.basis??'BUS',modelHash:r.identity.modelHash,scenarioHash:r.identity.scenarioHash}))??c.dcResult?.topImpacts.map(v=>({caseId:c.outage.caseId,outageFID:c.outage.fid,sourceClass:v.sourceClass,FID:v.equipmentId,metric:'P_MW',state:'DC_SCREEN_ONLY',pre:v.baseFlowMw,post:v.postFlowMw,delta:v.deltaPMw,limit:v.capacityMva,quality:'DC_SCREEN_ONLY',method:'GA_PTDF_LODF_DC',capacityBasis:'MVA; P_ONLY_ESTIMATE',modelHash:r.identity.modelHash,scenarioHash:r.identity.scenarioHash}))??[]);
 }
 export function recordHeaders(rows:readonly StudyExportRow[]){return [...new Set(rows.flatMap(Object.keys))];}
-export function recordTable(rows:readonly StudyExportRow[]):(string|number|null)[][]{const headers=recordHeaders(rows);return [headers,...rows.map(r=>headers.map(h=>r[h]??null))];}
+export function recordTable(rows:readonly StudyExportRow[]):(string|number|null)[][]{const headers=recordHeaders(rows);return [headers,...rows.map(r=>headers.map(h=>{const v=r[h];return Array.isArray(v)?v.join(';'):(v??null);}))];}
 export function ytmCaseDetailRows(r:YtmStudyResult,caseId:string):StudyExportRow[]{
  const c=r.n1?.cases.find(c=>c.outage.caseId===caseId),p=c?.mapResults,common={caseId,outageFID:c?.outage.fid??null,quality:c?.quality??null,method:c?.acSolved?'GA_FULL_NR':'NO_AC_NUMBERS',modelHash:r.identity.modelHash,scenarioHash:r.identity.scenarioHash};
  if(!p)return [{...common,reason:'CASE_NOT_SOLVED_OR_DETAIL_NOT_RETAINED; see case summary'}];

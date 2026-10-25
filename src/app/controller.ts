@@ -1,3 +1,6 @@
+import {cleanStudy,cleanWorkspace,upgradeLegacyThreePhase} from '../domain/results/sc-persistence';
+import {SC_ENGINE_REVISION} from '../analysis/short-circuit';
+import {scResultIsAdmissible} from '../analysis/short-circuit/result-validity';
 import {workspaceMapSelection} from '../domain/results/workspace';
 import type { AppContext,CatalogQuery,CatalogPage } from './contracts';
 import type { CanonicalNetwork } from '../domain/model/network';
@@ -38,9 +41,8 @@ import {engineeringSourceOptions} from '../analysis/short-circuit/engineering-pr
 import {initialResultView,WorkspaceResultCache,workspaceKey,type ScenarioResults} from '../domain/results/workspace';
 
 export class Application implements AppContext {
-  ytmStudy:YtmStudyResult|null=null;studyOptions?:YtmStudyOptions;studyResumeAvailable=true;
-  private ytmCheckpoint=false;private ytmPrevious:YtmStudyResult|null=null;private ytmFamilies:('N1'|'SC')[]=[];
-  private publishYtmStudy(r:YtmStudyResult){this.studyResumeAvailable=true;this.ytmCheckpoint=true;this.ytmStudy=retainStudyFamilies(r,this.ytmPrevious);if(this.ytmFamilies.includes('N1'))this.hybridResult=r.n1;if(this.ytmFamilies.includes('SC'))this.scResult=r.scMax??r.scMin;}
+  ytmStudy:YtmStudyResult|null=null;studyOptions?:YtmStudyOptions;studyResumeAvailable=true;ytmCheckpoint=false;ytmPrevious:YtmStudyResult|null=null;ytmFamilies:('N1'|'SC')[]=['N1'];
+  private publishYtmStudy(r:YtmStudyResult){this.studyResumeAvailable=true;this.ytmCheckpoint=true;this.ytmStudy=retainStudyFamilies(r,this.ytmPrevious);if(this.ytmFamilies.includes('N1'))this.hybridResult=r.n1;if(this.ytmFamilies.includes('SC')){this.scResult=this.resultView.scMode==='MIN'?(r.scMin??r.scMax):(r.scMax??r.scMin);}}
 
   private ytmStarted:number|null=null;
   resultView=initialResultView();private workspaceResults=new WorkspaceResultCache();private lastWorkspaceKey='';private lastScenarioId='B0';private lastScenarioBookStamp='';
@@ -59,7 +61,7 @@ export class Application implements AppContext {
   private comparison=new WorkerTransport();
   private calculation=new WorkerTransport((stage,detail)=>this.progress(stage,detail));
   subscribe(fn:()=>void){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
-  private saveWorkspace(){if(!this.lastWorkspaceKey)return;const results:ScenarioResults={n1:this.n1Result,ac:this.n1AcResults,hybrid:this.hybridResult,sc:this.scResult,scContext:this.scContext,ytm:this.ytmStudy,studyOptions:this.studyOptions};this.workspaceResults.set(this.lastWorkspaceKey,results);for(const type of ['powerFlow','fastAc','dc'] as const){const lf=this.resultStore.getSnapshot(this.lastScenarioId,type);if(lf)void this.database.put('lf:'+this.lastWorkspaceKey+':'+type,lf).catch(()=>{});}void this.database.put('workspace:'+this.lastWorkspaceKey,results).catch(()=>{});}
+  private saveWorkspace(){if(!this.lastWorkspaceKey)return;const results:ScenarioResults=cleanWorkspace({n1:this.n1Result,ac:this.n1AcResults,hybrid:this.hybridResult,sc:this.scResult,scContext:this.scContext,ytm:this.ytmStudy,studyOptions:this.studyOptions});this.workspaceResults.set(this.lastWorkspaceKey,results);for(const type of ['powerFlow','fastAc','dc'] as const){const lf=this.resultStore.getSnapshot(this.lastScenarioId,type);if(lf)void this.database.put('lf:'+this.lastWorkspaceKey+':'+type,lf).catch(()=>{});}void this.database.put('workspace:'+this.lastWorkspaceKey,results).catch(e=>{logger.log('WARN','workspace','Workspace IndexedDB kaydedilemedi',e);this.setMessage('Uyarı: Çalışma alanı yerel depolamaya kaydedilemedi.');});}
   private syncWorkspace(){if(!this.network){this.workspaceResults.clear();this.lastWorkspaceKey='';return;}const key=workspaceKey(this);if(this.lastWorkspaceKey&&key!==this.lastWorkspaceKey){this.saveWorkspace();const saved=this.workspaceResults.get(key);this.n1Result=saved?.n1??null;this.n1AcResults=saved?.ac??[];this.hybridResult=saved?.hybrid??null;this.scResult=saved?.sc??null;this.ytmStudy=saved?.ytm??null;this.studyOptions=saved?.studyOptions;if(saved?.scContext)this.scContext=saved.scContext;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.n1Detail=null;this.selectedN1CandidateId=null;}this.lastWorkspaceKey=key;this.lastScenarioId=this.scenario.selectedId;this.resultView.scenarioId=this.scenario.selectedId;this.resultStore.selectScenario(this.scenario.selectedId);
     for(const role of ['base','scenario'] as const)for(const type of ['powerFlow','fastAc','dc'] as const){const snapshot=this.analysisSettings.value;this.resultStore.expect(role,identity(this.network.modelHash,calculationScenario(this.scenario.current,role),type,{analysisSettings:activeAnalysisSettings(snapshot,type),analysisSettingsHash:analysisSettingsHash(snapshot,type),controlContextHash:this.powerFactoryControlContextHash}));}
   }
@@ -167,20 +169,75 @@ export class Application implements AppContext {
         if(same){const faults=new Map(previousSc.faults.map(f=>[f.physicalTerminalFid,f]));for(const f of result.faults)faults.set(f.physicalTerminalFid,f);result.faults=[...faults.values()];result.counts={};for(const f of result.faults)result.counts[f.status]=(result.counts[f.status]??0)+1;result.factorizations+=previousSc.factorizations;result.rhsCount+=previousSc.rhsCount;result.reusedDrivingPoints=(result.reusedDrivingPoints??0)+(previousSc.reusedDrivingPoints??0);result.elapsedMs+=previousSc.elapsedMs;}
         this.scResult=result;if(this.resultView.analysis==='SC'){const fault=result.faults[0],site=fault?network.buses.find(b=>b.sourceId===fault.physicalTerminalFid||b.id===fault.physicalTerminalFid)?.siteIds[0]:null;if(site)this.selection={id:site,sourceClass:'ElmSite'};this.resultView.faultId=terminals[0];this.resultView.source='GA';this.resultView.metric='ikssKa';this.benchmarkMap=workspaceMapSelection(this);}this.status=`GA 3PH ${profile.calculateMode} · ${JSON.stringify(result.counts)} · IEC paritesi doğrulanmadı`;}
     }catch(e){if(job===this.job)this.status=`GA SC: ${e instanceof Error?e.message:String(e)}`;}
-    finally{if(job===this.job){this.busy=false;this.notify();}}
+    finally{if(job===this.job){this.busy=false;this.saveWorkspace();this.notify();}}
   }
   private progress(stage:string,detail?:Record<string,unknown>){if(stage==='YTM_CASE_DETAIL'){const identity=this.ytmStudy?.n1?.identity;if(this.ytmStarted!==null&&identity&&typeof detail?.caseId==='string')void this.database.put('hybrid-detail:'+stableJson({identity,caseId:detail.caseId}),detail.detail).catch(()=>{});return;}if(stage==='YTM_CHECKPOINT'){const result=detail?.result as YtmStudyResult|undefined;if(this.ytmStarted!==null&&result&&this.network&&ytmStudyIsCurrent(result,this.network,this.scenario.current)){this.publishYtmStudy(result);this.notify();}return;}const labels:Record<string,string>={MODEL:'Model hazırlanıyor',TOPOLOGY:'Elektriksel topoloji',YBUS:'Ybus hazır',INIT:'Başlangıç değerleri',INNER_NR:'Newton adımı',Q_LIMIT:'Q limiti / PV→PQ',RESULT:'Sonuç hazırlanıyor',QUALITY:'Model kalitesi denetleniyor',N1_CATALOG:'N-1 adayları hazırlanıyor',N1_TOPOLOGY:'N-1 topolojisi sınıflandırılıyor',N1_FACTOR:'N-1 DC matrisi çarpanlara ayrılıyor',N1_SCREEN:'N-1 adayları taranıyor',N1_RESULT:'N-1 sonuçları hazırlanıyor'};
     const percent=typeof detail?.percent==='number'?` · %${Math.round(detail.percent)}`:'';
     if(stage.startsWith('N1_')&&stage!=='N1_CATALOG'&&typeof detail?.completed==='number'&&typeof detail.total==='number')this.n1Progress={stage:stage as N1Progress['stage'],completed:detail.completed,total:detail.total,percent:Number(detail.percent)||0,elapsedMs:Number(detail.elapsedMs)||0,screenedSoFar:Number(detail.screenedSoFar)||0,violationCountSoFar:Number(detail.violationCountSoFar)||0,islandingCount:Number(detail.islandingCount)||0,unsupportedCount:Number(detail.unsupportedCount)||0};
     this.status=String(detail?.message||labels[stage]||stage)+(detail?.iteration?` ${detail.iteration}`:'')+(typeof detail?.maxMismatchMW==='number'?` · Δ ${detail.maxMismatchMW.toPrecision(4)} MW`:'')+percent;this.notify();}
-  async loadFiles(files:FileList|File[]){const file=files[0];if(!file)return;this.powerFactoryReference=null;this.comparisonOutage=null;this.benchmark=null;this.benchmarkReadiness=null;this.benchmarkMap=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.ytmStudy=null;this.studyOptions=undefined;this.scContext=null;this.cancel();const job=++this.job;this.loadingModel=true;this.busy=true;this.network=null;this.powerFactoryControlContextHash=null;this.powerFactoryControlContextNumericFile=null;this.source.cancel();this.resultStore.clear();this.scenario=new ScenarioStore();this.selection=null;this.setMessage(`${file.name} · Yükleniyor`);this.startLoadHeartbeat(file.size);
+  /** Saved result files reuse the loaded model; unrelated current results are preserved. */
+  private async restoreStudyFile(file:File){
+    const network=this.network,job=this.job;if(!network){this.setMessage('Önce çalışma dosyasına ait şebeke modelini yükleyin.');return;}if(this.busy){this.setMessage('Çalışma sonucu yüklemek için devam eden hesabın bitmesini bekleyin.');return;}
+    this.busy=true;
+    try{
+      const input=JSON.parse(await file.text());if(!input?.identity||!input?.options||!Array.isArray(input.faultTargets))throw Error('Çalışma sonuç şeması geçersiz.');
+      const study=cleanStudy({...input,n1:null,catalog:[]})!;
+      if(this.powerFactoryControlContextHash||!ytmStudyIsCurrent(study,network,this.scenario.current,this.analysisSettings.value)){this.setMessage('Çalışma dosyası model, senaryo, ayar veya ControlContext ile uyuşmuyor; mevcut sonuçlar korundu.');return;}
+      let selectedContext:NonNullable<AppContext['scContext']>|null=null;
+      for(const [key,mode] of [['scMax','MAX'],['scMin','MIN']] as const){
+        const r=study[key];if(!r?.profile||!r.identity){study[key]=null;continue;}
+        const expected=mode==='MAX'?study.identity.sourceHashMAX:study.identity.sourceHashMIN;if(expected&&r.identity.sourceHash!==expected){study[key]=null;continue;}
+        const context=await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network,options:r.sourceOptions??{mode}});if(job!==this.job||network!==this.network)return;
+        upgradeLegacyThreePhase(r,context);
+        if(!scResultIsAdmissible(r,{modelHash:network.modelHash,scenarioHash:scenarioSignature(this.scenario.current),mode,faultType:'3PH',context,verifyProfile:true})){study[key]=null;continue;}
+        if(mode==='MAX')study.identity.sourceHashMAX=r.identity.sourceHash;else study.identity.sourceHashMIN=r.identity.sourceHash;
+        if(!selectedContext||this.resultView.scMode===mode)selectedContext=context;
+      }
+      if(!study.scMax&&!study.scMin){this.setMessage('Dosyada güncel kaynakla uyumlu 3F sonucu yok; mevcut sonuçlar korundu.');return;}
+      if(job!==this.job||network!==this.network)return;
+      study.options={...study.options,families:['SC']};this.ytmStudy=finishYtmStudy(study);this.studyOptions=study.options;
+      const selected=this.resultView.scMode==='MIN'?(study.scMin??study.scMax):(study.scMax??study.scMin);this.scResult=selected;this.resultView.scMode=selected!.profile.calculateMode;this.scContext=selectedContext;
+      this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';this.benchmarkMap=null;this.resultView.source='GA';this.resultView.faultId=undefined;this.resultView.metric='ikss3FKa';this.setView('analysis:SC');this.saveWorkspace();this.setMessage('Kayıtlı 3F MAX/MIN sonuçları kimlik ve kaynak denetimiyle yüklendi.');
+    }catch(e){if(job===this.job)this.setMessage('Çalışma sonucu yüklenemedi: '+(e instanceof Error?e.message:String(e)));}
+    finally{if(job===this.job){this.busy=false;this.notify();}}
+  }
+  async loadFiles(files:FileList|File[]){const file=files[0];if(!file)return;if(/^GA_YTM_Study.*[.]json$/i.test(file.name)){await this.restoreStudyFile(file);return;}this.powerFactoryReference=null;this.comparisonOutage=null;this.benchmark=null;this.benchmarkReadiness=null;this.benchmarkMap=null;this.n1AcResults=[];this.hybridResult=null;this.scResult=null;this.ytmStudy=null;this.studyOptions=undefined;this.scContext=null;this.cancel();const job=++this.job;this.loadingModel=true;this.busy=true;this.network=null;this.powerFactoryControlContextHash=null;this.powerFactoryControlContextNumericFile=null;this.source.cancel();this.resultStore.clear();this.scenario=new ScenarioStore();this.selection=null;this.setMessage(`${file.name} · Yükleniyor`);this.startLoadHeartbeat(file.size);
     try{const loaded=await this.source.request<{network:CanonicalNetwork;scContext:AppContext['scContext'];readiness:AppContext['benchmarkReadiness'];timing:Record<string,number>}>({type:'LOAD_MODEL',file});if(job!==this.job)return;
       this.hybridResult=null;this.scResult=null;this.scContext=loaded.scContext;
       this.benchmarkReadiness=loaded.readiness;this.network=loaded.network;this.scenario=new ScenarioStore(loaded.network.modelHash,loaded.network.studyCase??'');this.lastWorkspaceKey='';this.workspaceResults.clear();this.resultStore.selectScenario(this.scenario.selectedId);this.modelQualityResult=null;this.modelQualityScenarioHash=null;this.modelQualityAnalysisScope=null;this.n1Result=null;this.n1Progress=null;this.n1CatalogResult=null;this.n1CatalogIdentity=null;this.selectedN1CandidateId=null;this.selectedN1IslandId=null;this.n1Detail=null;this.n1DetailLoading=false;this.filters={areaId:'',siteId:'',voltages:allVoltageBands(),search:''};this.calcLoadedHash='';
       this.status=`${loaded.network.name} · ${loaded.network.records.toLocaleString('tr-TR')} kayıt · ${(loaded.timing.totalMs/1000).toFixed(2)} s`;
       void this.database.put('model-metadata',{hash:loaded.network.modelHash,name:file.name,size:file.size,timing:loaded.timing}).catch(()=>{});
       const book=await this.database.get<ReturnType<ScenarioStore['exportState']>>('scenario-book:'+loaded.network.modelHash).catch(()=>undefined);if(job===this.job&&book&&this.scenario.restoreState(book)){this.resultStore.selectScenario(this.scenario.selectedId);this.resultStore.role=scenarioChanged(this.scenario.current)?'scenario':'base';this.status+=' · Senaryo defteri geri yüklendi';}
-      const saved=await this.database.get<ScenarioResults>('workspace:'+workspaceKey(this)).catch(()=>undefined);if(job===this.job&&saved?.ytm&&ytmStudyIsCurrent(saved.ytm,loaded.network,this.scenario.current,this.analysisSettings.value)){this.ytmStudy=saved.ytm;this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;this.scResult=saved.sc;this.scContext=saved.scContext;this.filters.areaId=saved.ytm.options.ytmId;this.filters.siteId=saved.ytm.options.tmId??'';}
+      const stored=await this.database.get<ScenarioResults>('workspace:'+workspaceKey(this)).catch(()=>undefined);const saved=stored?cleanWorkspace(stored):undefined;
+      if(job===this.job&&saved){
+        const scenarioSig=scenarioSignature(this.scenario.current);
+        const contextCache=new Map<string,NonNullable<AppContext['scContext']>>();
+        const validate=async (r:AppContext['scResult'],faultType:'3PH',sourceHash?:string)=>{
+          if(!r?.profile||!r.identity||![SC_ENGINE_REVISION,'sequence-safety-20261024'].includes(r.engineRevision??'')||!['MAX','MIN'].includes(r.profile.calculateMode))return false;
+          const mode=r.profile.calculateMode,options=r.sourceOptions??saved.scContext?.adapterOptions??{mode};
+          const key=stableJson(options);let context=contextCache.get(key);
+          if(!context){context=await this.source.request<NonNullable<AppContext['scContext']>>({type:'ADAPT_SC_CONTEXT',network:loaded.network,options});contextCache.set(key,context);}
+          const oldSource=r.identity.sourceHash;
+          if(upgradeLegacyThreePhase(r,context)){if(sourceHash&&sourceHash!==oldSource)return false;sourceHash=r.identity.sourceHash;}
+          return scResultIsAdmissible(r,{modelHash:loaded.network.modelHash,scenarioHash:scenarioSig,mode,faultType,sourceHash,context,verifyProfile:true});
+        };
+        if(saved.ytm&&ytmStudyIsCurrent(saved.ytm,loaded.network,this.scenario.current,this.analysisSettings.value)){
+          const study=saved.ytm;
+          for(const [key,mode,faultType] of [['scMax','MAX','3PH'],['scMin','MIN','3PH']] as const){
+            if(!await validate(study[key]??null,faultType,mode==='MAX'?study.identity.sourceHashMAX:study.identity.sourceHashMIN))study[key]=null;
+          }
+          if(study.scMax)study.identity.sourceHashMAX=study.scMax.identity.sourceHash;if(study.scMin)study.identity.sourceHashMIN=study.scMin.identity.sourceHash;
+          this.ytmStudy=finishYtmStudy(study);this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;
+          const mode=saved.sc?.profile.calculateMode??'MAX';this.scResult=mode==='MAX'?study.scMax:study.scMin;
+          this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';
+        }else if(await validate(saved.sc,'3PH')){
+          this.scResult=saved.sc;
+
+        }
+        const restored=this.scResult;
+        if(restored){const context=contextCache.get(stableJson(restored.sourceOptions??saved.scContext?.adapterOptions??{mode:restored.profile.calculateMode}));if(context)this.scContext=context;}
+
+      }
     }catch(e){if(job===this.job){this.status=`Model yüklenemedi: ${e instanceof Error?e.message:String(e)}`;logger.log('ERROR','import',this.status,e);}}
     finally{if(job===this.job){this.stopLoadHeartbeat();this.loadingModel=false;this.busy=false;this.notify();}}
   }

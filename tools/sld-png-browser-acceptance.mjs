@@ -1,3 +1,4 @@
+import {testViewport} from './desktop-test-options.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
@@ -17,7 +18,7 @@ export async function pngBrowserAcceptance(page){
   return {svg:svg.bytes,png:png.bytes,box,pixels};
 }
 export async function offlinePngAcceptance(browser){
-  const page=await browser.newPage({viewport:{width:1366,height:900}}),errors=[],external=[];
+  const page=await browser.newPage({viewport:testViewport(1366,900)}),errors=[],external=[];
   page.on('pageerror',e=>errors.push(e.message));await page.route(/^https?:/,r=>{external.push(r.request().url());return r.abort();});
   try{
     await page.goto(pathToFileURL(resolve('dist-portable/GridAnalyzer_v7.html')).href);

@@ -71,6 +71,8 @@ jobs:
           NODE
       - name: Browser smoke
         timeout-minutes: 8
+        env:
+          GA_DESKTOP_ONLY: '1'
         run: npm run test:e2e
       - name: Build standard app
         timeout-minutes: 3

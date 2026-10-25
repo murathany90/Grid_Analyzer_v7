@@ -26,7 +26,7 @@ function stationFixture(generatorLimits:{qMin:number|null;qMax:number|null}):Can
    internationalConnections:[],switches:[],
    stationControllers:[{...entity('C1','ElmStactrl'),remoteBus:'B3',unitIds:['G1'],vmSet:1.02,controlModeRaw:0,selectedBusModeRaw:0,distributionModeRaw:0,droopModeRaw:0,qOrientationRaw:0,qSetpointRaw:0,modeSemantics:'CURRENT_PROFILE_VOLTAGE_DISPATCH_P'}],
    secondaryControllers:[],boundaries:[],sites:[],classCounts:{},records:0,warnings:[],
-   capabilities:{powerFlow:{state:'READY' as const,reasons:[]},shortCircuit3Phase:{state:'BLOCKED' as const,reasons:[]},shortCircuitGround:{state:'BLOCKED' as const,reasons:[]},n1:{state:'BLOCKED' as const,reasons:[]}}};
+   capabilities:{powerFlow:{state:'READY' as const,reasons:[]},shortCircuit3Phase:{state:'BLOCKED' as const,reasons:[]},n1:{state:'BLOCKED' as const,reasons:[]}}};
 }
 const engineRun=async(network:CanonicalNetwork)=>{
   const engine=new BrowserJsPowerFlowEngine(),scenario=emptyScenario();

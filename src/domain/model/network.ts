@@ -6,7 +6,7 @@ export interface Entity {
   readonly inService: boolean; readonly siteIds: readonly string[];
   readonly sourceRefs: Readonly<Record<string, readonly SourceRef[]>>;
 }
-export interface Bus extends Entity { readonly vnKv: number; readonly parentId: string }
+export interface Bus extends Entity { readonly vnKv: number; readonly usage?:number; readonly parentId: string }
 export interface Line extends Entity {
   readonly from: string; readonly to: string; readonly vnKv: number; readonly lengthKm: number;
   readonly rOhm: number; readonly xOhm: number; readonly bSiemens: number;
@@ -75,7 +75,7 @@ export interface SourceFidelity {
   readonly fidelity:'SOURCE_EXACT'|'PARTIAL';
 }
 export interface Site extends Entity { readonly lat: number | null; readonly lon: number | null; readonly areaId: string; readonly areaName: string; readonly voltages: readonly number[] }
-export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; shortCircuitGround: Capability; n1: Capability }
+export interface ModelCapabilities { powerFlow: Capability; shortCircuit3Phase: Capability; n1: Capability }
 export interface Capability { state: 'READY' | 'PARTIAL' | 'BLOCKED'; reasons: readonly string[]; /** Machine-readable scope of what the capability actually covers. */ scope?: string }
 export interface CanonicalNetwork {
   readonly schemaVersion: 1; readonly modelHash: string; readonly name: string; readonly size: number;

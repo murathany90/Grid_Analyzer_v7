@@ -207,3 +207,4 @@ details.ga-study-notice{display:block;padding:0;min-height:28px}details.ga-study
  .ga-study-operator[data-operator-view="cases"] .ga-study-compact tr{grid-template-columns:1fr 1fr}.ga-study-operator[data-operator-view="cases"] .ga-study-compact td:nth-child(2){grid-column:1/-1}
  .ga-lightning .ga-study-operator .ga-study-actions{row-gap:3px}.ga-study-exports-menu{margin-left:0}
 }
+.ga-map-scope-row>*{min-width:0}.ga-map-control>select{min-width:0}

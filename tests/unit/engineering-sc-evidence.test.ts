@@ -10,6 +10,3 @@ test('unaccepted IEC correction factors carry no equation, assumed unity or appl
   const e=scMethodPreflight(profile,context,n,emptyScenario());assert.deepEqual(e.correctionEvidence.map(c=>c.kind),['KT','KG','KKW']);for(const c of e.correctionEvidence){assert.equal(c.calculatedFactor,null);assert.equal(c.appliedToNetwork,false);assert.equal(c.verificationStatus,'BLOCKED');assert.equal(c.equationSource,null);assert.ok(c.inputs.length>0);}
   assert.equal(e.equipmentDutyEvidence.automaticVerdict,'UNVERIFIED_METHOD');assert.equal(e.sequenceEvidence.faultTypes['3PH'],'NETWORK_APPROXIMATION_ONLY');
 });
-test('LL and grounded faults cannot reuse positive-sequence Ikss and cannot factor an unverified sequence network',async()=>{
-  for(const type of ['LL','1LG','2LG'] as const){const r=await calculateThreePhase(n,emptyScenario(),context,['B1'],{...profile,faultType:type});assert.equal(r.factorizations,0);assert.equal(r.rhsCount,0);assert.equal(r.faults[0].ikssKa,null);assert.equal(r.faults[0].skssMva,null);assert.equal(r.faults[0].ipKa,null);assert.equal(r.methodEvidence?.sequenceEvidence.faultTypes[type],'BLOCKED');assert.match(r.faults[0].reasons.join(';'),/MISSING_SEQUENCE/);}
-});

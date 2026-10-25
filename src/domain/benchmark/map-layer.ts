@@ -1,4 +1,9 @@
+import {pfScReferenceRows} from './sc-reference';
+import {scScopeRows} from '../results/sc-view-scope';
+import {scDisplayTerminal} from '../results/sc-node';
+import {voltageBand} from '../model/voltage-band';
 import {currentScResult} from '../results/sc-selection';
+import {compactScRows} from '../../features/analysis/compact-rows';
 import {scenarioLfComparison} from '../results/lf-comparison';
 import {postResultAssembler} from '../../analysis/contingency-ac/post-results';
 import type { BenchmarkAnalysis } from './types';
@@ -10,15 +15,15 @@ import {resolveN1Post,lfSnapshotIsCurrent,selectN1Result} from './post-result-so
 import {postBranchMetric} from '../../analysis/contingency-ac/post-results';
 import { stableJson } from '../calculation/identity';
 import {hasReference} from './reference-slots';
-export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';diagnostic?:boolean;side?:string;voltageKv?:number}
-export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
+export interface BenchmarkMapSelection {analysis:BenchmarkAnalysis;source:'GA'|'PF'|'DELTA'|'EXPLORATORY_DELTA'|'SCENARIO_DELTA';metric:string;table:string;caseId?:string;n1Layer?:'BASE'|'POST'|'CHANGE'|'NEW_CONSTRAINTS';scMode?:'MAX'|'MIN';diagnostic?:boolean;side?:string;voltageKv?:number;nodeKind?:string}
+export interface BenchmarkMapValue {value:number|null;unit:string;status:string;details:string[];minVpu?:number;maxVpu?:number;maxDeviationPu?:number;representativeFid?:string;displayFid?:string;sourceFaultFid?:string;siteId?:string;nominalKv?:number|null;electricalBusId?:string;sourceCellKey?:string;deltaLevels?:Record<string,{min:number;max:number;representativeFid:string;value:number}>;voltageLevels?:Record<string,{minVpu:number;maxVpu:number;maxDeviationPu:number;representativeFid:string}>}
 export interface BenchmarkMapData {enabled:boolean;reason:string;branches:Map<string,BenchmarkMapValue>;sites:Map<string,BenchmarkMapValue>;outage:{fid:string;sourceClass:string}|null;noGeometry:number;numericValues?:number;scale?:{p95:number;min:number;max:number;unit:string}}
 const gateCache=new WeakMap<AppContext,{benchmark:unknown;network:unknown;result:unknown;control:unknown;gate:ReturnType<typeof preflightBenchmark>}>();
 function cachedPreflight(ctx:AppContext){const result=ctx.resultStore.get('base','powerFlow'),old=gateCache.get(ctx);if(old&&old.benchmark===ctx.benchmark&&old.network===ctx.network&&old.result===result&&old.control===ctx.powerFactoryControlContextNumericFile)return old.gate;const gate=preflightBenchmark(ctx.benchmark!,ctx.network,result,ctx.powerFactoryControlContextNumericFile);gateCache.set(ctx,{benchmark:ctx.benchmark,network:ctx.network,result,control:ctx.powerFactoryControlContextNumericFile,gate});return gate;}
 const rowCache=new WeakMap<AppContext,{key:string;benchmark:AppContext['benchmark'];result:unknown;ac:unknown;dc:unknown;hybrid:unknown;sc:unknown;rows:BenchmarkMetricRow[]}>();
 function canonicalRows(ctx:AppContext,s:BenchmarkMapSelection):BenchmarkMetricRow[]{
   const table=ctx.benchmark?.groups[s.analysis].tables[s.table];if(!table||!ctx.network)return [];
-  const result=ctx.resultStore.get('base','powerFlow'),key=stableJson([{analysis:s.analysis,metric:s.metric,table:s.table,caseId:s.caseId,diagnostic:s.diagnostic,side:s.side,voltageKv:s.voltageKv},ctx.network.modelHash,scenarioSignature(ctx.scenario.current),ctx.analysisSettings?.value]),cached=rowCache.get(ctx);
+  const result=ctx.resultStore.get('base','powerFlow'),key=stableJson([{analysis:s.analysis,metric:s.metric,table:s.table,caseId:s.caseId,scMode:s.scMode,diagnostic:s.diagnostic,side:s.side,voltageKv:s.voltageKv},ctx.network.modelHash,scenarioSignature(ctx.scenario.current),ctx.analysisSettings?.value]),cached=rowCache.get(ctx);
   if(cached&&cached.key===key&&cached.benchmark===ctx.benchmark&&cached.result===result&&cached.ac===ctx.n1AcResults&&cached.dc===ctx.n1Result&&cached.hybrid===ctx.hybridResult&&cached.sc===ctx.scResult)return cached.rows;
   const gate=cachedPreflight(ctx);
   const rows=metricRows(table,gate,s.metric,{lfResult:result,diagnostic:s.diagnostic===true,network:ctx.network,scenario:ctx.scenario.current,settings:ctx.analysisSettings?.value,hybrid:ctx.hybridResult,sc:ctx.scResult,benchmark:ctx.benchmark,ac:ctx.n1AcResults}).filter(r=>(s.analysis!=='N1'||r.caseId===s.caseId)&&(!s.voltageKv||r.nominalKv===s.voltageKv));
@@ -37,10 +42,14 @@ export function benchmarkMapGate(ctx:AppContext,s:BenchmarkMapSelection):{enable
     return canonicalRows(ctx,s).some(r=>r.identityMatched&&r.diagnosticDelta!=null)?{enabled:true,reason:'EXPLORATORY_DELTA_METHOD_UNVERIFIED'}:{enabled:false,reason:'NO_IDENTITY_MATCHED_DIAGNOSTIC_CELLS; LOADING_DENOMINATOR_OR_METHOD_UNVERIFIED'};
   }
   if(s.analysis==='SC'&&s.source==='DELTA')return {enabled:false,reason:'GA_IEC60909_METHOD_AND_EDITION_UNVERIFIED'};
+  if(s.analysis==='SC'&&s.source==='PF'){
+    if(s.metric==='skssMva')return {enabled:false,reason:'PF_SKSS_REFERENCE_NOT_AVAILABLE'};
+    if(s.scMode==='MIN')return {enabled:false,reason:'PF_SC_MIN_REFERENCE_NOT_AVAILABLE'};
+  }
   if(s.analysis==='SC'&&s.source==='GA'){
     const sc=currentScResult(ctx),current=!!sc&&sc.identity.modelHash===ctx.network.modelHash&&sc.identity.scenarioHash===scenarioSignature(ctx.scenario.current);
     if(!current||!sc.faults.length)return {enabled:false,reason:'GA_IEC60909_NOT_COMPUTABLE'};
-    if(!['ikssKa','skssMva'].includes(s.metric))return {enabled:false,reason:'SC_METRIC_NOT_IMPLEMENTED'};
+    if(!['ikssKa','maxIkssKa','ikss3FKa','skssMva'].includes(s.metric))return {enabled:false,reason:'SC_METRIC_NOT_IMPLEMENTED'};
   }
   if(s.analysis==='N1'&&s.source==='DELTA')return {enabled:false,reason:'NOT_COMPARABLE_PF_MISSING'};
   if(s.analysis==='LF'&&s.source==='GA'&&!currentLf(ctx))return {enabled:false,reason:'GA_LF_NOT_CALCULATED'};
@@ -67,14 +76,14 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   const busById=new Map(network.buses.map(b=>[b.id,b])),lineByKey=new Map([...network.lines,...network.transformers].map(e=>[`${e.sourceClass}:${e.sourceId}`,e]));
   const siteById=new Map(network.sites.map(site=>[site.id,site]));
   const putSite=(id:string,value:BenchmarkMapValue,fid:string,kv:number|null)=>{
-    let previous=data.sites.get(id);if(!previous){previous={...value,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
+    let previous=data.sites.get(id);if(!previous){previous={...value,representativeFid:fid,nominalKv:kv,details:[]};data.sites.set(id,previous);}if(previous.details.length<32)previous.details.push(...value.details);
     if(value.value===null)return;
     if(value.unit==='pu'&&s.n1Layer!=='CHANGE'&&!['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){
       const v=value.value,deviation=Math.abs(v-1),level=String(kv??'UNKNOWN');previous.voltageLevels??={};const old=previous.voltageLevels[level];
       previous.voltageLevels[level]=old?{minVpu:Math.min(old.minVpu,v),maxVpu:Math.max(old.maxVpu,v),maxDeviationPu:Math.max(old.maxDeviationPu,deviation),representativeFid:deviation>old.maxDeviationPu?fid:old.representativeFid}:{minVpu:v,maxVpu:v,maxDeviationPu:deviation,representativeFid:fid};
       previous.minVpu=Math.min(previous.minVpu??v,v);previous.maxVpu=Math.max(previous.maxVpu??v,v);
       if(previous.maxDeviationPu===undefined||deviation>previous.maxDeviationPu){previous.value=v;previous.maxDeviationPu=deviation;previous.representativeFid=fid;}
-    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;}}
+    }else {if(s.n1Layer==='CHANGE'||['DELTA','EXPLORATORY_DELTA','SCENARIO_DELTA'].includes(s.source)){const level=String(kv??'UNKNOWN');previous.deltaLevels??={};const old=previous.deltaLevels[level];previous.deltaLevels[level]={min:Math.min(old?.min??value.value,value.value),max:Math.max(old?.max??value.value,value.value),value:!old||Math.abs(value.value)>Math.abs(old.value)?value.value:old.value,representativeFid:!old||Math.abs(value.value)>Math.abs(old.value)?fid:old.representativeFid};}if(previous.value===null||previous.representativeFid===undefined||Math.abs(value.value)>Math.abs(previous.value)){previous.value=value.value;previous.representativeFid=fid;previous.status=value.status;previous.nominalKv=kv;previous.electricalBusId=value.electricalBusId;previous.sourceCellKey=value.sourceCellKey;previous.sourceFaultFid=value.sourceFaultFid;previous.displayFid=value.displayFid;previous.siteId=value.siteId;}}
   };
   const put=(sourceClass:string,fid:string,value:BenchmarkMapValue)=>{
     const line=lineByKey.get(`${sourceClass}:${fid}`),bus=sourceClass==='ElmTerm'?busById.get(fid):undefined,siteIds=line?.siteIds||bus?.siteIds||[];if(s.voltageKv&&(bus?.vnKv??line?.vnKv)!==s.voltageKv)return;
@@ -84,7 +93,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     for(const id of siteIds){putSite(id,value,fid,bus?.vnKv??null);const site=siteById.get(id);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
     if(!hasGeometry)data.noGeometry++;
   };
-  const baseView=s.analysis==='LF'&&ctx.resultStore.role==='base',result=ctx.resultStore.get((s.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'base':'scenario','powerFlow');
+  const baseView=s.analysis==='LF'&&ctx.resultStore?.role==='base',result=typeof ctx.resultStore?.get==='function'?ctx.resultStore.get((s.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'base':'scenario','powerFlow'):ctx.resultStore?.active;
   if(s.source==='SCENARIO_DELTA'){
     const pair=scenarioLfComparison(ctx,s.metric),details=(v:import('../results/lf-comparison').LfComparisonCell)=>['Senaryo−Baz · GA ONLY',v.reason||pair.status,'PRE '+v.pre+' · POST '+v.post+' · Δ '+v.delta+' '+v.unit];
     if(!['voltageKv','voltagePu','angleDeg'].includes(s.metric))for(const e of [...network.lines,...network.transformers]){const v=pair.branches.get(e.sourceClass+':'+e.id);if(v)put(e.sourceClass,e.sourceId,{value:v.delta,unit:v.unit,status:v.status,details:details(v)});}
@@ -93,8 +102,23 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     data.scale={p95:abs[Math.max(0,Math.ceil(abs.length*.95)-1)]||1,min:values.length?Math.min(...values):0,max:values.length?Math.max(...values):0,unit:pair.branches.values().next().value?.unit??pair.terminals.values().next().value?.unit??''};
     return data;
   }
-  if(s.analysis==='SC'&&s.source==='GA'&&ctx.scResult){
-    for(const f of ctx.scResult.faults){if(ctx.resultView?.faultId&&!f.physicalTerminalFids.includes(ctx.resultView.faultId)&&f.physicalTerminalFid!==ctx.resultView.faultId)continue;const value=s.metric==='ikssKa'?f.ikssKa:f.skssMva;for(const fid of f.physicalTerminalFids.length?f.physicalTerminalFids:[f.physicalTerminalFid])put('ElmTerm',fid,{value,unit:s.metric==='ikssKa'?'kA':'MVA',status:f.status,details:[`${fid} → ${f.electricalBusId??'—'} · ${f.status} · ${f.reasons.slice(0,3).join('; ')}`]});}return data;
+  if(s.analysis==='SC'){
+    const source=s.source==='PF'?'PF':'GA',rows=scScopeRows(ctx,compactScRows(ctx,source),s.nodeKind??''),unit=s.metric==='skssMva'?'MVA':'kA';
+    const pfCells=source==='PF'?new Map(pfScReferenceRows(ctx).map(r=>[r.fid,r])):null;
+    if(pfCells&&(!s.nodeKind||s.nodeKind==='UNCLASSIFIED'))for(const cell of pfCells.values())if(!busById.has(cell.fid)&&(!s.voltageKv||cell.nominalKv===s.voltageKv))data.noGeometry++;
+    for(const row of rows){
+      if(s.voltageKv&&voltageBand(row.kv)!==voltageBand(s.voltageKv))continue;
+      const value=source==='PF'?row.metrics.ikss?.pf??null:s.metric==='skssMva'?row.metrics.skss?.ga??null:row.metrics.ikss?.ga??null;
+      if(value!==null&&Number.isFinite(value))data.numericValues!++;
+      let hasGeometry=false;const ids=JSON.parse(String(row.raw.physicalAliases??'[]')) as string[];
+      for(const siteId of row.siteIds??[]){const display=scDisplayTerminal(network,ids,row.kv,[siteId]),fid=display?.sourceId??ids.find(id=>busById.get(id)?.siteIds.includes(siteId))??row.fid,sourceFaultFid=String(row.raw.sourceFaultFid??row.fid);putSite(siteId,{value,unit,status:source==='PF'?'PF_REFERENCE_ONLY':String(row.raw.Hesap_Durumu),nominalKv:row.kv,electricalBusId:row.key,sourceFaultFid,displayFid:fid,siteId,sourceCellKey:String(row.raw.sourceCellKey??''),details:[`${source} · ${row.name} (${fid}) · ${row.kv} kV · ${value??'—'} ${unit}`,source==='PF'?'TM maksimumu · PF kaynak hücresi; GA yöntem paritesi doğrulanmadı':String(row.raw.reason_3F)]},fid,row.kv);const site=siteById.get(siteId);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
+      if(!hasGeometry)data.noGeometry++;
+
+    }
+    for(const site of network.sites)if(!data.sites.has(site.id))data.sites.set(site.id,{value:null,unit,status:s.voltageKv?'NO_VOLTAGE_MATCH':'NOT_RUN',details:['Seçili kaynak/mod/gerilim/sınıfta sayısal 3F değeri yok.']});
+    const sorted=[...data.sites.values()].flatMap(v=>v.value!==null&&Number.isFinite(v.value)?[v.value]:[]).sort((a,b)=>a-b);
+    if(sorted.length)data.scale={p95:sorted[Math.max(0,Math.ceil(sorted.length*.95)-1)],min:sorted[0],max:sorted.at(-1)!,unit};
+    return data;
   }
   if(s.analysis==='LF'&&s.source==='GA'&&result){
     for(const b of result.buses){const value=s.metric==='voltagePu'?b.vmPu:s.metric==='voltageKv'?b.vmPu*b.vnKv:s.metric==='angleDeg'?b.angleRad*180/Math.PI:null;if(value!==null)for(const fid of b.terms)put('ElmTerm',fid,{value,unit:s.metric==='voltagePu'?'pu':s.metric==='voltageKv'?'kV':'deg',status:'GA_AC_BALANCED',details:[`ElmTerm:${fid} · ${value} · GA AC · ${b.islandId??'ada bilinmiyor'} · NO_PF_DELTA`]});}

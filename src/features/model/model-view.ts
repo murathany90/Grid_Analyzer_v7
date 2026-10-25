@@ -5,7 +5,6 @@ import { element, button, csvCell, downloadText, format } from '../../ui/compone
 const capabilityNames = [
   ['powerFlow', 'Yük akışı'],
   ['shortCircuit3Phase', 'Üç faz kısa devre'],
-  ['shortCircuitGround', 'Toprak arızası'],
   ['n1', 'N−1'],
 ] as const;
 
