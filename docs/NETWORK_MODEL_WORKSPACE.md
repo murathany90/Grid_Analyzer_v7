@@ -30,3 +30,18 @@ Model yükleme mevcut güvenli JSON/ZIP okuyucusunu ve iptal mekanizmasını kul
 Masaüstü kabul boyutları: 1366×768, 1920×1080 ve 1366×768 %125 ölçek. Mobil/tablet kapsam dışıdır. Yerel özel model test kanıtları `local-benchmark-results/network-model-workspace/` altında kalır; Git'e veya deployment artifact'ına eklenmez.
 
 Yerel SN7 ZIP testi: 587.301 kayıt, 1.625 TM ve 40 DGS sınıfı doğrulanmıştır. Kalite sayıları kaynak model ve denetimden hesaplanır; bu sayılar üretim kodunda sabit değildir. Son doğrulama sonuçları ve portable SHA-256 Draft PR açıklamasında ve teslim raporunda verilir. Portable tabanı `./`, Pages tabanı `/` korunmuştur; Pages build çalıştırmak yayın tetiklemez.
+
+## Kabul kanıtı (2026-10-25)
+
+- Typecheck ve mimari lint başarılı; 749 birim/regresyon testi geçti, atlanan test yok.
+- Birleşik çalışma alanı kabulü: dört sekme × üç masaüstü yerleşimi, ortak filtre/seçim, eski sorgu reddi, CSV/JSON, harita/SLD yönlendirmesi, iptal, kaynak/senaryo/LF ayrımı ve IndexedDB LF geri yükleme başarılı.
+- Gerçek SN7: 587.301 kayıt / 1.625 TM. 3.404 kaynak uyarısı, 2 yapılandırılmış kaynak tanısı, 1.337 elektriksel kayıt; tekilleştirilmiş toplam 4.807. Kaynak koordinat bulguları coğrafi kategoridedir; bu toplam elektriksel hata sayısı değildir.
+- Normal, Pages ve portable build başarılı. Pages build ve portable dosyası yerel tarayıcıda kalite Worker'ı ile ayrıca doğrulandı; hata ve dış ağ isteği yok. Pages yayını tetiklenmedi.
+- Tam E2E/CI sonucu ve portable hash PR tesliminde ayrıca doğrulanır. Özel SN7 girişleri ve ayrıntılı kanıtlar yerelde tutulur.
+
+Aşağıdaki görseller yalnız depodaki **kamusal sentetik test modeli** ile üretilmiştir:
+
+![Model Özeti](images/network-model/summary.png)
+![Şebeke Envanteri](images/network-model/inventory.png)
+![İşletme Verileri](images/network-model/operating.png)
+![Model Kalitesi](images/network-model/quality.png)
