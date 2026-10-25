@@ -1,0 +1,862 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/murathany90/Grid_Analyzer_v7/schemas/ga-psse-bridge-v1.json",
+  "title": "Grid Analyzer PSS(R)E Import Bridge Data Contract v1",
+  "description": "Deterministic, independent data contract representing electrical network models extracted from PSS(R)E .sav, .raw, or .rawx files for Grid_Analyzer_v7.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "metadata",
+    "caseIdentification",
+    "network"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "ga-psse-bridge/1"
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "sourceFile",
+        "sourceSha256",
+        "extractionMethod",
+        "timestampUtc"
+      ],
+      "properties": {
+        "sourceFile": {
+          "type": "string"
+        },
+        "sourceSha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "sourceFormat": {
+          "type": "string",
+          "enum": [
+            "SAV",
+            "RAW",
+            "RAWX",
+            "HYBRID"
+          ]
+        },
+        "extractionMethod": {
+          "type": "string",
+          "enum": [
+            "psspy-official",
+            "caspy-direct",
+            "standalone-decoder",
+            "standalone-raw-parser",
+            "standalone-rawx-parser"
+          ]
+        },
+        "psseRelease": {
+          "type": "string"
+        },
+        "timestampUtc": {
+          "type": "string"
+        },
+        "sourceFidelity": {
+          "type": "string",
+          "enum": [
+            "SOURCE_EXACT",
+            "PARTIAL",
+            "EXPERIMENTAL",
+            "DIAGNOSTIC_ONLY"
+          ]
+        },
+        "unsupportedEquipment": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "sourceClass",
+                  "count"
+                ],
+                "properties": {
+                  "sourceClass": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "details": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "level",
+              "message"
+            ],
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "INFO",
+                  "WARNING",
+                  "ERROR"
+                ]
+              },
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "bridgeRevision": {
+          "type": "string"
+        },
+        "impedanceBase": {
+          "type": "string"
+        }
+      }
+    },
+    "caseIdentification": {
+      "type": "object",
+      "required": [
+        "sbaseMva",
+        "baseFrequencyHz"
+      ],
+      "properties": {
+        "sbaseMva": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0.001
+        },
+        "baseFrequencyHz": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 10.0,
+          "maximum": 400.0
+        },
+        "titleLine1": {
+          "type": "string"
+        },
+        "titleLine2": {
+          "type": "string"
+        },
+        "psseVersion": {
+          "type": "string"
+        },
+        "solutionStatus": {
+          "type": "object",
+          "properties": {
+            "isSolved": {
+              "type": "boolean"
+            },
+            "solutionMethod": {
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "UNKNOWN",
+                "VERIFIED",
+                "UNSOLVED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "required": [
+        "buses",
+        "loads",
+        "generators",
+        "branches",
+        "transformers"
+      ],
+      "properties": {
+        "buses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ibus",
+              "name",
+              "baskv",
+              "ide",
+              "vmPu",
+              "vaDeg"
+            ],
+            "properties": {
+              "ibus": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "baskv": {
+                "type": "number"
+              },
+              "ide": {
+                "type": "integer",
+                "description": "1=PQ, 2=PV, 3=Slack/Swing, 4=Disconnected"
+              },
+              "area": {
+                "type": "integer"
+              },
+              "zone": {
+                "type": "integer"
+              },
+              "owner": {
+                "type": "integer"
+              },
+              "vmPu": {
+                "type": "number"
+              },
+              "vaDeg": {
+                "type": "number"
+              },
+              "normalMaxPu": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "normalMinPu": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "emergencyMaxPu": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "emergencyMinPu": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "loads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ibus",
+              "loadid",
+              "inService",
+              "pMw",
+              "qMvar"
+            ],
+            "properties": {
+              "ibus": {
+                "type": "integer"
+              },
+              "loadid": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "area": {
+                "type": "integer"
+              },
+              "zone": {
+                "type": "integer"
+              },
+              "pMw": {
+                "type": "number"
+              },
+              "qMvar": {
+                "type": "number"
+              },
+              "pCurrentMw": {
+                "type": "number"
+              },
+              "qCurrentMvar": {
+                "type": "number"
+              },
+              "pAdmittanceMw": {
+                "type": "number"
+              },
+              "qAdmittanceMvar": {
+                "type": "number"
+              },
+              "owner": {
+                "type": "integer"
+              },
+              "isScalable": {
+                "type": "boolean"
+              },
+              "isInterruptible": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "generators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ibus",
+              "machid",
+              "inService",
+              "pMw",
+              "qMvar",
+              "vsPu"
+            ],
+            "properties": {
+              "ibus": {
+                "type": "integer"
+              },
+              "machid": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "pMw": {
+                "type": "number"
+              },
+              "qMvar": {
+                "type": "number"
+              },
+              "qMaxMvar": {
+                "type": "number"
+              },
+              "qMinMvar": {
+                "type": "number"
+              },
+              "pMaxMw": {
+                "type": "number"
+              },
+              "pMinMw": {
+                "type": "number"
+              },
+              "vsPu": {
+                "type": "number"
+              },
+              "mbaseMva": {
+                "type": "number"
+              },
+              "remoteBus": {
+                "type": "integer"
+              },
+              "remoteNode": {
+                "type": "integer"
+              },
+              "remotePct": {
+                "type": "number"
+              },
+              "zrPu": {
+                "type": "number"
+              },
+              "zxPu": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "windMode": {
+                "type": "integer"
+              },
+              "windPowerFactor": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "fromBus",
+              "toBus",
+              "circuitId",
+              "inService",
+              "rPu",
+              "xPu",
+              "bPu"
+            ],
+            "properties": {
+              "fromBus": {
+                "type": "integer"
+              },
+              "toBus": {
+                "type": "integer"
+              },
+              "circuitId": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "rPu": {
+                "type": "number"
+              },
+              "xPu": {
+                "type": "number"
+              },
+              "bPu": {
+                "type": "number"
+              },
+              "rateMva": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "rateSet": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                }
+              },
+              "fromShuntGpu": {
+                "type": "number"
+              },
+              "fromShuntBpu": {
+                "type": "number"
+              },
+              "toShuntGpu": {
+                "type": "number"
+              },
+              "toShuntBpu": {
+                "type": "number"
+              },
+              "lengthKm": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "isBypassed": {
+                "type": "boolean"
+              },
+              "meteredBus": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "transformers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "fromBus",
+              "toBus",
+              "circuitId",
+              "inService",
+              "isThreeWinding"
+            ],
+            "properties": {
+              "fromBus": {
+                "type": "integer"
+              },
+              "toBus": {
+                "type": "integer"
+              },
+              "tertiaryBus": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "circuitId": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "isThreeWinding": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "vectorGroup": {
+                "type": "string"
+              },
+              "controlMode": {
+                "type": "integer"
+              },
+              "controlledBus": {
+                "type": "integer"
+              },
+              "winding1": {
+                "type": "object",
+                "properties": {
+                  "ratioPu": {
+                    "type": "number"
+                  },
+                  "nominalKv": {
+                    "type": "number"
+                  },
+                  "angleDeg": {
+                    "type": "number"
+                  },
+                  "rateMva": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "rateSet": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    }
+                  },
+                  "rMaxPu": {
+                    "type": "number"
+                  },
+                  "rMinPu": {
+                    "type": "number"
+                  },
+                  "vMax": {
+                    "type": "number"
+                  },
+                  "vMin": {
+                    "type": "number"
+                  },
+                  "numTaps": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "winding2": {
+                "type": "object",
+                "properties": {
+                  "ratioPu": {
+                    "type": "number"
+                  },
+                  "nominalKv": {
+                    "type": "number"
+                  },
+                  "angleDeg": {
+                    "type": "number"
+                  }
+                }
+              },
+              "winding3": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "impedance": {
+                "type": "object",
+                "required": [
+                  "r12Pu",
+                  "x12Pu",
+                  "sbase12Mva"
+                ],
+                "properties": {
+                  "r12Pu": {
+                    "type": "number"
+                  },
+                  "x12Pu": {
+                    "type": "number"
+                  },
+                  "sbase12Mva": {
+                    "type": "number"
+                  },
+                  "r23Pu": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "x23Pu": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sbase23Mva": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "r31Pu": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "x31Pu": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sbase31Mva": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              },
+              "magnetizing": {
+                "type": "object",
+                "properties": {
+                  "gPu": {
+                    "type": "number"
+                  },
+                  "bPu": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fixedShunts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ibus",
+              "shuntId",
+              "inService",
+              "gMw",
+              "bMvar"
+            ],
+            "properties": {
+              "ibus": {
+                "type": "integer"
+              },
+              "shuntId": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "gMw": {
+                "type": "number"
+              },
+              "bMvar": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "switchedShunts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ibus",
+              "shuntId",
+              "inService",
+              "bInitMvar"
+            ],
+            "properties": {
+              "ibus": {
+                "type": "integer"
+              },
+              "shuntId": {
+                "type": "string"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "controlMode": {
+                "type": "integer"
+              },
+              "bInitMvar": {
+                "type": "number"
+              },
+              "vHighPu": {
+                "type": "number"
+              },
+              "vLowPu": {
+                "type": "number"
+              },
+              "controlledBus": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "inService": {
+                      "type": "boolean"
+                    },
+                    "numSteps": {
+                      "type": "integer"
+                    },
+                    "stepBMvar": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "substations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "subNumber",
+              "name"
+            ],
+            "properties": {
+              "subNumber": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "latitude": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "longitude": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "groundingResOhms": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "substationNodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "subNumber",
+              "nodeNumber",
+              "name",
+              "electricalBus"
+            ],
+            "properties": {
+              "subNumber": {
+                "type": "integer"
+              },
+              "nodeNumber": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "electricalBus": {
+                "type": "integer"
+              },
+              "inService": {
+                "type": "boolean"
+              },
+              "vmPu": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vaDeg": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "substationSwitches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "subNumber",
+              "fromNode",
+              "toNode",
+              "circuitId",
+              "isClosed"
+            ],
+            "properties": {
+              "subNumber": {
+                "type": "integer"
+              },
+              "fromNode": {
+                "type": "integer"
+              },
+              "toNode": {
+                "type": "integer"
+              },
+              "circuitId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "switchType": {
+                "type": "integer",
+                "description": "0=connector, 1=breaker, 2=disconnect"
+              },
+              "isClosed": {
+                "type": "boolean"
+              },
+              "isNormalClosed": {
+                "type": "boolean"
+              },
+              "xPu": {
+                "type": "number"
+              },
+              "ratingMva": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
