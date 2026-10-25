@@ -1,4 +1,7 @@
 import {pfScReferenceRows} from './sc-reference';
+import {scScopeRows} from '../results/sc-view-scope';
+import {scDisplayTerminal} from '../results/sc-node';
+import {voltageBand} from '../model/voltage-band';
 import {currentScResult} from '../results/sc-selection';
 import {compactScRows} from '../../features/analysis/compact-rows';
 import {scenarioLfComparison} from '../results/lf-comparison';
@@ -100,15 +103,15 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
     return data;
   }
   if(s.analysis==='SC'){
-    const source=s.source==='PF'?'PF':'GA',rows=compactScRows(ctx,source).filter(r=>!s.nodeKind||r.raw.nodeKind===s.nodeKind),unit=s.metric==='skssMva'?'MVA':'kA';
+    const source=s.source==='PF'?'PF':'GA',rows=scScopeRows(ctx,compactScRows(ctx,source),s.nodeKind??''),unit=s.metric==='skssMva'?'MVA':'kA';
     const pfCells=source==='PF'?new Map(pfScReferenceRows(ctx).map(r=>[r.fid,r])):null;
     if(pfCells&&(!s.nodeKind||s.nodeKind==='UNCLASSIFIED'))for(const cell of pfCells.values())if(!busById.has(cell.fid)&&(!s.voltageKv||cell.nominalKv===s.voltageKv))data.noGeometry++;
     for(const row of rows){
-      if(s.voltageKv&&(row.kv==null||Math.abs(row.kv-s.voltageKv)>1e-6))continue;
+      if(s.voltageKv&&voltageBand(row.kv)!==voltageBand(s.voltageKv))continue;
       const value=source==='PF'?row.metrics.ikss?.pf??null:s.metric==='skssMva'?row.metrics.skss?.ga??null:row.metrics.ikss?.ga??null;
       if(value!==null&&Number.isFinite(value))data.numericValues!++;
       let hasGeometry=false;const ids=JSON.parse(String(row.raw.physicalAliases??'[]')) as string[];
-      for(const siteId of row.siteIds??[]){const fid=ids.find(id=>busById.get(id)?.siteIds.includes(siteId))??row.fid,cell=pfCells?.get(fid);putSite(siteId,{value,unit,status:source==='PF'?'PF_REFERENCE_ONLY':String(row.raw.Hesap_Durumu),nominalKv:row.kv,electricalBusId:row.key,sourceCellKey:cell?.sourceCellKey??String(row.raw.sourceCellKey??''),details:[`${source} · ${row.name} (${fid}) · ${row.kv} kV · ${value??'—'} ${unit}`,source==='PF'?'TM maksimumu · PF kaynak hücresi; GA yöntem paritesi doğrulanmadı':String(row.raw.reason_3F)]},fid,row.kv);const site=siteById.get(siteId);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
+      for(const siteId of row.siteIds??[]){const display=scDisplayTerminal(network,ids,row.kv,[siteId]),fid=display?.sourceId??ids.find(id=>busById.get(id)?.siteIds.includes(siteId))??row.fid,cell=pfCells?.get(fid);putSite(siteId,{value,unit,status:source==='PF'?'PF_REFERENCE_ONLY':String(row.raw.Hesap_Durumu),nominalKv:row.kv,electricalBusId:row.key,sourceCellKey:cell?.sourceCellKey??String(row.raw.sourceCellKey??''),details:[`${source} · ${row.name} (${fid}) · ${row.kv} kV · ${value??'—'} ${unit}`,source==='PF'?'TM maksimumu · PF kaynak hücresi; GA yöntem paritesi doğrulanmadı':String(row.raw.reason_3F)]},fid,row.kv);const site=siteById.get(siteId);if(site?.lat!=null&&site.lon!=null)hasGeometry=true;}
       if(!hasGeometry)data.noGeometry++;
 
     }

@@ -1,5 +1,6 @@
 import {pfScReferenceRows} from '../../domain/benchmark/sc-reference';
-import {scNodeClassification} from '../../domain/results/sc-node';
+import {scNodeClassification,scDisplayTerminal} from '../../domain/results/sc-node';
+import {stableJson} from '../../domain/calculation/identity';
 import type {AppContext} from '../../app/contracts';
 import type {HybridCase} from '../../analysis/contingency-hybrid';
 import {ytmN1Rows,ytmReferenceRows,type StudyExportRow} from '../../analysis/ytm-study/export';
@@ -52,20 +53,26 @@ export function compactN1Rows(ctx:AppContext):CompactRow[]{
  });
 }
 
+const scRowsCache=new WeakMap<AppContext,Map<string,{key:string;refs:unknown[];rows:CompactRow[]}>>();
 export function compactScRows(ctx:AppContext,source:'GA'|'PF'='GA'):CompactRow[]{
+ const sc=currentScResult(ctx),key=stableJson([ctx.filters.areaId,ctx.filters.siteId,ctx.resultView.scMode,ctx.benchmarkMap?.scMode,sc?.identity,sc?.profile,ctx.scenario.revision,ctx.analysisSettings.value]),refs=[ctx.network,ctx.network?.buses,sc,sc?.faults,sc?.faults.length,ctx.scContext,ctx.ytmStudy,ctx.studyOptions,ctx.benchmark,ctx.resultStore.active,ctx.scenario.current],cache=scRowsCache.get(ctx)??new Map(),old=cache.get(source);
+ if(old?.key===key&&refs.every((v,i)=>v===old.refs[i]))return old.rows;
+ const rows=buildCompactScRows(ctx,source);cache.set(source,{key,refs,rows});scRowsCache.set(ctx,cache);return rows;
+}
+function buildCompactScRows(ctx:AppContext,source:'GA'|'PF'):CompactRow[]{
  const sc=currentScResult(ctx),n=ctx.network,study=currentStudy(ctx);if(!n)return [];
  const i=index(n),mode=source==='PF'?(ctx.benchmarkMap?.scMode??'MAX'):sc?.profile.calculateMode??'MAX';
- const pfRows=mode==='MAX'?pfScReferenceRows(ctx):[];
  if(source==='PF'||!sc){
+  const pfRows=mode==='MAX'?pfScReferenceRows(ctx):[];
   const byKey=new Map<string,CompactRow>();
   const table=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw;
   const native=new Map(table?.rows.map(v=>{const r=rowObject(table,v);return [String(r.physicalTerminalFid??r.fid??r.FID),r];})??[]);
   for(const r of pfRows){const t=i.terminals.get(r.fid);if(!t||r.nominalKv==null||Math.abs(t.vnKv-r.nominalKv)>1e-6)continue;
-   const record=native.get(r.fid),key=String(record?.electricalBusKey??record?.calculationBusKey??r.fid),siteIds=[...t.siteIds],place=i.places(siteIds),node=scNodeClassification(n,[r.fid]);
+   const record=native.get(r.fid),key=String(record?.electricalBusKey??record?.calculationBusKey??r.fid),siteIds=t.siteIds.filter(id=>(!ctx.filters.siteId||id===ctx.filters.siteId)&&(!ctx.filters.areaId||i.sites.get(id)?.areaId===ctx.filters.areaId)),place=i.places(siteIds),node=scNodeClassification(n,[r.fid]);if((ctx.filters.areaId||ctx.filters.siteId)&&!siteIds.length)continue;
    const raw={FID:r.fid,Bara_FID:r.fid,Bara_Adi:t.name,electricalBusId:key,siteIds,Baz_kV:t.vnKv,mode,status_3F:'NOT_RUN',Hesap_Durumu:'PF_REFERENCE_ONLY',PF_Ikss_kA:r.pf.value,GA_3F_Ikss_kA:null,GA_3F_Ikss_A:null,reason_3F:'GA_NOT_RUN',referenceStatus:r.status,referenceReason:r.reason,nodeKind:node.kind,nodeLabel:node.label,nodeEvidence:node.evidence.join('; '),source:'PF',sourceCellKey:r.sourceCellKey??'',physicalAliases:JSON.stringify([r.fid]),modelHash:n.modelHash};
    const row=finish({key,fid:r.fid,faultId:r.fid,name:t.name,cls:'ElmTerm',kv:t.vnKv,siteIds,...place,status:'PF_REFERENCE_ONLY',metrics:{ikss:pair(null,r.pf.value,null,r.reason),voltage:pair(null,null),angle:pair(null,null)},raw,detail:{...raw,source:r.pf.source,comparison:r}});
    const old=byKey.get(key),chosen=!old||r.pf.value!>old.metrics.ikss.pf!?row:old,ids=[...new Set([...(old?JSON.parse(String(old.raw.physicalAliases)):[]),r.fid])],sites=[...new Set([...(old?.siteIds??[]),...siteIds])],classification=scNodeClassification(n,ids);chosen.siteIds=sites;Object.assign(chosen,i.places(sites));Object.assign(chosen.raw,{siteIds:sites,physicalAliases:JSON.stringify(ids),nodeKind:classification.kind,nodeLabel:classification.label,nodeEvidence:classification.evidence.join('; ')});byKey.set(key,finish(chosen));
-  }return [...byKey.values()];
+  }return [...byKey.values()].map(row=>{const display=scDisplayTerminal(n,JSON.parse(String(row.raw.physicalAliases)),row.kv,row.siteIds??[]);return finish({...row,name:display?.name??row.name,raw:{...row.raw,displayFid:display?.sourceId??row.fid,displayName:display?.name??row.name,sourceFaultFid:row.fid}});});
  }
  if(studyOwnsSc(ctx,sc)&&!study)return [];
  const reference=ctx.benchmark?.groups.SC.tables.SC_BusResults_Raw?ytmReferenceRows({identity:{modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,optionsHash:sc.identity.profileHash},scMax:mode==='MAX'?sc:null,scMin:mode==='MIN'?sc:null},n,ctx.benchmark):[],refs=new Map(reference.map(r=>[String(r.FID),r])),groups=new Map<string,typeof sc.faults>();
@@ -75,9 +82,10 @@ export function compactScRows(ctx:AppContext,source:'GA'|'PF'='GA'):CompactRow[]
   const siteIds=[...new Set(aliases.flatMap(a=>[a.physicalTerminalFid,...a.physicalTerminalFids].flatMap(fid=>i.terminals.get(fid)?.siteIds??[])))].filter(id=>(!ctx.filters.siteId||id===ctx.filters.siteId)&&(!ctx.filters.areaId||i.sites.get(id)?.areaId===ctx.filters.areaId)),f=aliases.find(f=>typeof refs.get(f.physicalTerminalFid)?.PF_Ikss_kA==='number')??aliases[0],r=refs.get(f.physicalTerminalFid),t=i.terminals.get(f.physicalTerminalFid),place=i.places(siteIds),pf=finite(r?.PF_Ikss_kA),delta=scenarioSignature(ctx.scenario.current)===scenarioSignature(emptyScenario())?finite(r?.delta_kA):null;
   const why=[r?.reason,scenarioSignature(ctx.scenario.current)!==scenarioSignature(emptyScenario())?'PF_SCENARIO_IDENTITY_UNVERIFIED: '+Object.entries(ctx.scenario.current).filter(([k,v])=>k!=='energizations'&&Object.keys(v).length).map(([k,v])=>k+'='+JSON.stringify(v)).join('; '):''].filter(Boolean).join('; ');
   const status=f.status==='CALCULATED_NETWORK_APPROXIMATION'?f.status:f.status==='CANCELLED'?'NOT_RUN':f.reasons.some(r=>r.includes('NOT_COMPUTABLE'))?'NOT_COMPUTABLE':'BLOCKED',ga=status==='CALCULATED_NETWORK_APPROXIMATION'?finite(f.ikssKa):null,diagnostic=ga!==null&&pf!==null?ga-pf:null;
-  const ids=[...new Set(aliases.flatMap(a=>[a.physicalTerminalFid,...a.physicalTerminalFids]))],node=scNodeClassification(n,ids),bus=lfByTerm.get(electrical)??ids.map(id=>lfByTerm.get(id)).find(Boolean),u=bus?finite(bus.vnKv*bus.vmPu):null,angle=bus?finite(bus.angleRad*180/Math.PI):null;
+  const ids=[...new Set(aliases.flatMap(a=>[a.physicalTerminalFid,...a.physicalTerminalFids]))],localIds=ids.filter(id=>{const b=i.terminals.get(id);return b&&f.nominalKv!=null&&Math.abs(b.vnKv-f.nominalKv)<1e-6&&b.siteIds.some(s=>siteIds.includes(s));}),node=scNodeClassification(n,localIds),display=scDisplayTerminal(n,localIds,f.nominalKv,siteIds)??t,displayName=display?.name??f.physicalTerminalFid,bus=lfByTerm.get(electrical)??ids.map(id=>lfByTerm.get(id)).find(Boolean),u=bus?finite(bus.vnKv*bus.vmPu):null,angle=bus?finite(bus.angleRad*180/Math.PI):null;
   const raw={YTM:place.ytm,TM:place.tm,FID:f.physicalTerminalFid,Bara_FID:f.physicalTerminalFid,Bara_Adi:t?.name??f.physicalTerminalFid,name:t?.name??f.physicalTerminalFid,electricalBusId:electrical,physicalAliases:JSON.stringify(ids),siteIds,Baz_kV:f.nominalKv,kV:f.nominalKv,mode,U_kV:u,Gerilim_kV:u,Aci_deg:angle,GA_3F_Ikss_kA:ga,GA_3F_Ikss_A:ga!==null?Math.round(ga*1000):null,GA_Ikss_kA:ga,PF_Ikss_kA:pf,delta_kA:delta,diagnosticDelta_kA:diagnostic,status_3F:status,Hesap_Durumu:status==='CALCULATED_NETWORK_APPROXIMATION'?'CALCULATED':status,reason_3F:f.reasons.join('; '),referenceStatus:r?.status??'PF_NOT_RECORDED',referenceReason:why||'PF_NOT_RECORDED',nodeKind:node.kind,nodeLabel:node.label,nodeEvidence:node.evidence.join('; '),source:'GA',Skss_MVA:f.skssMva,Z3F_DrivingPoint_R_ohm:f.zkkOhm?.re??null,Z3F_DrivingPoint_X_ohm:f.zkkOhm?.im??null,Zkk_R_ohm:f.zkkOhm?.re??null,Zkk_X_ohm:f.zkkOhm?.im??null,quality:f.quality??null,status:f.status,reason:f.reasons.join('; '),standardBasis:'IEC60909-0:2016',IEC_VERIFIED:'false',modelHash:sc.identity.modelHash,scenarioHash:sc.identity.scenarioHash,sourceHash:sc.identity.sourceHash,profileHash:sc.identity.profileHash};
-  return finish({key:electrical,fid:f.physicalTerminalFid,faultId:f.physicalTerminalFid,name:t?.name??f.physicalTerminalFid,cls:'ElmTerm',kv:f.nominalKv,siteIds,...place,status:f.status,metrics:{ikss:pair(ga,pf,delta,why||'PF eşdeğerliği doğrulanmadı'),diagnostic:pair(diagnostic,null,null,'TANISAL; PF paritesi doğrulanmadı'),skss:pair(finite(f.skssMva),null),voltage:pair(u,null),angle:pair(angle,null)},raw,detail:{...raw,fault:f,physicalTerminalFids:ids,zkkOhm:f.zkkOhm,lfBus:bus??null,sourceOmissions:f.sourceOmissions??[],assumptions:sc.assumptions,methodEvidence:sc.methodEvidence,comparison:r??null,identity:sc.identity}});
+  Object.assign(raw,{displayFid:display?.sourceId??f.physicalTerminalFid,displayName,sourceFaultFid:f.physicalTerminalFid});
+  return finish({key:electrical,fid:f.physicalTerminalFid,faultId:f.physicalTerminalFid,name:displayName,cls:'ElmTerm',kv:f.nominalKv,siteIds,...place,status:f.status,metrics:{ikss:pair(ga,pf,delta,why||'PF eşdeğerliği doğrulanmadı'),diagnostic:pair(diagnostic,null,null,'TANISAL; PF paritesi doğrulanmadı'),skss:pair(finite(f.skssMva),null),voltage:pair(u,null),angle:pair(angle,null)},raw,detail:{...raw,fault:f,physicalTerminalFids:ids,zkkOhm:f.zkkOhm,lfBus:bus??null,sourceOmissions:f.sourceOmissions??[],assumptions:sc.assumptions,methodEvidence:sc.methodEvidence,comparison:r??null,identity:sc.identity}});
  }).sort((a,b)=>a.tm.localeCompare(b.tm,'tr')||a.name.localeCompare(b.name,'tr'));
 }
 

@@ -1,4 +1,5 @@
 import {SC_NODE_LABELS} from '../domain/results/sc-node';
+import {populateVoltageGroups,selectVoltageGroup,scNodeFilter} from '../domain/results/sc-view-scope';
 import type {AppContext} from '../app/contracts';
 import {element,button} from '../ui/components/dom';
 import type {BenchmarkMapSelection} from '../domain/benchmark/map-layer';
@@ -28,7 +29,7 @@ export function createBenchmarkMapControls(ctx:AppContext){
   function selection():BenchmarkMapSelection|null{
     if(!analysis.value)return null;
     const isSc=analysis.value==='SC';
-    return {analysis:analysis.value as 'LF'|'N1'|'SC',source:source.value as BenchmarkMapSelection['source'],metric:metric.value==='postDeltaPmw'?'postPmw':metric.value==='newConstraints'?'postLoadingPercent':metric.value,table:analysis.value==='LF'?'GA_Reference_Raw':analysis.value==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:cases.value,n1Layer:isSc?undefined:(metric.value==='postDeltaPmw'?'CHANGE':metric.value==='newConstraints'?'NEW_CONSTRAINTS':phase.value as BenchmarkMapSelection['n1Layer']),scMode:isSc?(phase.value==='MIN'?'MIN':'MAX'):undefined,diagnostic:diagnostic.checked,side:side.value,nodeKind:isSc?node.value||undefined:undefined,voltageKv:voltage.value?Number(voltage.value):undefined};
+    return {analysis:analysis.value as 'LF'|'N1'|'SC',source:source.value as BenchmarkMapSelection['source'],metric:metric.value==='postDeltaPmw'?'postPmw':metric.value==='newConstraints'?'postLoadingPercent':metric.value,table:analysis.value==='LF'?'GA_Reference_Raw':analysis.value==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:cases.value,n1Layer:isSc?undefined:(metric.value==='postDeltaPmw'?'CHANGE':metric.value==='newConstraints'?'NEW_CONSTRAINTS':phase.value as BenchmarkMapSelection['n1Layer']),scMode:isSc?(phase.value==='MIN'?'MIN':'MAX'):undefined,diagnostic:diagnostic.checked,side:side.value,nodeKind:isSc?node.value:undefined,voltageKv:!isSc&&voltage.value?Number(voltage.value):undefined};
   }
   function commit(){
     if(analysis.value==='SC'&&source.value==='GA'&&['MAX','MIN'].includes(phase.value)){
@@ -41,6 +42,7 @@ export function createBenchmarkMapControls(ctx:AppContext){
         }
       }
     }
+    if(analysis.value==='SC')ctx.resultView.scNodeKind=node.value;
     const s=selection();ctx.benchmarkMap=s;
     if(!s){ctx.analysisTab=ctx.resultView.analysis='LF';ctx.resultView.source='GA';ctx.resultStore.analysisType='powerFlow';ctx.settings.update({displayMode:metric.value as Settings['displayMode']});}
     else{ctx.analysisTab=ctx.resultView.analysis=s.analysis;ctx.resultView.source=s.source==='PF'?'PF':s.source==='SCENARIO_DELTA'?'Senaryo−Baz':['DELTA','EXPLORATORY_DELTA'].includes(s.source)?'GA−PF':'GA';ctx.resultView.metric=s.metric;ctx.resultView.caseId=s.caseId;ctx.resultView.phase=s.n1Layer==='BASE'?'PRE':s.n1Layer==='CHANGE'?'CHANGE':'POST';ctx.resultView.side=s.side;if(s.analysis==='SC')ctx.resultView.faultId=cases.value;if(s.analysis==='LF'){ctx.resultStore.analysisType='powerFlow';if(s.source==='SCENARIO_DELTA')ctx.resultStore.role='delta';else if(s.source==='GA'&&ctx.resultStore.role==='delta')ctx.resultStore.role='scenario';}ctx.settings.update({displayMode:s.analysis==='LF'&&s.metric==='island'?'island':'nominal'});}
@@ -64,11 +66,11 @@ export function createBenchmarkMapControls(ctx:AppContext){
     if(external){analysis.value=external.analysis;source.value=external.source;if(external.analysis==='LF'&&!LF_MAP_METRICS.some(m=>m.metric===external.metric)){external.metric=/voltage/.test(external.metric)?'voltageKv':/^[qs].*(Hv|Lv)/.test(external.metric)?external.metric.startsWith('q')?'qHvMvar':'pHvMw':/^[ps].*(Hv|Lv)/.test(external.metric)?'pHvMw':external.metric.startsWith('q')?'qFromMvar':'pFromMw';ctx.resultView.metric=external.metric;}}else if(ctx.resultView.analysis!=='LF'){analysis.value=ctx.resultView.analysis;source.value=ctx.resultView.source==='PF'?'PF':'GA';}
     populate();
     if(external){const selected=external.analysis==='N1'&&external.n1Layer==='CHANGE'&&external.metric==='postPmw'?'postDeltaPmw':external.n1Layer==='NEW_CONSTRAINTS'?'newConstraints':external.metric;metric.value=[...metric.options].some(o=>o.value===selected)?selected:external.analysis==='LF'&&selected==='voltagePu'?'voltageKv':metric.options[0]?.value??'';phase.value=external.analysis==='SC'?(external.scMode??'MAX'):(external.n1Layer??'POST');side.value=external.side??'FROM';voltage.value=external.voltageKv?String(external.voltageKv):'';diagnostic.checked=external.diagnostic===true;}
-    node.parentElement!.hidden=analysis.value!=='SC';const active=analysis.value;topologyControl.hidden=active!=='N1';topology.value=!external&&ctx.settings.value.displayMode.startsWith('n1-')?ctx.settings.value.displayMode:'';source.disabled=!active;caseControl.hidden=active!=='N1'&&active!=='SC';
+  node.parentElement!.hidden=analysis.value!=='SC';const active=analysis.value;if(active==='SC')node.value=scNodeFilter(ctx);topologyControl.hidden=active!=='N1';topology.value=!external&&ctx.settings.value.displayMode.startsWith('n1-')?ctx.settings.value.displayMode:'';source.disabled=!active;caseControl.hidden=active!=='N1'&&active!=='SC';
     sideControl.hidden=active!=='N1';phaseControl.hidden=active!=='N1'&&active!=='SC';
     if(active==='SC'){phaseControl.querySelector('span')!.textContent='Mod';const curMode=external?.scMode??(currentScResult(ctx)?.profile.calculateMode??'MAX');phase.value=curMode;}else phaseControl.querySelector('span')!.textContent='Faz';
     voltageControl.hidden=consent.hidden=!active;
-    if(ctx.network&&voltageKey!==ctx.network.modelHash){voltageKey=ctx.network.modelHash;voltage.replaceChildren();add(voltage,'','Tüm katmanlar');for(const v of [...new Set(ctx.network.buses.map(b=>b.vnKv))].sort((a,b)=>b-a))add(voltage,String(v),v+' kV');}
+    if(active==='SC'){populateVoltageGroups(voltage,ctx);voltageKey='';}else if(ctx.network&&voltageKey!==ctx.network.modelHash){voltageKey=ctx.network.modelHash;voltage.replaceChildren();add(voltage,'','Tüm katmanlar');for(const v of [...new Set(ctx.network.buses.map(b=>b.vnKv))].sort((a,b)=>b-a))add(voltage,String(v),v+' kV');}
     const rows=active==='N1'||active==='SC'?mapCaseOptions(ctx,active):[];
     faultSearch.hidden=active!=='SC'&&active!=='N1';const needle=faultSearch.value.trim().toLocaleLowerCase('tr-TR'),selected=active==='SC'?ctx.resultView.faultId:ctx.resultView.caseId,visible=active==='SC'||active==='N1'?rows.filter(r=>!needle||r.join(' ').toLocaleLowerCase('tr-TR').includes(needle)).slice(0,49):rows;if((active==='SC'||active==='N1')&&selected&&!visible.some(r=>r[0]===selected)){const chosen=rows.find(r=>r[0]===selected);if(chosen)visible.push(chosen);}const key=JSON.stringify(visible);if(caseKey!==active+key){caseKey=active+key;cases.replaceChildren();add(cases,'','Vaka / arıza seçin');for(const [v,l] of visible)add(cases,v,l);}
     cases.value=active==='SC'?ctx.resultView.faultId??'':ctx.resultView.caseId??'';cases.disabled=ctx.busy||rows.length===0;cases.setAttribute('aria-label',active==='SC'?'Harita kısa devre arızası':'Benchmark harita kesintisi');caseControl.querySelector('span')!.textContent=active==='SC'?'Arıza':'Kesinti';
@@ -80,6 +82,7 @@ export function createBenchmarkMapControls(ctx:AppContext){
   analysis.onchange=()=>{ctx.benchmarkMap=null;source.value='GA';ctx.resultView.analysis=analysis.value as 'LF'|'N1'|'SC'||'LF';populate();commit();};
   source.onchange=()=>{if(analysis.value==='SC'&&source.value==='PF'){if(phase.value==='MIN')phase.value='MAX';if(metric.value==='skssMva')metric.value='maxIkssKa';}commit();};
   for(const field of [metric,phase,side,voltage,diagnostic])field.onchange=commit;
+  voltage.onchange=()=>{if(analysis.value==='SC')selectVoltageGroup(ctx,voltage.value);commit();};
   cases.onchange=()=>{commit();if(analysis.value==='N1'&&source.value==='GA')void ctx.loadHybridCaseDetail(cases.value);};
   topology.onchange=()=>{if(!topology.value){commit();return;}ctx.benchmarkMap=null;ctx.analysisTab=ctx.resultView.analysis='N1';ctx.resultView.source='GA';ctx.resultView.metric=topology.value==='n1-island'?'islands':'thermalRisk';ctx.settings.update({displayMode:topology.value as Settings['displayMode']});ctx.notify();};
   return {element:root,body,analysisControl,sourceControl,metricControl,caseControl,render};

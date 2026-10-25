@@ -5,7 +5,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import type {AppContext} from '../../app/contracts';
 import {stableJson,identityKey} from '../calculation/identity';
 import {scenarioSignature,scenarioChanged} from '../scenario/overlay';
-export interface ResultView {scMode?:'MAX'|'MIN';scenarioId:string;fid?:string;analysis:'LF'|'N1'|'SC';source:'GA'|'PF'|'GA−PF'|'Senaryo−Baz';phase:'BASE'|'PRE'|'POST'|'CHANGE';metric:string;caseId?:string;faultId?:string;side?:string}
+export interface ResultView {scNodeKind?:string;scMode?:'MAX'|'MIN';scenarioId:string;fid?:string;analysis:'LF'|'N1'|'SC';source:'GA'|'PF'|'GA−PF'|'Senaryo−Baz';phase:'BASE'|'PRE'|'POST'|'CHANGE';metric:string;caseId?:string;faultId?:string;side?:string}
 export const initialResultView=():ResultView=>({scenarioId:'B0',analysis:'LF',source:'GA',phase:'BASE',metric:'pFromMw'});
 export function workspaceKey(ctx:AppContext):string{return stableJson({model:ctx.network?.modelHash,scenario:scenarioSignature(ctx.scenario.current),settings:ctx.analysisSettings.value,control:ctx.powerFactoryControlContextHash});}
 export interface ScenarioResults {ytm?:AppContext['ytmStudy'];studyOptions?:AppContext['studyOptions'];n1:AppContext['n1Result'];ac:AppContext['n1AcResults'];hybrid:AppContext['hybridResult'];sc:AppContext['scResult'];scContext:AppContext['scContext']}
@@ -32,4 +32,4 @@ export function activeResultId(ctx:AppContext):string|null{const v=ctx.resultVie
   return activeN1Id(ctx);
 }
 
-export function workspaceMapSelection(ctx:AppContext):BenchmarkMapSelection{const v=ctx.resultView;return {analysis:v.analysis,source:v.source==='PF'?'PF':v.source==='GA−PF'?'DELTA':v.source==='Senaryo−Baz'?'SCENARIO_DELTA':'GA',metric:v.metric,...(v.analysis==='SC'?{scMode:v.scMode??ctx.scResult?.profile.calculateMode}:{}),table:v.analysis==='LF'?'GA_Reference_Raw':v.analysis==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:v.caseId,n1Layer:v.phase==='PRE'||v.phase==='BASE'?'BASE':v.phase==='CHANGE'?'CHANGE':'POST',side:v.side};}
+export function workspaceMapSelection(ctx:AppContext):BenchmarkMapSelection{const v=ctx.resultView;return {analysis:v.analysis,source:v.source==='PF'?'PF':v.source==='GA−PF'?'DELTA':v.source==='Senaryo−Baz'?'SCENARIO_DELTA':'GA',metric:v.metric,...(v.analysis==='SC'?{scMode:v.scMode??ctx.scResult?.profile.calculateMode,nodeKind:v.scNodeKind??'PHYSICAL_BUS'}:{}),table:v.analysis==='LF'?'GA_Reference_Raw':v.analysis==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:v.caseId,n1Layer:v.phase==='PRE'||v.phase==='BASE'?'BASE':v.phase==='CHANGE'?'CHANGE':'POST',side:v.side};}

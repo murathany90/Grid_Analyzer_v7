@@ -17,7 +17,13 @@ import {cleanStudy,cleanWorkspace,upgradeLegacyThreePhase} from '../../src/domai
 import {runYtmStudy} from '../../src/analysis/ytm-study';
 import {engineeringSourceOptions} from '../../src/analysis/short-circuit/engineering-profile';
 import {scNodeClassification,nominalKv,scVoltageOptions} from '../../src/domain/results/sc-node';
+import {pfScReferenceRows} from '../../src/domain/benchmark/sc-reference';
 const mini=JSON.parse(await readFile('tests/fixtures/sc-mini-dgs.json','utf8'));
+test('PF reference availability does not read GA results or run LF comparison preflight',async()=>{
+ const pair=syntheticBenchmarkPair(true,true),loaded=await loadBenchmarkModel(pair.model),{ctx}=analysisUiFixture();ctx.network=loaded.network;ctx.benchmark=await loadBenchmark(pair.benchmark);
+ Object.defineProperty(ctx,'scResult',{get(){throw Error('PF reference must not depend on GA result');}});ctx.resultStore.get=()=>{throw Error('PF reference must not depend on LF result');};
+ const rows=pfScReferenceRows(ctx);assert.equal(rows.length,2);assert.ok(rows.every(r=>r.ga===null&&r.delta===null&&!r.identityMatched));assert.equal(pfScReferenceRows(ctx),rows);
+});
 const profile:ScProfile={faultType:'3PH',calculateMode:'MAX',voltageFactor:1.1,factorProvenance:'independent analytical fixture',edition:null,rfOhm:0,xfOhm:0,maxFaults:100,timeBudgetMs:30000};
 const near=(a:number|null|undefined,b:number)=>assert.ok(a!=null&&Math.abs(a-b)<Math.max(1,Math.abs(b))*1e-7,`${a} != ${b}`);
 async function loaded(){return loadBenchmarkModel(new File([JSON.stringify(mini)],'mini.json'));}

@@ -20,3 +20,10 @@ export function scNodeClassification(n:CanonicalNetwork,ids:readonly string[]){
 export function scVoltageOptions(n:CanonicalNetwork|null){return [...new Set([400,220,154,66,34.5,33,...n?.buses.map(b=>b.vnKv).filter(v=>v>0&&Number.isFinite(v))??[]])].sort((a,b)=>b-a);}
 export const nominalKv=(value:number|null|undefined)=>value==null?'—':value.toLocaleString('tr-TR',{maximumFractionDigits:3});
 export const scCurrentKa=(value:number|null|undefined)=>value==null||!Number.isFinite(value)?'—':value.toLocaleString('tr-TR',{minimumFractionDigits:3,maximumFractionDigits:3});
+/** A display alias must already belong to this electrical node, nominal base and visible station. */
+const displayIndices=new WeakMap<CanonicalNetwork,{buses:CanonicalNetwork['buses'];index:Map<string,CanonicalNetwork['buses'][number]>}>();
+export function scDisplayTerminal(n:CanonicalNetwork,ids:readonly string[],kv:number|null,sites:readonly string[]){
+ let cached=displayIndices.get(n);if(!cached||cached.buses!==n.buses){cached={buses:n.buses,index:new Map(n.buses.flatMap(b=>[[b.id,b],[b.sourceId,b]]))};displayIndices.set(n,cached);}
+ const scope=new Set(sites),candidates=[...new Set(ids.map(id=>cached!.index.get(id)).filter(b=>!!b))].filter(b=>kv!=null&&Math.abs(b.vnKv-kv)<1e-6&&(!scope.size||b.siteIds.some(id=>scope.has(id))));
+ return candidates.sort((a,b)=>Number(b.usage===0)-Number(a.usage===0)||a.sourceId.localeCompare(b.sourceId,'en',{numeric:true}))[0]??null;
+}
