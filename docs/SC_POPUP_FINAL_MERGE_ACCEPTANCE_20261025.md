@@ -3,8 +3,8 @@
 Tarih: 25.10.2026. Referans HEAD: `88f3a73e7e9b58a9360329af29a5d72778fd23b9`.
 Uygulama commit'i: `8f061edfccab0a84457c3bea6977d19fe0ce2d6b`.
 Test fixture düzeltmesi ve kabul edilen kod HEAD'i: `7a0e2cfa1d114417c20c684a5a3871e7bb903188`.
-Dal: `feature/sc-pf-parity-ui`. İşlevsel kabul: **PASS**. Yalnız fast-forward main teslimine uygundur.
-Bu raporu içeren teslim commit'i de feature ve main üzerinde aynı HEAD olacaktır; kesin uzak HEAD teslim yanıtında verilir.
+Dal: `feature/sc-pf-parity-ui`. İşlevsel kabul: **PASS**. Nihai teslim kararı: **MERGE BLOCKED — FAIL**.
+Uzak main teslimi GitHub dal koruması tarafından reddedilmiştir; kesin feature ve main HEAD'leri teslim yanıtında verilir.
 
 ## Düzeltme
 
@@ -76,3 +76,17 @@ SHA-256: `ce5f1fb806a38fa2873ac8bd8fee32385e47c40ae13372b8f8819e6d25bc2ca6`.
 Önceki gerçek SN4 karşılaştırmasının **12 elektriksel bara, MAE ≈ 42,108 kA, maksimum fark ≈ 239,573 kA** tanısal sonucu korunur; bu turda tekrar çalıştırılmamıştır. Fiziksel katsayı, PF referans girdisi veya 3F hesap algoritması değiştirilmemiştir.
 
 Merge koşulu: mevcut `origin/main` = `e04a9e99a0a2bf23cbe88f9e34ba1bb5a6bd043f` değişmeden feature'ın atası olmalı; yalnız `--ff-only`, normal push, eşit uzak main/feature HEAD ve aynı portable blob ile teslim. Force push, rebase/reset, özel veri ekleme, yeni dal/PR veya dal silme yapılmaz. Mevcut kullanıcı untracked dosyaları korunur.
+
+## Git teslim sonucu — gerçek engel
+
+Feature uygulama/test/ilk kabul raporu **53140c9ca713bea4b8844f07bf5341cfcb920050** olarak push edilmiş ve uzak HEAD doğrulanmıştır. Güncel origin/main yine **e04a9e99a0a2bf23cbe88f9e34ba1bb5a6bd043f** bulunmuş; ancestor ve temiz tracked çalışma ağacı koşulları sağlanmıştır.
+
+Yerel `main` üzerinde `git merge --ff-only feature/sc-pf-parity-ui` başarıyla **53140c9ca713bea4b8844f07bf5341cfcb920050** konumuna ilerlemiştir. Ardından normal `git push origin main` GitHub tarafından reddedilmiştir:
+
+```text
+GH006: Protected branch update failed for refs/heads/main.
+Changes must be made through a pull request.
+Required status check "validate" is expected.
+```
+
+Uzak main değişmemiştir. Yeni PR yasağı nedeniyle PR açılmamış, koruma ayarı değiştirilmemiş ve bypass/force push denenmemiştir. Yerel main reset edilmeden bırakılmıştır. Çalışma dalı yeniden mevcut feature dalına alınmış; bu engel kaydı aynı feature'a ayrıca commit/push edilmiştir. Özel dosyalar korunmuştur. Uzak main/feature eşitliği ve yeni HTML'nin uzak main blob eşliği **sağlanamadı**; yalnız feature blob eşliği doğrulanmıştır. İşlevsel testler PASS olsa da istenen main teslimi tamamlanmadığından nihai karar **MERGE BLOCKED — FAIL**.
