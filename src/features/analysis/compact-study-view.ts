@@ -74,6 +74,8 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
     YTM:r.ytm,
     TM:r.tm,
     Bara_FID:r.fid,
+    sourceFaultFid:r.raw.sourceFaultFid??r.fid,
+    sourceCellKey:r.raw.sourceCellKey??null,
     Bara_Adi:r.name,
     Goruntuleme_FID:r.raw.displayFid??r.fid,
     Baz_kV:r.kv,
@@ -109,7 +111,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
  function showDetail(row:CompactRow){
   selected=row;const d=detail.body,family=ctx.analysisTab;
   detail.element.classList.toggle('ga-sc-result-dialog',family==='SC');
-  if(family==='SC'){d.replaceChildren(scDetail(row,'GA',()=>toMap(row)));detail.open();return;}
+  if(family==='SC'){d.replaceChildren(scDetail(row,ctx.resultView.source==='PF'?'PF':'GA',()=>toMap(row)));detail.open();return;}
   d.replaceChildren(element('h3','',row.name),element('p','',row.fid+' · '+row.status+(row.acLabel?' · '+row.acLabel:'')),button('Haritada göster',()=>toMap(row)),button('Tam kayıt JSON',()=>downloadText(JSON.stringify(row.detail,null,2),'GA_'+ctx.analysisTab+'_'+row.fid+'.json','application/json')));
   if(row.caseId){const c=ctx.hybridResult?.cases.find(c=>c.outage.caseId===row.caseId);ctx.resultView.caseId=row.caseId;
    for(const [source,label] of [['GA_AC','GA AC >%100'],['GA_DC','GA DC yaklaşık >%100'],['PF','PF kayıtlı >%100']] as const){const values=row.overloads?.filter(v=>v.source===source)??[];d.append(element('h3','',label),element('p','',values.length?values.map(v=>v.name+' ['+v.fid+'] '+(source==='GA_DC'?'~':'')+format(v.percent)+'% · '+v.ytm+(v.boundary?' · sınır ötesi':'')).join('\n'):source==='PF'?'Kayıt bulunmadı; PF tam POST matrisi değildir.':row.missingDetail||'Saklanan kayıtta %100 üzeri ekipman yok.'));}
@@ -177,5 +179,6 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
    }tbody.append(line);
   }host.append(table);if(!values.length)host.append(element('p','ga-muted','Bu kapsam/filtrede kayıt yok. Eksik sayılar sıfır kabul edilmez.'));
  }
- return {element:root,render};
+ const openScDetail=(event:Event)=>{const value=(event as CustomEvent<{key:string;source:'GA'|'PF';fid:string}>).detail;if(ctx.analysisTab!=='SC')return;const row=compactScRows(ctx,value.source).find(r=>r.key===value.key&&r.fid===value.fid);if(row)showDetail(row);};root.addEventListener('ga-sc-open-detail',openScDetail);
+ return {element:root,render,dispose:()=>root.removeEventListener('ga-sc-open-detail',openScDetail)};
 }

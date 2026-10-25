@@ -100,7 +100,7 @@ export class CanvasMapRenderer implements MapRenderer {
     const impact=this.n1Impact(line.id),color=this.n1Color(impact?.postEstimatedLoadingPct??impact?.estimatedLoadingPct);
     return color?{...style,color,width:Math.max(style.width,2.4),dash:[],alpha:1}:{...style,color:this.ctx.settings.value.colorNoResult,dash:[5,4],alpha:.75};
   }
-  constructor(private ctx:AppContext,private canvas:HTMLCanvasElement,private overlay:HTMLCanvasElement,private tooltip:HTMLElement,private baseCanvas:HTMLCanvasElement,private selectionCanvas:HTMLCanvasElement){
+  constructor(private ctx:AppContext,private canvas:HTMLCanvasElement,private overlay:HTMLCanvasElement,private tooltip:HTMLElement,private baseCanvas:HTMLCanvasElement,private selectionCanvas:HTMLCanvasElement,private onPaint?:()=>void){
     document.addEventListener('visibilitychange',this.visibility);
     this.resize=new ResizeObserver(()=>this.requestRender());this.resize.observe(canvas);
     canvas.onwheel=e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,factor=e.deltaY<0?1.18:1/1.18,old=this.zoom;this.zoom=Math.min(35,Math.max(.6,old*factor));const f=this.zoom/old;this.panX=(this.panX+this.width/2-x)*f+x-this.width/2;this.panY=(this.panY+this.height/2-y)*f+y-this.height/2;this.requestRender();};
@@ -110,6 +110,7 @@ export class CanvasMapRenderer implements MapRenderer {
     canvas.onpointerleave=e=>{if(e.relatedTarget instanceof Node&&this.tooltip.contains(e.relatedTarget))return;this.tooltip.hidden=true;this.hovered='';this.hoveredEntity=null;};canvas.tabIndex=0;canvas.setAttribute('aria-label','Şebeke haritası. Ok tuşlarıyla kaydırın, artı ve eksiyle yakınlaştırın.');
     canvas.onkeydown=e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','-','Escape'].includes(e.key))e.preventDefault();if(e.key==='Escape'){this.ctx.selection=null;this.ctx.notify();}else{if(e.key==='ArrowLeft')this.panX+=35;if(e.key==='ArrowRight')this.panX-=35;if(e.key==='ArrowUp')this.panY+=35;if(e.key==='ArrowDown')this.panY-=35;if(e.key==='+')this.zoom=Math.min(35,this.zoom*1.2);if(e.key==='-')this.zoom=Math.max(.6,this.zoom/1.2);this.requestRender();}};
   }
+  siteAnchor(id:string):{x:number;y:number}|null{const site=this.ctx.network?modelPresentationIndex(this.ctx.network).siteById.get(id):undefined;if(site?.lat==null||site.lon==null)return null;const[x,y]=this.point(site.lon,site.lat);return{x,y};}
   private point(lon:number,lat:number):[number,number]{const[x,y]=projectWgs84(lon,lat);return[this.width/2+x*this.scale+this.panX,this.height/2+y*this.scale+this.panY];}
   private splitVisible(){return splitTopologyVisible(this.ctx.benchmarkMap,this.ctx.settings.value.displayMode);}
   private positionTooltip(){if(!this.hoverPoint)return;const box=this.tooltip.getBoundingClientRect(),p=tooltipPosition(this.hoverPoint.x,this.hoverPoint.y,box.width,box.height,innerWidth,innerHeight);this.tooltip.style.left=p.left+'px';this.tooltip.style.top=p.top+'px';}
@@ -192,7 +193,7 @@ export class CanvasMapRenderer implements MapRenderer {
     cancelAnimationFrame(this.raf);this.raf=0;const overlay=this.overlay.getContext('2d')!;overlay.setTransform(dpr,0,0,dpr,0,0);overlay.clearRect(0,0,this.width,this.height);
     const current=lfSnapshotIsCurrent(result,n,!this.ctx.benchmarkMap&&this.ctx.resultStore.role==='base'?emptyScenario():this.ctx.scenario.current,this.ctx.analysisSettings.value)&&(!this.benchmarkData||this.benchmarkData.enabled);
     this.animationMetric=settings.flowDefault?mapFlowMetric(this.ctx.benchmarkMap,settings.displayMode,result,current):null;this.overlay.dataset.flowMetric=this.animationMetric??'none';
-    if(this.animationMetric==='q'){this.drawQArrows(overlay,dpr,performance.now());this.raf=requestAnimationFrame(this.animateQ);}else if(this.animationMetric==='p')this.animate();if(!this.tooltip.hidden)this.refreshTooltip();endPresentationTiming('map.paint');this.canvas.dataset.pathLengthSample=String([...this.lengths.values()].slice(0,5).reduce((sum,v)=>sum+v.total,0));this.canvas.dataset.paintCount=String(Number(this.canvas.dataset.paintCount??0)+1);this.canvas.dataset.numericSites=String(this.benchmarkData?[...this.benchmarkData.sites.values()].filter(v=>v.value!==null&&Number.isFinite(v.value)).length:0);
+    if(this.animationMetric==='q'){this.drawQArrows(overlay,dpr,performance.now());this.raf=requestAnimationFrame(this.animateQ);}else if(this.animationMetric==='p')this.animate();if(!this.tooltip.hidden)this.refreshTooltip();endPresentationTiming('map.paint');this.canvas.dataset.pathLengthSample=String([...this.lengths.values()].slice(0,5).reduce((sum,v)=>sum+v.total,0));this.canvas.dataset.paintCount=String(Number(this.canvas.dataset.paintCount??0)+1);this.canvas.dataset.numericSites=String(this.benchmarkData?[...this.benchmarkData.sites.values()].filter(v=>v.value!==null&&Number.isFinite(v.value)).length:0);this.onPaint?.();
   }
   detailText(entity:TooltipEquipment):string {
     const card=equipmentCard(this.ctx,entity);return [card.title,card.context,card.status,...card.rows.map(r=>r.join(' · ')),card.note].join('\n');

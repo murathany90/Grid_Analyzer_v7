@@ -2,17 +2,18 @@ import {workspaceMapSelection} from '../domain/results/workspace';
 import type {AppContext} from '../app/contracts';
 import {element,button} from '../ui/components/dom';
 import {compactScRows,type CompactRow} from '../features/analysis/compact-rows';
-import {scDetail} from '../features/analysis/sc-detail';
 import {selectScMode} from '../domain/results/sc-selection';
 import {scCurrentKa,nominalKv,SC_NODE_LABELS} from '../domain/results/sc-node';
 import {populateVoltageGroups,selectVoltageGroup,voltageGroupLabel,scNodeFilter,scScopeRows} from '../domain/results/sc-view-scope';
-export function createLightningScPanel(ctx:AppContext){
- const root=element('div','ga-lightning-sc-panel'),status=element('div','ga-lightning-sc-status'),toolbar=element('div','ga-lightning-sc-toolbar'),host=element('div','ga-lightning-sc-table-host'),pager=element('div','ga-lightning-sc-pager'),detail=element('div','ga-lightning-sc-detail-host');
+export interface ScRowActions {select(row:CompactRow,source:'GA'|'PF'):void;close():void}
+export function createLightningScPanel(ctx:AppContext,actions?:ScRowActions){
+ const root=element('div','ga-lightning-sc-panel'),status=element('div','ga-lightning-sc-status'),toolbar=element('div','ga-lightning-sc-toolbar'),host=element('div','ga-lightning-sc-table-host'),pager=element('div','ga-lightning-sc-pager');
  const tm=element('select'),mode=element('select'),voltage=element('select'),kind=element('select'),search=element('input');
  tm.setAttribute('aria-label','Seçili TM');mode.setAttribute('aria-label','SC hesap modu');voltage.setAttribute('aria-label','Gerilim Filtresi');kind.setAttribute('aria-label','Düğüm sınıfı');search.setAttribute('aria-label','TM baralarında ara');search.placeholder='Bara / düğüm adı veya FID';search.type='search';mode.innerHTML='<option value="MAX">MAX Arıza</option><option value="MIN">MIN Arıza</option>';
- kind.append(new Option('Tüm düğümler',''),...Object.entries(SC_NODE_LABELS).map(([v,label])=>new Option(label,v)));toolbar.append(tm,mode,voltage,kind,search);root.append(status,toolbar,host,pager,detail);
+ kind.append(new Option('Tüm düğümler',''),...Object.entries(SC_NODE_LABELS).map(([v,label])=>new Option(label,v)));toolbar.append(tm,mode,voltage,kind,search);root.append(status,toolbar,host,pager);
  let network:unknown,areaKey='',selected='',sort='tm',descending=false,page=0,lastPageKey='',lastRenderKey='',lastRefs:unknown[]=[];
- const closeDetail=()=>{selected='';detail.replaceChildren();detail.hidden=true;};closeDetail();
+ const clearSelection=()=>{selected='';lastRenderKey='';for(const tr of host.querySelectorAll('tr.is-selected')){tr.classList.remove('is-selected');tr.setAttribute('aria-selected','false');}};
+ const closeDetail=()=>{clearSelection();actions?.close();};
  root.addEventListener('keydown',e=>{if(e.key==='Escape'&&selected){e.stopPropagation();closeDetail();}});
  tm.onchange=()=>{ctx.filters.siteId=tm.value;closeDetail();ctx.notify();};
  mode.onchange=()=>{if(ctx.resultView.source==='PF')return;if(!selectScMode(ctx,mode.value as 'MAX'|'MIN'))ctx.setMessage('Seçilen mod için güncel 3F sonucu yok.');closeDetail();ctx.notify();};
@@ -35,13 +36,13 @@ export function createLightningScPanel(ctx:AppContext){
   const table=element('table','ga-lightning-sc-table'),thead=element('thead'),head=element('tr'),body=element('tbody');
   for(const [key,label] of [['tm','TM'],['name','Bara / Düğüm'],['type','Tür'],['kv','kV'],['ikss','3F Ikss (kA)'],['status','Durum']]){const th=element('th');if(key==='status'||key==='type')th.textContent=label;else{th.setAttribute('aria-sort',sort===key?(descending?'descending':'ascending'):'none');th.append(button(label+(sort===key?(descending?' ↓':' ↑'):''),()=>{descending=sort===key?!descending:false;sort=key;render();},label+' sırala'));}head.append(th);}thead.append(head);table.append(thead,body);
   const statuses:Record<string,string>={CALCULATED:'Hesaplandı',BLOCKED:'Engellendi',NOT_COMPUTABLE:'Hesaplanamadı',NOT_RUN:'Hesaplanmadı',PF_REFERENCE_ONLY:'PF mevcut · GA hesaplanmadı'};
-  for(const row of rows.slice(page*50,(page+1)*50)){const tr=element('tr');tr.dataset.fid=row.fid;tr.dataset.displayFid=String(row.raw.displayFid??row.fid);tr.dataset.electricalBusId=String(row.raw.electricalBusId);tr.tabIndex=0;if(selected===row.key)tr.classList.add('is-selected');
+  for(const row of rows.slice(page*50,(page+1)*50)){const tr=element('tr');tr.dataset.fid=row.fid;tr.dataset.displayFid=String(row.raw.displayFid??row.fid);tr.dataset.electricalBusId=String(row.raw.electricalBusId);tr.tabIndex=0;if(selected===row.key)tr.classList.add('is-selected');tr.setAttribute('aria-selected',String(selected===row.key));
    for(const [column,text] of [['tm',row.tm],['name',row.name],['type',String(row.raw.nodeLabel)],['kv',nominalKv(row.kv)],['ikss',scCurrentKa(source==='PF'?row.metrics.ikss?.pf:row.metrics.ikss?.ga)],['status',source==='PF'?'PF referansı':statuses[String(row.raw.Hesap_Durumu)]??String(row.raw.Hesap_Durumu)]]){const td=element('td','',text);td.dataset.column=column;if(column==='name')td.title=`Kaynak FID: ${row.fid} · Görüntüleme FID: ${row.raw.displayFid??row.fid}`;tr.append(td);}
-   tr.title=`${source} · ${row.fid} · ${row.raw.referenceReason??row.raw.reason_3F}`;tr.onclick=()=>{selected=row.key;ctx.resultView.faultId=row.fid;render();};tr.onkeydown=e=>{if(e.key==='Enter')tr.click();};tr.ondblclick=()=>ctx.select(row.fid,'ElmTerm');body.append(tr);
+   tr.title=`${source} · ${row.fid} · ${row.raw.referenceReason??row.raw.reason_3F}`;tr.onclick=()=>{const toggle=selected===row.key;selected=toggle?'':row.key;render();if(toggle)actions?.close();else actions?.select(row,source);};tr.onkeydown=e=>{if(e.key==='Enter')tr.click();};tr.ondblclick=()=>ctx.select(row.fid,'ElmTerm');body.append(tr);
   }
   host.replaceChildren(table);if(!rows.length)host.append(element('p','ga-muted','Bu kapsamda doğrulanabilir kayıt yok. Diğer düğüm türlerini görmek için Tüm düğümler seçin.'));
   const previous=button('Önceki',()=>{page--;closeDetail();render();}),next=button('Sonraki',()=>{page++;closeDetail();render();});previous.disabled=page===0;next.disabled=page>=pages-1;pager.replaceChildren(previous,element('span','',`${page+1}/${pages} · ${rows.length} düğüm`),next);pager.hidden=pages===1;
-  const active=rows.find(r=>r.key===selected);if(active){detail.hidden=false;const head=element('div','ga-lightning-sc-detail-head');head.append(element('strong','',`3F · ${source} · ${active.fid}`),button('×',()=>{closeDetail();render();},'SC ayrıntısını kapat'));detail.replaceChildren(head,scDetail(active,source,()=>ctx.select(active.fid,'ElmTerm')));}else closeDetail();
+  if(selected&&!rows.some(r=>r.key===selected))closeDetail();
  }
- return {element:root,render};
+ return {element:root,render,clearSelection,hasSelection:()=>!!selected};
 }
