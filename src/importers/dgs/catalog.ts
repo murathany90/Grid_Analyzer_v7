@@ -170,7 +170,7 @@ function makeQueryIndices(model: DgsModel, query: CatalogQuery, table: DgsTable,
     const values=new Map<number,unknown>();
     for(const rowIndex of matched){const raw=table.Values[rowIndex],id=String(rawValue(table,raw,idColumn)??'');
       if(external){values.set(rowIndex,external.get(id)??null);continue;}
-      if(field==='equipment'||field==='name'){values.set(rowIndex,rawValue(table,raw,nameColumn)??id);continue;}
+      if(field==='equipment'||field==='name'){values.set(rowIndex,String(rawValue(table,raw,nameColumn)??'')||id);continue;}
       if(!field.startsWith('context.')&&!field.startsWith('hierarchy.')){values.set(rowIndex,rawValue(table,raw,columns.get(field)??-1));continue;}
       const row=detachedCatalogRow(model,table,className,rowIndex);values.set(rowIndex,row?catalogCellValue(row,className,field):null);
     }
