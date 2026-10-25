@@ -1,22 +1,23 @@
+import {DgsSemanticDictionary} from '../../domain/dgs-semantics/classes';
 import {inspectModelFile,type ModelEntry} from '../../importers/model-file';
 import type { AppContext, Feature } from '../../app/contracts';
 import { element, button, csvCell, downloadText, format } from '../../ui/components/dom';
 
 const capabilityNames = [
-  ['powerFlow', 'Yük akışı'],
-  ['shortCircuit3Phase', 'Üç faz kısa devre'],
-  ['n1', 'N−1'],
+  ['powerFlow', 'Yük Akışı'],
+  ['shortCircuit3Phase', 'Üç Faz Kısa Devre'],
+  ['n1', 'N-1'],
 ] as const;
 
-export function createModelView(ctx: AppContext): Feature {
+export function createModelView(ctx: AppContext, options:{unified?:boolean}={}): Feature {
   const root = element('section', 'ga-feature ga-model-view');
   const heading = element('div', 'ga-feature-heading');
-  heading.append(element('h2', '', 'Model Yükle'), element('p', 'ga-muted', 'PowerFactory DGS modeli bu tarayıcı oturumunda işlenir.'));
+  heading.append(element('h2', '', 'Model Özeti'), element('p', 'ga-muted', 'PowerFactory DGS modeli bu tarayıcı oturumunda işlenir.'));
   const drop = element('div', 'ga-drop');
   drop.tabIndex = 0;
   drop.setAttribute('role', 'group');
-  drop.setAttribute('aria-label', 'YTBS / DIgSILENT modeli JSON veya ZIP yükle');
-  const dropTitle = element('strong', '', 'YTBS / DIgSILENT modeli — JSON veya ZIP');
+  drop.setAttribute('aria-label', 'DGS şebeke modeli JSON veya ZIP yükle');
+  const dropTitle = element('strong', '', 'DGS şebeke modeli — JSON veya ZIP');
   const input = element('input');
   input.id = 'modelFileInput'; input.type = 'file'; input.accept = '.json,.zip,application/json,application/zip';
   input.className = 'ga-visually-hidden';
@@ -42,7 +43,7 @@ export function createModelView(ctx: AppContext): Feature {
   const exportWarnings = button('Tüm uyarıları CSV', () => {
     const network = ctx.network; if (!network) return;
     const csv = '\ufeff' + [['Warning'], ...network.warnings.map(warning => [warning])].map(row => row.map(csvCell).join(';')).join('\r\n');
-    downloadText(csv, 'YTBS_model_uyarilari.csv', 'text/csv;charset=utf-8');
+    downloadText(csv, 'GridAnalyzer_model_uyarilari.csv', 'text/csv;charset=utf-8');
   });
   warningActions.append(warningCount, exportWarnings);
   warningsPanel.append(warningList);
@@ -51,8 +52,9 @@ export function createModelView(ctx: AppContext): Feature {
   classPanel.append(element('h3', '', 'DGS sınıf sayıları'));
   const classList = element('div', 'ga-class-counts');
   classPanel.append(classList);
-  const cancelLoad=button('Model yüklemesini iptal et',()=>ctx.cancel());drop.append(cancelLoad);message.hidden=true;
-  root.append(heading, drop, message, summary, capabilityPanel, warningsPanel, classPanel);
+  let loadGeneration=0;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;render();});drop.append(cancelLoad);message.hidden=true;
+  const hero=element('div','ga-model-hero'),identityPanel=element('section','ga-model-identity');hero.append(drop,identityPanel);
+  if(options.unified)root.append(heading,hero,message,summary,capabilityPanel,classPanel);else root.append(heading,drop,message,summary,capabilityPanel,warningsPanel,classPanel);
 
   let loadingNow = false;
   function selectEntry(entries:ModelEntry[]):Promise<ModelEntry|null>{
@@ -69,18 +71,19 @@ export function createModelView(ctx: AppContext): Feature {
     if (!files.length || loadingNow) return;
     const selectedFiles = Array.from(files).slice(0, 1);
     if (files.length > 1) ctx.setMessage('Tek etkin model destekleniyor; ilk JSON dosyası yüklenecek.');
-    loadingNow = true;
+    loadingNow = true;const generation=++loadGeneration;cancelLoad.hidden=false;
     input.disabled = true;
     choose.disabled = true;
     loading.textContent = `Yükleniyor · ${selectedFiles[0].name}`;
     try {
       const archive=await inspectModelFile(selectedFiles[0]);
       const entry=archive.entries.length===1?archive.entries[0]:await selectEntry(archive.entries);
-      if(!entry)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
-      await ctx.loadFiles([await archive.extract(entry)]);
+      if(!entry||generation!==loadGeneration)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
+      const file=await archive.extract(entry);if(generation!==loadGeneration)return;await ctx.loadFiles([file]);
     } catch (error) {
       ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
+      if(generation!==loadGeneration)return;
       loadingNow = false;
       input.disabled = false;
       choose.disabled = false;
@@ -100,21 +103,20 @@ export function createModelView(ctx: AppContext): Feature {
 
   function render(): void {
     if (ctx.view !== 'model') return;
-    cancelLoad.hidden=!ctx.busy||!!ctx.network;
+    cancelLoad.hidden=!ctx.busy&&!loadingNow;choose.disabled=ctx.busy||loadingNow;message.hidden=!ctx.busy&&!loadingNow;
     const network = ctx.network;
     message.textContent = ctx.status || 'Model bekleniyor.';
     if (!network) {
-      summary.replaceChildren(element('p', 'ga-empty', 'Henüz model yüklenmedi.'));
+      summary.replaceChildren(element('p', 'ga-empty', 'Henüz model yüklenmedi.'));identityPanel.replaceChildren(element('h3','','Model bekleniyor'),element('p','ga-muted','JSON veya ZIP seçin; kaynak veriler sunucuya gönderilmez.'));
       capabilities.replaceChildren(); warningList.replaceChildren(); classList.replaceChildren(); warningCount.textContent = ''; exportWarnings.disabled = true;
       return;
     }
     exportWarnings.disabled = network.warnings.length === 0;
-    warningCount.textContent = `${network.warnings.length.toLocaleString('tr-TR')} uyarı · ilk 35 gösteriliyor`;
+    warningCount.textContent = `${network.warnings.length.toLocaleString('tr-TR')} kaynak uyarısı`;
 
-    const cards = [
-      ['Model', network.name], ['Kayıt', format(network.records, 0)], ['Bara', format(network.buses.length, 0)],
-      ['Hat', format(network.lines.length, 0)], ['Trafo', format(network.transformers.length, 0)], ['TM', format(network.sites.length, 0)],['StudyCase',network.studyCase||network.name],['Model SHA-256',network.modelHash],
-    ];
+    const time=/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/.exec(network.studyCase??network.name),date=time?`${time[3]}.${time[2]}.${time[1]} ${time[4]}:${time[5]}`:'Kaynakta belirtilmemiş';
+    identityPanel.replaceChildren(element('small','ga-eyebrow','AKTİF MODEL'),element('h3','',network.name),element('p','ga-muted','StudyCase · '+(network.studyCase??'—')),element('p','ga-muted','Model zamanı · '+date),element('small','ga-muted','SHA-256 / model kimliği'),element('code','ga-model-sha',network.modelHash));identityPanel.title='Zaman, varsa kaynak StudyCase adından okunur; sistem saatiyle doldurulmaz.';
+    const cards = [['Kayıt',format(network.records,0)],['TM',format(network.sites.length,0)],['Bara / terminal',format(network.buses.length,0)],['Hat',format(network.lines.length,0)],['Trafo',format(network.transformers.length,0)],['Üretici',format(network.generators.length,0)],['Yük',format(network.loads.length,0)],['Anahtar',format(network.switches.length,0)]];
     summary.replaceChildren(...cards.map(([label, value]) => {
       const card = element('div', 'ga-card'); card.append(element('span', 'ga-muted', label), element('strong', '', value)); return card;
     }));
@@ -122,17 +124,14 @@ export function createModelView(ctx: AppContext): Feature {
     capabilities.replaceChildren(...capabilityNames.map(([key, label]) => {
       const capability = network.capabilities[key];
       const card = element('div', 'ga-card');
-      card.append(element('span', 'ga-muted', label), element('strong', `ga-state ga-state-${capability.state.toLowerCase()}`, capability.state));
-      if (capability.reasons.length) card.append(element('small', 'ga-muted', capability.reasons.join(' · ')));
+      card.dataset.capabilityState=capability.state;card.append(element('strong','',label),element('small','ga-muted',capability.state==='BLOCKED'?'Kaynak verisi bu hesap için yeterli değil; teknik kapsamı inceleyin.':key==='powerFlow'?'Tam AC çözüm; kontrol ve kaynak kapsamı sınırlıdır.':key==='shortCircuit3Phase'?'Üç faz MAX/MIN ağ yaklaşımı; kaynak kapsamı denetlenir.':'≥66 kV indirgenmiş DC ön tarama; AC güvenlik onayı değildir.'));const technical=element('details','ga-capability-details');technical.append(element('summary','','Teknik kapsam ⓘ'));const reasons=key==='n1'?['Servisteki hat ve iki sargılı trafoların 66 kV ve üzeri indirgenmiş ağında DC ön tarama yapılır.','Yalnız aktif güç, ada ayrılması ve tahmini yüklenme değerlendirilir; reaktif güç, gerilim ve tam AC kesinti doğrulaması bu yöntemin kapsamı dışındadır.','DC taramasında ihlal bulunmaması, AC güvenliğin doğrulandığı anlamına gelmez.']:capability.reasons.map(r=>r.replace('current-profile','mevcut kaynak profili').replace('droop','gerilim eğimi').replace('enum profilleri','kod profilleri'));technical.append(element('p','',reasons.join(' ')),element('p','','PowerFactory/PSS-E sayısal paritesi: NOT_VERIFIED'));card.append(technical);
       return card;
     }));
 
-    warningList.replaceChildren(...(network.warnings.length
-      ? [...network.warnings.slice(0, 35).map(warning => element('li', '', warning)), ...(network.warnings.length > 35 ? [element('li', 'ga-muted', `${network.warnings.length - 35} ek uyarı CSV dışa aktarımında bulunur.`)] : [])]
-      : [element('li', 'ga-muted', 'Model uyarısı yok.') ]));
+    if(!options.unified)warningList.replaceChildren(...network.warnings.map(w=>element('li','',w)));
     const classes = Object.entries(network.classCounts).sort(([a], [b]) => a.localeCompare(b, 'tr'));
     classList.replaceChildren(...classes.map(([name, count]) => {
-      const row = element('div', 'ga-count-row'); row.append(element('code', '', name), element('span', '', format(count, 0))); return row;
+      const row = button(name,()=>{ctx.networkInventoryClass=name;ctx.setView('inventory');});row.classList.add('ga-count-row');row.title=`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`+(name==='ElmOwner'?' · Kaynak modeldeki sahiplik gruplaması; hukuki mülkiyet doğrulaması içermez.':'');row.replaceChildren();row.append(element('code','ga-class-code',name),element('span','ga-class-label',`(${DgsSemanticDictionary[name]??'Teknik Veri'})`),element('strong','ga-class-count',format(count,0))); return row;
     }));
   }
 

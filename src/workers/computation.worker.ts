@@ -69,7 +69,7 @@ scope.onmessage=async({data}:MessageEvent<WorkerRequest>)=>{
       const mapStart=performance.now();network=mapCanonical(source,modelHash);const canonicalMs=performance.now()-mapStart;
       send({type:'RESULT',value:{network,readiness:auditShortCircuitReadiness(raw),scContext:adaptShortCircuitSources(raw,network),timing:{parseMs,canonicalMs,totalMs:performance.now()-started}}});
     }else if(data.type==='PREPARE'){clearScPreparationCache();network=data.network;send({type:'RESULT',value:true});}
-    else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');send({type:'RESULT',value:catalogPage(source,data.query)});}
+    else if(data.type==='CATALOG'){if(!source)throw Error('Model yüklenmedi.');if(data.query.sortSnapshot&&data.query.sortSnapshot.modelHash!==network?.modelHash)throw Error('CATALOG_SORT_MODEL_MISMATCH');send({type:'RESULT',value:catalogPage(source,data.query)});}
     else if(data.type==='SELF_TEST'){send({type:'RESULT',value:selfTests()});}
     else if(data.type==='CANCEL'){scope.close();}
     else if(data.type==='RUN_MODEL_QUALITY'){

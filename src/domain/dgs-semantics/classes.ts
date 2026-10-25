@@ -2,9 +2,11 @@
 export const DgsSemanticDictionary: Readonly<Record<string,string>> = {
   ElmArea:'Yük Tevzi Bölgesi', ElmSite:'Trafo Merkezi', ElmSubstat:'Bara Grubu / Şalt Bölümü',
   ElmTerm:'Bara / Düğüm', ElmBay:'Fider / Bay', ElmLne:'Enerji İletim Hattı', ElmLnesec:'Hat Kesiti',
-  ElmTr2:'İki Sargılı Güç Transformatörü', ElmSym:'Senkron Üretim Ünitesi', ElmGenStat:'Statik Üretim Ünitesi',
+  ElmTr2:'İki Sargılı Trafo', ElmSym:'Senkron Üretim Ünitesi', ElmGenStat:'Statik Üretim Ünitesi',
+  // PowerFactory 2024 User Manual: PDF pages 227, 277, 289.
+  ElmNec:'Nötr Topraklama Elemanı',ElmBmu:'Sanal Santral / Üretim Grubu',ElmOwner:'Model Sahiplik Grubu',
   ElmLod:'Yük', ElmShnt:'Şönt', ElmCoup:'Kesici / Kuplaj Anahtarı', StaSwitch:'Anahtar',
-  StaCubic:'Hücre / Bağlantı Noktası', TypLne:'Hat Tipi', TypTr2:'Trafo Tipi', TypSwitch:'Anahtar Tipi',
+  StaCubic:'Hücre/Bağlantı', TypLne:'Hat Tipi', TypTr2:'Trafo Tipi', TypSwitch:'Anahtar Tipi',
   TypSym:'Senkron Ünite Tipi', Matrix:'Koordinat / Matris Verisi', ElmNet:'Şebeke', ElmZone:'Bölge',
   ElmXnet:'Harici Şebeke', ElmVac:'Uluslararası Bağlantı', ElmScap:'Seri Kompanzasyon',
   ElmStactrl:'Santral Gerilim Kontrolörü', ElmSecctrl:'İkincil Kontrolör', ElmBoundary:'Sınır',

@@ -5,17 +5,11 @@ import {element,button,downloadText} from '../../ui/components/dom';
 import {formatEngineering} from '../../ui/components/engineering-format';
 import {createAnalysisView} from './analysis-view';
 import {createQualityN1View} from '../quality-n1/quality-n1-view';
-import {createModelView} from '../model/model-view';
 import {createCalculationActions} from '../comparison/calculation-actions';
 import {studyEvidence} from './study-evidence';
 import {studyLabel,studyStatusHelp} from '../../ui/components/study-labels';
 import {createCompactStudyView} from './compact-study-view';
 import {analysisDialog} from './analysis-dialog';
-
-export function createModelLanding(ctx:AppContext):Feature{
-  const model=createModelView(ctx),quality=createQualityN1View(ctx,'quality');model.element.append(quality.element);
-  return {element:model.element,render(){model.render();quality.render();}};
-}
 
 /** Views and controls retain their lifetime; only their placement/visibility changes. */
 function createLegacyAnalysisWorkspace(ctx:AppContext):Feature{

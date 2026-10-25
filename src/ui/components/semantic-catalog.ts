@@ -1,8 +1,11 @@
+import {sortableHeader,type HeaderSort} from './table-header-sort';
+import {formatWorkspaceNumber,measurementSpec} from '../../domain/dgs-semantics/measurement-format';
+import {sortAtom} from '../../domain/dgs-semantics/table-sort';
 import type { CatalogRow } from '../../app/contracts';
 import { fieldLabel, semanticValue } from '../../domain/dgs-semantics/fields';
 import { classLabel } from '../../domain/dgs-semantics/classes';
 import { element, csvDocument } from './dom';
-export interface SemanticColumn { key:string; label:string; rawField?:string }
+export interface SemanticColumn { key:string; label:string; rawField?:string;value?:(row:CatalogRow)=>unknown;display?:(row:CatalogRow)=>string;sortKind?:import('../../domain/dgs-semantics/table-sort').SortKind;default?:boolean }
 const contextLabels:Record<string,string>={voltageKv:'Nominal gerilim (kV)',lvKv:'AG gerilimi (kV)',ratingMva:'Nominal güç (MVA)',sites:'Trafo merkezi',areas:'Yük Tevzi Bölgesi',groups:'Bara grubu',bays:'Fider',terminals:'Bağlı bara / terminal',connectedEquipmentCount:'Bağlı ekipman',typeName:'Tip',fromSite:'Başlangıç TM',toSite:'Bitiş TM'};
 const c=(key:string):SemanticColumn=>({key:'context.'+key,label:contextLabels[key]||key});
 const f=(key:string):SemanticColumn=>({key,label:fieldLabel(key),rawField:key});
@@ -19,15 +22,17 @@ export function engineeringColumns(cls:string,attributes:readonly string[],opera
   return [...(cls.startsWith('Typ')?[]:[c('sites'),c('areas')]),...attributes.filter(a=>!['FID','loc_name','fold_id'].includes(a)).slice(0,operating?5:6).map(f)];
 }
 export function columnValue(row:CatalogRow,column:SemanticColumn):unknown {
+  if(column.value)return column.value(row);
   if(!column.key.startsWith('context.'))return semanticValue(column.key,row.attributes[column.key]);
   const key=column.key.slice(8) as keyof NonNullable<CatalogRow['context']>,value=row.context?.[key];
   return Array.isArray(value)?value.map(v=>'name'in v?v.name:'id'in v?v.id:'').join(' · '):value;
 }
-export function semanticTable(rows:readonly (CatalogRow&{className?:string})[],cls:string,columns:readonly SemanticColumn[],pick:(row:CatalogRow&{className?:string})=>void,technical=false):HTMLElement {
+export function semanticTable(rows:readonly (CatalogRow&{className?:string})[],cls:string,columns:readonly SemanticColumn[],pick:(row:CatalogRow&{className?:string})=>void,technical=false,actions?:(row:CatalogRow&{className?:string})=>HTMLElement,sorting?:HeaderSort):HTMLElement {
   const table=element('table','ga-table ga-semantic-table'),head=element('tr'),thead=element('thead'),body=element('tbody');
-  head.append(element('th','','Ekipman'));for(const col of columns){const th=element('th','',col.label);th.title=col.key;if(col.rawField)th.append(element('small',technical?'':'ga-muted',col.rawField));head.append(th);}thead.append(head);table.append(thead,body);
-  for(const row of rows){const tr=element('tr'),name=element('td','ga-semantic-name');name.append(element('strong','',row.name||'Adsız kaynak kaydı'),element('small','ga-muted',row.id));name.title=classLabel(row.className||cls);tr.append(name);
-    for(const col of columns){const raw=columnValue(row,col),text=raw==null||raw===''?'—':String(raw),td=element('td','',text);td.title=text;tr.append(td);}
+  const flat=columns.some(c=>c.key==='equipment');if(!flat)head.append(element('th','','Ekipman'));for(const col of columns){const key=col.key==='equipment'?'name':col.key,th=sorting?sortableHeader(col.label,key,sorting):element('th','',col.label);th.title=col.key;if(col.rawField)th.append(element('small',technical?'':'ga-muted',col.rawField));head.append(th);}if(actions)head.append(element('th','','İşlemler'));thead.append(head);table.append(thead,body);
+  for(const row of rows){const tr=element('tr'),name=element('td','ga-semantic-name');name.append(element('strong','',row.name||'Adsız kaynak kaydı'),element('small','ga-muted',row.id));name.title=classLabel(row.className||cls);if(!flat)tr.append(name);tr.dataset.id=row.id;tr.dataset.sourceClass=row.className||cls;
+    for(const col of columns){const raw=columnValue(row,col),precise=raw==null||raw===''?'—':String(raw),spec=measurementSpec(col.key),number=spec?sortAtom(col.value?raw:col.key.startsWith('context.')?raw:row.attributes[col.key],'number'):null,text=technical?precise:col.display?col.display(row):spec?(typeof number==='number'?formatWorkspaceNumber(number,spec.unit,spec.integer):'—'):precise,td=element('td','',text);td.title=precise+(col.key==='equipment'?' · FID '+row.id:'');td.dataset.column=col.key;tr.append(td);}
+    if(actions){const td=element('td','ga-row-actions');td.append(actions(row));tr.append(td);}
     if(technical)name.append(element('small','ga-muted',row.className||cls));
     tr.tabIndex=0;tr.onclick=()=>pick(row);tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(row);}};body.append(tr);
   }return table;
@@ -47,5 +52,5 @@ export function catalogCsv(rows:readonly (CatalogRow&{className?:string})[],cls:
   return csvDocument([headers,...data].map(row=>row.map(value=>typeof value==='object'&&value!==null?JSON.stringify(value):value)));
 }
 export function exportSelect():HTMLSelectElement {
-  const select=element('select');select.setAttribute('aria-label','Dışa aktar');select.append(new Option('Dışa aktar…',''),new Option('Filtreli mühendislik CSV','engineering'),new Option('Teknik / Ham CSV','raw'));return select;
+  const select=element('select');select.setAttribute('aria-label','Dışa aktar');select.append(new Option('Dışa aktar…',''),new Option('Filtreli mühendislik CSV','engineering'),new Option('Teknik / Ham CSV','raw'),new Option('Teknik / Ham JSON','json'));return select;
 }

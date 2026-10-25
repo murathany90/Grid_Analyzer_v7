@@ -1,3 +1,5 @@
+import {compareTableRows} from '../../domain/dgs-semantics/table-sort';
+import {catalogCellValue} from '../../domain/dgs-semantics/catalog-values';
 import type { CatalogPage, CatalogQuery, CatalogRow } from '../../app/contracts';
 import { cloneDgsValue, type DgsModel, type DgsTable } from './index';
 import { nominalVoltage, resolveEngineeringContext,groupNominalVoltages } from './context';
@@ -64,7 +66,7 @@ function cacheKey(query: CatalogQuery, search: string): string {
     query.areaId || '',
     voltage,
     query.voltageBands?.slice().sort(),
-    query.sort || '',
+    query.sort || '',query.sortKind??'auto',query.sortSnapshot?.id??'',
     Boolean(query.sort) && Boolean(query.descending),
   ]);
 }
@@ -160,21 +162,20 @@ function makeQueryIndices(model: DgsModel, query: CatalogQuery, table: DgsTable,
   }
 
   if (query.sort) {
-    const sortColumn = columns.get(query.sort) ?? -1;
-    matched.sort((leftIndex, rightIndex) => {
-      const left = table.Values[leftIndex];
-      const right = table.Values[rightIndex];
-      if (!left || !right) return leftIndex - rightIndex;
-      const leftId = String(rawValue(table, left, idColumn) ?? '');
-      const rightId = String(rawValue(table, right, idColumn) ?? '');
-      const leftValue = query.sort === 'name' ? String(rawValue(table, left, nameColumn) ?? leftId) : rawValue(table, left, sortColumn);
-      const rightValue = query.sort === 'name' ? String(rawValue(table, right, nameColumn) ?? rightId) : rawValue(table, right, sortColumn);
-      const order = typeof leftValue === 'number' && typeof rightValue === 'number'
-        ? leftValue - rightValue
-        : (collator?.compare(String(leftValue ?? ''), String(rightValue ?? '')) ?? 0);
-      if (order === 0) return leftIndex - rightIndex;
-      return query.descending ? -order : order;
-    });
+    const field=query.sort,snapshot=query.sortSnapshot;
+    if(snapshot&&snapshot.field!==field)throw Error('CATALOG_SORT_FIELD_MISMATCH');
+    const external=snapshot?new Map(snapshot.values.filter(([cls])=>cls===className).map(([,id,v])=>[id,v])):null;
+    // Build keys once, outside O(n log n) comparisons. Context rows stay in the
+    // source worker; only the requested page crosses the worker boundary.
+    const values=new Map<number,unknown>();
+    for(const rowIndex of matched){const raw=table.Values[rowIndex],id=String(rawValue(table,raw,idColumn)??'');
+      if(external){values.set(rowIndex,external.get(id)??null);continue;}
+      if(field==='equipment'||field==='name'){values.set(rowIndex,String(rawValue(table,raw,nameColumn)??'')||id);continue;}
+      if(!field.startsWith('context.')&&!field.startsWith('hierarchy.')){values.set(rowIndex,rawValue(table,raw,columns.get(field)??-1));continue;}
+      const row=detachedCatalogRow(model,table,className,rowIndex);values.set(rowIndex,row?catalogCellValue(row,className,field):null);
+    }
+    matched.sort((left,right)=>compareTableRows(values.get(left),values.get(right),String(rawValue(table,table.Values[left],idColumn)??''),String(rawValue(table,table.Values[right],idColumn)??''),query.descending,query.sortKind??'auto',className,className)||left-right);
+
   }
 
   return Uint32Array.from(matched);
