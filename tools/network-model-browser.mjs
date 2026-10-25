@@ -1,0 +1,64 @@
+/** Real controller, source worker and IndexedDB. Private models stay local. */
+import {createServer} from 'vite';
+import {chromium} from 'playwright';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {zipSync,strToU8} from 'fflate';
+
+const real=process.argv[2],out='local-benchmark-results/network-model-workspace',tag=real?'SN7':'PUBLIC';
+await mkdir(out,{recursive:true});
+const server=await createServer({logLevel:'error',server:{host:'127.0.0.1',port:5538,strictPort:true,hmr:false,watch:{ignored:['**/local-benchmark-results/**']}}});await server.listen();
+const browser=await chromium.launch({headless:true,args:['--js-flags=--max-old-space-size=6144']}),page=await browser.newPage({viewport:{width:1366,height:768},acceptDownloads:true}),errors=[];
+page.setDefaultTimeout(30000);page.on('pageerror',e=>{errors.push(e.message);console.error(e.message);});
+const proof={tag,checks:[],geometry:[],errors};
+const tabs=()=>page.getByRole('tablist',{name:'Şebeke modeli bölümleri'}),tab=label=>tabs().getByRole('tab',{name:label,exact:true}).click(),panel=()=>page.locator('.ga-model-content>[role=tabpanel]:visible');
+const idle=()=>page.waitForFunction(()=>!ctx.busy,{},{timeout:180000}),loaded=()=>page.waitForFunction(()=>!!ctx.network&&!ctx.busy&&!document.querySelector('#modelFileInput').disabled&&!document.querySelector('#modelFileInput').value,{},{timeout:180000});
+async function download(label){const wait=page.waitForEvent('download');await page.getByRole('button',{name:label,exact:true}).click();const d=await wait;return JSON.parse(await readFile(await d.path(),'utf8'));}
+try{
+ await page.route('**/network-workspace-test.html',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html lang="tr"><meta charset="utf-8"><body><div id="app"></div><script type="module">
+ ${['tokens','layout','catalog','components','map','analysis','responsive','benchmark','ui-workspace','network-model'].map(f=>`import '/src/styles/${f}.css';`).join('')}
+ import {Application} from '/src/app/controller.ts';import {mountShell} from '/src/app/app-shell.ts';
+ window.ctx=new Application();window.catalogCalls=[];window.delayCatalog=0;const native=ctx.catalog.bind(ctx);ctx.catalog=async q=>{catalogCalls.push(q);const r=await native(q);if(delayCatalog)await new Promise(r=>setTimeout(r,delayCatalog));return r;};mountShell(ctx,document.querySelector('#app'));window.ready=true;
+ </script></body></html>`}));
+ await page.goto('http://127.0.0.1:5538/network-workspace-test.html');await page.waitForFunction(()=>window.ready);
+ assert.deepEqual(await page.locator('.ga-nav button').allTextContents(),['Şebeke Modeli','Harita','Tek Hat Şeması','Analizler','Karşılaştırma','Yardım','Ayarlar']);assert.equal(await page.locator('iframe').count(),0);assert.equal(await tabs().getByRole('tab').count(),4);
+ const start=Date.now();await page.locator('#modelFileInput').setInputFiles(real??'tests/fixtures/small-dgs.json');await loaded();proof.importMs=Date.now()-start;
+ proof.model=await page.evaluate(()=>({hash:ctx.network.modelHash,records:ctx.network.records,sites:ctx.network.sites.length,sourceDiagnostics:ctx.network.diagnostics?.length,classes:Object.keys(ctx.network.classCounts).length}));
+ if(real){assert.equal(proof.model.records,587301);assert.equal(proof.model.sites,1625);}
+ assert.equal(await page.evaluate(()=>catalogCalls.length),0,'summary cannot query hidden inventory/operating catalogs');proof.checks.push('native JSON/ZIP load and lazy catalogs');
+ await tab('Şebeke Envanteri');await panel().locator('tbody tr').first().waitFor();
+ const id=await page.evaluate(()=>ctx.network.sites.find(s=>ctx.network.buses.some(b=>b.siteIds.includes(s.id)))?.id);assert.ok(id);
+ await page.getByLabel('Şebeke modeli TM',{exact:true}).selectOption(id);await panel().getByLabel('Envanter sınıfı').selectOption('ElmTerm');await panel().locator('tbody tr').first().waitFor();
+ await panel().locator('tbody tr').first().click();const selected=await page.evaluate(()=>({...ctx.selection}));await panel().getByLabel('Katalog sıralaması').selectOption('FID');await panel().getByLabel('Sayfa boyutu').selectOption('40');
+ await tab('İşletme Verileri');await page.waitForFunction(()=>!document.querySelector('.ga-operating-view:not([hidden]) .ga-empty')?.textContent.includes('yükleniyor'));
+ assert.equal(await page.evaluate(()=>ctx.filters.siteId),id);assert.deepEqual(await page.evaluate(()=>ctx.selection),selected);
+ await tab('Şebeke Envanteri');assert.equal(await page.getByLabel('Şebeke modeli TM',{exact:true}).inputValue(),id);assert.equal(await panel().getByLabel('Katalog sıralaması').inputValue(),'FID');proof.checks.push('shared scope/selection retained across lazy sections');
+ // Changing scope clears old rows synchronously; old worker responses cannot win.
+ await page.evaluate(()=>{delayCatalog=350;ctx.filters.search='NO_SUCH_NATIVE_FID';ctx.notify();});assert.equal(await panel().locator('tbody tr').count(),0);
+ await tab('Model Özeti');const calls=await page.evaluate(()=>catalogCalls.length);await page.waitForTimeout(450);assert.equal(await page.evaluate(()=>catalogCalls.length),calls);await page.evaluate(()=>{delayCatalog=0;ctx.filters.search='';ctx.filters.siteId='';ctx.notify();});proof.checks.push('stale scope responses discarded; no hidden-tab queries');
+ await tab('Model Kalitesi');await page.getByRole('button',{name:'Kalite denetimini çalıştır',exact:true}).click();await idle();await panel().locator('tbody tr').first().waitFor();
+ const quality=await download('JSON indir');assert.ok(quality.findings.length>0);assert.equal(quality.auditCurrent,true);assert.equal(quality.modelHash,proof.model.hash);assert.ok(quality.findings.every(f=>f.origins.length));assert.equal(new Set(quality.findings.map(f=>f.id)).size,quality.findings.length);proof.quality={unique:quality.findings.length,origins:Object.fromEntries(['SOURCE','AUDIT','GEOGRAPHY'].map(o=>[o,quality.findings.filter(f=>f.origins.includes(o)).length])),codes:Object.fromEntries(['TRANSFORMER_TAP_FALLBACK','GENERATOR_Q_LIMITS_MISSING','CONTROLLER_Q_LIMITS_UNAVAILABLE','CONTROLLER_LOCAL_VOLTAGE_CONFLICT','REDUCED_MODEL_INPUTS_EXCLUDED'].map(c=>[c,quality.findings.filter(f=>f.code===c).length]))};
+ if(real)await writeFile(`${out}/SN7-quality-private.json`,JSON.stringify(quality,null,2));
+ const csvWait=page.waitForEvent('download');await page.getByRole('button',{name:'CSV indir',exact:true}).click();const csv=await csvWait;assert.ok((await readFile(await csv.path(),'utf8')).includes('Hesaplama etkisi'));
+ await panel().getByLabel('Bulgu kökeni',{exact:true}).selectOption('AUDIT');const auditExport=await download('JSON indir');assert.ok(auditExport.findings.every(f=>f.origins.includes('AUDIT')));await panel().getByLabel('Bulgu kökeni',{exact:true}).selectOption('');
+ const linked=quality.findings.find(f=>f.entityId&&['ElmTerm','ElmLne','ElmSym','ElmGenStat','ElmTr2'].includes(f.entityClass));assert.ok(linked);await page.getByLabel('Şebeke modeli araması',{exact:true}).fill(linked.entityId);await panel().locator('tbody tr').first().click();await panel().getByRole('button',{name:'Envanter',exact:true}).click();await panel().locator('tbody tr').first().waitFor();assert.equal(await panel().locator('.ga-detail').getAttribute('data-selected-fid'),linked.entityId);
+ await panel().getByRole('button',{name:'Haritada göster',exact:true}).click();assert.equal(await page.evaluate(()=>ctx.view),'map');assert.equal(await page.evaluate(()=>ctx.selection.id),linked.entityId);
+ await page.evaluate(()=>ctx.select(ctx.selection.id,ctx.selection.sourceClass,'sld'));await page.locator('section[data-view=sld] svg').first().waitFor();assert.equal(await page.evaluate(()=>ctx.selection.id),linked.entityId);proof.checks.push('full unified quality, filters, CSV/JSON, proven FID inventory/map/SLD jumps');
+ await page.evaluate(()=>{ctx.filters.search='';ctx.filters.siteId='';ctx.selection=null;ctx.setView('operating');});await panel().getByRole('button',{name:'Tüketim P/Q',exact:true}).click();await panel().locator('tbody tr').first().waitFor();await panel().locator('tbody tr').first().click();assert.ok(await panel().getByText('Kaynak DGS · model girdisi',{exact:true}).isVisible());assert.ok(await panel().getByText(/NOT_RUN \/ STALE/).count());
+ if(!real){
+  await page.evaluate(async()=>{await ctx.run('powerFlow','base');});await idle();assert.doesNotMatch(await panel().locator('.ga-model-operating-values').innerText(),/NOT_RUN \/ STALE/);
+  const source=await page.evaluate(()=>ctx.network.loads.find(l=>l.id===ctx.selection.id).pMw);await panel().getByLabel('Senaryo aktif güç MW').fill(String(source+1));await panel().getByRole('button',{name:'P/Q senaryosuna uygula',exact:true}).click();assert.equal(await page.evaluate(()=>ctx.network.loads.find(l=>l.id===ctx.selection.id).pMw),source);assert.ok(await panel().getByText(/NOT_RUN \/ STALE/).count());
+  await page.evaluate(async()=>{await ctx.run('powerFlow','scenario');});await idle();proof.checks.push('source/scenario/LF separation and stale guard after operating edit');
+ }
+ for(const [width,height,zoom]of [[1366,768,1],[1920,1080,1],[1366,768,1.25]]){await page.setViewportSize({width,height});await page.evaluate(z=>document.documentElement.style.zoom=String(z),zoom);for(const label of ['Model Özeti','Şebeke Envanteri','İşletme Verileri','Model Kalitesi']){await tab(label);const g=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,active:document.querySelector('.ga-network-model-workspace').dataset.activeTab}));assert.ok(g.scrollWidth<=g.width+1,JSON.stringify({width,zoom,label,...g}));proof.geometry.push({width,height,zoom,...g});await page.screenshot({path:`${out}/${tag}-${g.active}-${width}-${zoom}.png`,fullPage:true});}}
+ await page.evaluate(()=>document.documentElement.style.zoom='1');await tab('Model Özeti');await tabs().getByRole('tab',{name:'Model Özeti',exact:true}).focus();await page.keyboard.press('End');assert.equal(await tabs().getByRole('tab',{name:'Model Kalitesi',exact:true}).getAttribute('aria-selected'),'true');proof.checks.push('desktop 1366/1920 and 125% zoom; keyboard tabs');
+ if(!real){
+  const before=await page.evaluate(()=>({hash:ctx.network.modelHash,scenario:ctx.scenario.exportState(),result:ctx.resultStore.get('scenario','powerFlow')?.identity}));assert.ok(before.result);await page.waitForTimeout(500);await page.reload();await page.waitForFunction(()=>window.ready);await page.locator('#modelFileInput').setInputFiles('tests/fixtures/small-dgs.json');await loaded();const restored=await page.evaluate(()=>({hash:ctx.network.modelHash,p:ctx.scenario.current.loadAdjustments,result:ctx.resultStore.get('scenario','powerFlow')?.identity}));assert.equal(restored.hash,before.hash);assert.deepEqual(restored.p,before.scenario.snapshots.find(s=>s.id==='working').overlay.loadAdjustments);assert.deepEqual(restored.result,before.result);
+  // Source-only warnings test beyond the old 35 row ceiling, bounded DOM and full export.
+  await page.evaluate(()=>{ctx.network={...ctx.network,warnings:Array.from({length:90},(_,i)=>'UI warning '+i)};ctx.modelQualityResult=null;ctx.setView('model:quality');});const all=await download('JSON indir');assert.equal(all.findings.filter(f=>f.code==='SOURCE_WARNING').length,90);assert.ok(await panel().locator('tbody tr').count()<=40);
+  await tab('Model Özeti');const raw=await readFile('tests/fixtures/small-dgs.json','utf8');await page.evaluate(async text=>{const pending=ctx.loadFiles([new File([text],'cancel-test.json')]);ctx.cancel();await pending;},raw);assert.equal(await page.evaluate(()=>ctx.busy),false);assert.match(await page.locator('footer [role=status]').textContent(),/iptal/);const zip=zipSync({'public.json':strToU8(raw)});await page.locator('#modelFileInput').setInputFiles({name:'public.zip',mimeType:'application/zip',buffer:Buffer.from(zip)});await loaded();assert.equal(await page.evaluate(()=>ctx.network.modelHash),before.hash);proof.checks.push('IndexedDB model/scenario/LF restoration; >35 warnings; cancellation and native ZIP');
+ }
+ assert.deepEqual(errors,[]);await writeFile(`${out}/${tag}-proof.json`,JSON.stringify(proof,null,2));console.log('NETWORK_MODEL_BROWSER '+JSON.stringify(proof));
+}finally{await browser.close();await server.close();}
+
+

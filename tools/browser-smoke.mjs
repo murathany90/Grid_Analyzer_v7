@@ -31,12 +31,12 @@ try{
  if(!ready)throw new Error('Vite smoke server did not become ready.');
  browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:testViewport(1440,900)});page.setDefaultTimeout(20000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(()=>{const Native=Worker;window.smokeWork=[];window.Worker=class extends Native{postMessage(m,...rest){if(['RUN_AC','RUN_N1_SCREEN','RUN_N1_AC_VALIDATE','RUN_SC_3PH'].includes(m.type))window.smokeWork.push(m.type);return super.postMessage(m,...rest);}};const nativeRaf=requestAnimationFrame,nativeCancel=cancelAnimationFrame,pending=new Set();window.smokeRaf={pending,maximum:0,frames:0};window.requestAnimationFrame=cb=>{let id;id=nativeRaf(t=>{pending.delete(id);window.smokeRaf.frames++;cb(t);});pending.add(id);window.smokeRaf.maximum=Math.max(window.smokeRaf.maximum,pending.size);return id;};window.cancelAnimationFrame=id=>{pending.delete(id);nativeCancel(id);};});
- await page.goto(url);const navigation=await page.locator('.ga-nav button').allTextContents();if(navigation.join('|')!=='Model Yükle|Şebeke Envanteri|İşletme Verileri|Harita|Tek Hat Şeması|Analizler|Karşılaştırma|Yardım|Ayarlar')throw Error('UI navigation contract failed');if(await page.locator('[data-view="model"]').getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).count())throw Error('N-1 remains in Model');await page.locator('#modelFileInput').setInputFiles({name:'synthetic-map-visual-dgs.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(visualRaw))});
+ await page.goto(url);const navigation=await page.locator('.ga-nav button').allTextContents();if(navigation.join('|')!=='Şebeke Modeli|Harita|Tek Hat Şeması|Analizler|Karşılaştırma|Yardım|Ayarlar')throw Error('UI navigation contract failed');if(await page.locator('[data-view="model"]').getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).count())throw Error('N-1 remains in Model');await page.locator('#modelFileInput').setInputFiles({name:'synthetic-map-visual-dgs.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(visualRaw))});
  try{await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));}catch(e){console.error(JSON.stringify({errors,stage:'MODEL_HEADER',body:await page.locator('body').textContent()}));throw e;}
  await navigateAnalysis(page,'Model Yükle');
- await page.getByRole('button',{name:'MODEL KALİTESİ',exact:true}).click();
+ await page.getByRole('tab',{name:'Model Kalitesi',exact:true}).click();
  await page.getByRole('button',{name:'Kalite denetimini çalıştır'}).click();
- await page.locator('[data-view="model"] .ga-analysis-view .ga-card-grid .ga-card').first().waitFor();
+ await page.locator('[data-view="model"] .ga-unified-quality .ga-model-health button').first().waitFor();
  const qualityDownload=page.waitForEvent('download');await page.getByRole('button',{name:'JSON indir'}).click();
  if((await qualityDownload).suggestedFilename()!=='GridAnalyzer-model-quality.json')throw new Error('Model Quality JSON export missing.');
  await navigateAnalysis(page,'Analizler');await navigateAnalysis(page,'Kısıt Analizi (N-1)');await openAnalysisTools(page);await page.getByText('Gelişmiş / eski N1 komutları',{exact:true}).click();await page.getByText('Ekipman PRE/POST ve gelişmiş N1 sonuçları',{exact:true}).click();await page.getByRole('button',{name:'N-1 SENARYOLARI',exact:true}).click();await page.getByText('Gelişmiş DC tarama / katalog',{exact:true}).click();
@@ -159,7 +159,7 @@ try{
  if(await page.evaluate(()=>window.smokeRaf.pending.size)>1)throw Error('More than one map RAF scheduled');
  await navigateAnalysis(page,'Ayarlar');await page.waitForTimeout(100);if(await page.evaluate(()=>window.smokeRaf.pending.size)!==0)throw Error('Map RAF kept running off-tab');
  for(const label of ['Model Yükle','Şebeke Envanteri','İşletme Verileri','Analizler','Karşılaştırma','Yardım','Ayarlar']){
-   await page.locator('.ga-nav').getByRole('button',{name:label,exact:true}).click();
+   await navigateAnalysis(page,label);await closeAnalysisDialogs(page);
    if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Desktop UI overflow: '+label);
    if(await page.locator('.ga-context-help,.ga-help-field').count()||await page.getByRole('button',{name:/^Bilgi:/}).count())throw Error('Decorative information buttons remain: '+label);
    if(label==='Analizler'||label==='Ayarlar'){await page.mouse.move(0,0);await page.screenshot({path:'local-benchmark-results/desktop-map-'+(label==='Analizler'?'analysis':'settings')+'.png'});}
