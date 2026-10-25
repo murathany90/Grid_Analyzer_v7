@@ -1,5 +1,6 @@
+import {measurementSpec} from '../../domain/dgs-semantics/measurement-format';
 import {workspaceTableViewport} from '../../ui/components/workspace-table-viewport';
-import {operatingValues} from './operating-values';
+import {operatingValues,operatingSortSnapshot} from './operating-values';
 import {createColumnSelector,createRecordDialog} from '../../ui/components/workspace-columns';
 import {workspaceCatalogColumns,workspaceRowValues,type WorkspaceColumn} from '../../ui/components/workspace-catalog';
 import {operatingEvidence} from './operating-evidence';
@@ -11,7 +12,7 @@ import {engineeringColumns,semanticTable,semanticDetail,catalogCsv,exportSelect}
 import type { AppContext, Feature, CatalogRow } from '../../app/contracts';
 import type { TaggedCatalogRow } from '../catalog';
 import { csvCell, downloadText, element, format } from '../../ui/components/dom';
-import { fetchCatalogAll, fetchMergedPage, type CatalogFilter } from '../catalog';
+import { fetchCatalogAll, fetchMergedPage, sortCatalogRows, type CatalogFilter } from '../catalog';
 
 interface OperatingKind { id: string; label: string; classes: readonly string[]; fields: readonly string[] }
 const kinds: readonly OperatingKind[] = [
@@ -37,16 +38,17 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
   toolbar.append(area, site, search, csv);
   const sort=element('select');sort.setAttribute('aria-label','Katalog sıralaması');sort.append(new Option('Ada göre','name'),new Option('FID sırası','FID'));const descending=element('input');descending.type='checkbox';const orderLabel=element('label','ga-check');orderLabel.append(descending,document.createTextNode('Azalan'));const sizeSelect=element('select');sizeSelect.setAttribute('aria-label','Sayfa boyutu');for(const size of [20,40,80,100])sizeSelect.append(new Option(String(size)+' / sayfa',String(size)));toolbar.append(sort,orderLabel,sizeSelect);
   if(workspaceOptions.sharedScope){area.remove();site.remove();search.remove();voltageFilter.element.hidden=true;}
-  const notice = element('p', 'ga-notice', 'Bu değerler DGS anlık durumuna ait işletme girdileridir; hesap sonucu veya ölçüm değildir.');
+  const notice=element('details','ga-operating-scope');notice.append(element('summary','','Veri kapsamı ⓘ'),element('p','ga-notice','Kaynak DGS ve aktif senaryo sütunları model girdisidir. Güncel LF sütunu yalnız kimliği doğrulanan hesap sonucunu gösterir; NOT_RUN / STALE değerler doldurulmaz.'));toolbar.append(notice);
   const status = element('p', 'ga-muted');
   const tableWrap = element('div', 'ga-table-wrap');
   const pager = element('div', 'ga-pager');const fitTable=workspaceTableViewport(tableWrap);
   const recordDialog=createRecordDialog(root,'Ekipman ayrıntısı'),detail=recordDialog.detail;
   let tableRows:readonly TaggedCatalogRow[]=[],tableAttributes:readonly string[]=[];const columnSelector=createColumnSelector(()=>redrawTable());toolbar.append(columnSelector.element);
-  const columnsFor=()=>{const cls=kind.classes[0];const values=operatingValues(ctx),extra:WorkspaceColumn[]=[{key:'operating.source',label:'Kaynak DGS',value:r=>values(r,(r as TaggedCatalogRow).className||cls).source},{key:'operating.scenario',label:'Aktif senaryo',value:r=>values(r,(r as TaggedCatalogRow).className||cls).scenario},{key:'operating.lf',label:'Güncel LF',value:r=>values(r,(r as TaggedCatalogRow).className||cls).lf}];const def=workspaceCatalogColumns(cls,tableAttributes,extra);columnSelector.set(cls,def.columns,def.profiles);return columnSelector.visible(def.columns);};
-  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,kind.classes[0],columnsFor(),row=>{showDetail({...row,className:row.className||kind.classes[0]});tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},false,row=>rowActions(row)));fitTable();}
+  const columnsFor=()=>{const cls=kind.classes[0];const values=operatingValues(ctx),extra:WorkspaceColumn[]=[{key:'operating.source',label:'Kaynak DGS',value:r=>values(r,(r as TaggedCatalogRow).className||cls).source,display:r=>values(r,(r as TaggedCatalogRow).className||cls).display.source},{key:'operating.scenario',label:'Aktif senaryo',value:r=>values(r,(r as TaggedCatalogRow).className||cls).scenario,display:r=>values(r,(r as TaggedCatalogRow).className||cls).display.scenario},{key:'operating.lf',label:'Güncel LF (P → Q)',value:r=>values(r,(r as TaggedCatalogRow).className||cls).lf,display:r=>values(r,(r as TaggedCatalogRow).className||cls).display.lf},...(['source','scenario','lf'] as const).flatMap(part=>(['P','Q'] as const).map(measure=>({key:'operating.'+part+measure,label:({source:'Kaynak',scenario:'Senaryo',lf:'LF'})[part]+' '+measure+' ('+(measure==='P'?'MW':'MVAr')+')',default:false,sortKind:'number' as const,value:(r:CatalogRow)=>values(r,(r as TaggedCatalogRow).className||cls).numeric[part][measure]})))];const def=workspaceCatalogColumns(cls,tableAttributes,extra);columnSelector.set(cls,def.columns,def.profiles);return columnSelector.visible(def.columns);};
+  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,kind.classes[0],columnsFor(),row=>{showDetail({...row,className:row.className||kind.classes[0]});tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},columnSelector.technical,row=>rowActions(row),{key:sort.value||'name',descending:descending.checked,change:sortHeader}));fitTable();}
+  function sortHeader(key:string){if(![...sort.options].some(o=>o.value===key))sort.append(new Option(columnsFor().find(c=>c.key===key)?.label??key,key));descending.checked=sort.value===key?!descending.checked:false;sort.value=key;page=0;void render();}
   function rowActions(row:CatalogRow&{className?:string}){const actions=element('div','ga-inline-actions'),cls=row.className||kind.classes[0];for(const [label,view]of [['Harita','map'],['SLD','sld']] as const){const b=element('button','',label);b.onclick=e=>{e.stopPropagation();ctx.select(row.id,cls,view);};actions.append(b);}const source=element('button','','Kaynak');source.onclick=e=>{e.stopPropagation();showDetail({...row,className:cls});recordDialog.show();};actions.prepend(source);const edit=element('button','','Düzenle');edit.disabled=ctx.busy;edit.onclick=e=>{e.stopPropagation();showDetail({...row,className:cls});recordDialog.show();};actions.append(edit);return actions;}
-  root.append(heading,kindsBar,toolbar,voltageFilter.element,notice,status,...(workspaceOptions.sharedScope?[catalogLayout(tableWrap,pager)]:[tableWrap,pager]));
+  root.append(heading,kindsBar,toolbar,voltageFilter.element,status,...(workspaceOptions.sharedScope?[catalogLayout(tableWrap,pager)]:[tableWrap,pager]));
 
   let kind = kinds[0], page = 0, selected: TaggedCatalogRow | null = null, requestId = 0, lastModelHash = '';
   let filterModelHash = '', siteOptionsKey = '', kindDrawn = '', lastQueryKey = '', pendingQueryKey = '';
@@ -58,7 +60,7 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
   }
   function filter(): CatalogFilter {
     return { areaId: area.value || undefined, siteId: site.value || undefined,
-      voltageBands: [...ctx.filters.voltages], search: search.value.trim() || undefined, sort: sort.value||'name', descending:descending.checked };
+      voltageBands: [...ctx.filters.voltages], search: search.value.trim() || undefined, sort: sort.value||'name', descending:descending.checked,sortSnapshot:sort.value.startsWith('operating.')?operatingSortSnapshot(ctx,sort.value,kind.classes):undefined,sortKind:measurementSpec(sort.value)?'number':['FID','name','equipment'].includes(sort.value)||sort.value.startsWith('hierarchy.')?'text':'auto' };
   }
   function fillFilters(net: NonNullable<AppContext['network']> | null): void {
     if (!net) return;
@@ -116,7 +118,7 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
       if (request !== requestId || ctx.view !== 'operating' || ctx.network?.modelHash !== network.modelHash) return;
       const pages = Math.max(1, Math.ceil(result.total / size)); page = Math.max(0, Math.min(page, pages - 1));
       drawRows(result.rows, result.attributes);const focused=result.rows.find(r=>r.id===ctx.selection?.id&&r.className===ctx.selection.sourceClass);if(focused)showDetail(focused);
-      status.textContent = `${kind.label} · ${format(result.total, 0)} eşleşen kayıt · ${network.name} · DGS model girdisi / konfigürasyon`;
+      status.textContent = `${format(result.total,0)} kayıt · ${kind.label}`;
       const prev = element('button', 'ga-button', '← Önceki'); prev.type = 'button'; prev.disabled = page === 0;
       const next = element('button', 'ga-button', 'Sonraki →'); next.type = 'button'; next.disabled = page >= pages - 1;
       prev.addEventListener('click', () => { page--; void render(); }); next.addEventListener('click', () => { page++; void render(); });
@@ -137,7 +139,7 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
     try {
       const network=ctx.network,exportKind=kind,key=JSON.stringify(filter()),current=()=>ctx.network===network&&ctx.view==='operating'&&kind===exportKind&&JSON.stringify(filter())===key;const results=[];for(const className of exportKind.classes)results.push(await fetchCatalogAll(ctx,className,filter(),100,current));if(!current())return;
       const attributes=[...new Set(results.flatMap(result=>result.attributes))];
-      const rows=results.flatMap((result,i)=>result.rows.map(row=>({...row,className:exportKind.classes[i]})));
+      const rows=sortCatalogRows(results.flatMap((result,i)=>result.rows.map(row=>({...row,className:exportKind.classes[i]}))),filter());
       if(csv.value==='json'){downloadText(JSON.stringify({modelHash:network.modelHash,filters:filter(),scenarioId:ctx.scenario.selectedId,rows:rows.map(row=>({...row,operating:operatingValues(ctx)(row,row.className)}))},null,2),`GridAnalyzer_${exportKind.id}_isletme.json`,'application/json');return;}const exportColumns=columnsFor();const text=technical?catalogCsv(rows,exportKind.classes[0],attributes,true,[]):'\ufeff'+[exportColumns.map(c=>c.label),...rows.map(r=>workspaceRowValues(r,exportColumns))].map(r=>r.map(csvCell).join(';')).join('\r\n');
       downloadText(text, `GridAnalyzer_${exportKind.id}_isletme.csv`, 'text/csv;charset=utf-8');
     } catch (error) { ctx.setMessage(`CSV oluşturulamadı: ${error instanceof Error ? error.message : String(error)}`); }

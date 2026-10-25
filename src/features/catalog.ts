@@ -1,8 +1,15 @@
+import {compareTableRows} from '../domain/dgs-semantics/table-sort';
+import {catalogCellValue} from '../domain/dgs-semantics/catalog-values';
 import type { AppContext, CatalogPage, CatalogQuery, CatalogRow } from '../app/contracts';
 
 export type CatalogFilter = Omit<CatalogQuery, 'className' | 'page' | 'pageSize'>;
 export type TaggedCatalogRow = CatalogRow & { className: string };
 export type MergedCatalogPage = Omit<CatalogPage, 'rows'> & { rows: TaggedCatalogRow[] };
+
+export function sortCatalogRows(rows:TaggedCatalogRow[],filter:CatalogFilter):TaggedCatalogRow[]{
+ const external=filter.sortSnapshot?new Map(filter.sortSnapshot.values.map(([cls,id,v])=>[cls+'|'+id,v])):null,field=filter.sort??'name',value=(r:TaggedCatalogRow)=>external?external.get(r.className+'|'+r.id)??null:catalogCellValue(r,r.className,field);
+ return rows.sort((a,b)=>compareTableRows(value(a),value(b),a.id,b.id,filter.descending,filter.sortKind??'auto',a.className,b.className));
+}
 
 export async function fetchCatalogAll(ctx: AppContext, className: string, filter: CatalogFilter, pageSize = 200, current:()=>boolean=()=>true): Promise<CatalogPage> {
   // The catalog worker deliberately caps transfers at 100 rows per request.
@@ -35,6 +42,6 @@ export async function fetchMergedPage(ctx:AppContext,classNames:readonly string[
  const merged:TaggedCatalogRow[]=[],attributes=[...new Set(starts.flatMap(r=>r.attributes))];
  for(let i=0;i<classNames.length;i++){const cls=classNames[i],first=starts[i];merged.push(...first.rows.map(row=>({...row,className:cls})));for(let p=1;p<=offset&&p*size<first.total;p++){check();const next=await read(cls,p);check();merged.push(...next.rows.map(row=>({...row,className:cls})));}}
  // Match the worker's Turkish collator and stable equal-value source order.
- const collator=new Intl.Collator('tr');merged.sort((a,b)=>{const field=filter.sort??'name',av=field==='name'?a.name:a.attributes[field],bv=field==='name'?b.name:b.attributes[field];return(typeof av==='number'&&typeof bv==='number'?av-bv:collator.compare(String(av??''),String(bv??'')))*(filter.descending?-1:1);});
+ sortCatalogRows(merged,filter);
  return{rows:merged.slice(offset*size,(offset+1)*size),total:starts.reduce((sum,r)=>sum+r.total,0),attributes};
 }

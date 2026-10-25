@@ -131,7 +131,7 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     if(!options.unified)warningList.replaceChildren(...network.warnings.map(w=>element('li','',w)));
     const classes = Object.entries(network.classCounts).sort(([a], [b]) => a.localeCompare(b, 'tr'));
     classList.replaceChildren(...classes.map(([name, count]) => {
-      const row = button(name,()=>{ctx.networkInventoryClass=name;ctx.setView('inventory');});row.classList.add('ga-count-row');row.title=`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`+(name==='ElmOwner'?' · Kaynak modeldeki sahiplik gruplaması; hukuki mülkiyet doğrulaması içermez.':'');row.replaceChildren(); row.append(element('span', '',`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`), element('span', '', format(count, 0))); return row;
+      const row = button(name,()=>{ctx.networkInventoryClass=name;ctx.setView('inventory');});row.classList.add('ga-count-row');row.title=`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`+(name==='ElmOwner'?' · Kaynak modeldeki sahiplik gruplaması; hukuki mülkiyet doğrulaması içermez.':'');row.replaceChildren();row.append(element('code','ga-class-code',name),element('span','ga-class-label',`(${DgsSemanticDictionary[name]??'Teknik Veri'})`),element('strong','ga-class-count',format(count,0))); return row;
     }));
   }
 

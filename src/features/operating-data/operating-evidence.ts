@@ -1,8 +1,9 @@
+import {formatWorkspaceNumber} from '../../domain/dgs-semantics/measurement-format';
 import type {AppContext,CatalogRow} from '../../app/contracts';
 import {element,button} from '../../ui/components/dom';
 import {sldLfCurrent} from '../sld/result-overlay';
 import {effectiveNetwork,scenarioChanged} from '../../domain/scenario/overlay';
-const num=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('tr-TR',{maximumFractionDigits:3}):'—';
+const num=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?formatWorkspaceNumber(v):'—';
 /** Presentation only: source inputs, selected scenario and an admissible solver
  * snapshot never borrow values from each other. No load/shunt power is inferred. */
 export function operatingEvidence(ctx:AppContext,row:CatalogRow,cls:string){
@@ -16,5 +17,5 @@ export function operatingEvidence(ctx:AppContext,row:CatalogRow,cls:string){
  if(source&&'pMw'in source&&['ElmLod','ElmSym','ElmGenStat'].includes(cls)){
   const scenarioAtOpen=ctx.scenario.current;const form=element('form','ga-operating-edit'),pInput=element('input'),qInput=element('input');pInput.type=qInput.type='number';pInput.step=qInput.step='any';pInput.required=qInput.required=true;pInput.setAttribute('aria-label','Senaryo aktif güç MW');qInput.setAttribute('aria-label','Senaryo reaktif güç MVAr');pInput.value=String(active&&'pMw'in active?active.pMw:source.pMw);qInput.value=String(active&&'qMvar'in active?active.qMvar:source.qMvar);const apply=button('P/Q senaryosuna uygula',()=>{});apply.type='submit';apply.disabled=ctx.busy;form.append(element('p','ga-muted','DGS kaynağı korunur. Yeni değerler aktif senaryoya kaydedilir; mevcut hesap geçersiz olur.'),pInput,qInput,apply);form.onsubmit=e=>{e.preventDefault();const p=Number(pInput.value),q=Number(qInput.value);if(ctx.network!==n||ctx.scenario.current!==scenarioAtOpen){ctx.setMessage('İşlem kapsamı değişti; kaydı yeniden açın.');return;}if(ctx.busy||!pInput.value.trim()||!qInput.value.trim()||!Number.isFinite(p)||!Number.isFinite(q))return;ctx.scenario.commandSource='OPERATING';const s=ctx.scenario.current;ctx.scenario.replace(cls==='ElmLod'?{...s,loadAdjustments:{...s.loadAdjustments,[source.id]:{pMw:p,qMvar:q}}}:{...s,generatorDispatch:{...s.generatorDispatch,[source.id]:{pMw:p,qMvar:q}}});ctx.resultStore.role='scenario';ctx.resultView.source='GA';ctx.resultView.phase='POST';ctx.notify();ctx.setMessage('İşletme P/Q girdisi senaryoya uygulandı · güncel hesap bekleniyor.');};root.append(form);
  }
- return root;
+ const precise=element('details');precise.append(element('summary','','Hassas kaynak ve hesap değerleri'),element('pre','ga-source-refs',JSON.stringify({source,active,result:valid?{pMw:p??null,qMvar:q??null,identity:result.identity}:null},null,2)));root.append(precise);return root;
 }

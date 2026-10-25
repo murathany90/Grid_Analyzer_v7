@@ -1,3 +1,4 @@
+import type {SortKind,CatalogSortSnapshot} from '../domain/dgs-semantics/table-sort';
 import type { CanonicalNetwork } from '../domain/model/network';
 import type { AnalysisType } from '../domain/calculation/identity';
 import type { ResultStore } from '../domain/results/store';
@@ -14,7 +15,7 @@ import type { BenchmarkPackage } from '../domain/benchmark/types';
 import type { ShortCircuitReadiness } from '../domain/benchmark/readiness';
 import type { AcContingency,AcOutage } from '../analysis/contingency-ac';
 import type { BenchmarkMapSelection } from '../domain/benchmark/map-layer';
-export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean }
+export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean;sortKind?:SortKind;sortSnapshot?:CatalogSortSnapshot }
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {

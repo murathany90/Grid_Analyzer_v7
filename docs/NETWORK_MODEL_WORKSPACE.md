@@ -1,6 +1,6 @@
 # Şebeke Modeli çalışma alanı — PR #15
 
-Geliştirme aynı `feature/unified-network-model-workspace` dalındadır. İncelenen önceki HEAD `837076302b1f0ab2ee2fc9c1b9eecb6b7faa72ad`; hedef main tabanı `fa3d3e8b676a1440605a5c9e8a5babe400184169`. Draft PR kullanıcı incelemesi içindir. Main, auto-merge, Pages deployment ve canlı site güncellemesi için açık kullanıcı onayı gerekir.
+Geliştirme aynı `feature/unified-network-model-workspace` dalındadır. İncelenen önceki HEAD `837076302b1f0ab2ee2fc9c1b9eecb6b7faa72ad`; hedef main tabanı `fa3d3e8b676a1440605a5c9e8a5babe400184169`. PR #15 üzerinde geliştirilir. 25 Ekim son görevinde kullanıcı, bütün kabul ve CI kapıları başarılıysa PR merge ve Pages yayınına açık yetki vermiştir. Yayın ancak exact-head CI, main CI, Pages deployment ve canlı sürüm doğrulamasıyla tamamlanmış sayılır.
 
 ## Kompakt masaüstü arayüzü
 
@@ -53,3 +53,16 @@ Aynı yerel ZIP: **587.301 kayıt, 1.625 ElmSite, 4.925 ElmSubstat**.
 | Envanter | ![Önce](images/network-model/before-inventory.png) | ![Sonra](images/network-model/inventory.png) |
 | İşletme | ![Önce](images/network-model/before-operating.png) | ![Sonra](images/network-model/operating.png) |
 | Kalite | ![Önce](images/network-model/before-quality.png) | ![Sonra](images/network-model/quality.png) |
+
+
+## Son sıralama, hassasiyet ve görünür alan düzeltmeleri
+
+Üç tablonun başlıkları artan/azalan sıralamayı `↑/↓` ve `aria-sort` ile bildirir. Ortak Türkçe karşılaştırıcı kaynak sayısal alanlarını gerçek sayı olarak sıralar; eksikler her iki yönde sonda, eşit değerler FID ve sınıf sırasındadır. Filtrelenmiş kaynak indeksinin tamamı Worker'da sıralanır, ardından sayfalanır. Karma sınıfların birleştirmesi ve dışa aktarımı aynı karşılaştırıcıyı kullanır. Görünür hiyerarşi/context alanları da gösterilen ilişkilere göre sıralanır.
+
+İşletmenin kaynak/senaryo/LF sıralama anahtarları mevcut canonical girdilerden ve kimliği doğrulanmış sonuçlardan oluşturulan, model/hash ve senaryo/sonuç bağlamına bağlı salt okunur snapshot'tır. Özet P sonra Q sırasını kullanır; kolon seçicide ayrı Kaynak/Senaryo/LF P-Q sütunları açılabilir. STALE veya başka kapsamın sonucu anahtar olarak da kullanılmaz. Hesap motorları ve elektriksel topoloji değişmemiştir.
+
+Ölçüm metinleri varsayılan bir ondalıkla Türkçe, kayıt/kademe adetleri tam sayı gösterilir. 0,05 altındaki sıfır dışı değerler ek anlamlı basamakla, çok küçük değerler bilimsel gösterimle korunur. Hücre tooltip'i, tüm kaynak alanları profili ve teknik CSV/JSON özgün hassasiyeti korur; girdiler yuvarlanmaz.
+
+Tablo yüksekliği yalnız görünür viewport koordinatlarından, gerçek CSS ölçeğinden ve ölçülmüş alt kontrollerden hesaplanır. `scrollY` ikinci kez eklenmez; scroll/resize ve zoom yeniden ölçülür. YTM/TM/ekipman/FID genişliğin en fazla %70'i içinde sabitlenir; yatay kaydırma ve sabit başlıklar korunur. Sınıf kartlarında kod, Türkçe açıklama ve adet ayrıdır. Seçim bilgisi başlık içine, uzun veri kapsamı açıklaması açılır bilgiye taşınmıştır.
+
+Yeni regresyonlar: tüm filtreli kaynaklar üzerinde numeric sort, karma sınıf yüksek sayfa, eksik/FID tie-break, LF snapshot kimliği, senaryo/STALE, Türkçe küçük değerler ve viewport/zoom. Dokuzuncu E2E içinde 50 kaynak yük, 43 karma üretici, gerçek Full AC çözülmüş 50 yük ve 45 sentetik kalite bulgusunun tüm sayfaları bağımsız beklenen değerlerle karşılaştırılır; JSON hassasiyeti ve karma sıralaması denetlenir. Sentetik test verisi yalnız kamusal fixture üretimidir; üretim uygulamasına veya özel model artifact'ına eklenmez.

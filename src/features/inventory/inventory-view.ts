@@ -1,3 +1,4 @@
+import {measurementSpec} from '../../domain/dgs-semantics/measurement-format';
 import {workspaceTableViewport} from '../../ui/components/workspace-table-viewport';
 import {createColumnSelector,createRecordDialog} from '../../ui/components/workspace-columns';
 import {workspaceCatalogColumns,workspaceRowValues,type WorkspaceColumn} from '../../ui/components/workspace-catalog';
@@ -31,7 +32,8 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
   const recordDialog=createRecordDialog(root,'Ekipman ayrıntısı'),detail=recordDialog.detail;
   let tableRows:readonly CatalogRow[]=[],tableAttributes:readonly string[]=[];const columnSelector=createColumnSelector(()=>redrawTable());toolbar.append(columnSelector.element);
   const columnsFor=()=>{const cls=currentClass();const extra:WorkspaceColumn[]=[];const def=workspaceCatalogColumns(cls,tableAttributes,extra);columnSelector.set(cls,def.columns,def.profiles);return columnSelector.visible(def.columns);};
-  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,currentClass(),columnsFor(),row=>{showDetail(row);tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},false,row=>rowActions(row)));fitTable();}
+  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,currentClass(),columnsFor(),row=>{showDetail(row);tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},columnSelector.technical,row=>rowActions(row),{key:sort.value||'name',descending:descending.checked,change:sortHeader}));fitTable();}
+  function sortHeader(key:string){if(![...sort.options].some(o=>o.value===key))sort.append(new Option(columnsFor().find(c=>c.key===key)?.label??key,key));descending.checked=sort.value===key?!descending.checked:false;sort.value=key;page=0;void render();}
   function rowActions(row:CatalogRow&{className?:string}){const actions=element('div','ga-inline-actions'),cls=currentClass();for(const [label,view]of [['Harita','map'],['SLD','sld']] as const){const b=element('button','',label);b.onclick=e=>{e.stopPropagation();ctx.select(row.id,cls,view);};actions.append(b);}const source=element('button','','Kaynak');source.onclick=e=>{e.stopPropagation();showDetail(row);recordDialog.show();};actions.prepend(source);return actions;}
   root.append(heading,toolbar,voltageFilter.element,count,...(options.sharedScope?[catalogLayout(tableWrap,pager)]:[tableWrap,pager]));
 
@@ -44,7 +46,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
     areaId: areaSelect.value || undefined,
     siteId: siteSelect.value || undefined,
     voltageBands: [...ctx.filters.voltages],
-    sort: sort.value||'name', descending: descending.checked,
+    sort: sort.value||'name', descending: descending.checked,sortKind:measurementSpec(sort.value)?'number':['FID','name','equipment'].includes(sort.value)||sort.value.startsWith('hierarchy.')?'text':'auto',
   });
 
   function fillSelect(select: HTMLSelectElement, options: readonly { value: string; label: string }[], first: string): void {
