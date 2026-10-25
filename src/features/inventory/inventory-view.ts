@@ -59,7 +59,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
       fillSelect(areaSelect, areas.map(([value, label]) => ({ value, label })), 'Bütün YTM’ler');
 
     }
-    if(options.sharedScope){areaSelect.value=ctx.filters.areaId;search.value=ctx.filters.search;}sizeSelect.value=String(pageSizeNow());
+    if(options.sharedScope){areaSelect.value=ctx.filters.areaId;search.value=ctx.filters.search;const requested=ctx.networkInventoryClass;if(requested&&classSelect.value!==requested&&[...classSelect.options].some(o=>o.value===requested)){classSelect.value=requested;page=0;lastContextSelection=network.modelHash+'|'+(ctx.selection?ctx.selection.sourceClass+'|'+ctx.selection.id:'');}}sizeSelect.value=String(pageSizeNow());
     voltageFilter.render();const area=areaSelect.value,selectedVoltage=[...ctx.filters.voltages].sort().join(',');
     const key = `${network.modelHash}|${area}|${selectedVoltage ?? ''}`; if (key === siteOptionsKey) return; siteOptionsKey = key;
     const sites = network.sites.filter(s => (!area || s.areaId === area) && s.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)))
@@ -95,7 +95,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
     if (ctx.view !== 'inventory') { revision++; pendingQueryKey=''; return; }
     syncOptions();if(options.sharedScope)siteSelect.value=ctx.filters.siteId;
     const focus=ctx.selection,focusKey=(ctx.network?.modelHash??'')+'|'+(focus?focus.sourceClass+'|'+focus.id:'');
-    if(focus&&focusKey!==lastContextSelection&&[...classSelect.options].some(o=>o.value===focus.sourceClass)){lastContextSelection=focusKey;classSelect.value=focus.sourceClass;if(!options.sharedScope){search.value=focus.id;areaSelect.value='';siteSelect.value='';}page=0;}
+    if(focus&&focusKey!==lastContextSelection&&[...classSelect.options].some(o=>o.value===focus.sourceClass)){lastContextSelection=focusKey;classSelect.value=focus.sourceClass;ctx.networkInventoryClass=focus.sourceClass;if(!options.sharedScope){search.value=focus.id;areaSelect.value='';siteSelect.value='';}page=0;}
 
     const network = ctx.network;
     if (!network) { lastModelHash = ''; optionModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; count.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }

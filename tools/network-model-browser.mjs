@@ -27,6 +27,7 @@ try{
  if(real){assert.equal(proof.model.records,587301);assert.equal(proof.model.sites,1625);}
  assert.equal(await page.evaluate(()=>catalogCalls.length),0,'summary cannot query hidden inventory/operating catalogs');proof.checks.push('native JSON/ZIP load and lazy catalogs');
  await tab('Şebeke Envanteri');await panel().locator('tbody tr').first().waitFor();
+ for(const cls of ['ElmTr2','ElmLod']){await tab('Model Özeti');await panel().locator('.ga-class-counts').getByRole('button',{name:new RegExp('^'+cls)}).click();assert.equal(await panel().getByLabel('Envanter sınıfı').inputValue(),cls);await panel().locator('tbody tr').first().waitFor();}proof.checks.push('summary class links target a previously mounted catalog');
  const id=await page.evaluate(()=>ctx.network.sites.find(s=>ctx.network.buses.some(b=>b.siteIds.includes(s.id)))?.id);assert.ok(id);
  await page.getByLabel('Şebeke modeli TM',{exact:true}).selectOption(id);await panel().getByLabel('Envanter sınıfı').selectOption('ElmTerm');await panel().locator('tbody tr').first().waitFor();
  await panel().locator('tbody tr').first().click();const selected=await page.evaluate(()=>({...ctx.selection}));await panel().getByLabel('Katalog sıralaması').selectOption('FID');await panel().getByLabel('Sayfa boyutu').selectOption('40');
