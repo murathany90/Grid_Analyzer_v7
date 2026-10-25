@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const {readCanonical,requireReady}=require('../runtime/ts/canonical-guard.js');
+const fs=require('node:fs');
+const input=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const network=readCanonical(input);
+assert.throws(()=>requireReady(network,'powerFlow'),/PARTIAL/);
+assert.throws(()=>requireReady(network,'shortCircuit3Phase'),/BLOCKED/);
+let changed=structuredClone(input);changed.buses[0].sourceRefs={voltage:110};
+assert.throws(()=>readCanonical(changed),/sourceRefs/);
+changed=structuredClone(input);changed.loads[0].bus='bus_missing';
+assert.throws(()=>readCanonical(changed),/dangling/);
+changed=structuredClone(input);changed.buses.push(structuredClone(changed.buses[0]));
+assert.throws(()=>readCanonical(changed),/duplicate/);
+console.log('5 TypeScript runtime boundary checks PASS');
