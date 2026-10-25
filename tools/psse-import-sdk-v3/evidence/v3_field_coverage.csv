@@ -1,0 +1,12 @@
+model,active_source_columns,normalized_compared_columns,not_comparable_columns,normalized_comparison_coverage_percent,unverified_columns_percent,note
+bench,276,169,107,61.23,38.77,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+fault_calc_3wdg_auto_neutral_current,235,146,89,62.13,37.87,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+ieee_harmonics_test_case,280,171,109,61.07,38.93,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample,599,203,396,33.89,66.11,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample_nb,628,221,407,35.19,64.81,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample_nb_sec,628,221,407,35.19,64.81,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample_zils,599,203,396,33.89,66.11,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample_zils_nb,628,221,407,35.19,64.81,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+sample_zils_nb_sec,628,221,407,35.19,64.81,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+savnw,297,171,126,57.58,42.42,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"
+savnw_nb,313,189,124,60.38,39.62,"Active source columns, not solver coverage; see v3_source_field_matrix.csv"

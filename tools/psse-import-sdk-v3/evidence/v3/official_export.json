@@ -1,0 +1,46 @@
+[
+ {
+  "sav": "C:\\Program Files\\PTI\\PSSE36\\36.5\\EXAMPLE\\savnw.sav",
+  "base": "savnw",
+  "method": "psspy-official",
+  "vernum": "36",
+  "steps": {
+   "writerawversion": 0,
+   "writerawx": 0,
+   "writeseqversion_2": 0
+  },
+  "ok": true,
+  "psseinit_ierr": 0,
+  "case_ierr": 0,
+  "files": {
+   "raw": {
+    "path": "runtime/official\\savnw.raw",
+    "bytes": 25313
+   },
+   "rawx": {
+    "path": "runtime/official\\savnw.rawx",
+    "bytes": 33324
+   },
+   "seq": {
+    "path": "runtime/official\\savnw.seq",
+    "bytes": 9552
+   }
+  },
+  "seq_has_data": true,
+  "exitCode": 0,
+  "seconds": 14.86
+ },
+ {
+  "sav": "C:\\Program Files\\PTI\\PSSE36\\36.5\\EXAMPLE\\sample.sav",
+  "base": "sample",
+  "method": "psspy-official",
+  "vernum": "36",
+  "steps": {},
+  "ok": false,
+  "psseinit_ierr": 0,
+  "case_ierr": 2,
+  "error": "psspy.case failed (ierr=2). With PSSE Xplore this is typically the 50-bus/size limit; see log.",
+  "exitCode": 2,
+  "seconds": 10.0
+ }
+]

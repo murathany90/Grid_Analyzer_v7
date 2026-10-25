@@ -1,0 +1,19 @@
+[
+  {
+    "format": "SAV",
+    "schema": "PASS",
+    "buses": 6851
+  },
+  {
+    "format": "RAW",
+    "schema": "PASS",
+    "buses": 6851
+  },
+  {
+    "format": "STANDALONE_SAV_DIAGNOSTIC",
+    "schema": "PASS",
+    "buses": 0,
+    "base": null,
+    "capabilities": "BLOCKED"
+  }
+]

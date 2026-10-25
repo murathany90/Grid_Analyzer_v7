@@ -1,0 +1,19 @@
+{
+  "dateLocal": "2026-10-26",
+  "browser": "Codex in-app browser",
+  "fileChooserSav": "PASS",
+  "fileChooserRaw": "PASS",
+  "tabs": [
+    "Model Ozeti",
+    "Sebeke Envanteri",
+    "Isletme Verileri",
+    "Model Kalitesi"
+  ],
+  "inventorySearch": "PASS, one matching record",
+  "inventoryPaging": "PASS, 6851 records / 138 pages",
+  "qualityDownload": "PASS",
+  "browserErrorsOrWarnings": [],
+  "electricalAcceptance": false,
+  "status": "BLOCKED",
+  "screenshot": "evidence/ui/control1_sav_summary.png"
+}

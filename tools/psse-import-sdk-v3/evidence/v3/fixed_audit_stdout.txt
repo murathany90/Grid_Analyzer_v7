@@ -1,0 +1,14 @@
+BASE-PAIRS                      PASS :: 11/11 passed
+P0-INACTIVE-SLACK               PASS :: BLOCKED
+P0-DANGLING-GENERATORS          PASS :: BLOCKED
+P0-DANGLING-LOADS               PASS :: BLOCKED
+P0-DUPLICATE-IDENTITY           PASS :: validator_pass=False, network=BLOCKED
+P0-UNSUPPORTED-AC-PHYSICS       PASS :: BLOCKED
+P0-NODE-ELECTRICAL-GRAPH        PASS :: physical_reachable_nodes=0/0, LF=BLOCKED
+P1-RATE-SET-SECOND              PASS :: FAIL
+P1-TX-SECOND-TAP                PASS :: FAIL
+P1-LOAD-ZIP                     PASS :: FAIL
+P1-GEN-MBASE                    PASS :: FAIL
+P1-TS-SOURCEREFS                PASS :: known scalar pattern not found
+P1-SOLVED-ASSUMED               PASS :: pattern absent
+SUMMARY {'paired_pass': 11, 'paired_total': 11, 'additional_pass': 12, 'additional_failed': 0}

@@ -1,0 +1,13 @@
+test_01_savnw_native_counts_and_unknown_solution (test_installed_psse.InstalledPsseTests.test_01_savnw_native_counts_and_unknown_solution) ... ok
+test_02_shunt_native_pu_to_mvar (test_installed_psse.InstalledPsseTests.test_02_shunt_native_pu_to_mvar) ... ok
+test_03_controls_and_second_rating_native (test_installed_psse.InstalledPsseTests.test_03_controls_and_second_rating_native) ... ok
+test_04_node_breaker_native_is_blocked (test_installed_psse.InstalledPsseTests.test_04_node_breaker_native_is_blocked) ... ok
+test_05_required_real_saved_cases_extract (test_installed_psse.InstalledPsseTests.test_05_required_real_saved_cases_extract) ... ok
+test_06_small_case_official_reference (test_installed_psse.InstalledPsseTests.test_06_small_case_official_reference) ... ok
+test_07_control1_sav_and_raw_real (test_installed_psse.InstalledPsseTests.test_07_control1_sav_and_raw_real) ... ok
+test_08_unverified_native_writers_are_rejected (test_installed_psse.InstalledPsseTests.test_08_unverified_native_writers_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 14.974s
+
+OK

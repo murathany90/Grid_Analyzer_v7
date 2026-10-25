@@ -19,3 +19,12 @@ node_modules/
 *.raw
 *.rawx
 *.seq
+
+evidence/ui/
+*.bundle
+
+evidence/GA_PSSE_SDK_V2*
+evidence/official_export_batch.json
+evidence/psse_sdk_v2_audit_repro.py
+evidence/v2_audit_results.json
+evidence/v3/initial_tests.txt

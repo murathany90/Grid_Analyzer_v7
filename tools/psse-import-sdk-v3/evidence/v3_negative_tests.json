@@ -1,0 +1,195 @@
+{
+  "sdk_path": ".",
+  "example_path": "C:\\Program Files\\PTI\\PSSE36\\36.5\\EXAMPLE",
+  "paired_models": [
+    {
+      "name": "bench",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 1648,
+      "rawxBuses": 1648
+    },
+    {
+      "name": "fault_calc_3wdg_auto_neutral_current",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 5,
+      "rawxBuses": 5
+    },
+    {
+      "name": "ieee_harmonics_test_case",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 16,
+      "rawxBuses": 16
+    },
+    {
+      "name": "sample",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 48,
+      "rawxBuses": 48
+    },
+    {
+      "name": "sample_nb",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 48,
+      "rawxBuses": 48
+    },
+    {
+      "name": "sample_nb_sec",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 48,
+      "rawxBuses": 48
+    },
+    {
+      "name": "sample_zils",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 60,
+      "rawxBuses": 60
+    },
+    {
+      "name": "sample_zils_nb",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 60,
+      "rawxBuses": 60
+    },
+    {
+      "name": "sample_zils_nb_sec",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 60,
+      "rawxBuses": 60
+    },
+    {
+      "name": "savnw",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 23,
+      "rawxBuses": 23
+    },
+    {
+      "name": "savnw_nb",
+      "validatorPass": true,
+      "reasonCount": 0,
+      "rawBuses": 23,
+      "rawxBuses": 23
+    }
+  ],
+  "checks": [
+    {
+      "id": "BASE-PAIRS",
+      "priority": "baseline",
+      "expected": "11/11 paired checks as claimed",
+      "observed": "11/11 passed",
+      "passed": true,
+      "detail": "These pass only the SDK validator field subset; not full model identity or GA solver parity."
+    },
+    {
+      "id": "P0-INACTIVE-SLACK",
+      "priority": "P0",
+      "expected": "BLOCKED (no live slack)",
+      "observed": "BLOCKED",
+      "passed": true,
+      "detail": "active externalGrids=False; total=1"
+    },
+    {
+      "id": "P0-DANGLING-GENERATORS",
+      "priority": "P0",
+      "expected": "BLOCKED / rejected missing bus",
+      "observed": "BLOCKED",
+      "passed": true,
+      "detail": "dangling references=False"
+    },
+    {
+      "id": "P0-DANGLING-LOADS",
+      "priority": "P0",
+      "expected": "BLOCKED / rejected missing bus",
+      "observed": "BLOCKED",
+      "passed": true,
+      "detail": "dangling references=False"
+    },
+    {
+      "id": "P0-DUPLICATE-IDENTITY",
+      "priority": "P0",
+      "expected": "reject duplicate / BLOCKED",
+      "observed": "validator_pass=False, network=BLOCKED",
+      "passed": true,
+      "detail": "canonical_buses=23,unique_ids=23"
+    },
+    {
+      "id": "P0-UNSUPPORTED-AC-PHYSICS",
+      "priority": "P0",
+      "expected": "PARTIAL/BLOCKED with scoped reasons (not full LF READY)",
+      "observed": "BLOCKED",
+      "passed": true,
+      "detail": "uncoupled electrical classes=[('TwoTerminalDcLine', 2), ('VscDcLine', 2), ('MultiTerminalDcLine', 1), ('FactsDevice', 2), ('InductionMachine', 4)]"
+    },
+    {
+      "id": "P0-NODE-ELECTRICAL-GRAPH",
+      "priority": "P0",
+      "expected": "physical node graph connected by proven terminal/cubicle relations OR LF blocked",
+      "observed": "physical_reachable_nodes=0/0, LF=BLOCKED",
+      "passed": true,
+      "detail": "Only line/transformer/switch edges were evaluated; parentId and sourceRefs are metadata, not explicit electrical edges."
+    },
+    {
+      "id": "P1-RATE-SET-SECOND",
+      "priority": "P1",
+      "expected": "validator FAIL on altered electrical field",
+      "observed": "FAIL",
+      "passed": true,
+      "detail": "1 reasons; [\"branches(151, 152, '1').rateSet[1] mismatch: 1300.0 != 1234567.0\"]"
+    },
+    {
+      "id": "P1-TX-SECOND-TAP",
+      "priority": "P1",
+      "expected": "validator FAIL on altered electrical field",
+      "observed": "FAIL",
+      "passed": true,
+      "detail": "1 reasons; [\"transformers(151, 101, None, '1').winding2.ratioPu mismatch: 1.0 != 1.88\"]"
+    },
+    {
+      "id": "P1-LOAD-ZIP",
+      "priority": "P1",
+      "expected": "validator FAIL on altered electrical field",
+      "observed": "FAIL",
+      "passed": true,
+      "detail": "2 reasons; [\"loads(153, '1').pCurrentMw mismatch: 0.0 != 99999.0\", \"loads(153, '1').qCurrentMvar mismatch: 0.0 != 9999.0\"]"
+    },
+    {
+      "id": "P1-GEN-MBASE",
+      "priority": "P1",
+      "expected": "validator FAIL on altered electrical field",
+      "observed": "FAIL",
+      "passed": true,
+      "detail": "1 reasons; [\"generators(101, '1').mbaseMva mismatch: 900.0 != 99999.0\"]"
+    },
+    {
+      "id": "P1-TS-SOURCEREFS",
+      "priority": "P1",
+      "expected": "sourceRefs: Record<string, readonly SourceRef[]>",
+      "observed": "known scalar pattern not found",
+      "passed": true,
+      "detail": "GA source ref contract expects arrays of {sourceClass,sourceId,field,unit?}; do not use any casting."
+    },
+    {
+      "id": "P1-SOLVED-ASSUMED",
+      "priority": "P1",
+      "expected": "unknown unless verified source solution state",
+      "observed": "pattern absent",
+      "passed": true,
+      "detail": "RAW/RAWX solved state must not be claimed from a parsed field that is not present."
+    }
+  ],
+  "summary": {
+    "paired_pass": 11,
+    "paired_total": 11,
+    "additional_pass": 12,
+    "additional_failed": 0
+  }
+}

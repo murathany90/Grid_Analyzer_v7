@@ -1,0 +1,37 @@
+    To use a specific minor version of PSSE, import the specific module like:
+    import psse36XY (where XY is a specific minor version)
+        Example: import psse3601
+
+ PSS(R)E Xplore Version 36
+ Copyright (c) 1976-2026
+ Siemens Industry, Inc.,
+ Power Technologies International                            (PTI)
+ This program is a confidential  unpublished  work  created  and  first
+ licensed in 1976.  It is a trade secret which is the property of  PTI.
+ All use,  disclosure,  and/or reproduction not specifically authorized
+ by  PTI  is prohibited.   This  program is protected  under  copyright
+ laws  of  non-U.S.  countries  and  by  application  of  international
+ treaties.  All  Rights  Reserved  Under  The  Copyright  Laws.
+
+
+           SIEMENS POWER TECHNOLOGIES INTERNATIONAL
+
+ 50 BUS POWER SYSTEM SIMULATOR--PSS(R)E Xplore-36.5.0--Python 3.14
+
+             INITIATED ON MON, OCT 26 2026   0:44
+
+ The Saved Case in file C:\Program Files\PTI\PSSE36\36.5\EXAMPLE\sample.sav exceeds the dimensions of working memory
+ PSS(R)E SAMPLE CASE - ALL RECORD GROUPS WITH SEQ DATA
+ NO NODE BREAKERS, NO ZERO IMPEDANCE LINES
+     TOTAL   ALLOWED  DESCRIPTION
+        52        50  Buses
+        26        20  Two-winding transformers
+         6         5  Impedance correction tables
+        48        40  Machine ownership specifications
+       221       200  Branch ownership specifications
+        18        10  Load types
+         6         1  Interface flow models
+        25        10  Interface flow elements
+
+ Unable to resize the network. New size of case exceeds the size allowed by PSSE Xplore
+RESULT_JSON:{"sav": "C:\\Program Files\\PTI\\PSSE36\\36.5\\EXAMPLE\\sample.sav", "base": "sample", "method": "psspy-official", "vernum": "36", "steps": {}, "ok": false, "psseinit_ierr": 0, "case_ierr": 2, "error": "psspy.case failed (ierr=2). With PSSE Xplore this is typically the 50-bus/size limit; see log."}

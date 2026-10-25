@@ -1,0 +1,1 @@
+Initial CI run 40239413841: Python portable tests passed on both OSes. TypeScript failed TS5112 because the parent GA tsconfig was found. Commit d529a89 added --ignoreConfig. Subsequent CI run 40239492817 passed all jobs.

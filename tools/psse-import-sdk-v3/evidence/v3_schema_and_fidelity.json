@@ -1,0 +1,6 @@
+{
+  "paired_pass": 11,
+  "schema_validated_bridges": 22,
+  "projection_integrity_checks": 22,
+  "scope": "Normalized source parity and endpoint integrity only; real-model Ybus/solver parity not certified"
+}

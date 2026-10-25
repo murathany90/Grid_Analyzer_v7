@@ -1,0 +1,52 @@
+[
+  {
+    "file": "20261014_1200_SN3_TR0.sav",
+    "engine": "caspy",
+    "status": "BLOCKED",
+    "accepted": false,
+    "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+    "counts": {
+      "buses": 6851,
+      "loads": 2520,
+      "generators": 2920,
+      "branches": 2403,
+      "transformers": 3703,
+      "fixedShunts": 139,
+      "switchedShunts": 0,
+      "substations": 1618,
+      "substationNodes": 0,
+      "substationSwitches": 0,
+      "areas": 10,
+      "zones": 5,
+      "owners": 77
+    },
+    "http": 200,
+    "converterExitCode": 2,
+    "seconds": 5.813
+  },
+  {
+    "file": "20261014_1200_SN3_TR0.raw",
+    "engine": "raw",
+    "status": "BLOCKED",
+    "accepted": false,
+    "sourceSha256": "9e1fa9933dba8030adcb3bb222cc9d7cc97dffa3e3f4b3d71eb83b9fd2d297e8",
+    "counts": {
+      "buses": 6851,
+      "loads": 2520,
+      "generators": 2920,
+      "branches": 2403,
+      "transformers": 3703,
+      "fixedShunts": 139,
+      "switchedShunts": 0,
+      "substations": 1618,
+      "substationNodes": 0,
+      "substationSwitches": 0,
+      "areas": 10,
+      "zones": 5,
+      "owners": 70
+    },
+    "http": 200,
+    "converterExitCode": 2,
+    "seconds": 4.718
+  }
+]

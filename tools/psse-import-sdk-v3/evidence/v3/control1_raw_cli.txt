@@ -1,0 +1,4 @@
+BLOCKED: 20261014_1200_SN3_TR0 (electrical gate; inspection artifacts only) -> runtime/final-cli-raw\20261014_1200_SN3_TR0
+
+Batch Completed: 0 succeeded, 0 diagnostic, 0 validation not run, 1 electrically gated, 0 failed (1 total).
+exitCode=2

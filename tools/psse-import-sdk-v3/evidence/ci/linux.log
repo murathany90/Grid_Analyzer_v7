@@ -1,0 +1,290 @@
+﻿2026-10-25T22:17:29.7801738Z Current runner version: '2.338.0'
+2026-10-25T22:17:29.7821748Z ##[group]Runner Image Provisioner
+2026-10-25T22:17:29.7822525Z Hosted Compute Agent
+2026-10-25T22:17:29.7823147Z Version: 20261021.618
+2026-10-25T22:17:29.7823679Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-25T22:17:29.7824325Z Build Date: 2026-10-21T00:45:21Z
+2026-10-25T22:17:29.7825029Z Worker ID: {ca02e477-e848-4965-9cab-9f5f92bf11ee}
+2026-10-25T22:17:29.7825644Z Region: centralus
+2026-10-25T22:17:29.7826197Z Cloud: Azure
+2026-10-25T22:17:29.7826671Z ##[endgroup]
+2026-10-25T22:17:29.7827914Z ##[group]Operating System
+2026-10-25T22:17:29.7828525Z Ubuntu
+2026-10-25T22:17:29.7828980Z 24.04.5
+2026-10-25T22:17:29.7829458Z LTS
+2026-10-25T22:17:29.7829914Z ##[endgroup]
+2026-10-25T22:17:29.7830420Z ##[group]Runner Image
+2026-10-25T22:17:29.7831005Z Image: ubuntu-24.04
+2026-10-25T22:17:29.7831491Z Version: 20261012.334.1
+2026-10-25T22:17:29.7832615Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-25T22:17:29.7834070Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+2026-10-25T22:17:29.7835030Z ##[endgroup]
+2026-10-25T22:17:29.7836011Z ##[group]GITHUB_TOKEN Permissions
+2026-10-25T22:17:29.7838550Z Contents: read
+2026-10-25T22:17:29.7839136Z Metadata: read
+2026-10-25T22:17:29.7839689Z ##[endgroup]
+2026-10-25T22:17:29.7841387Z Secret source: Actions
+2026-10-25T22:17:29.7842232Z Cache mode: write
+2026-10-25T22:17:29.7843030Z Prepare workflow directory
+2026-10-25T22:17:29.8098364Z Prepare all required actions
+2026-10-25T22:17:29.8130571Z Getting action download info
+2026-10-25T22:17:30.0457922Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-25T22:17:30.1413266Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-10-25T22:17:30.2283808Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-10-25T22:17:30.4103343Z Complete job name: portable (ubuntu-latest)
+2026-10-25T22:17:30.4591255Z ##[group]Run actions/checkout@v4
+2026-10-25T22:17:30.4591679Z with:
+2026-10-25T22:17:30.4591937Z   repository: murathany90/Grid_Analyzer_v7
+2026-10-25T22:17:30.4594385Z   token: ***
+2026-10-25T22:17:30.4594631Z   ssh-strict: true
+2026-10-25T22:17:30.4594928Z   ssh-user: git
+2026-10-25T22:17:30.4595183Z   persist-credentials: true
+2026-10-25T22:17:30.4595459Z   clean: true
+2026-10-25T22:17:30.4595716Z   sparse-checkout-cone-mode: true
+2026-10-25T22:17:30.4596007Z   fetch-depth: 1
+2026-10-25T22:17:30.4596253Z   fetch-tags: false
+2026-10-25T22:17:30.4596504Z   show-progress: true
+2026-10-25T22:17:30.4596758Z   lfs: false
+2026-10-25T22:17:30.4597142Z   submodules: false
+2026-10-25T22:17:30.4597397Z   set-safe-directory: true
+2026-10-25T22:17:30.4597689Z   allow-unsafe-pr-checkout: false
+2026-10-25T22:17:30.4598060Z ##[endgroup]
+2026-10-25T22:17:30.5278509Z Syncing repository: murathany90/Grid_Analyzer_v7
+2026-10-25T22:17:30.5280022Z ##[group]Getting Git version info
+2026-10-25T22:17:30.5280723Z Working directory is '/home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7'
+2026-10-25T22:17:30.5281657Z [command]/usr/bin/git version
+2026-10-25T22:17:30.5341364Z git version 2.55.0
+2026-10-25T22:17:30.5357450Z ##[endgroup]
+2026-10-25T22:17:30.5370320Z Temporarily overriding HOME='/home/runner/work/_temp/967dfabb-a24e-4218-9fe8-3578dec744b0' before making global git config changes
+2026-10-25T22:17:30.5371617Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T22:17:30.5374343Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7
+2026-10-25T22:17:30.5421859Z Deleting the contents of '/home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7'
+2026-10-25T22:17:30.5425425Z ##[group]Initializing the repository
+2026-10-25T22:17:30.5428724Z [command]/usr/bin/git init /home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7
+2026-10-25T22:17:30.5544984Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-25T22:17:30.5546195Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-25T22:17:30.5552116Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-25T22:17:30.5552952Z hint: call:
+2026-10-25T22:17:30.5553434Z hint:
+2026-10-25T22:17:30.5554015Z hint: 	git config --global init.defaultBranch <name>
+2026-10-25T22:17:30.5554670Z hint:
+2026-10-25T22:17:30.5555280Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-25T22:17:30.5556204Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-25T22:17:30.5557358Z hint:
+2026-10-25T22:17:30.5558466Z hint: 	git branch -m <name>
+2026-10-25T22:17:30.5558992Z hint:
+2026-10-25T22:17:30.5559516Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-25T22:17:30.5560316Z Initialized empty Git repository in /home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7/.git/
+2026-10-25T22:17:30.5561745Z [command]/usr/bin/git remote add origin https://github.com/murathany90/Grid_Analyzer_v7
+2026-10-25T22:17:30.5602520Z ##[endgroup]
+2026-10-25T22:17:30.5603542Z ##[group]Disabling automatic garbage collection
+2026-10-25T22:17:30.5610460Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-25T22:17:30.5647896Z ##[endgroup]
+2026-10-25T22:17:30.5648555Z ##[group]Setting up auth
+2026-10-25T22:17:30.5649177Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T22:17:30.5676517Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T22:17:30.5975154Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T22:17:30.6005595Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T22:17:30.6181037Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T22:17:30.6210739Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T22:17:30.6387235Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-25T22:17:30.6448878Z ##[endgroup]
+2026-10-25T22:17:30.6449408Z ##[group]Fetching the repository
+2026-10-25T22:17:30.6455036Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d529a893ea0bcdea213a81f595ef3cd2c8ba9e64:refs/remotes/origin/fix/psse-import-fidelity-v3
+2026-10-25T22:17:31.8483883Z From https://github.com/murathany90/Grid_Analyzer_v7
+2026-10-25T22:17:31.8485248Z  * [new ref]         d529a893ea0bcdea213a81f595ef3cd2c8ba9e64 -> origin/fix/psse-import-fidelity-v3
+2026-10-25T22:17:31.8487679Z ##[endgroup]
+2026-10-25T22:17:31.8495269Z ##[group]Determining the checkout info
+2026-10-25T22:17:31.8496075Z ##[endgroup]
+2026-10-25T22:17:31.8496591Z [command]/usr/bin/git sparse-checkout disable
+2026-10-25T22:17:31.8546689Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-25T22:17:31.8576674Z ##[group]Checking out the ref
+2026-10-25T22:17:31.8580776Z [command]/usr/bin/git checkout --progress --force -B fix/psse-import-fidelity-v3 refs/remotes/origin/fix/psse-import-fidelity-v3
+2026-10-25T22:17:31.9329353Z Switched to a new branch 'fix/psse-import-fidelity-v3'
+2026-10-25T22:17:31.9331320Z branch 'fix/psse-import-fidelity-v3' set up to track 'origin/fix/psse-import-fidelity-v3'.
+2026-10-25T22:17:31.9378287Z ##[endgroup]
+2026-10-25T22:17:31.9380474Z [command]/usr/bin/git log -1 --format=%H
+2026-10-25T22:17:31.9404721Z d529a893ea0bcdea213a81f595ef3cd2c8ba9e64
+2026-10-25T22:17:31.9665672Z ##[group]Run actions/setup-python@v5
+2026-10-25T22:17:31.9666437Z with:
+2026-10-25T22:17:31.9667231Z   python-version: 3.12
+2026-10-25T22:17:31.9667884Z   check-latest: false
+2026-10-25T22:17:31.9673482Z   token: ***
+2026-10-25T22:17:31.9674103Z   update-environment: true
+2026-10-25T22:17:31.9674801Z   allow-prereleases: false
+2026-10-25T22:17:31.9675480Z   freethreaded: false
+2026-10-25T22:17:31.9676112Z ##[endgroup]
+2026-10-25T22:17:32.0598491Z ##[group]Installed versions
+2026-10-25T22:17:32.0672513Z (node:2059) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-25T22:17:32.0674742Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-25T22:17:32.0675959Z Successfully set up CPython (3.12.15)
+2026-10-25T22:17:32.0677373Z ##[endgroup]
+2026-10-25T22:17:32.0917798Z ##[group]Run actions/setup-node@v4
+2026-10-25T22:17:32.0918502Z with:
+2026-10-25T22:17:32.0919046Z   node-version: 24
+2026-10-25T22:17:32.0919614Z   always-auth: false
+2026-10-25T22:17:32.0920213Z   check-latest: false
+2026-10-25T22:17:32.0925335Z   token: ***
+2026-10-25T22:17:32.0925858Z env:
+2026-10-25T22:17:32.0926517Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.0927641Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:32.0928615Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.0929523Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.0930420Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.0931322Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:32.0932100Z ##[endgroup]
+2026-10-25T22:17:32.1870141Z Found in cache @ /opt/hostedtoolcache/node/24.21.0/x64
+2026-10-25T22:17:32.1873435Z (node:2067) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-25T22:17:32.1875020Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-25T22:17:32.1876295Z ##[group]Environment details
+2026-10-25T22:17:32.5045280Z node: v24.21.0
+2026-10-25T22:17:32.5045669Z npm: 11.19.0
+2026-10-25T22:17:32.5045896Z yarn: 1.22.22
+2026-10-25T22:17:32.5046548Z ##[endgroup]
+2026-10-25T22:17:32.5163484Z ##[group]Run python -m pip install -r requirements-test.txt
+2026-10-25T22:17:32.5163845Z [36;1mpython -m pip install -r requirements-test.txt[0m
+2026-10-25T22:17:32.5394137Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-25T22:17:32.5394388Z env:
+2026-10-25T22:17:32.5394586Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.5394870Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:32.5395148Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.5395401Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.5395657Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:32.5395942Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:32.5396163Z ##[endgroup]
+2026-10-25T22:17:33.3209399Z Collecting jsonschema==4.26.0 (from -r requirements-test.txt (line 1))
+2026-10-25T22:17:33.4038772Z   Downloading jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)
+2026-10-25T22:17:33.4446677Z Collecting attrs>=22.2.0 (from jsonschema==4.26.0->-r requirements-test.txt (line 1))
+2026-10-25T22:17:33.4607086Z   Downloading attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)
+2026-10-25T22:17:33.4902372Z Collecting jsonschema-specifications>=2023.03.6 (from jsonschema==4.26.0->-r requirements-test.txt (line 1))
+2026-10-25T22:17:33.5061211Z   Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)
+2026-10-25T22:17:33.5369607Z Collecting referencing>=0.28.4 (from jsonschema==4.26.0->-r requirements-test.txt (line 1))
+2026-10-25T22:17:33.5534474Z   Downloading referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)
+2026-10-25T22:17:34.0029587Z Collecting rpds-py>=0.25.0 (from jsonschema==4.26.0->-r requirements-test.txt (line 1))
+2026-10-25T22:17:34.0189647Z   Downloading rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)
+2026-10-25T22:17:34.0458326Z Collecting typing-extensions>=4.4.0 (from referencing>=0.28.4->jsonschema==4.26.0->-r requirements-test.txt (line 1))
+2026-10-25T22:17:34.0615751Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+2026-10-25T22:17:34.0800403Z Downloading jsonschema-4.26.0-py3-none-any.whl (90 kB)
+2026-10-25T22:17:34.1187294Z Downloading attrs-26.1.0-py3-none-any.whl (67 kB)
+2026-10-25T22:17:34.1381788Z Downloading jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)
+2026-10-25T22:17:34.1552390Z Downloading referencing-0.37.0-py3-none-any.whl (26 kB)
+2026-10-25T22:17:34.1728196Z Downloading rpds_py-2026.9.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (371 kB)
+2026-10-25T22:17:34.2230946Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+2026-10-25T22:17:34.2620004Z Installing collected packages: typing-extensions, rpds-py, attrs, referencing, jsonschema-specifications, jsonschema
+2026-10-25T22:17:34.3850947Z 
+2026-10-25T22:17:34.3860851Z Successfully installed attrs-26.1.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 referencing-0.37.0 rpds-py-2026.9.1 typing-extensions-4.16.0
+2026-10-25T22:17:34.3866771Z 
+2026-10-25T22:17:34.3867528Z [notice] A new release of pip is available: 26.2.1 -> 26.2.2
+2026-10-25T22:17:34.3868162Z [notice] To update, run: pip install --upgrade pip
+2026-10-25T22:17:34.4336681Z ##[group]Run python -m unittest discover -s tests -v
+2026-10-25T22:17:34.4337123Z [36;1mpython -m unittest discover -s tests -v[0m
+2026-10-25T22:17:34.4393077Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-25T22:17:34.4393271Z env:
+2026-10-25T22:17:34.4393436Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.4393708Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:34.4393971Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.4394186Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.4394433Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.4394654Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:34.4394839Z ##[endgroup]
+2026-10-25T22:17:34.6580440Z test_01_active_slack (test_fidelity_v3.FidelityTests.test_01_active_slack) ... ok
+2026-10-25T22:17:34.6583435Z test_02_each_island_requires_reference (test_fidelity_v3.FidelityTests.test_02_each_island_requires_reference) ... ok
+2026-10-25T22:17:34.6586408Z test_03_inactive_reference_bus (test_fidelity_v3.FidelityTests.test_03_inactive_reference_bus) ... ok
+2026-10-25T22:17:34.6600718Z test_04_all_bus_attached_classes_reject_orphans (test_fidelity_v3.FidelityTests.test_04_all_bus_attached_classes_reject_orphans) ... ok
+2026-10-25T22:17:34.6607975Z test_05_transformer_terminal_orphans (test_fidelity_v3.FidelityTests.test_05_transformer_terminal_orphans) ... ok
+2026-10-25T22:17:34.6619775Z test_06_control_bus_orphans (test_fidelity_v3.FidelityTests.test_06_control_bus_orphans) ... ok
+2026-10-25T22:17:34.6697974Z test_07_all_object_duplicate_keys (test_fidelity_v3.FidelityTests.test_07_all_object_duplicate_keys) ... ok
+2026-10-25T22:17:34.6701409Z test_08_reversed_branch_duplicate (test_fidelity_v3.FidelityTests.test_08_reversed_branch_duplicate) ... ok
+2026-10-25T22:17:34.6706446Z test_09_source_tuple_direction (test_fidelity_v3.FidelityTests.test_09_source_tuple_direction) ... ok
+2026-10-25T22:17:34.6757454Z test_10_all_twelve_ratings (test_fidelity_v3.FidelityTests.test_10_all_twelve_ratings) ... ok
+2026-10-25T22:17:34.6949514Z test_11_all_winding_ratings_and_taps (test_fidelity_v3.FidelityTests.test_11_all_winding_ratings_and_taps) ... ok
+2026-10-25T22:17:34.6978531Z test_12_load_zip_all_components (test_fidelity_v3.FidelityTests.test_12_load_zip_all_components) ... ok
+2026-10-25T22:17:34.7017906Z test_13_generator_fields (test_fidelity_v3.FidelityTests.test_13_generator_fields) ... ok
+2026-10-25T22:17:34.7038553Z test_14_nonfinite_and_none_are_distinct (test_fidelity_v3.FidelityTests.test_14_nonfinite_and_none_are_distinct) ... ok
+2026-10-25T22:17:34.7046092Z test_15_shunt_blocks (test_fidelity_v3.FidelityTests.test_15_shunt_blocks) ... ok
+2026-10-25T22:17:34.7066492Z test_16_unsupported_physics_classes (test_fidelity_v3.FidelityTests.test_16_unsupported_physics_classes) ... ok
+2026-10-25T22:17:34.7069647Z test_17_reporting_metadata_is_distinguished (test_fidelity_v3.FidelityTests.test_17_reporting_metadata_is_distinguished) ... ok
+2026-10-25T22:17:34.7072725Z test_18_nodes_are_not_invented_solver_buses (test_fidelity_v3.FidelityTests.test_18_nodes_are_not_invented_solver_buses) ... ok
+2026-10-25T22:17:34.7080702Z test_19_switch_terminals_and_status (test_fidelity_v3.FidelityTests.test_19_switch_terminals_and_status) ... ok
+2026-10-25T22:17:34.7083760Z test_20_no_iec_readiness_from_sequence_boolean (test_fidelity_v3.FidelityTests.test_20_no_iec_readiness_from_sequence_boolean) ... ok
+2026-10-25T22:17:34.7086481Z test_21_unknown_solution_is_not_ready (test_fidelity_v3.FidelityTests.test_21_unknown_solution_is_not_ready) ... ok
+2026-10-25T22:17:34.7089695Z test_22_two_winding_primitive_ybus (test_fidelity_v3.FidelityTests.test_22_two_winding_primitive_ybus) ... ok
+2026-10-25T22:17:34.7093087Z test_23_three_winding_star_pairs (test_fidelity_v3.FidelityTests.test_23_three_winding_star_pairs) ... ok
+2026-10-25T22:17:34.7098391Z test_24_cz_conversion_exactly_once (test_fidelity_v3.FidelityTests.test_24_cz_conversion_exactly_once) ... ok
+2026-10-25T22:17:34.7118128Z test_25_cw_three_encodings (test_fidelity_v3.FidelityTests.test_25_cw_three_encodings) ... ok
+2026-10-25T22:17:34.7128318Z test_26_magnetizing_and_terminal_shunts_once (test_fidelity_v3.FidelityTests.test_26_magnetizing_and_terminal_shunts_once) ... ok
+2026-10-25T22:17:34.7129327Z test_27_no_voltage_or_base_fallback (test_fidelity_v3.FidelityTests.test_27_no_voltage_or_base_fallback) ... ok
+2026-10-25T22:17:34.7130105Z test_28_source_refs_are_arrays (test_fidelity_v3.FidelityTests.test_28_source_refs_are_arrays) ... ok
+2026-10-25T22:17:34.7130875Z test_29_negative_taps_do_not_fallback (test_fidelity_v3.FidelityTests.test_29_negative_taps_do_not_fallback) ... ok
+2026-10-25T22:17:34.7131735Z test_30_plain_synthetic_parity_passes (test_fidelity_v3.FidelityTests.test_30_plain_synthetic_parity_passes) ... ok
+2026-10-25T22:17:34.7575646Z test_31_rawx_parser_solution_and_schema (test_fidelity_v3.FidelityTests.test_31_rawx_parser_solution_and_schema) ... ok
+2026-10-25T22:17:34.7579204Z test_32_raw_missing_columns_rejected (test_fidelity_v3.FidelityTests.test_32_raw_missing_columns_rejected) ... ok
+2026-10-25T22:17:34.7581941Z test_33_raw_truncation_rejected (test_fidelity_v3.FidelityTests.test_33_raw_truncation_rejected) ... ok
+2026-10-25T22:17:34.7587710Z test_34_raw_numeric_name_and_empty_title (test_fidelity_v3.FidelityTests.test_34_raw_numeric_name_and_empty_title) ... ok
+2026-10-25T22:17:34.8021124Z test_35_cli_never_success_on_incomplete_physics (test_fidelity_v3.FidelityTests.test_35_cli_never_success_on_incomplete_physics) ... ok
+2026-10-25T22:17:34.8025315Z test_36_partial_winding_status_blocks (test_fidelity_v3.FidelityTests.test_36_partial_winding_status_blocks) ... ok
+2026-10-25T22:17:34.8028573Z test_37_slack_injection_is_counted_once (test_fidelity_v3.FidelityTests.test_37_slack_injection_is_counted_once) ... ok
+2026-10-25T22:17:34.8035550Z test_38_hash_tracks_electrical_edits_not_export_time (test_fidelity_v3.FidelityTests.test_38_hash_tracks_electrical_edits_not_export_time) ... ok
+2026-10-25T22:17:34.8036598Z test_39_invalid_numbers_remain_distinct_in_json_evidence (test_fidelity_v3.FidelityTests.test_39_invalid_numbers_remain_distinct_in_json_evidence) ... ok
+2026-10-25T22:17:34.8036985Z 
+2026-10-25T22:17:34.8037208Z ----------------------------------------------------------------------
+2026-10-25T22:17:34.8037653Z Ran 39 tests in 0.146s
+2026-10-25T22:17:34.8037744Z 
+2026-10-25T22:17:34.8037797Z OK
+2026-10-25T22:17:34.8184935Z ##[group]Run python tools/check_ga_types.py --ga-root ../..
+2026-10-25T22:17:34.8185204Z [36;1mpython tools/check_ga_types.py --ga-root ../..[0m
+2026-10-25T22:17:34.8239258Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-25T22:17:34.8239449Z env:
+2026-10-25T22:17:34.8239605Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8239848Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:34.8240092Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8240309Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8240530Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8240752Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:34.8240941Z ##[endgroup]
+2026-10-25T22:17:34.8489698Z Prepared /home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7/tools/psse-import-sdk-v3/runtime/canonical-guard.native.ts
+2026-10-25T22:17:34.8573654Z ##[group]Run npm exec --yes --package=typescript@7.0.2 -- tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler integration/canonical-guard.ts runtime/canonical-guard.native.ts
+2026-10-25T22:17:34.8574478Z [36;1mnpm exec --yes --package=typescript@7.0.2 -- tsc --ignoreConfig --noEmit --strict --target ES2022 --module ESNext --moduleResolution bundler integration/canonical-guard.ts runtime/canonical-guard.native.ts[0m
+2026-10-25T22:17:34.8624880Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-25T22:17:34.8625069Z env:
+2026-10-25T22:17:34.8625224Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8625467Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:34.8625708Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8625930Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8626169Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:34.8626388Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:34.8626574Z ##[endgroup]
+2026-10-25T22:17:37.0269704Z ##[group]Run node --check test_ui/app.js
+2026-10-25T22:17:37.0269916Z [36;1mnode --check test_ui/app.js[0m
+2026-10-25T22:17:37.0325700Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-25T22:17:37.0325904Z env:
+2026-10-25T22:17:37.0326072Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:37.0326322Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib/pkgconfig
+2026-10-25T22:17:37.0326566Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:37.0326798Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:37.0327144Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.15/x64
+2026-10-25T22:17:37.0327384Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.15/x64/lib
+2026-10-25T22:17:37.0327575Z ##[endgroup]
+2026-10-25T22:17:37.0680406Z Post job cleanup.
+2026-10-25T22:17:37.1457303Z (node:2166) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-25T22:17:37.1457805Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-25T22:17:37.1614064Z Post job cleanup.
+2026-10-25T22:17:37.2448035Z (node:2174) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-25T22:17:37.2448842Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-25T22:17:37.2618911Z Post job cleanup.
+2026-10-25T22:17:37.3217655Z [command]/usr/bin/git version
+2026-10-25T22:17:37.3254134Z git version 2.55.0
+2026-10-25T22:17:37.3279383Z Temporarily overriding HOME='/home/runner/work/_temp/19930136-9a79-4563-8085-1298735da91d' before making global git config changes
+2026-10-25T22:17:37.3280468Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-25T22:17:37.3283382Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Grid_Analyzer_v7/Grid_Analyzer_v7
+2026-10-25T22:17:37.3316503Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-25T22:17:37.3346114Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-25T22:17:37.3558201Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-25T22:17:37.3585185Z http.https://github.com/.extraheader
+2026-10-25T22:17:37.3600389Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-25T22:17:37.3628562Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-25T22:17:37.3831694Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-25T22:17:37.3863489Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-25T22:17:37.4165455Z Cleaning up orphan processes
+2026-10-25T22:17:37.4365300Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

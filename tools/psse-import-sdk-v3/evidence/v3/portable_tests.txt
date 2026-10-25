@@ -1,0 +1,44 @@
+test_01_active_slack (test_fidelity_v3.FidelityTests.test_01_active_slack) ... ok
+test_02_each_island_requires_reference (test_fidelity_v3.FidelityTests.test_02_each_island_requires_reference) ... ok
+test_03_inactive_reference_bus (test_fidelity_v3.FidelityTests.test_03_inactive_reference_bus) ... ok
+test_04_all_bus_attached_classes_reject_orphans (test_fidelity_v3.FidelityTests.test_04_all_bus_attached_classes_reject_orphans) ... ok
+test_05_transformer_terminal_orphans (test_fidelity_v3.FidelityTests.test_05_transformer_terminal_orphans) ... ok
+test_06_control_bus_orphans (test_fidelity_v3.FidelityTests.test_06_control_bus_orphans) ... ok
+test_07_all_object_duplicate_keys (test_fidelity_v3.FidelityTests.test_07_all_object_duplicate_keys) ... ok
+test_08_reversed_branch_duplicate (test_fidelity_v3.FidelityTests.test_08_reversed_branch_duplicate) ... ok
+test_09_source_tuple_direction (test_fidelity_v3.FidelityTests.test_09_source_tuple_direction) ... ok
+test_10_all_twelve_ratings (test_fidelity_v3.FidelityTests.test_10_all_twelve_ratings) ... ok
+test_11_all_winding_ratings_and_taps (test_fidelity_v3.FidelityTests.test_11_all_winding_ratings_and_taps) ... ok
+test_12_load_zip_all_components (test_fidelity_v3.FidelityTests.test_12_load_zip_all_components) ... ok
+test_13_generator_fields (test_fidelity_v3.FidelityTests.test_13_generator_fields) ... ok
+test_14_nonfinite_and_none_are_distinct (test_fidelity_v3.FidelityTests.test_14_nonfinite_and_none_are_distinct) ... ok
+test_15_shunt_blocks (test_fidelity_v3.FidelityTests.test_15_shunt_blocks) ... ok
+test_16_unsupported_physics_classes (test_fidelity_v3.FidelityTests.test_16_unsupported_physics_classes) ... ok
+test_17_reporting_metadata_is_distinguished (test_fidelity_v3.FidelityTests.test_17_reporting_metadata_is_distinguished) ... ok
+test_18_nodes_are_not_invented_solver_buses (test_fidelity_v3.FidelityTests.test_18_nodes_are_not_invented_solver_buses) ... ok
+test_19_switch_terminals_and_status (test_fidelity_v3.FidelityTests.test_19_switch_terminals_and_status) ... ok
+test_20_no_iec_readiness_from_sequence_boolean (test_fidelity_v3.FidelityTests.test_20_no_iec_readiness_from_sequence_boolean) ... ok
+test_21_unknown_solution_is_not_ready (test_fidelity_v3.FidelityTests.test_21_unknown_solution_is_not_ready) ... ok
+test_22_two_winding_primitive_ybus (test_fidelity_v3.FidelityTests.test_22_two_winding_primitive_ybus) ... ok
+test_23_three_winding_star_pairs (test_fidelity_v3.FidelityTests.test_23_three_winding_star_pairs) ... ok
+test_24_cz_conversion_exactly_once (test_fidelity_v3.FidelityTests.test_24_cz_conversion_exactly_once) ... ok
+test_25_cw_three_encodings (test_fidelity_v3.FidelityTests.test_25_cw_three_encodings) ... ok
+test_26_magnetizing_and_terminal_shunts_once (test_fidelity_v3.FidelityTests.test_26_magnetizing_and_terminal_shunts_once) ... ok
+test_27_no_voltage_or_base_fallback (test_fidelity_v3.FidelityTests.test_27_no_voltage_or_base_fallback) ... ok
+test_28_source_refs_are_arrays (test_fidelity_v3.FidelityTests.test_28_source_refs_are_arrays) ... ok
+test_29_negative_taps_do_not_fallback (test_fidelity_v3.FidelityTests.test_29_negative_taps_do_not_fallback) ... ok
+test_30_plain_synthetic_parity_passes (test_fidelity_v3.FidelityTests.test_30_plain_synthetic_parity_passes) ... ok
+test_31_rawx_parser_solution_and_schema (test_fidelity_v3.FidelityTests.test_31_rawx_parser_solution_and_schema) ... ok
+test_32_raw_missing_columns_rejected (test_fidelity_v3.FidelityTests.test_32_raw_missing_columns_rejected) ... ok
+test_33_raw_truncation_rejected (test_fidelity_v3.FidelityTests.test_33_raw_truncation_rejected) ... ok
+test_34_raw_numeric_name_and_empty_title (test_fidelity_v3.FidelityTests.test_34_raw_numeric_name_and_empty_title) ... ok
+test_35_cli_never_success_on_incomplete_physics (test_fidelity_v3.FidelityTests.test_35_cli_never_success_on_incomplete_physics) ... ok
+test_36_partial_winding_status_blocks (test_fidelity_v3.FidelityTests.test_36_partial_winding_status_blocks) ... ok
+test_37_slack_injection_is_counted_once (test_fidelity_v3.FidelityTests.test_37_slack_injection_is_counted_once) ... ok
+test_38_hash_tracks_electrical_edits_not_export_time (test_fidelity_v3.FidelityTests.test_38_hash_tracks_electrical_edits_not_export_time) ... ok
+test_39_invalid_numbers_remain_distinct_in_json_evidence (test_fidelity_v3.FidelityTests.test_39_invalid_numbers_remain_distinct_in_json_evidence) ... ok
+
+----------------------------------------------------------------------
+Ran 39 tests in 0.404s
+
+OK

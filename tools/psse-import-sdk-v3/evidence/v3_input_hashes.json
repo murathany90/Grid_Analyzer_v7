@@ -1,0 +1,14 @@
+{
+  "C:\\Users\\Murathan Yeniceli\\GA_PSSE_IMPORT_SDK.zip": {
+    "bytes": 969836,
+    "sha256": "1f4c629fc06d764e81f1524afe6a64a2c4958765fa805e45211a39b6f0abded6"
+  },
+  "C:\\Users\\Murathan Yeniceli\\Downloads\\PSSE_SDK_V3_DENETIM_VE_SIFIR_OTURUM_PAKETI.zip": {
+    "bytes": 23645,
+    "sha256": "0b27c155eae6763754c77d87a424c3f6f2e295641c2c97eb8018d96ccdd98e27"
+  },
+  "tests\\audit_sdk_v3.py": {
+    "bytes": 7926,
+    "sha256": "eb7af3877137bb2dad40940a45feaccabc772d1fcefa4278d102adad7cf29cad"
+  }
+}

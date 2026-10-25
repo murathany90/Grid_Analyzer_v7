@@ -1,0 +1,14 @@
+BASE-PAIRS                      PASS :: 11/11 passed
+P0-INACTIVE-SLACK               FAIL :: READY
+P0-DANGLING-GENERATORS          FAIL :: READY
+P0-DANGLING-LOADS               FAIL :: READY
+P0-DUPLICATE-IDENTITY           FAIL :: validator_pass=True, network=READY
+P0-UNSUPPORTED-AC-PHYSICS       FAIL :: READY
+P0-NODE-ELECTRICAL-GRAPH        FAIL :: physical_reachable_nodes=0/292, LF=READY
+P1-RATE-SET-SECOND              FAIL :: PASS
+P1-TX-SECOND-TAP                FAIL :: PASS
+P1-LOAD-ZIP                     FAIL :: PASS
+P1-GEN-MBASE                    FAIL :: PASS
+P1-TS-SOURCEREFS                FAIL :: raw scalar value emitted
+P1-SOLVED-ASSUMED               FAIL :: both parsers hard-code True
+SUMMARY {'paired_pass': 11, 'paired_total': 11, 'additional_pass': 0, 'additional_failed': 12}
