@@ -57,6 +57,9 @@ export interface DgsIssue {
   cls: string;
   fid: string;
   details: string;
+  code?: string;
+  evidence?: Readonly<Record<string,unknown>>;
+  sourceRefs?: readonly {sourceClass:string;sourceId:string;field:string}[];
 }
 
 export interface DgsStats {
@@ -542,18 +545,24 @@ export class DgsModel {
         const site = siteId ? this.stationGroups.get(siteId) : undefined;
         if (!site) continue;
         site.groups.push(group);
-        const lat = asNumber(group.GPSlat);
-        const lon = asNumber(group.GPSlon);
-        if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= 30 && lat <= 46 && lon >= 25 && lon <= 46) {
-          if (site.lat === null) {
-            site.lat = lat;
-            site.lon = lon;
-          } else if (site.lon !== null && Math.hypot(site.lat - lat, site.lon - lon) > 0.12) {
-            this.addIssue('TM bara grubu koordinat farkı', 'ElmSubstat', fid, `${asText(group.loc_name) ?? fid}: ilk grup ile farklı konum`);
-          }
-        } else {
-          this.addIssue('Geçersiz TM koordinatı', 'ElmSubstat', fid, `${lat}, ${lon}`);
-        }
+      }
+    }
+    // Evaluate availability once per ElmSite, after all attached groups are known.
+    // Keep the first valid source coordinate. Neither averaging nor fallback GPS
+    // may manufacture a location for a site without a valid source pair.
+    for(const site of this.sites){
+      const pairs=site.groups.map(group=>({id:String(group.FID),lat:asNumber(group.GPSlat),lon:asNumber(group.GPSlon)}));
+      const valid=pairs.filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)&&p.lat>=30&&p.lat<=46&&p.lon>=25&&p.lon<=46);
+      const first=valid[0],sourceRefs=[{sourceClass:'ElmSite',sourceId:site.FID,field:'fold_id'},...pairs.map(p=>({sourceClass:'ElmSubstat',sourceId:p.id,field:'GPSlat/GPSlon/fold_id'}))];
+      if(!first){
+        if(this.issues.length<14_000)this.issues.push({code:'SITE_COORDINATES_MISSING',level:'Bilgi',kind:'TM koordinatı kaynakta yok',cls:'ElmSite',fid:site.FID,details:site.groups.length?'Bağlı bara gruplarında geçerli GPS çifti yok.':'Bağlı ElmSubstat kaydı yok.',evidence:{reason:site.groups.length?'NO_VALID_GROUP_COORDINATES':'NO_ATTACHED_SUBSTATION',coordinates:pairs},sourceRefs});
+        continue;
+      }
+      site.lat=first.lat;site.lon=first.lon;
+      const conflicts=valid.slice(1).filter(p=>Math.hypot(first.lat-p.lat,first.lon-p.lon)>0.12);
+      if(conflicts.length){
+        const km=(p:typeof first)=>{const rad=Math.PI/180,a=Math.sin((p.lat-first.lat)*rad/2)**2+Math.cos(first.lat*rad)*Math.cos(p.lat*rad)*Math.sin((p.lon-first.lon)*rad/2)**2;return 6371.0088*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));};
+        if(this.issues.length<14_000)this.issues.push({code:'SITE_COORDINATES_CONFLICT',level:'Uyarı',kind:'TM bara grubu koordinat uyuşmazlığı',cls:'ElmSite',fid:site.FID,details:'Geçerli kaynak çiftleri arasında düzlem açısal fark 0,12 dereceyi aşıyor; ilk geçerli kaynak çifti korunur.',evidence:{threshold:0.12,thresholdUnit:'degree',comparison:'sqrt(deltaLatitude^2 + deltaLongitude^2)',distanceMethod:'Haversine',distanceUnit:'km',earthRadiusKm:6371.0088,reference:first,conflicts:conflicts.map(p=>({...p,distanceKm:km(p)}))},sourceRefs});
       }
     }
     this.sites.sort((left, right) => left.loc_name.localeCompare(right.loc_name, 'tr'));

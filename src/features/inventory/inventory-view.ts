@@ -1,3 +1,6 @@
+import {workspaceTableViewport} from '../../ui/components/workspace-table-viewport';
+import {createColumnSelector,createRecordDialog} from '../../ui/components/workspace-columns';
+import {workspaceCatalogColumns,workspaceRowValues,type WorkspaceColumn} from '../../ui/components/workspace-catalog';
 import {catalogLayout} from '../../ui/components/catalog-layout';
 import {classLabel} from '../../domain/dgs-semantics/classes';
 import {voltageMatches} from '../../domain/model/voltage-band';
@@ -24,9 +27,13 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
   if(options.sharedScope){areaSelect.remove();siteSelect.remove();search.remove();voltageFilter.element.hidden=true;}
   const count = element('p', 'ga-muted', 'Model bekleniyor.');
   const tableWrap = element('div', 'ga-table-wrap');
-  const pager = element('div', 'ga-pager');
-  const detail = element('section', 'ga-detail', 'Ayrıntı için bir ekipman seçin.');
-  root.append(heading,toolbar,voltageFilter.element,count,...(options.sharedScope?[catalogLayout(tableWrap,pager,detail)]:[tableWrap,pager,detail]));
+  const pager = element('div', 'ga-pager');const fitTable=workspaceTableViewport(tableWrap);
+  const recordDialog=createRecordDialog(root,'Ekipman ayrıntısı'),detail=recordDialog.detail;
+  let tableRows:readonly CatalogRow[]=[],tableAttributes:readonly string[]=[];const columnSelector=createColumnSelector(()=>redrawTable());toolbar.append(columnSelector.element);
+  const columnsFor=()=>{const cls=currentClass();const extra:WorkspaceColumn[]=[];const def=workspaceCatalogColumns(cls,tableAttributes,extra);columnSelector.set(cls,def.columns,def.profiles);return columnSelector.visible(def.columns);};
+  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,currentClass(),columnsFor(),row=>{showDetail(row);tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},false,row=>rowActions(row)));fitTable();}
+  function rowActions(row:CatalogRow&{className?:string}){const actions=element('div','ga-inline-actions'),cls=currentClass();for(const [label,view]of [['Harita','map'],['SLD','sld']] as const){const b=element('button','',label);b.onclick=e=>{e.stopPropagation();ctx.select(row.id,cls,view);};actions.append(b);}const source=element('button','','Kaynak');source.onclick=e=>{e.stopPropagation();showDetail(row);recordDialog.show();};actions.prepend(source);return actions;}
+  root.append(heading,toolbar,voltageFilter.element,count,...(options.sharedScope?[catalogLayout(tableWrap,pager)]:[tableWrap,pager]));
 
   let page = 0, selected: CatalogRow | null = null, revision = 0, lastModelHash = '', optionModelHash = '', siteOptionsKey = '', lastQueryKey = '', pendingQueryKey = '',lastContextSelection='';
   const pageSizeNow = () => Math.max(10, Math.min(100, Math.floor(ctx.settings.value.pageSize || 20)));
@@ -62,7 +69,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
     if(options.sharedScope){areaSelect.value=ctx.filters.areaId;search.value=ctx.filters.search;const requested=ctx.networkInventoryClass;if(requested&&classSelect.value!==requested&&[...classSelect.options].some(o=>o.value===requested)){classSelect.value=requested;page=0;lastContextSelection=network.modelHash+'|'+(ctx.selection?ctx.selection.sourceClass+'|'+ctx.selection.id:'');}}sizeSelect.value=String(pageSizeNow());
     voltageFilter.render();const area=areaSelect.value,selectedVoltage=[...ctx.filters.voltages].sort().join(',');
     const key = `${network.modelHash}|${area}|${selectedVoltage ?? ''}`; if (key === siteOptionsKey) return; siteOptionsKey = key;
-    const sites = network.sites.filter(s => (!area || s.areaId === area) && s.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)))
+    const sites = network.sites.filter(s => (!area || s.areaId === area) && (s.voltages.length?s.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)):voltageMatches(null,ctx.filters.voltages)))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
     fillSelect(siteSelect, sites.map(s => ({ value: s.id, label: s.name })), 'Bütün TM’ler');
   }
@@ -80,7 +87,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
 
   function renderTable(result: CatalogPage): void {
     if (!result.rows.length) { tableWrap.replaceChildren(element('p', 'ga-empty', 'Filtreye uygun kayıt bulunamadı.')); return; }
-    tableWrap.replaceChildren(semanticTable(result.rows,currentClass(),engineeringColumns(currentClass(),result.attributes),showDetail));
+    tableRows=result.rows;tableAttributes=result.attributes;redrawTable();
   }
 
   function renderPager(total: number, size: number): void {
@@ -92,20 +99,20 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
   }
 
   async function render(): Promise<void> {
-    if (ctx.view !== 'inventory') { revision++; pendingQueryKey=''; return; }
+    if (ctx.view !== 'inventory') { recordDialog.close();revision++; pendingQueryKey=''; return; }
     syncOptions();if(options.sharedScope)siteSelect.value=ctx.filters.siteId;
     const focus=ctx.selection,focusKey=(ctx.network?.modelHash??'')+'|'+(focus?focus.sourceClass+'|'+focus.id:'');
     if(focus&&focusKey!==lastContextSelection&&[...classSelect.options].some(o=>o.value===focus.sourceClass)){lastContextSelection=focusKey;classSelect.value=focus.sourceClass;ctx.networkInventoryClass=focus.sourceClass;if(!options.sharedScope){search.value=focus.id;areaSelect.value='';siteSelect.value='';}page=0;}
 
     const network = ctx.network;
-    if (!network) { lastModelHash = ''; optionModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; count.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }
+    if (!network) { tableRows=[];recordDialog.close();lastModelHash = ''; optionModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; count.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }
     if (lastModelHash !== network.modelHash) { selected = null; lastQueryKey = ''; pendingQueryKey = ''; detail.textContent = 'Ayrıntı için bir ekipman seçin.'; lastModelHash = network.modelHash; }
     const size = pageSizeNow(), filter = makeFilter(), className = currentClass();
     const filterKey=JSON.stringify([network.modelHash,className,filter,size]);if(filterKey!==lastFilterKey){page=0;lastFilterKey=filterKey;}
     const queryKey = JSON.stringify([network.modelHash, className, filter, page, size]);
     if (queryKey === lastQueryKey || queryKey === pendingQueryKey) return;
     const request = ++revision;
-    pendingQueryKey = queryKey;tableWrap.replaceChildren(element('p','ga-empty','Kapsam yükleniyor…'));pager.replaceChildren();detail.textContent='Kapsamdaki bir ekipmanı seçin.';
+    pendingQueryKey = queryKey;recordDialog.close();tableRows=[];tableWrap.replaceChildren(element('p','ga-empty','Kapsam yükleniyor…'));pager.replaceChildren();detail.textContent='Kapsamdaki bir ekipmanı seçin.';
     try {
       const result = await ctx.catalog({ ...filter, className, page, pageSize: size });
       if (request !== revision || ctx.view !== 'inventory' || ctx.network?.modelHash !== network.modelHash) return;
@@ -129,7 +136,7 @@ export function createInventoryView(ctx: AppContext, options:{sharedScope?:boole
     exportButton.disabled = true;
     try {
       const network=ctx.network,cls=currentClass(),filter=makeFilter(),key=JSON.stringify(filter),current=()=>ctx.network===network&&ctx.view==='inventory'&&currentClass()===cls&&JSON.stringify(makeFilter())===key;const result = await fetchCatalogAll(ctx,cls,filter,100,current);if(!current())return;
-      const csv=catalogCsv(result.rows,cls,result.attributes,technical,engineeringColumns(cls,result.attributes));
+      if(exportButton.value==='json'){downloadText(JSON.stringify({modelHash:network.modelHash,sourceClass:cls,filters:filter,rows:result.rows},null,2),`GridAnalyzer_${cls}_envanter.json`,'application/json');return;}const exportColumns=columnsFor();const csv=technical?catalogCsv(result.rows,cls,result.attributes,true,[]):'\ufeff'+[exportColumns.map(c=>c.label),...result.rows.map(r=>workspaceRowValues(r,exportColumns))].map(r=>r.map(csvCell).join(';')).join('\r\n');
       downloadText(csv, `GridAnalyzer_${cls}_envanter.csv`, 'text/csv;charset=utf-8');
     } catch (error) { ctx.setMessage(`CSV oluşturulamadı: ${error instanceof Error ? error.message : String(error)}`); }
     finally { exportButton.disabled = false; exportButton.value=''; }

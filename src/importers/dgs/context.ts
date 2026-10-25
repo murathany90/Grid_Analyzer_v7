@@ -71,6 +71,7 @@ export function resolveEngineeringContext(model:DgsModel,cls:string,id:string,at
     voltageKv:nominalVoltage(model,cls,id,attributes),lvKv:cls==='ElmTr2'?numeric(value(model,'TypTr2',typeId,'utrn_l')):null,
     ratingMva:cls==='ElmTr2'?numeric(value(model,'TypTr2',typeId,'strn')):null,
     typeName:lineTypes.length?lineTypes.map(type=>String(value(model,'TypLne',type,'loc_name')||type)).join(' / '):typeId?String(value(model,typeClass,typeId,'loc_name')||typeId):null,
+    fromArea:line?model.siteById(line.stationA)?.ytm??null:areas[0]?.name??null,toArea:line?model.siteById(line.stationB)?.ytm??null:areas[1]?.name??null,
     fromSite:line?model.siteById(line.stationA)?.loc_name??null:sites[0]?.name??null,
     toSite:line?model.siteById(line.stationB)?.loc_name??null:sites[1]?.name??null,sourceRefs};
 }

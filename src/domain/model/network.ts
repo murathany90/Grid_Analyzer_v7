@@ -89,7 +89,7 @@ export interface CanonicalNetwork {
   readonly unsupportedReactiveLimitClasses?: readonly {sourceClass:string;count:number;sourceIds:readonly string[]}[];
   readonly loadFlowOptionsRaw?: Readonly<Record<string,number|string|null>>;
   readonly loadFlowSettings?: Readonly<Record<string,number|string|null>>;
-  readonly diagnostics?: readonly { readonly code:string; readonly message:string; readonly severity:'INFO'|'WARNING'|'ERROR'; readonly sourceClass?:string; readonly sourceId?:string }[];
+  readonly diagnostics?: readonly { readonly code:string; readonly message:string; readonly severity:'INFO'|'WARNING'|'ERROR'; readonly sourceClass?:string; readonly sourceId?:string; readonly originalValue?:unknown; readonly sourceRefs?:readonly SourceRef[] }[];
   /**
    * Counts of values the source did not supply and that were not guessed. Every entry is a
    * physical substitution or exclusion, reported so a strict path can present PARTIAL.

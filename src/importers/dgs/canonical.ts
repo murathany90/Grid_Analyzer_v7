@@ -143,6 +143,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const loadFlowSettings=comLdf?Object.fromEntries(comLdfFields.map(key=>[key,rawNumber(comLdf[key])])):{};
   const loadFlowOptionsRaw=loadFlowSettings;
   const diagnostics=loads.some(load=>load.activeBalanceEligibility===undefined)?[{code:'ACTIVE_BALANCE_ELIGIBILITY_MISSING',message:'Active balancing eligibility is absent from ElmLod source attributes; adjustable-load balancing parity cannot be established.',severity:'WARNING' as const,sourceClass:'ElmLod'}]:[];
+  const coordinateDiagnostics=m.issues.filter(i=>i.code).map(i=>({code:i.code!,message:`[${i.level}] ${i.cls} ${i.fid}: ${i.kind} — ${i.details}`,severity:i.level==='Bilgi'?'INFO' as const:'WARNING' as const,sourceClass:i.cls,sourceId:i.fid,originalValue:i.evidence,sourceRefs:i.sourceRefs}));
   // Every source value that is substituted or excluded instead of solved is counted here.
   const tapFallbacks=transformers.filter(tr=>tr.tapResolution!=='SOURCE_RESOLVED');
   const invalidShuntSteps=shunts.filter(s=>s.stepProvenance==='INVALID_MTAPS'||s.stepProvenance==='INVALID_RATING');
@@ -170,7 +171,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
     tr.tap=(ht/hb)/(lt/lb)*(tr.tapSide===0?rho:tr.tapSide===1?1/rho:1);
   }
   shunts=shunts.map(shunt=>{const kv=canonicalKv(shunt.bus),rated=shunt.ratedVoltageKv;return rated!=null&&rated>0&&kv>0?{...shunt,bPu:(shunt.nominalQMvar??0)/BASE*(kv/rated)**2}:shunt;});
-  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,sourceFidelity,
+  return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics:[...diagnostics,...coordinateDiagnostics],unsupportedReactiveLimitClasses,sourceFidelity,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,
     capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'PARTIAL',reasons:['3F MAX/MIN ağ yaklaşımı; kaynak verisi ve yöntem kapsamı ayrıca denetlenir.']}, n1:{state:'PARTIAL',scope:'REDUCED_GE66_DC_P_ONLY',reasons:['Reduced DC screening of in-service lines and two-winding transformers in the >=66 kV network.','Active-power islanding and estimated loading only; reactive power, voltage and Full AC contingency verification are not covered.','SCREENED_NO_VIOLATION does not mean AC security is verified.']} } };

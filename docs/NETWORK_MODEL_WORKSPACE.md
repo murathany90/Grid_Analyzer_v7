@@ -1,47 +1,55 @@
-# Şebeke Modeli çalışma alanı
+# Şebeke Modeli çalışma alanı — PR #15
 
-`feature/unified-network-model-workspace`, `fa3d3e8b676a1440605a5c9e8a5babe400184169` main tabanından geliştirilmiştir. Bu çalışma kullanıcı incelemesi için Draft PR olarak sunulur. Main, auto-merge ve canlı Pages yayını bu aşamanın kapsamı dışındadır.
+Geliştirme aynı `feature/unified-network-model-workspace` dalındadır. İncelenen önceki HEAD `837076302b1f0ab2ee2fc9c1b9eecb6b7faa72ad`; hedef main tabanı `fa3d3e8b676a1440605a5c9e8a5babe400184169`. Draft PR kullanıcı incelemesi içindir. Main, auto-merge, Pages deployment ve canlı site güncellemesi için açık kullanıcı onayı gerekir.
 
-## Yapı ve veri akışı
+## Kompakt masaüstü arayüzü
 
-Üst menüde Şebeke Modeli; altında Model Özeti, Şebeke Envanteri, İşletme Verileri ve Model Kalitesi bulunur. Harita, SLD, analiz, karşılaştırma, yardım ve ayarlar korunur. Eski `inventory`/`operating` yönlendirme kimlikleri aynı çalışma alanının alt sekmelerine ulaşır.
+Dört alt sekme korunur: Model Özeti, Şebeke Envanteri, İşletme Verileri ve Model Kalitesi. Özetin sağlık kartı kaldırılmıştır; kalite bulguları kalite sekmesindedir. İstatistikler tek sıradadır. Sınıf kartları ortak DgsSemanticDictionary açıklamalarını gösterir ve aynı envanter sınıfını açar. Kabiliyet statüleri değiştirilmez; büyük PARTIAL metni yerine Türkçe kısa kapsam ve açılır teknik açıklama vardır. Yöntem sınırları ve NOT_VERIFIED parite bilgisi erişilebilirdir.
 
-Veriler mevcut Application, kaynak Worker ve katalogdan gelir. İkinci katalog, iframe, örnek SN7 veri kümesi veya ikinci uygulama yoktur. Yalnız görünür katalog sorgulanır. Sayfalama korunur; kapsam, sınıf, sekme veya model değişince bekleyen yanıtlar ve dışa aktarımlar geçersizleşir. Ortak YTM/TM/gerilim/arama ve ekipman seçimi sekmeler arasında korunur. Açık bir ekipman yönlendirmesi ilgili FID'yi bulabilmek için arama kapsamını değiştirir.
+Envanter, işletme ve kalite tabloları tam genişliktedir. Kalıcı sağ panel yoktur. Sabit başlıklar, 30 px tek satır, iç yatay/dikey kaydırma, tam metin tooltip ve kaynak/kanıt pencereleri kullanılır. Sıra her profilde `YTM → TM → Bara/Fider → Ekipman → Teknik parametreler → Durum → İşlemler` biçimindedir. Hatlarda iki uç TM/YTM bilgisi gösterilir; kaynak ilişkisi olmayan alanlar — kalır.
 
-Model yükleme mevcut güvenli JSON/ZIP okuyucusunu ve iptal mekanizmasını kullanır. Model zamanı yalnız kaynak StudyCase adından okunabilir; bulunamazsa belirtilir. Model kimliği JSON dışa aktarımı model karşılaştırması için ad, hash, StudyCase, sınıf sayıları ve yetenekleri taşır; model verisini taşımaz.
+Mühendislik/Kompakt ve tüm kaynak alanları/kanıt profilleri ile kolon seçimi desteklenir. Teknik CSV/JSON dışa aktarımı kolon seçimine bakmadan bütün DGS alanlarını ve kaynak referanslarını korur. İşletmede kaynak, aktif senaryo ve güncel LF ayrı sütunlardır; düzenleme ve manevralar satırdan açılan pencerelerde mevcut ScenarioStore/controller komutlarını kullanır. Model/senaryo değişiminde eski işlem reddedilir. LF değeri yoksa girdiler sonuç gibi gösterilmez. Değişiklikler hesap motorlarına veya elektriksel topolojiye müdahale etmez.
 
-İşletme ayrıntısında kaynak DGS, aktif senaryo ve güncel kimlik denetiminden geçen LF sonucu ayrı bloklardır. P/Q değişikliği mevcut ScenarioStore'a kaydedilir; kaynak değişmez. Anahtar ve hat eylemleri mevcut controller komutlarına gider. Şönt/tap/set değerleri mevcut kaynak kapsamına göre gösterilir. Eksik veya eski hesaplar model girdileriyle doldurulmaz. LF saklama/geri yükleme mevcut IndexedDB anahtarlarıyla aynı model/senaryo/ayar kimlik kapısından geçer; hesap motoru değişmez.
+Ortak YTM/TM/gerilim/arama, seçim, görünür sekme sorguları ve IndexedDB kimlik denetimleri korunur. Kapsam değişince eski sorgu yanıtları reddedilir. Tek sınıflı işletme sayfaları doğrudan offset sorgusu kullanır; çok sınıflı sıralı birleştirmede önceki kaynak sayfaları sınırlı ve modele bağlı önbellekten okunur. Toplam/sıralama/sayfa doğruluğu regresyonlarla denetlenir.
 
-## Birleşik kalite
+## Sınıf açıklamalarının kaynağı
 
-- Kaynak tanıları, kaynak uyarıları ve elektriksel denetim kendi kökenleriyle birleşir. Tekilleştirme kod + sınıf + kanıtlı FID + alan üzerinden yapılır. Genel kaynak uyarılarında özgün mesaj da anahtara dahildir; ayrı sorunlar kaybolmaz.
-- Kaynak issue metnindeki sınıf/FID canonical envanterde birebir doğrulanırsa bağlanır. Canonical ekipman olmayan ElmSubstat koordinat bulgularında importer’ın yapılandırılmış issue kaydındaki açık FID korunur; TM ilişkisi tahmin edilmez. İsim benzerliğinden FID üretilmez.
-- Tap fallback yalnız kaynak `transformerTapFallbackIds` üzerinden genişletilir. Dönüşüm fallback'i hesaplanan sonuç gibi gösterilmez.
-- Q limitleri eksik üreticiler ve kontrolörlerin kanıtlanan üniteleri gösterilir; varsayılan Q limiti yazılmaz.
-- Yerel gerilim kontrol çatışmasının ilişkili kayıtları mevcut kapalı anahtar topolojisi ve kaynak ünite ilişkilerinden gelir. Toplu bulgunun özgün kapsamı korunur.
-- İndirgenmiş model dışında kalan girdilerin toplu bulgusu ekipman listesi kanıtı yoksa toplu kalır.
-- Koordinat/güzergâh eksikleri coğrafi bilgi olarak ayrılır; elektriksel hata sayılmaz. Aynı kaynak güzergâh uyarısı ikinci kez sayılmaz.
-- İlk 35 satır kısıtı yoktur. DOM sayfalıdır; CSV/JSON filtrelenen tam listeyi indirir. Eski elektriksel denetim STALE olarak ayrılır; kaynak kayıtları görünmeye devam eder. PARTIAL/BLOCKED ve doğrulanmamış PF/PSS-E için NOT_VERIFIED korunur.
+Yereldeki DIgSILENT PowerFactory 2024 User Manual (`Downloads/dgs/dgs/Help/UserManual_en.pdf`): PDF s.227 nötr topraklama elemanı ElmNec, s.277 sanal santral/üretim grubu ElmBmu, s.289 modelde sahiplik gruplaması ElmOwner. Sonuncusu raporlama/model gruplamasıdır; hukuki mülkiyet doğrulaması veya çıkarımı değildir. Tam metin kılavuz veya özel model dosyaları depoya eklenmez.
 
-## Doğrulama ve inceleme
+## ElmSite koordinat denetimi
 
-`tests/unit/network-model-workspace.test.ts` tekilleştirme, köken, FID kanıtı, coğrafi ayrım, değişmez kaynaklar ve eski katalog yanıtlarının reddini denetler. `tools/network-model-browser.mjs` üretim controller/Worker/IndexedDB ile yükleme, ortak filtre/seçim, görünür sekme sorguları, sıralama/sayfalama, kalite CSV/JSON, harita/SLD yönlendirmesi, P/Q senaryo ayrımı ve LF geri yüklemeyi denetler. Ana E2E komutuna eklenmiştir.
+Kaynak GPS alanları değişmez. Önce bütün ElmSubstat → ElmSite → YTM ilişkileri okunur. TM'nin herhangi bir bağlı grubunda mevcut geçerlilik sınırları içinde bir GPS çifti varsa ilk geçerli kaynak çifti korunur; sıfır/boş/geçersiz kardeş gruplar tekrar uyarı üretmez.
 
-Masaüstü kabul boyutları: 1366×768, 1920×1080 ve 1366×768 %125 ölçek. Mobil/tablet kapsam dışıdır. Yerel özel model test kanıtları `local-benchmark-results/network-model-workspace/` altında kalır; Git'e veya deployment artifact'ına eklenmez.
+Geçerli çifti olmayan her TM için tek `SITE_COORDINATES_MISSING` kaydı üretilir. `NO_ATTACHED_SUBSTATION` ile `NO_VALID_GROUP_COORDINATES` nedenleri ayrıdır. Birden fazla geçerli çift çelişirse `SITE_COORDINATES_CONFLICT` üretilir. Eski 0,12° eşiği `sqrt(Δenlem² + Δboylam²)` olarak açıkça belirtilir; ek uzaklık Haversine yöntemiyle, 6371,0088 km küre yarıçapıyla km cinsinden verilir. Bu açı eşiği kilometre eşiği diye sunulmaz. Koordinat ortalaması, sahte konum veya elektriksel bağlantı üretilmez.
 
-Yerel SN7 ZIP testi: 587.301 kayıt, 1.625 TM ve 40 DGS sınıfı doğrulanmıştır. Kalite sayıları kaynak model ve denetimden hesaplanır; bu sayılar üretim kodunda sabit değildir. Son doğrulama sonuçları ve portable SHA-256 Draft PR açıklamasında ve teslim raporunda verilir. Portable tabanı `./`, Pages tabanı `/` korunmuştur; Pages build çalıştırmak yayın tetiklemez.
+Yeni coğrafi kaynak tanıları ElmSite FID'sine bağlıdır; kaynak grup FID'leri/alanları kanıtta korunur. Böylece YTM/TM kalite filtreleri aynı kayıtları tutar. Bağlı grup/gerilim bilgisi olmayan TM'ler bütün gerilimler kapsamındaki TM seçicisinde görünür.
 
-## Kabul kanıtı (2026-10-25)
+### Gerçek SN7 eski/yeni doğrulaması
 
-- Typecheck ve mimari lint başarılı; 749 birim/regresyon testi geçti, atlanan test yok.
-- Birleşik çalışma alanı kabulü: dört sekme × üç masaüstü yerleşimi, ortak filtre/seçim, eski sorgu reddi, CSV/JSON, harita/SLD yönlendirmesi, iptal, kaynak/senaryo/LF ayrımı ve IndexedDB LF geri yükleme başarılı.
-- Gerçek SN7: 587.301 kayıt / 1.625 TM. 3.404 kaynak uyarısı, 2 yapılandırılmış kaynak tanısı, 1.337 elektriksel kayıt; tekilleştirilmiş toplam 4.807. Kaynak koordinat bulguları coğrafi kategoridedir; bu toplam elektriksel hata sayısı değildir.
-- Normal, Pages ve portable build başarılı. Pages build ve portable dosyası yerel tarayıcıda kalite Worker'ı ile ayrıca doğrulandı; hata ve dış ağ isteği yok. Pages yayını tetiklenmedi.
-- Tam E2E/CI sonucu ve portable hash PR tesliminde ayrıca doğrulanır. Özel SN7 girişleri ve ayrıntılı kanıtlar yerelde tutulur.
+Aynı yerel ZIP: **587.301 kayıt, 1.625 ElmSite, 4.925 ElmSubstat**.
 
-Aşağıdaki görseller yalnız depodaki **kamusal sentetik test modeli** ile üretilmiştir:
+| Denetim | Önce | Sonra |
+|---|---:|---:|
+| Geçerli kaynak koordinatı olan TM | 1.560 | 1.560 |
+| Geçerli kardeşi olan koordinatsız grup uyarısı | 3.150 | 0 |
+| Koordinatı belirsiz TM'nin tekil kaydı | Dağınık/türetilmiş | 65 |
+| Bağlı ElmSubstat kaydı olmayan TM | 65 | 65 (ayrı neden) |
+| 0,12° üzerinde geçerli koordinat çelişkisi | 0 | 0 |
 
-![Model Özeti](images/network-model/summary.png)
-![Şebeke Envanteri](images/network-model/inventory.png)
-![İşletme Verileri](images/network-model/operating.png)
-![Model Kalitesi](images/network-model/quality.png)
+`tools/site-coordinate-real-audit.ts` eski HEAD'in DGS okuyucusunu yerel geçici alanda aynı kaynakla çalıştırıp diğer kaynak sorunlarının, elektriksel canonical dizilerin, kabiliyetlerin ve seçilen TM koordinatlarının değişmediğini bağımsız karşılaştırır. Özel kaynaklar/kanıt JSON'ları yalnız `local-benchmark-results/network-model-workspace/` altında kalır; Git veya deployment artifact'ına eklenmez.
+
+## Kabul ve testler
+
+- Birim regresyonları: geçerli + sıfır, tümü geçersiz, hiç grup yok, çelişen geçerli çiftler, eşik içindeki çiftler; coğrafi kaynak/FID/filtre ilişkileri; sıralı katalog önbelleği ve sayfa doğruluğu.
+- Tarayıcı: dört sekme, kolon profilleri/seçimi, tüm ham alanların CSV/JSON'u, tek satır/sabit başlık, harita/SLD, kaynak-senaryo-LF ayrımı, STALE, P/Q düzenleme, hat/anahtar işlemleri ve geri alma, model kimliği/IndexedDB geri yükleme, iptal/ZIP, açık/koyu tema.
+- Masaüstü: 1366×768, 1920×1080 ve %125 ölçek. Mobil/tablet kapsam dışı.
+- Typecheck, lint, tam test ve dokuz E2E paketi; standart/Pages/portable build ve deterministic portable Git byte eşitliği teslimde doğrulanır. Pages build yayın değildir. Son SHA ve exact-head CI sonucu PR açıklamasında yer alır.
+
+## Önce / sonra (kamusal sentetik model)
+
+| Bölüm | Önce | Sonra |
+|---|---|---|
+| Özet | ![Önce](images/network-model/before-summary.png) | ![Sonra](images/network-model/summary.png) |
+| Envanter | ![Önce](images/network-model/before-inventory.png) | ![Sonra](images/network-model/inventory.png) |
+| İşletme | ![Önce](images/network-model/before-operating.png) | ![Sonra](images/network-model/operating.png) |
+| Kalite | ![Önce](images/network-model/before-quality.png) | ![Sonra](images/network-model/quality.png) |

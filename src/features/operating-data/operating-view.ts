@@ -1,10 +1,14 @@
+import {workspaceTableViewport} from '../../ui/components/workspace-table-viewport';
+import {operatingValues} from './operating-values';
+import {createColumnSelector,createRecordDialog} from '../../ui/components/workspace-columns';
+import {workspaceCatalogColumns,workspaceRowValues,type WorkspaceColumn} from '../../ui/components/workspace-catalog';
 import {operatingEvidence} from './operating-evidence';
 import {catalogLayout} from '../../ui/components/catalog-layout';
 import {activeResultId} from '../../domain/results/workspace';
 import {voltageMatches} from '../../domain/model/voltage-band';
 import {createVoltageFilter} from '../../ui/components/voltage-filter';
 import {engineeringColumns,semanticTable,semanticDetail,catalogCsv,exportSelect} from '../../ui/components/semantic-catalog';
-import type { AppContext, Feature } from '../../app/contracts';
+import type { AppContext, Feature, CatalogRow } from '../../app/contracts';
 import type { TaggedCatalogRow } from '../catalog';
 import { csvCell, downloadText, element, format } from '../../ui/components/dom';
 import { fetchCatalogAll, fetchMergedPage, type CatalogFilter } from '../catalog';
@@ -36,9 +40,13 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
   const notice = element('p', 'ga-notice', 'Bu değerler DGS anlık durumuna ait işletme girdileridir; hesap sonucu veya ölçüm değildir.');
   const status = element('p', 'ga-muted');
   const tableWrap = element('div', 'ga-table-wrap');
-  const pager = element('div', 'ga-pager');
-  const detail = element('section', 'ga-detail', 'Ayrıntı için bir ekipman seçin.');
-  root.append(heading,kindsBar,toolbar,voltageFilter.element,notice,status,...(workspaceOptions.sharedScope?[catalogLayout(tableWrap,pager,detail)]:[tableWrap,pager,detail]));
+  const pager = element('div', 'ga-pager');const fitTable=workspaceTableViewport(tableWrap);
+  const recordDialog=createRecordDialog(root,'Ekipman ayrıntısı'),detail=recordDialog.detail;
+  let tableRows:readonly TaggedCatalogRow[]=[],tableAttributes:readonly string[]=[];const columnSelector=createColumnSelector(()=>redrawTable());toolbar.append(columnSelector.element);
+  const columnsFor=()=>{const cls=kind.classes[0];const values=operatingValues(ctx),extra:WorkspaceColumn[]=[{key:'operating.source',label:'Kaynak DGS',value:r=>values(r,(r as TaggedCatalogRow).className||cls).source},{key:'operating.scenario',label:'Aktif senaryo',value:r=>values(r,(r as TaggedCatalogRow).className||cls).scenario},{key:'operating.lf',label:'Güncel LF',value:r=>values(r,(r as TaggedCatalogRow).className||cls).lf}];const def=workspaceCatalogColumns(cls,tableAttributes,extra);columnSelector.set(cls,def.columns,def.profiles);return columnSelector.visible(def.columns);};
+  function redrawTable(){if(!tableRows.length)return;tableWrap.replaceChildren(semanticTable(tableRows,kind.classes[0],columnsFor(),row=>{showDetail({...row,className:row.className||kind.classes[0]});tableWrap.querySelectorAll('tr[data-id]').forEach(tr=>tr.classList.toggle('ga-selected',(tr as HTMLElement).dataset.id===row.id));},false,row=>rowActions(row)));fitTable();}
+  function rowActions(row:CatalogRow&{className?:string}){const actions=element('div','ga-inline-actions'),cls=row.className||kind.classes[0];for(const [label,view]of [['Harita','map'],['SLD','sld']] as const){const b=element('button','',label);b.onclick=e=>{e.stopPropagation();ctx.select(row.id,cls,view);};actions.append(b);}const source=element('button','','Kaynak');source.onclick=e=>{e.stopPropagation();showDetail({...row,className:cls});recordDialog.show();};actions.prepend(source);const edit=element('button','','Düzenle');edit.disabled=ctx.busy;edit.onclick=e=>{e.stopPropagation();showDetail({...row,className:cls});recordDialog.show();};actions.append(edit);return actions;}
+  root.append(heading,kindsBar,toolbar,voltageFilter.element,notice,status,...(workspaceOptions.sharedScope?[catalogLayout(tableWrap,pager)]:[tableWrap,pager]));
 
   let kind = kinds[0], page = 0, selected: TaggedCatalogRow | null = null, requestId = 0, lastModelHash = '';
   let filterModelHash = '', siteOptionsKey = '', kindDrawn = '', lastQueryKey = '', pendingQueryKey = '';
@@ -63,7 +71,7 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
     if(workspaceOptions.sharedScope){area.value=ctx.filters.areaId;search.value=ctx.filters.search;}sizeSelect.value=String(pageSizeNow());
     voltageFilter.render();const selectedArea=area.value,selectedVoltage=[...ctx.filters.voltages].sort().join(',');
     const key = `${net.modelHash}|${selectedArea}|${selectedVoltage ?? ''}`; if (siteOptionsKey === key) return; siteOptionsKey = key;
-    const sites = net.sites.filter(s => (!selectedArea || s.areaId === selectedArea) && s.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)))
+    const sites = net.sites.filter(s => (!selectedArea || s.areaId === selectedArea) && (s.voltages.length?s.voltages.some(v=>voltageMatches(v,ctx.filters.voltages)):voltageMatches(null,ctx.filters.voltages)))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
     options(site, sites.map(s => ({ value: s.id, label: s.name })), 'Bütün TM’ler');
   }
@@ -74,35 +82,35 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
     }));
   }
   function showDetail(row: TaggedCatalogRow): void {
-    selected=row;detail.dataset.selectedFid=row.id;semanticDetail(detail,row,row.className||kind.classes[0]);
+    const networkAtOpen=ctx.network,scenarioAtOpen=ctx.scenario.current;selected=row;detail.dataset.selectedFid=row.id;semanticDetail(detail,row,row.className||kind.classes[0]);
     const jump = element('button', 'ga-button', 'Haritada göster'); jump.type = 'button';
     const sourceClass = row.className || kind.classes.find(c => ctx.network?.classCounts[c] !== undefined) || kind.classes[0];
     jump.addEventListener('click', () => ctx.select(row.id, sourceClass, 'map')); detail.append(jump);
     detail.append(operatingEvidence(ctx,row,sourceClass));const sld=element('button','ga-button','Tek hat şeması');sld.onclick=()=>ctx.select(row.id,sourceClass,'sld');detail.append(sld);if(ctx.selection?.id!==row.id||ctx.selection?.sourceClass!==sourceClass){lastContextSelection=(ctx.network?.modelHash??'')+'|'+sourceClass+'|'+row.id;ctx.select(row.id,sourceClass);}
     const cls=sourceClass,collection=cls==='ElmLne'?ctx.network?.lines:cls==='ElmTr2'?ctx.network?.transformers:['ElmCoup','StaSwitch'].includes(cls)?ctx.network?.switches:null,entity=collection?.find(e=>e.id===row.id||e.sourceId===row.id);
     if(entity){const key=cls==='ElmLne'?'lineStatus':cls==='ElmTr2'?'transformerStatus':'switchState',source='closed' in entity?entity.closed:entity.inService,active=ctx.scenario.current[key][entity.id]??source;
-      for(const [label,calculate] of [[active?'Aç / servis dışı':'Kapat / servise al',false],['Değiştir + Senaryo Full AC hesapla',true]] as const){const action=element('button','ga-button',label);action.disabled=ctx.busy;action.onclick=()=>void ctx.setStatus(key,entity.id,!active,source,calculate);detail.append(action);}}
+      for(const [label,calculate] of [[active?'Aç / servis dışı':'Kapat / servise al',false],['Değiştir + Senaryo Full AC hesapla',true]] as const){const action=element('button','ga-button',label);action.disabled=ctx.busy;action.onclick=()=>{if(ctx.network!==networkAtOpen||ctx.scenario.current!==scenarioAtOpen){ctx.setMessage('İşlem kapsamı değişti; kaydı yeniden açın.');return;}void ctx.setStatus(key,entity.id,!active,source,calculate);};detail.append(action);}}
 
   }
   function drawRows(rows: readonly TaggedCatalogRow[], attributes: readonly string[]): void {
     if (!rows.length) { tableWrap.replaceChildren(element('p', 'ga-empty', 'Filtreye uygun kayıt bulunamadı.')); return; }
-    tableWrap.replaceChildren(semanticTable(rows,kind.classes[0],engineeringColumns(kind.classes[0],attributes,true),row=>showDetail({...row,className:row.className||kind.classes[0]})));
+    tableRows=rows;tableAttributes=attributes;redrawTable();
   }
 
   async function render(): Promise<void> {root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';
-    if (ctx.view !== 'operating') { requestId++; pendingQueryKey=''; return; }
+    if (ctx.view !== 'operating') { recordDialog.close();requestId++; pendingQueryKey=''; return; }
     const focus=ctx.selection,focusKey=(ctx.network?.modelHash??'')+'|'+(focus?focus.sourceClass+'|'+focus.id:'');if(focus&&focusKey!==lastContextSelection){lastContextSelection=focusKey;const matched=kinds.find(k=>k.classes.includes(focus.sourceClass));if(matched){kind=matched;if(!workspaceOptions.sharedScope)search.value=focus.id;page=0;}}
     const network = ctx.network; fillFilters(network);if(workspaceOptions.sharedScope)site.value=ctx.filters.siteId;
     if (kindDrawn !== kind.id) { renderKinds(); kindDrawn = kind.id; }
 
-    if (!network) { lastModelHash = ''; filterModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; status.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }
+    if (!network) { tableRows=[];recordDialog.close();lastModelHash = ''; filterModelHash = ''; siteOptionsKey = ''; lastQueryKey = ''; pendingQueryKey = ''; selected = null; status.textContent = 'Model bekleniyor.'; tableWrap.replaceChildren(element('p', 'ga-empty', 'Önce DGS JSON modelini yükleyin.')); pager.replaceChildren(); detail.textContent = 'Ayrıntı için bir ekipman seçin.'; return; }
     if (lastModelHash !== network.modelHash) { selected = null; lastQueryKey = ''; pendingQueryKey = ''; detail.textContent = 'Ayrıntı için bir ekipman seçin.'; lastModelHash = network.modelHash; }
     const filters = filter(), size = pageSizeNow();
     const filterKey=JSON.stringify([network.modelHash,kind.id,filters,size]);if(filterKey!==lastFilterKey){page=0;lastFilterKey=filterKey;}
     const queryKey = JSON.stringify([network.modelHash, kind.id, filters, page, size]);
-    if(queryKey===lastQueryKey){const detailKey=ctx.scenario.revision+'|'+activeResultId(ctx)+'|'+ctx.busy;if(selected&&detailKey!==lastDetailContext){lastDetailContext=detailKey;showDetail(selected);}return;}if(queryKey===pendingQueryKey)return;
+    if(queryKey===lastQueryKey){const detailKey=ctx.scenario.revision+'|'+activeResultId(ctx)+'|'+ctx.busy;if(detailKey!==lastDetailContext){lastDetailContext=detailKey;if(selected)showDetail(selected);redrawTable();}return;}if(queryKey===pendingQueryKey)return;
     const request = ++requestId;
-    pendingQueryKey = queryKey;tableWrap.replaceChildren(element('p','ga-empty','Kapsam yükleniyor…'));pager.replaceChildren();detail.textContent='Kapsamdaki bir ekipmanı seçin.';
+    pendingQueryKey = queryKey;recordDialog.close();tableRows=[];tableWrap.replaceChildren(element('p','ga-empty','Kapsam yükleniyor…'));pager.replaceChildren();detail.textContent='Kapsamdaki bir ekipmanı seçin.';
     try {
       const result = await fetchMergedPage(ctx,kind.classes,filters,page,size,()=>request===requestId&&ctx.view==='operating'&&ctx.network===network);
       if (request !== requestId || ctx.view !== 'operating' || ctx.network?.modelHash !== network.modelHash) return;
@@ -130,7 +138,7 @@ export function createOperatingView(ctx: AppContext, workspaceOptions:{sharedSco
       const network=ctx.network,exportKind=kind,key=JSON.stringify(filter()),current=()=>ctx.network===network&&ctx.view==='operating'&&kind===exportKind&&JSON.stringify(filter())===key;const results=[];for(const className of exportKind.classes)results.push(await fetchCatalogAll(ctx,className,filter(),100,current));if(!current())return;
       const attributes=[...new Set(results.flatMap(result=>result.attributes))];
       const rows=results.flatMap((result,i)=>result.rows.map(row=>({...row,className:exportKind.classes[i]})));
-      const text=catalogCsv(rows,exportKind.classes[0],attributes,technical,engineeringColumns(exportKind.classes[0],attributes,true));
+      if(csv.value==='json'){downloadText(JSON.stringify({modelHash:network.modelHash,filters:filter(),scenarioId:ctx.scenario.selectedId,rows:rows.map(row=>({...row,operating:operatingValues(ctx)(row,row.className)}))},null,2),`GridAnalyzer_${exportKind.id}_isletme.json`,'application/json');return;}const exportColumns=columnsFor();const text=technical?catalogCsv(rows,exportKind.classes[0],attributes,true,[]):'\ufeff'+[exportColumns.map(c=>c.label),...rows.map(r=>workspaceRowValues(r,exportColumns))].map(r=>r.map(csvCell).join(';')).join('\r\n');
       downloadText(text, `GridAnalyzer_${exportKind.id}_isletme.csv`, 'text/csv;charset=utf-8');
     } catch (error) { ctx.setMessage(`CSV oluşturulamadı: ${error instanceof Error ? error.message : String(error)}`); }
     finally { csv.disabled = false; csv.value=''; }

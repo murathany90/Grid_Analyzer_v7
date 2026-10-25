@@ -1,11 +1,12 @@
+import {DgsSemanticDictionary} from '../../domain/dgs-semantics/classes';
 import {inspectModelFile,type ModelEntry} from '../../importers/model-file';
 import type { AppContext, Feature } from '../../app/contracts';
 import { element, button, csvCell, downloadText, format } from '../../ui/components/dom';
 
 const capabilityNames = [
-  ['powerFlow', 'Yük akışı'],
-  ['shortCircuit3Phase', 'Üç faz kısa devre'],
-  ['n1', 'N−1'],
+  ['powerFlow', 'Yük Akışı'],
+  ['shortCircuit3Phase', 'Üç Faz Kısa Devre'],
+  ['n1', 'N-1'],
 ] as const;
 
 export function createModelView(ctx: AppContext, options:{unified?:boolean}={}): Feature {
@@ -123,15 +124,14 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     capabilities.replaceChildren(...capabilityNames.map(([key, label]) => {
       const capability = network.capabilities[key];
       const card = element('div', 'ga-card');
-      card.append(element('span', 'ga-muted', label), element('strong', `ga-state ga-state-${capability.state.toLowerCase()}`, capability.state));
-      if (capability.reasons.length) card.append(element('small', 'ga-muted', capability.reasons.join(' · ')));
+      card.dataset.capabilityState=capability.state;card.append(element('strong','',label),element('small','ga-muted',capability.state==='BLOCKED'?'Kaynak verisi bu hesap için yeterli değil; teknik kapsamı inceleyin.':key==='powerFlow'?'Tam AC çözüm; kontrol ve kaynak kapsamı sınırlıdır.':key==='shortCircuit3Phase'?'Üç faz MAX/MIN ağ yaklaşımı; kaynak kapsamı denetlenir.':'≥66 kV indirgenmiş DC ön tarama; AC güvenlik onayı değildir.'));const technical=element('details','ga-capability-details');technical.append(element('summary','','Teknik kapsam ⓘ'));const reasons=key==='n1'?['Servisteki hat ve iki sargılı trafoların 66 kV ve üzeri indirgenmiş ağında DC ön tarama yapılır.','Yalnız aktif güç, ada ayrılması ve tahmini yüklenme değerlendirilir; reaktif güç, gerilim ve tam AC kesinti doğrulaması bu yöntemin kapsamı dışındadır.','DC taramasında ihlal bulunmaması, AC güvenliğin doğrulandığı anlamına gelmez.']:capability.reasons.map(r=>r.replace('current-profile','mevcut kaynak profili').replace('droop','gerilim eğimi').replace('enum profilleri','kod profilleri'));technical.append(element('p','',reasons.join(' ')),element('p','','PowerFactory/PSS-E sayısal paritesi: NOT_VERIFIED'));card.append(technical);
       return card;
     }));
 
     if(!options.unified)warningList.replaceChildren(...network.warnings.map(w=>element('li','',w)));
     const classes = Object.entries(network.classCounts).sort(([a], [b]) => a.localeCompare(b, 'tr'));
     classList.replaceChildren(...classes.map(([name, count]) => {
-      const row = button(name,()=>{ctx.networkInventoryClass=name;ctx.setView('inventory');});row.classList.add('ga-count-row');row.replaceChildren(); row.append(element('code', '', name), element('span', '', format(count, 0))); return row;
+      const row = button(name,()=>{ctx.networkInventoryClass=name;ctx.setView('inventory');});row.classList.add('ga-count-row');row.title=`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`+(name==='ElmOwner'?' · Kaynak modeldeki sahiplik gruplaması; hukuki mülkiyet doğrulaması içermez.':'');row.replaceChildren(); row.append(element('span', '',`${name} (${DgsSemanticDictionary[name]??'Teknik Veri'})`), element('span', '', format(count, 0))); return row;
     }));
   }
 

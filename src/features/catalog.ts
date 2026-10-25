@@ -20,27 +20,21 @@ export async function fetchCatalogAll(ctx: AppContext, className: string, filter
   return { rows, total: first.total, attributes: first.attributes };
 }
 
-/**
- * Fetch enough name-sorted pages from each class to produce the requested page
- * of their merged result. Results are kept paged through the catalog worker.
- */
-export async function fetchMergedPage(
-  ctx: AppContext, classNames: readonly string[], filter: CatalogFilter, page: number, pageSize: number, current:()=>boolean=()=>true,
-): Promise<MergedCatalogPage> {
-  const check=()=>{if(!current())throw Error('CATALOG_SCOPE_CHANGED');};check();
-  const starts = await Promise.all(classNames.map(className => ctx.catalog({ ...filter, className, page: 0, pageSize: 1, sort: filter.sort??'name' })));
-  check();const total = starts.reduce((sum, result) => sum + result.total, 0);
-  const attributes = [...new Set(starts.flatMap(result => result.attributes))];
-  const merged: TaggedCatalogRow[] = [];
-  for (const className of classNames) {
-    check();const first = await ctx.catalog({ ...filter, className, page: 0, pageSize, sort: filter.sort??'name' });
-    check();merged.push(...first.rows.map(row => ({ ...row, className })));
-    for (let p = 1; p <= page; p++) {
-      check();const next = await ctx.catalog({ ...filter, className, page: p, pageSize, sort: filter.sort??'name' });
-      check();merged.push(...next.rows.map(row => ({ ...row, className })));
-      if (next.rows.length < pageSize) break;
-    }
-  }
-  merged.sort((a,b)=>((filter.sort==='FID'||filter.sort==='id'?a.id.localeCompare(b.id,'tr'):a.name.localeCompare(b.name,'tr'))||a.id.localeCompare(b.id,'tr'))*(filter.descending?-1:1));
-  return { rows: merged.slice(page * pageSize, (page + 1) * pageSize), total, attributes };
+interface MergeCache {network:AppContext['network'];entries:Map<string,Map<string,Map<number,Promise<CatalogPage>>>>}
+const mergedCaches=new WeakMap<AppContext,MergeCache>();
+/** Single classes use direct offset pages. Multi-class merges retain bounded
+ * per-context prefixes, so advancing pages never refetches earlier source pages. */
+export async function fetchMergedPage(ctx:AppContext,classNames:readonly string[],filter:CatalogFilter,page:number,pageSize:number,current:()=>boolean=()=>true):Promise<MergedCatalogPage>{
+ const check=()=>{if(!current())throw Error('CATALOG_SCOPE_CHANGED');};check();
+ const size=Math.min(100,Math.max(1,Math.floor(pageSize))),offset=Math.max(0,Math.floor(page));
+ if(classNames.length===1){const result=await ctx.catalog({...filter,className:classNames[0],page:offset,pageSize:size,sort:filter.sort??'name'});check();return{...result,rows:result.rows.map(row=>({...row,className:classNames[0]}))};}
+ let cache=mergedCaches.get(ctx);if(!cache||cache.network!==ctx.network){cache={network:ctx.network,entries:new Map()};mergedCaches.set(ctx,cache);}
+ const key=JSON.stringify([classNames,filter,size]);let entry=cache.entries.get(key);if(!entry){entry=new Map();cache.entries.set(key,entry);while(cache.entries.size>4)cache.entries.delete(cache.entries.keys().next().value!);}
+ const read=(className:string,p:number)=>{let pages=entry!.get(className);if(!pages){pages=new Map();entry!.set(className,pages);}let pending=pages.get(p);if(!pending){pending=ctx.catalog({...filter,className,page:p,pageSize:size,sort:filter.sort??'name'});pages.set(p,pending);pending.catch(()=>pages!.delete(p));}return pending;};
+ const starts=await Promise.all(classNames.map(cls=>read(cls,0)));check();
+ const merged:TaggedCatalogRow[]=[],attributes=[...new Set(starts.flatMap(r=>r.attributes))];
+ for(let i=0;i<classNames.length;i++){const cls=classNames[i],first=starts[i];merged.push(...first.rows.map(row=>({...row,className:cls})));for(let p=1;p<=offset&&p*size<first.total;p++){check();const next=await read(cls,p);check();merged.push(...next.rows.map(row=>({...row,className:cls})));}}
+ // Match the worker's Turkish collator and stable equal-value source order.
+ const collator=new Intl.Collator('tr');merged.sort((a,b)=>{const field=filter.sort??'name',av=field==='name'?a.name:a.attributes[field],bv=field==='name'?b.name:b.attributes[field];return(typeof av==='number'&&typeof bv==='number'?av-bv:collator.compare(String(av??''),String(bv??'')))*(filter.descending?-1:1);});
+ return{rows:merged.slice(offset*size,(offset+1)*size),total:starts.reduce((sum,r)=>sum+r.total,0),attributes};
 }
