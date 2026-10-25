@@ -1,0 +1,34 @@
+{
+  "file": "20261014_1200_SN3_TR0.sav",
+  "artifactSha256": "9b783061b6a9fbbe3510e58a848bc641cd29553b1ad59ccb23af513cc1d68eaf",
+  "transport": "file://",
+  "requests": [],
+  "errors": [],
+  "checks": [
+    "real source bytes decoded offline; JSON export preserves source identity; solvers BLOCKED",
+    "four source inspection tabs render with bounded tables",
+    "operating values carry explicit source provenance",
+    "ZIP selected source bytes decode through the same worker",
+    "invalid SAV clears the active inspection and reports failure"
+  ],
+  "counts": {
+    "bus": 6851,
+    "load": 2520,
+    "shunt": 139,
+    "generator": 2920,
+    "line": 2403,
+    "switch": 2563,
+    "transformer": 3703,
+    "substation": 1618,
+    "other": 236
+  },
+  "completeness": "COMPLETE",
+  "source": {
+    "name": "20261014_1200_SN3_TR0.sav",
+    "format": "SAV",
+    "revision": 31,
+    "byteLength": 4529844,
+    "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+  },
+  "status": "PASS"
+}

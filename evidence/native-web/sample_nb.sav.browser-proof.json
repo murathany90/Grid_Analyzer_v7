@@ -1,0 +1,38 @@
+{
+  "file": "sample_nb.sav",
+  "artifactSha256": "9b783061b6a9fbbe3510e58a848bc641cd29553b1ad59ccb23af513cc1d68eaf",
+  "transport": "file://",
+  "requests": [],
+  "errors": [],
+  "checks": [
+    "real source bytes decoded offline; JSON export preserves source identity; solvers BLOCKED",
+    "four source inspection tabs render with bounded tables",
+    "operating values carry explicit source provenance",
+    "ZIP selected source bytes decode through the same worker",
+    "invalid SAV clears the active inspection and reports failure"
+  ],
+  "counts": {
+    "bus": 52,
+    "load": 21,
+    "shunt": 22,
+    "generator": 12,
+    "line": 31,
+    "switch": 365,
+    "transformer": 18,
+    "substation": 18,
+    "node": 292,
+    "terminal": 171,
+    "other": 8,
+    "dc": 5,
+    "facts": 2
+  },
+  "completeness": "PARTIAL",
+  "source": {
+    "name": "sample_nb.sav",
+    "format": "SAV",
+    "revision": 31,
+    "byteLength": 124444,
+    "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5"
+  },
+  "status": "PASS"
+}

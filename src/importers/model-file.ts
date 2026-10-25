@@ -7,10 +7,11 @@ const failure=(message:string)=>new Error(`ZIP okunamadı: ${message}`);
 const crcTable=Uint32Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
 const safeName=(name:string)=>!!name&&!/^[\\/]|^[a-z]:|[\u0000-\u001f]/i.test(name)&&!name.replaceAll('\\','/').split('/').some(p=>p==='..');
 /** Read only the bounded directory and the selected entry; never materialize the whole ZIP. */
-export async function inspectModelFile(file:File):Promise<ModelArchive> {
+export async function inspectModelFile(file:File,options:{extensions?:readonly string[]}={}):Promise<ModelArchive> {
+  const extensions=options.extensions??['json'],supported=(name:string)=>extensions.some(ext=>name.toLowerCase().endsWith('.'+ext.toLowerCase())),jsonOnly=extensions.length===1&&extensions[0]==='json';
   if(file.size>MAX_MODEL)throw Error('Dosya 512 MiB sınırını aşıyor.');
-  if(/\.json$/i.test(file.name))return{entries:[{name:file.name,size:file.size,compressedSize:file.size,offset:0,method:0,crc:0}],extract:async()=>file};
-  if(!/\.zip$/i.test(file.name))throw Error('JSON veya ZIP dosyası seçin.');
+  if(supported(file.name))return{entries:[{name:file.name,size:file.size,compressedSize:file.size,offset:0,method:0,crc:0}],extract:async()=>file};
+  if(!/\.zip$/i.test(file.name))throw Error(jsonOnly?'JSON veya ZIP dosyası seçin.':'Desteklenen bir model veya ZIP dosyası seçin.');
   const tailOffset=Math.max(0,file.size-65557),tail=new DataView(await file.slice(tailOffset).arrayBuffer());
   let end=-1;for(let i=tail.byteLength-22;i>=0;i--)if(tail.getUint32(i,true)===0x06054b50&&i+22+tail.getUint16(i+20,true)===tail.byteLength){end=i;break;}
   if(end<0)throw failure('bozuk veya tamamlanmamış arşiv.');
@@ -26,11 +27,11 @@ export async function inspectModelFile(file:File):Promise<ModelArchive> {
     const name=new TextDecoder(flags&2048?'utf-8':'windows-1254').decode(bytes.subarray(pos+46,pos+46+length));pos+=46+length+extra+comment;
     if(!safeName(name)||names.has(name))throw failure('güvensiz veya yinelenen dosya yolu.');names.add(name);
     total+=size;if(size>MAX_MODEL||total>2*1024**3||size/Math.max(1,compressedSize)>1000)throw failure('açılmış boyut / sıkıştırma oranı güvenlik sınırını aşıyor.');
-    if(!/\.json$/i.test(name))continue;
-    if(flags&1||![0,8].includes(method)||offset+30+compressedSize>directoryOffset)throw failure('şifreli, desteklenmeyen veya bozuk JSON girdisi.');
+    if(!supported(name))continue;
+    if(flags&1||![0,8].includes(method)||offset+30+compressedSize>directoryOffset)throw failure(jsonOnly?'şifreli, desteklenmeyen veya bozuk JSON girdisi.':'şifreli, desteklenmeyen veya bozuk model girdisi.');
     entries.push({name,size,compressedSize,offset,method,crc});
   }
-  if(!entries.length)throw failure('JSON dosyası bulunamadı.');
+  if(!entries.length)throw failure(jsonOnly?'JSON dosyası bulunamadı.':'Desteklenen model dosyası bulunamadı.');
   return{entries,async extract(entry){
     if(!entries.includes(entry))throw failure('geçersiz dosya seçimi.');
     const local=new DataView(await file.slice(entry.offset,entry.offset+30).arrayBuffer());
@@ -42,7 +43,7 @@ export async function inspectModelFile(file:File):Promise<ModelArchive> {
     const inflate=entry.method===8?new Inflate(accept):null;
     try{for(let offset=start;offset<start+entry.compressedSize;offset+=65536){const chunk=new Uint8Array(await file.slice(offset,Math.min(offset+65536,start+entry.compressedSize)).arrayBuffer());if(inflate)inflate.push(chunk,offset+65536>=start+entry.compressedSize);else accept(chunk);}
       if(size!==entry.size||(crc^0xffffffff)>>>0!==entry.crc)throw failure('boyut veya CRC doğrulaması başarısız.');
-      return new File(chunks,entry.name.split(/[\\/]/).pop()!,{type:'application/json'});
+      return new File(chunks,entry.name.split(/[\\/]/).pop()!,{type:/\.(json|rawx)$/i.test(entry.name)?'application/json':'application/octet-stream'});
     }catch(error){throw failure(error instanceof Error?error.message:'sıkıştırılmış veri bozuk.');}
   }};
 }

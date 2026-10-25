@@ -19,6 +19,9 @@ export interface CatalogQuery { className: string; search?: string; siteId?: str
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
+  /** Inspection-only source model; never passed to the DGS solver. */
+  psseInspection?:import('../importers/psse/types').PsseModel|null;
+  psseInventoryKind?:import('../importers/psse/types').PsseKind;
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;
   ytmStudy?:import('../analysis/ytm-study').YtmStudyResult|null;

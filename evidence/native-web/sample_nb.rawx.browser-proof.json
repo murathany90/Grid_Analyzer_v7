@@ -1,0 +1,38 @@
+{
+  "file": "sample_nb.rawx",
+  "artifactSha256": "9b783061b6a9fbbe3510e58a848bc641cd29553b1ad59ccb23af513cc1d68eaf",
+  "transport": "file://",
+  "requests": [],
+  "errors": [],
+  "checks": [
+    "real source bytes decoded offline; JSON export preserves source identity; solvers BLOCKED",
+    "four source inspection tabs render with bounded tables",
+    "operating values carry explicit source provenance",
+    "ZIP selected source bytes decode through the same worker",
+    "invalid SAV clears the active inspection and reports failure"
+  ],
+  "counts": {
+    "bus": 48,
+    "generator": 12,
+    "load": 21,
+    "shunt": 22,
+    "line": 31,
+    "switch": 365,
+    "transformer": 18,
+    "substation": 18,
+    "node": 292,
+    "terminal": 171,
+    "other": 4,
+    "dc": 18,
+    "facts": 2
+  },
+  "completeness": "PARTIAL",
+  "source": {
+    "name": "sample_nb.rawx",
+    "format": "RAWX",
+    "revision": 36,
+    "byteLength": 135661,
+    "sha256": "584685ce974ad95e7cba95cc5414a6fc1a05141fb7a785be2e5001e6b1733a2a"
+  },
+  "status": "PASS"
+}

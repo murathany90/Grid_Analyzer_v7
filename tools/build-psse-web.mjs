@@ -1,0 +1,11 @@
+import {build} from 'vite';
+import {fileURLToPath} from 'node:url';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import path from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url)),out=path.join(root,'dist-psse');
+const result=await build({configFile:false,root,logLevel:'warn',build:{target:'es2022',write:false,assetsInlineLimit:Number.MAX_SAFE_INTEGER,cssCodeSplit:false,lib:{entry:path.join(root,'src/standalone/psse-web.ts'),name:'GaPsseNativeWeb',formats:['iife'],fileName:()=> 'psse-web.js'}},worker:{format:'iife'}});
+const output=(Array.isArray(result)?result:[result]).flatMap(value=>value.output),js=output.filter(item=>item.type==='chunk').map(item=>item.code).join('\n'),css=output.filter(item=>item.type==='asset'&&item.fileName.endsWith('.css')).map(item=>String(item.source)).join('\n');
+if(!js||!css)throw Error('Standalone bundle is incomplete.');
+let licenses='';for(const name of ['fflate','@noble/hashes']){for(const filename of ['LICENSE','LICENSE.md']){try{licenses+=name+'\n'+await readFile(path.join(root,'node_modules',name,filename),'utf8')+'\n\n';break;}catch{}}}
+const escapeScript=text=>text.replace(/<\/script/gi,'<\\/script'),html=`<!doctype html>\n<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>Grid Analyzer — PSS/E Native Web Test</title><style>${css.replace(/<\/style/gi,'<\\/style')}</style></head><body><div id="app"></div><script>${escapeScript(js)}</script></body></html>\n`.replace(/\r\n?/g,'\n');
+await mkdir(out,{recursive:true});await writeFile(path.join(out,'index.html'),html);await writeFile(path.join(out,'THIRD_PARTY_LICENSES.txt'),licenses.replace(/\r\n?/g,'\n'));console.log(JSON.stringify({artifact:path.join(out,'index.html'),bytes:Buffer.byteLength(html),network:'CSP connect-src none',runtime:'classic IIFE + inline Blob worker'}));

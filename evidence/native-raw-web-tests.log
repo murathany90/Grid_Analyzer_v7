@@ -1,0 +1,45 @@
+✔ energization rollback and undo are atomic, preserve prior and later explicit edits, and shared prerequisites (4.9693ms)
+✔ explicit calculation role uses empty base while preserving and isolating the active scenario (0.3513ms)
+✔ typed engineering/raw CSV uses deterministic Turkish decimals, BOM/sep and formula guards (0.5265ms)
+✔ P/Q magnitude and V station aggregation respect missing values, voltage filters and terminal identity (0.5657ms)
+✔ full SVG export clones the logical fit box without mutating a panned/zoomed live viewport (0.2022ms)
+✔ full station keeps 23/34 feeders and every voltage level, with actual selector switch paths (1.1297ms)
+✔ browser ZIP loader accepts JSON, single/multiple JSON ZIP and rejects corruption, traversal and bombs (38.7934ms)
+✔ unified quality preserves all source warnings, exact origins and canonical inputs (80.0025ms)
+✔ tap fallback links only proven FIDs; unbound aggregates never acquire guessed equipment (50.7815ms)
+✔ geographical gaps remain informational and separate from electrical audit (63.6915ms)
+✔ legacy navigation keeps one parent and four distinct model tabs (0.4328ms)
+✔ source coordinate issues retain explicit source FIDs and tap text is not counted twice (59.8242ms)
+✔ catalog export and merged pages stop after scope invalidation (2.5161ms)
+✔ RAW tokenizer preserves quoted comma/slash/doubled quotes and rejects unterminated text (1.4917ms)
+✔ RAW rejects truncation, unsupported revisions and nonfinite electrical inputs (2.4299ms)
+✔ RAW rejects duplicate buses, missing line terminals and reversed duplicate circuits (4.2714ms)
+✔ RAW validates remote generator control references (0.4342ms)
+✔ RAWX rejects duplicate fields, invalid numeric values, absent required fields and missing endpoints (2.2632ms)
+✔ RAW node-breaker variable-length terminal records retain device IDs and omitted endpoint slots (2.5794ms)
+✔ parity identifies altered source limits without hiding additional winding compensation differences (1.8092ms)
+✔ native RAW/RAWX normalized parity: bench (241.9172ms)
+✔ native RAW/RAWX normalized parity: fault_calc_3wdg_auto_neutral_current (5.9353ms)
+✔ native RAW/RAWX normalized parity: ieee_harmonics_test_case (7.8868ms)
+✔ native RAW/RAWX normalized parity: sample (13.9139ms)
+✔ native RAW/RAWX normalized parity: sample_nb (22.4974ms)
+✔ native RAW/RAWX normalized parity: sample_nb_sec (23.2012ms)
+✔ native RAW/RAWX normalized parity: sample_zils (12.7108ms)
+✔ native RAW/RAWX normalized parity: sample_zils_nb (21.252ms)
+✔ native RAW/RAWX normalized parity: sample_zils_nb_sec (22.8741ms)
+✔ native RAW/RAWX normalized parity: savnw (7.4933ms)
+✔ native RAW/RAWX normalized parity: savnw_nb (12.5913ms)
+✔ native archive extension selection preserves the default DGS JSON reader (7.6775ms)
+✔ native model selection rejects JSON caches and unsafe paths (1.4476ms)
+✔ native SAV ZIP corruption cannot become a model (0.4357ms)
+✔ source operating numbers sort numerically and preserve negative values and provenance (8.843ms)
+✔ native inventory query applies source IDs, voltage and status without inventing missing values (1.0247ms)
+✔ native inventory pagination clamps pages and limits transfers to 100 rows (0.6026ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 828.7836

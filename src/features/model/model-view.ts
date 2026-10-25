@@ -2,6 +2,7 @@ import {DgsSemanticDictionary} from '../../domain/dgs-semantics/classes';
 import {inspectModelFile,type ModelEntry} from '../../importers/model-file';
 import type { AppContext, Feature } from '../../app/contracts';
 import { element, button, csvCell, downloadText, format } from '../../ui/components/dom';
+import {createPsseView} from '../psse/psse-view';
 
 const capabilityNames = [
   ['powerFlow', 'Yük Akışı'],
@@ -16,18 +17,18 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
   const drop = element('div', 'ga-drop');
   drop.tabIndex = 0;
   drop.setAttribute('role', 'group');
-  drop.setAttribute('aria-label', 'DGS şebeke modeli JSON veya ZIP yükle');
-  const dropTitle = element('strong', '', 'DGS şebeke modeli — JSON veya ZIP');
+  drop.setAttribute('aria-label', 'DGS veya PSS/E şebeke modeli yükle');
+  const dropTitle = element('strong', '', 'DGS JSON / PSS/E SAV, RAW, RAWX veya ZIP');
   const input = element('input');
-  input.id = 'modelFileInput'; input.type = 'file'; input.accept = '.json,.zip,application/json,application/zip';
+  input.id = 'modelFileInput'; input.type = 'file'; input.accept = '.json,.sav,.raw,.rawx,.zip,application/json,application/zip';
   input.className = 'ga-visually-hidden';
-  input.setAttribute('aria-label', 'JSON veya ZIP dosyaları');
+  input.setAttribute('aria-label', 'DGS JSON veya PSS/E SAV RAW RAWX ZIP dosyaları');
   const choose = button('Dosya seç', () => input.click());
   choose.dataset.helpLabel='Model dosyası ve kimlik';
   const fileLabel = element('label', 'ga-file-label', 'Dosya seçin'); fileLabel.htmlFor = input.id;
   fileLabel.append(input);
-  const loading = element('span', 'ga-muted', 'JSON dosyası bu tarayıcı oturumuna yüklenir.');
-  drop.append(dropTitle, element('p', 'ga-muted', 'JSON veya ZIP · Dosyalar bu tarayıcıda işlenir'), choose, fileLabel, loading);
+  const loading = element('span', 'ga-muted', 'Kaynak dosya bu tarayıcı oturumuna yüklenir.');
+  drop.append(dropTitle, element('p', 'ga-muted', 'DGS JSON veya PSS/E SAV / RAW / RAWX / ZIP · Dosyalar bu tarayıcıda işlenir'), choose, fileLabel, loading);
 
   const message = element('p', 'ga-notice');
   const summary = element('div', 'ga-card-grid');
@@ -55,6 +56,7 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
   let loadGeneration=0;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;render();});drop.append(cancelLoad);message.hidden=true;
   const hero=element('div','ga-model-hero'),identityPanel=element('section','ga-model-identity');hero.append(drop,identityPanel);
   if(options.unified)root.append(heading,hero,message,summary,capabilityPanel,classPanel);else root.append(heading,drop,message,summary,capabilityPanel,warningsPanel,classPanel);
+  const psseSummary=createPsseView('summary',{getModel:()=>ctx.psseInspection,onKind:kind=>{ctx.psseInventoryKind=kind;ctx.setView('inventory');}});psseSummary.element.hidden=true;root.append(psseSummary.element);
 
   let loadingNow = false;
   function selectEntry(entries:ModelEntry[]):Promise<ModelEntry|null>{
@@ -63,20 +65,20 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
       entries.forEach((e,i)=>select.append(new Option(e.name,String(i))));
       const update=()=>{size.textContent=`Açılmış boyut: ${format(entries[Number(select.value)].size/1024**2,2)} MiB`;};select.onchange=update;update();
       const finish=(entry:ModelEntry|null)=>{dialog.close();dialog.remove();resolve(entry);};
-      dialog.append(element('h3','','ZIP içinden model seç'),select,size,button('Seçilen JSON’u yükle',()=>finish(entries[Number(select.value)])),button('Vazgeç',()=>finish(null)));
+      dialog.append(element('h3','','ZIP içinden model seç'),select,size,button('Seçilen modeli yükle',()=>finish(entries[Number(select.value)])),button('Vazgeç',()=>finish(null)));
       dialog.oncancel=e=>{e.preventDefault();finish(null);};root.append(dialog);dialog.showModal();
     });
   }
   const load = async (files: FileList | File[]) => {
     if (!files.length || loadingNow) return;
     const selectedFiles = Array.from(files).slice(0, 1);
-    if (files.length > 1) ctx.setMessage('Tek etkin model destekleniyor; ilk JSON dosyası yüklenecek.');
+    if (files.length > 1) ctx.setMessage('Tek etkin model destekleniyor; ilk model dosyası incelenecek.');
     loadingNow = true;const generation=++loadGeneration;cancelLoad.hidden=false;
     input.disabled = true;
     choose.disabled = true;
     loading.textContent = `Yükleniyor · ${selectedFiles[0].name}`;
     try {
-      const archive=await inspectModelFile(selectedFiles[0]);
+      const archive=await inspectModelFile(selectedFiles[0],{extensions:['json','sav','raw','rawx']});
       const entry=archive.entries.length===1?archive.entries[0]:await selectEntry(archive.entries);
       if(!entry||generation!==loadGeneration)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
       const file=await archive.extract(entry);if(generation!==loadGeneration)return;await ctx.loadFiles([file]);
@@ -87,7 +89,7 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
       loadingNow = false;
       input.disabled = false;
       choose.disabled = false;
-      loading.textContent = 'JSON dosyası bu tarayıcı oturumuna yüklenir.';
+      loading.textContent = 'Kaynak dosya bu tarayıcı oturumuna yüklenir.';
       input.value = '';
       render();
     }
@@ -105,6 +107,8 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     if (ctx.view !== 'model') return;
     cancelLoad.hidden=!ctx.busy&&!loadingNow;choose.disabled=ctx.busy||loadingNow;message.hidden=!ctx.busy&&!loadingNow;
     const network = ctx.network;
+    const psse=ctx.psseInspection;psseSummary.element.hidden=!psse;summary.hidden=capabilityPanel.hidden=classPanel.hidden=!!psse;identityPanel.hidden=!!psse;warningsPanel.hidden=!!psse;
+    if(psse){psseSummary.render();message.textContent=ctx.status;return;}
     message.textContent = ctx.status || 'Model bekleniyor.';
     if (!network) {
       summary.replaceChildren(element('p', 'ga-empty', 'Henüz model yüklenmedi.'));identityPanel.replaceChildren(element('h3','','Model bekleniyor'),element('p','ga-muted','JSON veya ZIP seçin; kaynak veriler sunucuya gönderilmez.'));

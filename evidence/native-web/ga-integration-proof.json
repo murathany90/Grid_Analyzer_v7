@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "checks": [
+    "native SAV uses dedicated inspection state; DGS solver input is null",
+    "existing four-tab GA shell displays shared PSS/E inspection panels",
+    "direct controller LF / quality / N1 requests cannot run on inspection state",
+    "GA primary calculation UI disabled for PSS/E inspection",
+    "DGS JSON load replaces native inspection and preserves normal canonical loading",
+    "DGS-to-SAV replacement and failed-SAV import clear prior active model state"
+  ],
+  "errors": [],
+  "source": {
+    "network": null,
+    "format": "SAV",
+    "counts": {
+      "bus": 6851,
+      "load": 2520,
+      "shunt": 139,
+      "generator": 2920,
+      "line": 2403,
+      "switch": 2563,
+      "transformer": 3703,
+      "substation": 1618,
+      "other": 236
+    },
+    "analyses": {
+      "powerFlow": "BLOCKED",
+      "shortCircuit": "BLOCKED",
+      "n1": "BLOCKED"
+    },
+    "result": null
+  }
+}
