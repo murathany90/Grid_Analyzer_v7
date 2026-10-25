@@ -102,6 +102,7 @@ export function buildBenchmarkMapData(ctx:AppContext,s:BenchmarkMapSelection):Be
   if(s.analysis==='SC'){
     const source=s.source==='PF'?'PF':'GA',rows=compactScRows(ctx,source).filter(r=>!s.nodeKind||r.raw.nodeKind===s.nodeKind),unit=s.metric==='skssMva'?'MVA':'kA';
     const pfCells=source==='PF'?new Map(pfScReferenceRows(ctx).map(r=>[r.fid,r])):null;
+    if(pfCells&&(!s.nodeKind||s.nodeKind==='UNCLASSIFIED'))for(const cell of pfCells.values())if(!busById.has(cell.fid)&&(!s.voltageKv||cell.nominalKv===s.voltageKv))data.noGeometry++;
     for(const row of rows){
       if(s.voltageKv&&(row.kv==null||Math.abs(row.kv-s.voltageKv)>1e-6))continue;
       const value=source==='PF'?row.metrics.ikss?.pf??null:s.metric==='skssMva'?row.metrics.skss?.ga??null:row.metrics.ikss?.ga??null;
