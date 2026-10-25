@@ -115,10 +115,6 @@
       "outserv",
       "R1",
       "X1",
-      "R2",
-      "X2",
-      "R0",
-      "X0",
       "usetp"
     ],
     "Values": [
@@ -127,10 +123,6 @@
         "Native sequence source",
         "CX",
         0,
-        0,
-        10,
-        0,
-        10,
         0,
         10,
         1
@@ -145,8 +137,6 @@
       "utrn_l",
       "strn",
       "uktr",
-      "uk0tr",
-      "ur0tr",
       "pcutr",
       "tr2cn_h",
       "tr2cn_l",
@@ -163,8 +153,6 @@
         10,
         100,
         10,
-        10,
-        6,
         0,
         "D",
         "YN",
@@ -184,10 +172,7 @@
       "bushv",
       "buslv",
       "nntap",
-      "outserv",
-      "cneutcon",
-      "re0tr_h",
-      "re0tr_l"
+      "outserv"
     ],
     "Values": [
       [
@@ -197,9 +182,6 @@
         "TYP",
         "C0",
         "C1",
-        0,
-        0,
-        0,
         0,
         0
       ]

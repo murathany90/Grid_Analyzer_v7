@@ -23,7 +23,7 @@ const network = (lines: CanonicalNetwork['lines']): CanonicalNetwork => {
     externalGrids: [{ ...entity('X0', 'ElmXnet'), bus: 'B0', pMw: 0, qMvar: 0, vmSet: 1 }],
     internationalConnections: [], switches: [], stationControllers: [], secondaryControllers: [], boundaries: [], sites: [],
     classCounts: {}, records: 0, warnings: [],
-    capabilities: { powerFlow: { state: 'READY', reasons: [] }, shortCircuit3Phase: { state: 'BLOCKED', reasons: [] }, shortCircuitGround: { state: 'BLOCKED', reasons: [] }, n1: { state: 'BLOCKED', reasons: [] } },
+    capabilities: { powerFlow: { state: 'READY', reasons: [] }, shortCircuit3Phase: { state: 'BLOCKED', reasons: [] }, n1: { state: 'BLOCKED', reasons: [] } },
   };
 };
 

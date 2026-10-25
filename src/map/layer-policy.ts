@@ -61,7 +61,7 @@ export function mapPresentationGate(ctx:AppContext,s:BenchmarkMapSelection){
   const metric=s.analysis==='LF'&&s.source==='GA'&&lfMapTarget(s.metric)==='ElmTr2'?(s.metric==='pHvMw'?'pFromMw':'qFromMvar'):s.metric;
   const gate=benchmarkMapGate(ctx,{...s,metric});
   if(gate.enabled&&s.analysis==='N1'&&s.source==='GA'){const p=selectedN1Presentation(ctx);if(!p.post&&['ISLANDING','UNSUPPORTED_STATION_CONTROL','UNSUPPORTED_CONTROL_CONFIGURATION'].includes(p.status))return {enabled:false,reason:p.status+'; AC POST: NOT_RUN'};}
-  if(gate.enabled&&s.analysis==='SC'&&s.source==='GA'){const p=selectedScPresentation(ctx);if(ctx.resultView.faultId&&!p.fault)return {enabled:false,reason:'FAULT_OR_PARTITION_IDENTITY_UNVERIFIED'};if(p.sc&&!['3PH','1LG'].includes(p.sc.profile.faultType))return {enabled:false,reason:'SC_FAULT_PROFILE_UNVERIFIED'};}
+  if(gate.enabled&&s.analysis==='SC'&&s.source==='GA'){const p=selectedScPresentation(ctx);if(ctx.resultView.faultId&&!p.fault)return {enabled:false,reason:'FAULT_OR_PARTITION_IDENTITY_UNVERIFIED'};if(p.sc&&p.sc.profile.faultType!=='3PH')return {enabled:false,reason:'SC_FAULT_PROFILE_UNVERIFIED'};}
   if(gate.enabled&&s.analysis==='LF'&&s.source==='DELTA'){
     const rows=mapReferenceRows(ctx,s);if(!rows.some(r=>r.delta!==null))return {enabled:false,reason:'LF_METHOD_OR_CELL_PARITY_UNVERIFIED'};
   }
@@ -118,12 +118,6 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
     const post=buildBenchmarkMapData(ctx,{...s,n1Layer:'POST'}),changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.filter(c=>['NEW','WORSENED'].includes(c.state))??[];
     const equipment=new Map([...n.lines,...n.transformers].map(e=>[e.sourceClass+':'+e.id,e])),thermal=new Map(changes.filter(c=>c.metric==='postLoadingPercent').map(c=>[c.sourceClass+':'+c.fid,c]));
     data.branches.clear();data.sites.clear();for(const [key,value] of post.branches){const e=equipment.get(key),change=e?thermal.get(e.sourceClass+':'+e.sourceId):undefined;if(change)data.branches.set(key,{...value,status:change.state});}
-  }
-  if(s.analysis==='SC'&&s.source!=='GA'&&ctx.resultView.faultId){
-    data.sites.clear();data.branches.clear();for(const r of mapReferenceRows(ctx,s).filter(r=>r.fid===ctx.resultView.faultId)){
-      const term=modelPresentationIndex(n).physicalTerminalById.get(r.fid);if(!term||r.nominalKv!==term.vnKv)continue;const value=s.source==='PF'?r.pf.value:s.source==='EXPLORATORY_DELTA'&&r.identityMatched?r.diagnosticDelta??null:null;
-      for(const id of term.siteIds)data.sites.set(id,{value:r.pf.availability==='INVALID'||r.pf.qualityFlags.includes('SENTINEL_CANDIDATE')?null:value,unit:r.pf.unit,status:s.source==='PF'?'PF_REFERENCE_ONLY':r.status,details:[],representativeFid:r.fid});
-    }
   }
   if(target==='ElmLne'||target==='ElmTr2'){
     data.branches=new Map([...data.branches].filter(([k])=>k.startsWith(target+':')));

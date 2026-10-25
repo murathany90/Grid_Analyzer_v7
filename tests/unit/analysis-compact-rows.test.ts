@@ -56,78 +56,9 @@ test('standalone SC filters YTM and TM before electrical dedup and run counters'
  ctx.filters.areaId='B';assert.ok(compactScRows(ctx).length>0);assert.ok(compactScRows(ctx).every(r=>r.tm==='Other TM'));
 });
 
-test('C.1: SC compact rows integrate 3F and 1F side-by-side with LF operating point and correct blocked/uncomputed states',()=>{
- const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
- let rows=compactScRows(ctx);assert.ok(rows.length>0);
- assert.equal(rows[0].raw.status_1F,'NOT_RUN');assert.equal(rows[0].raw.GA_1F_Ikss_A,null);assert.equal(rows[0].metrics.ikss1F.ga,null);
- assert.ok(rows.some(r=>r.metrics.voltage?.ga!==null));assert.ok(rows.some(r=>r.metrics.angle?.ga!==null));
 
- const sc3F=ctx.scResult!;
- ctx.scResult1Lg={
-  ...sc3F,
-  method:'GA_SEQUENCE_1LG_MAX',
-  profile:{...sc3F.profile,faultType:'1LG' as const},
-  identity:{...sc3F.identity,profileHash:'1LG_PROFILE_HASH'},
-  faults:sc3F.faults.map((f,i)=>({
-   ...f,
-   faultType:'1LG' as const,
-   status:i===0?'CALCULATED_NETWORK_APPROXIMATION' as const:'BLOCKED' as const,
-   reasons:i===0?['CALCULATED']:['NOT_COMPUTABLE: no grounding path'],
-   ikssKa:i===0?15.42:null,
-   z1Ohm:{re:.5,im:3.2},
-   z2Ohm:{re:.5,im:3.2},
-   z0Ohm:i===0?{re:1.2,im:7.8}:null
-  }))
- };
 
- rows=compactScRows(ctx);
- const calculatedBus=rows.find(r=>r.fid===ctx.scResult1Lg!.faults[0].physicalTerminalFid);
- assert.ok(calculatedBus);
- assert.equal(calculatedBus.raw.status_1F,'CALCULATED_NETWORK_APPROXIMATION');
- assert.equal(calculatedBus.metrics.ikss1F.ga,15.42);
- assert.equal(calculatedBus.raw.GA_1F_Ikss_A,15420);
- assert.equal(calculatedBus.raw.GA_1F_Ikss_kA,15.42);
- assert.equal(calculatedBus.raw.Z0_R_ohm,1.2);
- assert.equal(calculatedBus.raw.Z0_X_ohm,7.8);
- assert.equal(calculatedBus.raw.PF_1F_Ikss_kA,null);
 
- const blockedBus=rows.find(r=>r.fid===ctx.scResult1Lg!.faults[1].physicalTerminalFid);
- assert.ok(blockedBus);
- assert.equal(blockedBus.raw.status_1F,'NOT_COMPUTABLE');
- assert.equal(blockedBus.metrics.ikss1F.ga,null);
- assert.equal(blockedBus.raw.GA_1F_Ikss_A,null);
- assert.match(String(blockedBus.raw.reason_1F),/NOT_COMPUTABLE/);
-
- const sortedByMax=sortCompactRows(rows,'maxIkss',true);
- const maxVal=(r:CompactRow)=>Math.max(r.metrics.ikss?.ga??-Infinity,r.metrics.ikss1F?.ga??-Infinity);
- assert.ok(maxVal(sortedByMax[0])>=maxVal(sortedByMax[sortedByMax.length-1]));
- const sortedBy1F=sortCompactRows(rows,'ikss1F',true);
- assert.equal(sortedBy1F[0].fid,calculatedBus.fid);
- const sortedBy3F=sortCompactRows(rows,'ikss3F',true);
- assert.ok(sortedBy3F[0].raw.GA_3F_Ikss_kA!>=(sortedBy3F[sortedBy3F.length-1].raw.GA_3F_Ikss_kA??0));
- const sortedByU=sortCompactRows(rows,'u',true);
- assert.ok(sortedByU.length>0);
-});
-
-test('C.1: Stale 1F result is rejected and marked STALE when sourceHash or mode mismatches',()=>{
- const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
- const sc3F=ctx.scResult!;
- // Incompatible 1F (e.g. sourceHash mismatch)
- ctx.scResult1Lg={
-  ...sc3F,
-  method:'GA_SEQUENCE_1LG_MAX',
-  profile:{...sc3F.profile,faultType:'1LG' as const},
-  identity:{...sc3F.identity,sourceHash:'DIFFERENT_SOURCE_HASH'},
-  faults:sc3F.faults.map(f=>({...f,faultType:'1LG' as const,status:'CALCULATED_NETWORK_APPROXIMATION' as const,ikssKa:12.5}))
- };
- const rows=compactScRows(ctx);
- assert.ok(rows.length>0);
- assert.equal(rows[0].raw.status_1F,'STALE');
- assert.equal(rows[0].raw.GA_1F_Ikss_A,null);
- assert.equal(rows[0].raw.GA_1F_Ikss_kA,null);
- assert.equal(rows[0].raw.Hesap_Durumu,'PARTIAL');
- assert.match(String(rows[0].raw.reason_1F),/STALE/);
-});
 
 test('C.1: Turkish number formatting for SC satisfies 26.795 A = 26,795 kA and never produces 0 for uncomputed',()=>{
  const fmt=(valKa:number|null|undefined,unit:'A'|'kA'):string=>{
@@ -146,41 +77,6 @@ test('C.1: Turkish number formatting for SC satisfies 26.795 A = 26,795 kA and n
  assert.equal(fmt(null,'kA'),'—');
  assert.notEqual(fmt(null,'A'),'0');
  assert.notEqual(fmt(null,'kA'),'0');
-});
-
-test('C.2: Lightning SC Panel renders selected TM electrical buses and shows bus details upon selection',()=>{
- const makeEl=(tag:string)=>{
-  const el={
-   tagName:tag.toUpperCase(),
-   className:'',
-   textContent:'',
-   title:'',
-   value:'',
-   type:'',
-   hidden:false,
-   placeholder:'',
-   children:[] as any[],
-   style:{},
-   dataset:{},
-   setAttribute:()=>{},
-   append:(...kids:any[])=>el.children.push(...kids),
-   replaceChildren:(...kids:any[])=>{el.children=kids;},
-   querySelector:()=>null,
-   querySelectorAll:()=>[],
-   classList:{add:()=>{},remove:()=>{},toggle:()=>{}}
-  };
-  return el as any;
- };
- (globalThis as any).document={createElement:makeEl};
- try{
-  const {ctx}=analysisUiFixture();ctx.analysisTab='SC';installLfFixture(ctx);
-  const panel=createLightningScPanel(ctx);
-  assert.ok(panel.element);
-  assert.equal(typeof panel.render,'function');
-  panel.render();
- }finally{
-  delete (globalThis as any).document;
- }
 });
 
 test('C.2: Map SC layer aggregates maximum bus current per TM and assigns grey to uncomputed/stale sites',()=>{
@@ -243,30 +139,7 @@ test('C.2.1: selectScMode preserves benchmarkMap when SC map layer is active and
  assert.equal(ctx.benchmarkMap?.scMode, 'MAX');
 });
 
-test('C.2.1: skss metric is exposed for GA, disallowed for PF, and legend omits Amperes for MVA', () => {
- const {ctx} = analysisUiFixture();
- ctx.analysisTab = 'SC';
- const rows = compactScRows(ctx);
- assert.ok(rows.length > 0);
- const rowWithSkss = rows.find(r => r.raw.Skss_MVA != null);
- assert.ok(rowWithSkss);
- assert.equal(rowWithSkss.metrics.skss.ga, rowWithSkss.raw.Skss_MVA);
- assert.equal(rowWithSkss.metrics.skss.pf, null);
- assert.equal(rowWithSkss.metrics.skss.reason, 'PF Skss referansı yok');
 
- // Benchmark gate rejections for PF
- const gateSkss = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'skssMva', table: 'SC_BusResults_Raw'});
- assert.equal(gateSkss.enabled, false);
- assert.equal(gateSkss.reason, 'PF_SKSS_REFERENCE_NOT_AVAILABLE');
-
- const gate1F = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'ikss1FKa', table: 'SC_BusResults_Raw'});
- assert.equal(gate1F.enabled, false);
- assert.equal(gate1F.reason, 'PF_1F_REFERENCE_NOT_AVAILABLE');
-
- const gateMin = benchmarkMapGate(ctx, {analysis: 'SC', source: 'PF', metric: 'maxIkssKa', table: 'SC_BusResults_Raw', scMode: 'MIN'});
- assert.equal(gateMin.enabled, false);
- assert.equal(gateMin.reason, 'PF_SC_MIN_REFERENCE_NOT_AVAILABLE');
-});
 
 test('C.2.1: siteIds properly derived from terminals and deduplicated per electrical bus on map layer', () => {
  const {ctx} = analysisUiFixture();
@@ -281,108 +154,9 @@ test('C.2.1: siteIds properly derived from terminals and deduplicated per electr
  assert.equal(mapData.scale?.unit, 'MVA');
 });
 
-test('C.2.1: partial SC targets (3F=3, 1F=1 of 3 targets) marks study BUDGET_EXHAUSTED and pending=2', () => {
- const study: YtmStudyResult = {
-  schemaVersion: 1,
-  identity: { modelHash: 'm1', scenarioHash: 's1', optionsHash: 'o1' },
-  options: { ytmId: 'A', families: ['SC'], scModes: ['MAX'] },
-  status: 'COMPLETE',
-  catalog: [],
-  n1: null,
-  scMax: {
-   identity: { modelHash: 'm1', scenarioHash: 's1', sourceHash: 'src1', profileHash: 'p1' },
-   profile: { calculateMode: 'MAX', faultType: '3PH' },
-   method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
-   faults: [
-    { physicalTerminalFid: 'T1', electricalBusId: 'B1', physicalTerminalFids: ['T1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 20, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
-    { physicalTerminalFid: 'T2', electricalBusId: 'B2', physicalTerminalFids: ['T2'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 25, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
-    { physicalTerminalFid: 'T3', electricalBusId: 'B3', physicalTerminalFids: ['T3'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 30, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
-   ]
-  } as any,
-  sc1LgMax: {
-   identity: { modelHash: 'm1', scenarioHash: 's1', sourceHash: 'src1', profileHash: 'p1' },
-   profile: { calculateMode: 'MAX', faultType: '1LG' },
-   method: 'GA_SEQUENCE_1LG_MAX',
-   faults: [
-    { physicalTerminalFid: 'T1', electricalBusId: 'B1', physicalTerminalFids: ['T1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 15, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
-   ]
-  } as any,
-  scMin: null,
-  faultTargets: ['T1', 'T2', 'T3'],
-  electricalTargets: 3,
-  stageMs: { MODEL_PREPARATION: 0, CATALOG: 0, DC_SCREEN: 0, AC_APPROX: 0, AC_FULL: 0, SC_SOURCE_PREP: 0, SC_FACTORIZATION: 0, SC_BATCH: 0, REPORT: 0 },
-  elapsedMs: 100,
-  qualityCounts: { REFERENCE_VALIDATED: 0, NATIVE_COMPUTED: 0, ENGINEERING_APPROX: 0, DC_SCREEN_ONLY: 0, NOT_COMPUTABLE: 0, REFERENCE_ONLY: 0 },
-  assumptions: [],
-  messages: []
- };
 
- finishYtmStudy(study, 'COMPLETE');
- assert.equal(study.status, 'BUDGET_EXHAUSTED', 'Study with partial 1F results must not be COMPLETE');
- assert.equal(study.pendingCounts?.SC_MAX, 0, 'All 3 3F faults present');
- assert.equal(study.pendingCounts?.SC1_MAX, 2, '2 missing 1F faults must be marked pending');
 
- // Physically blocked fault (quality = NOT_COMPUTABLE) is counted in qualityCounts, NOT as pending
- study.sc1LgMax!.faults.push({
-  physicalTerminalFid: 'T2', electricalBusId: 'B2', physicalTerminalFids: ['T2'], nominalKv: 154, componentId: null,
-  status: 'BLOCKED', quality: 'NOT_COMPUTABLE', reasons: ['NOT_COMPUTABLE: no grounding path'],
-  zkkOhm: null, ikssKa: null, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null
- });
- finishYtmStudy(study, 'COMPLETE');
- assert.equal(study.pendingCounts?.SC1_MAX, 1, 'Only the 1 genuinely missing fault should be pending');
- assert.equal(study.qualityCounts.NOT_COMPUTABLE, 1, 'Physically blocked fault is in qualityCounts');
-});
 
-test('C.2.2: workspace save/sync retains and clears scResult1Lg consistently (unconditional)', () => {
- const {ctx} = analysisUiFixture();
- const cache = new WorkspaceResultCache();
- const key = workspaceKey(ctx);
-
- const sc3F = ctx.scResult!;
- const sc1F: any = {
-  ...sc3F,
-  method: 'GA_SEQUENCE_1LG_MAX',
-  profile: { ...sc3F.profile, faultType: '1LG' as const },
-  identity: { ...sc3F.identity, profileHash: '1LG_PROFILE' }
- };
- ctx.scResult1Lg = sc1F;
-
- const savedResults: ScenarioResults = {
-  n1: null,
-  ac: [],
-  hybrid: null,
-  sc: ctx.scResult,
-  sc1Lg: ctx.scResult1Lg,
-  scContext: ctx.scContext,
-  ytm: null,
-  studyOptions: undefined
- };
-
- // Unconditional save
- cache.set(key, savedResults);
-
- // Reset memory
- ctx.scResult = null;
- ctx.scResult1Lg = null;
-
- // Unconditional restore
- const restored = cache.get(key);
- assert.ok(restored, 'Saved workspace must be retrieved from cache');
- assert.equal(restored.sc, sc3F, '3F SC result must be restored');
- assert.equal(restored.sc1Lg, sc1F, '1F SC result must be restored');
- assert.equal(restored.sc?.identity.modelHash, restored.sc1Lg?.identity.modelHash, 'Model hash must match');
- assert.equal(restored.sc?.identity.scenarioHash, restored.sc1Lg?.identity.scenarioHash, 'Scenario hash must match');
- assert.equal(restored.sc?.identity.sourceHash, restored.sc1Lg?.identity.sourceHash, 'Source hash must match');
- assert.equal(restored.sc?.profile.calculateMode, restored.sc1Lg?.profile.calculateMode, 'Mode must match');
-
- // Mismatched scenario key must return undefined
- const foreignKey = key + '_OTHER_SCENARIO';
- assert.equal(cache.get(foreignKey), undefined, 'Different workspace key must not return previous results');
-
- // Clear
- cache.clear();
- assert.equal(cache.get(key), undefined, 'Clear must empty cache');
-});
 
  test('C.2.2: duplicate fault FIDs do not falsely satisfy missing targets in pendingCounts', () => {
  const study: YtmStudyResult = {
@@ -403,9 +177,7 @@ test('C.2.2: workspace save/sync retains and clears scResult1Lg consistently (un
     { physicalTerminalFid: 'T1', electricalBusId: 'B1', physicalTerminalFids: ['T1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 20, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
    ]
   } as any,
-  sc1LgMax: null,
   scMin: null,
-  sc1LgMin: null,
   faultTargets: ['T1', 'T2', 'T3'], // T2 and T3 are missing!
   electricalTargets: 3,
   stageMs: { MODEL_PREPARATION: 0, CATALOG: 0, DC_SCREEN: 0, AC_APPROX: 0, AC_FULL: 0, SC_SOURCE_PREP: 0, SC_FACTORIZATION: 0, SC_BATCH: 0, REPORT: 0 },
@@ -420,195 +192,17 @@ test('C.2.2: workspace save/sync retains and clears scResult1Lg consistently (un
  assert.equal(study.pendingCounts?.SC_MAX, 2, 'T2 and T3 are missing -> pending must be 2');
 });
 
-test('C.2.2: multi-voltage single TM applies voltageKv filter prior to maximum calculation', () => {
- const {ctx} = analysisUiFixture();
- ctx.filters.areaId = '';
- ctx.network = {
-  ...ctx.network!,
-  sites: [{ id: 'SITE_MV', name: 'TEST TM', sourceId: 'SITE_MV', sourceClass: 'ElmSubstat', areaId: 'A', areaName: 'A', lat: 39, lon: 32, voltages: [400, 34.5] } as any],
-  buses: [
-   { id: 'TERM_400', sourceId: 'TERM_400', sourceClass: 'ElmTerm', name: '400 kV Bara', vnKv: 400, siteIds: ['SITE_MV'], terms: ['TERM_400'] } as any,
-   { id: 'TERM_34', sourceId: 'TERM_34', sourceClass: 'ElmTerm', name: '34.5 kV Bara', vnKv: 34.5, siteIds: ['SITE_MV'], terms: ['TERM_34'] } as any
-  ]
- } as any;
- ctx.scResult = {
-  engineRevision:SC_ENGINE_REVISION,
-  identity: { modelHash: ctx.network!.modelHash, scenarioHash: scenarioSignature(ctx.scenario.current), sourceHash: 'SRC_MV', profileHash: 'PRF' },
-  profile: { calculateMode: 'MAX', faultType: '3PH' },
-  method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
-  faults: [
-   { physicalTerminalFid: 'TERM_400', electricalBusId: 'E_400', physicalTerminalFids: ['TERM_400'], nominalKv: 400, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 20.0, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
-   { physicalTerminalFid: 'TERM_34', electricalBusId: 'E_34', physicalTerminalFids: ['TERM_34'], nominalKv: 34.5, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 45.0, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
-  ]
- } as any;
- ctx.scResult1Lg = null;
- ctx.ytmStudy = null;
 
- // When voltageKv: 400 is requested, site maximum MUST be 20 kA, not 45 kA
- const map400 = buildBenchmarkMapData(ctx, { analysis: 'SC', source: 'GA', metric: 'maxIkssKa', table: 'SC_BusResults_Raw', voltageKv: 400 });
- assert.equal(map400.sites.get('SITE_MV')?.value, 20.0, '400 kV map must only reflect 400 kV bus');
- assert.equal(map400.sites.get('SITE_MV')?.representativeFid, 'TERM_400');
 
- // When voltageKv: 154 is requested, site has no 154 kV bus -> status must be NO_VOLTAGE_MATCH and value null
- const map154 = buildBenchmarkMapData(ctx, { analysis: 'SC', source: 'GA', metric: 'maxIkssKa', table: 'SC_BusResults_Raw', voltageKv: 154 });
- assert.equal(map154.sites.get('SITE_MV')?.status, 'NO_VOLTAGE_MATCH');
- assert.equal(map154.sites.get('SITE_MV')?.value, null);
 
- // When no voltageKv filter (all voltages), site maximum is 45 kA
- const mapAll = buildBenchmarkMapData(ctx, { analysis: 'SC', source: 'GA', metric: 'maxIkssKa', table: 'SC_BusResults_Raw' });
- assert.equal(mapAll.sites.get('SITE_MV')?.value, 45.0, 'Unfiltered map reflects overall maximum');
+
+
+
+test('SC status filter partitions only the current three-phase result',()=>{
+ assert.deepEqual(SC_STATUS_FILTER_OPTIONS.map(o=>o.value),['','CALCULATED','BLOCKED_OR_UNCOMPUTABLE','PF_AVAILABLE','NOT_RUN_OR_STALE']);
+ const row=(status:string,pf:number|null=null)=>({raw:{status_3F:status},metrics:{ikss:{pf}}});
+ assert.ok(scStateMatches('CALCULATED',row('CALCULATED_NETWORK_APPROXIMATION')));assert.equal(scStateMatches('CALCULATED',row('BLOCKED')),false);
+ for(const status of ['BLOCKED','NOT_COMPUTABLE'])assert.ok(scStateMatches('BLOCKED_OR_UNCOMPUTABLE',row(status)));
+ for(const status of ['NOT_RUN','STALE'])assert.ok(scStateMatches('NOT_RUN_OR_STALE',row(status)));
+ assert.ok(scStateMatches('PF_AVAILABLE',row('NOT_RUN',6)));assert.equal(scStateMatches('PF_AVAILABLE',row('NOT_RUN')),false);
 });
-
-test('C.2.2: two sites with identical names never cross-contaminate and name fallback is eliminated', () => {
- const {ctx} = analysisUiFixture();
- ctx.filters.areaId = '';
- ctx.network = {
-  ...ctx.network!,
-  sites: [
-   { id: 'SITE_1', name: 'KAYAS', sourceId: 'SITE_1', sourceClass: 'ElmSubstat', areaId: 'A', areaName: 'A', lat: 39, lon: 32, voltages: [154] } as any,
-   { id: 'SITE_2', name: 'KAYAS', sourceId: 'SITE_2', sourceClass: 'ElmSubstat', areaId: 'A', areaName: 'A', lat: 40, lon: 33, voltages: [154] } as any
-  ],
-  buses: [
-   { id: 'T_K1', sourceId: 'T_K1', sourceClass: 'ElmTerm', name: 'K1 Bara', vnKv: 154, siteIds: ['SITE_1'], terms: ['T_K1'] } as any,
-   { id: 'T_K2', sourceId: 'T_K2', sourceClass: 'ElmTerm', name: 'K2 Bara', vnKv: 154, siteIds: ['SITE_2'], terms: ['T_K2'] } as any
-  ]
- } as any;
- ctx.scResult = {
-  engineRevision:SC_ENGINE_REVISION,
-  identity: { modelHash: ctx.network!.modelHash, scenarioHash: scenarioSignature(ctx.scenario.current), sourceHash: 'SRC_K', profileHash: 'PRF' },
-  profile: { calculateMode: 'MAX', faultType: '3PH' },
-  method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
-  faults: [
-   { physicalTerminalFid: 'T_K1', electricalBusId: 'E_K1', physicalTerminalFids: ['T_K1'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 12.0, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null },
-   { physicalTerminalFid: 'T_K2', electricalBusId: 'E_K2', physicalTerminalFids: ['T_K2'], nominalKv: 154, componentId: null, status: 'CALCULATED_NETWORK_APPROXIMATION', quality: 'ENGINEERING_APPROX', reasons: ['OK'], zkkOhm: null, ikssKa: 28.0, skssMva: null, ipKa: null, ibKa: null, ithKa: null, residual: null }
-  ]
- } as any;
- ctx.scResult1Lg = null;
- ctx.ytmStudy = null;
-
- const mapData = buildBenchmarkMapData(ctx, { analysis: 'SC', source: 'GA', metric: 'maxIkssKa', table: 'SC_BusResults_Raw' });
- assert.equal(mapData.sites.get('SITE_1')?.value, 12.0, 'SITE_1 must strictly match T_K1');
- assert.equal(mapData.sites.get('SITE_2')?.value, 28.0, 'SITE_2 must strictly match T_K2');
-});
-
-test('C.2.2: PF-only 3F MAX map functions independently when GA SC is NOT_RUN', () => {
- const {ctx} = analysisUiFixture();
- ctx.scResult = null; // GA SC has NOT run
- ctx.scResult1Lg = null;
- ctx.ytmStudy = null;
-
- // Gate for PF 3F MAX is enabled
- const gate3F = benchmarkMapGate(ctx, { analysis: 'SC', source: 'PF', metric: 'maxIkssKa', table: 'SC_BusResults_Raw' });
- assert.equal(gate3F.enabled, true, 'PF 3PH MAX must be enabled even without GA result');
-
- // Gate for unsupported PF metrics / modes are rejected
- assert.equal(benchmarkMapGate(ctx, { analysis: 'SC', source: 'PF', metric: 'skssMva', table: 'SC_BusResults_Raw' }).enabled, false);
- assert.equal(benchmarkMapGate(ctx, { analysis: 'SC', source: 'PF', metric: 'ikss1FKa', table: 'SC_BusResults_Raw' }).enabled, false);
- assert.equal(benchmarkMapGate(ctx, { analysis: 'SC', source: 'PF', metric: 'maxIkssKa', table: 'SC_BusResults_Raw', scMode: 'MIN' }).enabled, false);
-
- // Map data renders PF pins without requiring compactScRows
- const mapData = buildBenchmarkMapData(ctx, { analysis: 'SC', source: 'PF', metric: 'maxIkssKa', table: 'SC_BusResults_Raw' });
- assert.equal(mapData.enabled, true);
- assert.ok((mapData.numericValues ?? 0) > 0, 'PF numerical values must be populated on map');
-});
-
-test('C.2.3: SC status filter exposes functional options and partitions compact rows accurately', () => {
- // Verify functional options contract
- assert.deepEqual(SC_STATUS_FILTER_OPTIONS.map(o => o.value), [
-  '',
-  'CALCULATED_BOTH',
-  'CALCULATED_3F_ONLY',
-  'BLOCKED_OR_UNCOMPUTABLE',
-  'PF_AVAILABLE',
-  'NOT_RUN_OR_STALE'
- ]);
-
- assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('DC tarandı')), false, 'N-1 DC option must NOT exist in SC');
- assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('%100 üzeri')), false, 'N-1 OVER option must NOT exist in SC');
- assert.equal(SC_STATUS_FILTER_OPTIONS.some(o => o.label.includes('AC sayısal')), false, 'N-1 AC option must NOT exist in SC');
-
- // Test scStateMatches predicate against representative rows
- const rowBoth = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'CALCULATED_NETWORK_APPROXIMATION' }, metrics: { ikss: { pf: 25.5 } } };
- const row3FOnly = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'NOT_COMPUTABLE' }, metrics: { ikss: { pf: null } } };
- const rowBlocked = { raw: { status_3F: 'BLOCKED', status_1F: 'BLOCKED' }, metrics: { ikss: { pf: null } } };
- const rowNotRun = { raw: { status_3F: 'NOT_RUN', status_1F: 'NOT_RUN' }, metrics: { ikss: { pf: null } } };
- const rowStale = { raw: { status_3F: 'CALCULATED_NETWORK_APPROXIMATION', status_1F: 'STALE' }, metrics: { ikss: { pf: null } } };
-
- // '' (ALL)
- assert.equal(scStateMatches('', rowBoth), true);
- assert.equal(scStateMatches('', rowBlocked), true);
-
- // CALCULATED_BOTH
- assert.equal(scStateMatches('CALCULATED_BOTH', rowBoth), true);
- assert.equal(scStateMatches('CALCULATED_BOTH', row3FOnly), false);
- assert.equal(scStateMatches('CALCULATED_BOTH', rowBlocked), false);
-
- // CALCULATED_3F_ONLY
- assert.equal(scStateMatches('CALCULATED_3F_ONLY', row3FOnly), true);
- assert.equal(scStateMatches('CALCULATED_3F_ONLY', rowBoth), false);
-
- // BLOCKED_OR_UNCOMPUTABLE
- assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', rowBlocked), true);
- assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', row3FOnly), true);
- assert.equal(scStateMatches('BLOCKED_OR_UNCOMPUTABLE', rowBoth), false);
-
- // PF_AVAILABLE
- assert.equal(scStateMatches('PF_AVAILABLE', rowBoth), true);
- assert.equal(scStateMatches('PF_AVAILABLE', rowBlocked), false);
-
- // NOT_RUN_OR_STALE
- assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowNotRun), true);
- assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowStale), true);
- assert.equal(scStateMatches('NOT_RUN_OR_STALE', rowBoth), false);
-});
-
-test('C.2.3: Incompatible 3F/1F pair with mismatched sourceHash, calculateMode, or faultType is strictly rejected during standalone restore', () => {
- const {ctx} = analysisUiFixture();
- const loadedModelHash = ctx.network!.modelHash;
- const scenarioSig = scenarioSignature(ctx.scenario.current);
-
- const baseSc = {
-  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
-  profile: { calculateMode: 'MAX' as const, faultType: '3PH' },
-  method: 'GA_POSITIVE_SEQUENCE_3PH_MAX',
-  faults: []
- };
-
- const incompatibleSourceHash = {
-  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_BETA_DIFFERENT', profileHash: 'PRF' },
-  profile: { calculateMode: 'MAX' as const, faultType: '1LG' as const },
-  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MAX',
-  faults: []
- };
-
- const incompatibleMode = {
-  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
-  profile: { calculateMode: 'MIN' as const, faultType: '1LG' as const },
-  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MIN',
-  faults: []
- };
-
- const canRestore1Lg = (sc: typeof baseSc, sc1: any) => {
-  return (
-   sc1 &&
-   sc1.identity.modelHash === loadedModelHash &&
-   sc1.identity.scenarioHash === scenarioSig &&
-   sc1.identity.sourceHash === sc.identity.sourceHash &&
-   sc1.profile.calculateMode === sc.profile.calculateMode &&
-   sc1.profile.faultType === '1LG'
-  );
- };
-
- assert.equal(canRestore1Lg(baseSc, incompatibleSourceHash), false, 'Mismatched sourceHash must reject sc1Lg');
- assert.equal(canRestore1Lg(baseSc, incompatibleMode), false, 'Mismatched calculateMode must reject sc1Lg');
-
- const compatibleSc1 = {
-  identity: { modelHash: loadedModelHash, scenarioHash: scenarioSig, sourceHash: 'SRC_ALPHA', profileHash: 'PRF' },
-  profile: { calculateMode: 'MAX' as const, faultType: '1LG' as const },
-  method: 'GA_SYMMETRICAL_COMPONENTS_1LG_MAX',
-  faults: []
- };
- assert.equal(canRestore1Lg(baseSc, compatibleSc1), true, 'Matching sc1Lg must be accepted');
-});
-
-

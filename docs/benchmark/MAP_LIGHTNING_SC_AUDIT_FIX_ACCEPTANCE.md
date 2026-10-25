@@ -64,7 +64,7 @@ Silmeden önce tüm uzak heads/tags kaydedildi. `codex/map-lightning-sc-multifau
 ## Açık hesap yetenekleri / veri gereksinimi
 
 - Varsayımsız native station/droop Full AC N-1 tamamlanmış değildir. `GA_APPROX_STATION_OFF` yalnız açık tanısal profil; native kontrol davranışına eşdeğer değildir.
-- Normatif IEC 60909 ve PF yöntem paritesi yoktur. IEC edition/factor, KG/KT/KKW, tam kaynak/konverter üyeliği ve nominal temel kanıtı gerekir. `MISSING_MEMBERS`/nominal mismatch reddi sürer; Ip/Ib/Ith ve 1LG/LL/2LG mevcut olmayan yeteneklerdir.
+- Normatif IEC 60909 ve PF yöntem paritesi yoktur. IEC edition/factor, KG/KT/KKW, tam kaynak/konverter üyeliği ve nominal temel kanıtı gerekir. `MISSING_MEMBERS`/nominal mismatch reddi sürer; Ip/Ib/Ith doğrulanmamış büyüklüklerdir. Güncel SC kapsamı yalnız üç faz MAX/MIN analizidir.
 - PF N-1 tam post dal/bara matrisi yoktur; metadata/extrema P/Q/U post paritesi sağlamaz. DC yalnız P taraması; seçili Full AC doğrulaması ayrı sonuçtur.
 - Kompakt hybrid cache açı referans üyeliği taşımadığında POST mevcut açı gösterilir, PRE/CHANGE uyumu ispatlanamıyorsa null + ANGLE_REFERENCE_UNKNOWN/MISMATCH. Site CHANGE açısı da yeterli referans kanıtı olmadan null kalır.
 - SN7 özgün B0→S1→S2 defteri bulunmadı. Önceki `NEW_CONTROLLED_SN7_TEST` yeni kontrollü testtir, özgün S2 değildir; bu tur SN7 yeniden import/analiz yapılmadı.

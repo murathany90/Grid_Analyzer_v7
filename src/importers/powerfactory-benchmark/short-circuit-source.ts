@@ -15,11 +15,10 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
     audit.push({sourceClass:cls,fid:String(row.FID??''),inService:row.outserv===0?true:row.outserv===1?false:null,field,actualValue:v??null,unit,physicalValidation:missing?'MISSING':bad?'NEGATIVE_NONFINITE_OR_SENTINEL':zero?'RECORDED_ZERO':'PRESENT',sourceRef:`DGS:${cls}:${row.FID}:${field}`,IECRequirement:'Positive sequence model / independently verified corrections',status,reason:status==='READY_VERIFIED_SUBSET'?'ATTRIBUTE_ONLY; NOT_NETWORK_READINESS':status});
   }
   const machineTypes=new Map(tables(raw,'TypSym').map(r=>[String(r.FID),r]));
-  const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),cubicObj=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.obj_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
+  const cubicles=new Map(tables(raw,'StaCubic').map(r=>[String(r.FID),String(r.fold_id??'')])),busIds=new Set(network.buses.map(b=>b.sourceId)),kvById=new Map(network.buses.map(b=>[b.sourceId,b.vnKv]));
   const physical=(v:unknown):v is number=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v!==99999&&v!==999999;
   const factor=options.externalGridFactor??externalGridFactor;
   const endpoint=(v:unknown)=>{const id=String(v??'');return cubicles.get(id)??(busIds.has(id)?id:'');};
-  const resolveNeutral=(v:unknown)=>{if(!v||String(v)==='null')return null;const s=String(v);return cubicObj.get(s)||cubicles.get(s)||s;};
   for(const cls of ['ElmXnet','ElmSym','ElmGenStat','ElmGenstat','ElmVac','ElmAsm','ElmVacbi','ElmVsc','ElmVscmono','ElmSvs','ElmTr3','ElmShnt'])for(const row of tables(raw,cls)){
     if(cls==='ElmGenstat'&&raw.ElmGenStat)continue;
     // Shunts are explicitly excluded from this series network approximation (documented in result).
@@ -69,81 +68,5 @@ export function adaptShortCircuitSources(raw:DgsRawData,network:CanonicalNetwork
   if(options.allowMixedNominalKv&&!options.provenance?.trim())throw Error('SC_NOMINAL_NORMALIZATION_PROVENANCE_REQUIRED');
   if(options.sourcePolicy==='ENGINEERING_PARTIAL'&&!options.provenance?.trim())throw Error('SC_PARTIAL_SOURCE_PROVENANCE_REQUIRED');
   
-  // Extract sequence data for negative and zero sequence calculations
-  const seqLines=new Map<string,import('../../analysis/short-circuit/sequence-network').ScZeroSequenceLine>();
-  for(const l of network.lines){
-    const row=lineRows.get(l.sourceId),parts=sections.get(l.sourceId)??(row?[row]:[]);
-    let r0=0,x0=0,ok=parts.length>0;
-    for(const part of parts){
-      const type=typeLines.get(String(part.typ_id));
-      if(!type||!physical(type.rline0)||!physical(type.xline0)||!physical(part.dline)||Number(type.xline0)===99999||Number(type.xline0)===999999){ok=false;break;}
-      r0+=Number(type.rline0)*Number(part.dline);x0+=Number(type.xline0)*Number(part.dline);
-    }
-    if(ok&&Math.hypot(r0,x0)>0)seqLines.set(l.sourceId,{lineId:l.sourceId,r0Ohm:r0,x0Ohm:x0});
-  }
-  const seqTrafos=new Map<string,import('../../analysis/short-circuit/sequence-network').ScZeroSequenceTransformer>();
-  for(const t of network.transformers){
-    const row=transformerRows.get(t.sourceId),type=row?typeTransformers.get(String(row.typ_id)):null;
-    if(type){
-      const vgHv=type.tr2cn_h?String(type.tr2cn_h):undefined;
-      const vgLv=type.tr2cn_l?String(type.tr2cn_l):undefined;
-      const uk0tr=physical(type.uk0tr)&&Number(type.uk0tr)>0&&Number(type.uk0tr)!==99999&&Number(type.uk0tr)!==999999?Number(type.uk0tr):undefined;
-      const ur0tr=physical(type.ur0tr)&&Number(type.ur0tr)!==99999&&Number(type.ur0tr)!==999999?Number(type.ur0tr):undefined;
-      const cneutcon=row?.cneutcon!==undefined&&row?.cneutcon!==null?Number(row.cneutcon):undefined;
-      const bushvn=resolveNeutral(row?.bushvn);
-      const buslvn=resolveNeutral(row?.buslvn);
-      seqTrafos.set(t.sourceId,{
-        transformerId:t.sourceId,vectorGroupHv:vgHv,vectorGroupLv:vgLv,
-        uk0tr,ur0tr,x0tor0:physical(type.x0tor0)&&Number(type.x0tor0)!==99999&&Number(type.x0tor0)!==999999?Number(type.x0tor0):undefined,
-        cneutcon,bushvn,buslvn,
-        re0tr_h:physical(row?.re0tr_h)?Number(row!.re0tr_h):undefined,
-        re0tr_l:physical(row?.re0tr_l)?Number(row!.re0tr_l):undefined
-      });
-    }
-  }
-  const groundCompensators:import('../../analysis/short-circuit/sequence-network').ScZeroSequenceGroundCompensator[]=[];
-  for(const row of tables(raw,'ElmNec')){
-    if(row.outserv===1)continue;
-    const r0=row.outserv===0&&physical(row.R0)&&Number(row.R0)!==99999&&Number(row.R0)!==999999?Number(row.R0):NaN;
-    const x0=row.outserv===0&&physical(row.X0)&&Number(row.X0)!==99999&&Number(row.X0)!==999999?Number(row.X0):NaN;
-    {
-      const b=endpoint(row.bus1);
-      groundCompensators.push({fid:String(row.FID),bus:b||String(row.bus1??''),r0Ohm:r0,x0Ohm:x0,inService:row.outserv!==1});
-    }
-  }
-  const negativeSources=new Map<string,import('../../analysis/short-circuit/sequence-network').ScNegativeSequenceSource>();
-  for(const row of tables(raw,'ElmSym')){
-    if(row.outserv===1)continue;
-    const t=machineTypes.get(String(row.typ_id)),count=row.ngnum;
-    if(t&&physical(t.x2sy)&&Number(t.x2sy)>0&&Number(t.x2sy)!==99999&&physical(t.sgn)&&physical(t.ugn)&&typeof count==='number'&&count>0){
-      const base=t.ugn**2/t.sgn/count;
-      let r2:number|null=null;
-      if(physical(t.r2sy)&&Number(t.r2sy)>=0&&Number(t.r2sy)!==99999){r2=Number(t.r2sy)*base;}
-      else if(physical(options.missingMachineRPu)&&options.provenance?.trim()){r2=options.missingMachineRPu*base;}
-      if(r2!==null){
-        negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmSym',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:Number(t.x2sy)*base});
-      }
-    }
-  }
-  for(const row of tables(raw,'ElmVac')){
-    if(row.outserv===1)continue;
-    const r2=physical(row.R2)&&Number(row.R2)!==99999?Number(row.R2):null;
-    const x2=physical(row.X2)&&Number(row.X2)!==99999?Number(row.X2):null;
-    if(r2!==null&&x2!==null&&(r2>0||x2>0)){
-      negativeSources.set(String(row.FID),{fid:String(row.FID),sourceClass:'ElmVac',bus:endpoint(row.bus1),r2Ohm:r2,x2Ohm:x2});
-    }
-  }
-  const zeroSources=new Map<string,{bus:string;r0Ohm:number;x0Ohm:number}>();
-  for(const row of tables(raw,'ElmVac')){
-    if(row.outserv===1)continue;
-    const r0=physical(row.R0)&&Number(row.R0)!==99999?Number(row.R0):null;
-    const x0=physical(row.X0)&&Number(row.X0)!==99999?Number(row.X0):null;
-    if(r0!==null&&x0!==null&&(r0>0||x0>0)){
-      zeroSources.set(String(row.FID),{bus:endpoint(row.bus1),r0Ohm:r0,x0Ohm:x0});
-    }
-  }
-  const sequenceData:import('../../analysis/short-circuit/sequence-network').ScSequenceData={
-    lines:seqLines,transformers:seqTrafos,groundCompensators,negativeSources,zeroSources
-  };
-  return {modelHash:network.modelHash,sources,audit,invalidBranches,sequenceData,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
+  return {modelHash:network.modelHash,sources,audit,invalidBranches,calculateMode:options.mode??'MAX',allowMixedNominalKv:options.allowMixedNominalKv,assumptions:options.provenance?[options.provenance]:[],adapterOptions:structuredClone({...options,externalGridFactor:factor,mode:options.mode??'MAX'})};
 }

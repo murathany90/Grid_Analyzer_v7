@@ -44,3 +44,9 @@
   .ga-lightning-sc-toolbar select,.ga-lightning-sc-toolbar button{flex:1 1 100%;max-width:100%}
   .ga-lightning-sc-table{font-size:10px}
 }
+
+.ga-lightning-sc-table-host{flex:1 1 auto;min-height:125px;max-height:none;overflow:auto}
+.ga-lightning-sc-detail-host{max-height:190px;overflow:auto;flex:0 1 auto;border-top:1px solid #3c6b88;padding:6px}
+.ga-lightning-sc-detail-host[hidden]{display:none}.ga-lightning-sc-detail-head{position:sticky;top:-6px;background:#0e2b3f;z-index:1}
+.ga-lightning-sc-toolbar{flex-wrap:wrap;gap:5px}.ga-lightning-sc-toolbar select{min-width:90px;max-width:190px}.ga-lightning-sc-toolbar input{min-width:120px}
+.ga-lightning-sc-table th button{padding:3px 0;background:none;border:0;color:inherit;font-size:inherit;white-space:nowrap}.ga-lightning-sc-table td:nth-child(5){text-align:left}

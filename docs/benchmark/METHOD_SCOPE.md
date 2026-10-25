@@ -84,7 +84,7 @@ The implemented result is **CALCULATED_NETWORK_APPROXIMATION**: passive loads,
 line charging and shunts are excluded; transformer correction and source
 corrections are not normative. Transformer phase uses the canonical model, whose
 DGS phase placeholder is explicitly an approximation. Ip/Ib/Ith stay null.
-1LG/LL/2LG require sequences/grounding and are blocked.
+Only three-phase MAX/MIN faults are supported.
 
 PF 2024 AC Voltage Source Technical Reference, section 2 (printed page 2), describes
 the source impedance base as terminal nominal voltage squared over 1 MVA; this

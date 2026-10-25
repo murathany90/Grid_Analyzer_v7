@@ -36,7 +36,6 @@ export interface AppContext {
   hybridResult:import('../analysis/contingency-hybrid').HybridResult|null;
   scContext:import('../analysis/short-circuit/source-adapter').ScSourceContext|null;
   scResult:import('../analysis/short-circuit').ScResult|null;
-  scResult1Lg?:import('../analysis/short-circuit').ScResult|null;
   scCatalog?:import('../analysis/short-circuit').ScFaultCatalog|null;
   loadScCatalog?(terminals:string[]):Promise<void>;
   loadHybridCaseDetail(caseId:string):Promise<boolean>;

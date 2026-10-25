@@ -1,3 +1,4 @@
+import {scCurrentKa,nominalKv} from '../domain/results/sc-node';
 import {scenarioLfComparison} from '../domain/results/lf-comparison';
 import type {AppContext} from '../app/contracts';
 import type {Site,Line,Transformer2W} from '../domain/model/network';
@@ -40,6 +41,10 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
   if(selection.analysis==='LF'&&selection.source==='GA'&&selection.metric==='island'){
     const topology=mapTopologyPresentation(ctx),stations=e.sourceClass==='ElmSite'?topology?.bySite.get(e.id)?.filter(s=>voltageMatches(s.voltageKv,ctx.filters.voltages))??[]:[],on=e.sourceClass==='ElmLne'?ctx.scenario.current.lineStatus[e.id]??e.inService:e.sourceClass==='ElmTr2'?ctx.scenario.current.transformerStatus[e.id]??e.inService:true;
     card.context='GA • '+(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' • Yapısal topoloji';card.status=on?'Serviste':'Servis dışı';card.headers=['Kuplaj','Bağlı bileşen','Güven'];card.rows=stations.slice(0,2).map(s=>['Açık · '+number(s.voltageKv)+' kV',s.sameConnectedComponent?'Başka yoldan aynı ada':'Ayrı elektrik adaları',s.confidence]);card.note=stations.length?stations.some(s=>s.sameConnectedComponent)?'SAME_COMPONENT_VIA_ALTERNATE_PATH · Açık kuplaj, beslemesiz ada değildir.':'SEPARATE_COMPONENTS · Referans/kaynak durumunu ayrıntıda inceleyin.':'Açık 154 kV kuplaj işareti yok; ada rengi bağlı bileşeni gösterir.';return card;
+  }
+  if(v.analysis==='SC'&&selection.source==='PF'&&e.sourceClass==='ElmSite'){
+    const data=buildMapPresentationData(ctx,selection),value=data.sites.get(e.id);card.context+=' · PF 3PH MAX';card.status=data.enabled?'PF_REFERENCE_ONLY':'BLOCKED';card.headers=['PF Ikss (kA)','Bara FID','Nominal (kV)'];
+    card.rows=[[scCurrentKa(value?.value),value?.representativeFid||'—',nominalKv(value?.nominalKv)]];card.note=!data.enabled?data.reason:value?.value==null?'Seçili gerilim ve TM için PF 3F kaydı yok.':'TM elektriksel düğümlerinin seçili gerilimdeki maksimumudur. PF referansı mevcuttur; GA/PF sayısal paritesi doğrulanmadı.';return card;
   }
   if(v.analysis!=='LF'&&selection.source!=='GA'){
     const gate=mapPresentationGate(ctx,selection);card.status=gate.enabled?'PF_REFERENCE_ONLY':'BLOCKED';if(!gate.enabled){card.note=gate.reason;return card;}
@@ -85,13 +90,13 @@ export function equipmentCard(ctx:AppContext,e:TooltipEquipment):EquipmentCard{
     if(e.sourceClass==='ElmSite'){
       const siteVal=buildMapPresentationData(ctx,selection).sites.get(e.id);
       card.status=siteVal?.status??'NOT_RUN';
-      card.headers=['Maks Ikss','Birim','Durum'];
-      card.rows=[[siteVal?.value!=null?number(siteVal.value)+' kA ('+Math.round(siteVal.value*1000).toLocaleString('tr-TR')+' A)':'Hesaplanmadı',siteVal?.unit??'kA',siteVal?.status??'NOT_RUN']];
+      card.headers=['Maks Ikss (kA)','Bara FID','Nominal (kV)'];
+      card.rows=[[scCurrentKa(siteVal?.value),siteVal?.representativeFid||'—',nominalKv(siteVal?.nominalKv)]];
       card.note=siteVal?.value!=null?'TM elektriksel baralarının maksimumudur · Ayrıntı için TM\'yi seçin veya ⚡ paneline bakın.':'Bu TM için hesaplanmış SC sonucu bulunamadı.';
       if(siteVal?.value==null&&sc){
         const terminalIds=new Set(modelPresentationIndex(ctx.network).busIdsBySite.get(e.id)??[]);
         const blocked=sc.faults.filter(f=>f.status==='BLOCKED'&&[f.physicalTerminalFid,...f.physicalTerminalFids].some(id=>terminalIds.has(id)));
-        if(blocked.length){card.status='BLOCKED';card.rows=[['—',siteVal?.unit??'kA','BLOCKED']];card.note=[...new Set(blocked.flatMap(f=>f.reasons))].join('; ');}
+        if(blocked.length){card.status='BLOCKED';card.rows=[['—',siteVal?.representativeFid||'—',nominalKv(siteVal?.nominalKv)]];card.note=[...new Set(blocked.flatMap(f=>f.reasons))].join('; ');}
       }
       return card;
     }

@@ -1,3 +1,6 @@
+import {scCurrentKa,nominalKv,scVoltageOptions,SC_NODE_LABELS} from '../../domain/results/sc-node';
+import {cleanStudy} from '../../domain/results/sc-persistence';
+import {scDetail} from './sc-detail';
 import {capacitySession} from '../../domain/model/capacity';
 import type {AppContext,Feature} from '../../app/contracts';
 import {element,button,format,downloadText,csvDocument} from '../../ui/components/dom';
@@ -11,42 +14,22 @@ import {runEvidence,selectedCaseEvidence} from './run-evidence';
 import {compactN1Rows,compactScRows,compactLfRows,sortCompactRows,type CompactRow,type LfList,type Triple} from './compact-rows';
 import {analysisDialog} from './analysis-dialog';
 
-const formatScVal=(valKa:number|null|undefined,unit:'A'|'kA'):string=>{
- if(valKa===null||valKa===undefined||!Number.isFinite(valKa))return '—';
- if(unit==='A'){
-  return Math.round(valKa*1000).toLocaleString('tr-TR',{maximumFractionDigits:0});
- }
- return Number(valKa).toLocaleString('tr-TR',{minimumFractionDigits:3,maximumFractionDigits:3});
-};
-
-export const SC_STATUS_FILTER_OPTIONS = [
- { value: '', label: 'Tümü' },
- { value: 'CALCULATED_BOTH', label: '3F ve 1F hesaplandı' },
- { value: 'CALCULATED_3F_ONLY', label: '3F hesaplandı, 1F hesaplanamadı' },
- { value: 'BLOCKED_OR_UNCOMPUTABLE', label: 'Hesaplanamadı / engellendi' },
- { value: 'PF_AVAILABLE', label: 'PF 3F referansı mevcut' },
- { value: 'NOT_RUN_OR_STALE', label: 'Henüz çalıştırılmadı / eski sonuç' }
-] as const;
-
-export function scStateMatches(stateValue:string,r:{raw:Record<string,unknown>;metrics:{ikss?:{pf:number|null}}}):boolean{
- if(!stateValue)return true;
- const s3=String(r.raw.status_3F??''),s1=String(r.raw.status_1F??'');
- if(stateValue==='CALCULATED_BOTH')return s3==='CALCULATED_NETWORK_APPROXIMATION'&&s1==='CALCULATED_NETWORK_APPROXIMATION';
- if(stateValue==='CALCULATED_3F_ONLY')return s3==='CALCULATED_NETWORK_APPROXIMATION'&&s1!=='CALCULATED_NETWORK_APPROXIMATION';
- if(stateValue==='BLOCKED_OR_UNCOMPUTABLE'){
-  return ['BLOCKED','NOT_COMPUTABLE'].includes(s3)||['BLOCKED','NOT_COMPUTABLE'].includes(s1)||(s3!=='CALCULATED_NETWORK_APPROXIMATION'&&!['NOT_RUN','STALE'].includes(s3))||(s1!=='CALCULATED_NETWORK_APPROXIMATION'&&!['NOT_RUN','STALE'].includes(s1));
- }
- if(stateValue==='PF_AVAILABLE')return r.metrics.ikss?.pf!=null&&Number.isFinite(r.metrics.ikss.pf);
- if(stateValue==='NOT_RUN_OR_STALE')return s3==='NOT_RUN'||s1==='NOT_RUN'||s3==='STALE'||s1==='STALE';
- return true;
+export const SC_STATUS_FILTER_OPTIONS=[{value:'',label:'Tümü'},{value:'CALCULATED',label:'3F hesaplandı'},{value:'BLOCKED_OR_UNCOMPUTABLE',label:'Hesaplanamadı / engellendi'},{value:'PF_AVAILABLE',label:'PF 3F referansı mevcut'},{value:'NOT_RUN_OR_STALE',label:'Henüz çalıştırılmadı / eski sonuç'}] as const;
+export function scStateMatches(value:string,r:{raw:Record<string,unknown>;metrics:{ikss?:{pf:number|null}}}){
+ const status=String(r.raw.status_3F??'');if(!value)return true;
+ if(value==='CALCULATED')return status==='CALCULATED_NETWORK_APPROXIMATION';
+ if(value==='BLOCKED_OR_UNCOMPUTABLE')return ['BLOCKED','NOT_COMPUTABLE'].includes(status);
+ if(value==='PF_AVAILABLE')return r.metrics.ikss?.pf!=null&&Number.isFinite(r.metrics.ikss.pf);
+ return ['NOT_RUN','STALE'].includes(status);
 }
 
 export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Feature{
  const root=element('div','ga-ytm-study ga-compact-study'),controls=element('div','ga-compact-controls'),status=element('p','ga-compact-status'),scNotice=element('p','ga-sc-notice'),kpis=element('div','ga-compact-kpis'),lists=element('nav','ga-compact-lists'),filters=element('div','ga-compact-filters'),host=element('div','ga-compact-table-host'),pager=element('div','ga-compact-pager');
+ const nodeFilter=element('select');nodeFilter.setAttribute('aria-label','Sonuç düğüm sınıfı');nodeFilter.append(new Option('Tüm düğümler',''),...Object.entries(SC_NODE_LABELS).map(([v,label])=>new Option(label,v)));
  const area=element('select'),tm=element('select'),voltage=element('select'),profile=element('select'),mode=element('select'),search=element('input'),state=element('select'),metric=element('select');
  const selectLabel=(s:HTMLSelectElement,label:string)=>{s.setAttribute('aria-label',label);return s;};
  selectLabel(area,'Toplu analiz YTM');selectLabel(tm,'Toplu analiz TM');selectLabel(voltage,'Toplu analiz gerilim seviyesi');selectLabel(profile,'Toplu analiz profili');selectLabel(mode,'Görüntülenen SC modu');selectLabel(state,'Sonuç durum filtresi');selectLabel(metric,'Gösterilen LF metriği');search.setAttribute('aria-label','Toplu analiz sonuç filtresi');search.type='search';search.placeholder='Ekipman, TM, YTM veya FID ara';
- for(const [value,label] of [['','Tüm gerilimler'],['400','400 kV'],['154','154 kV'],['66','66 kV'],['33','33 kV'],['34.5','34.5 kV']]){const o=element('option','',label);o.value=value;voltage.append(o);}
+ const populateVoltages=()=>{const saved=voltage.value;voltage.replaceChildren(new Option('Tüm gerilimler',''),...scVoltageOptions(ctx.network).map(v=>new Option(nominalKv(v)+' kV',String(v))));voltage.value=saved;};populateVoltages();
  const n1StateOptions='<option value="">Tüm durumlar</option><option value="AC">AC sayısal / Hesaplanan</option><option value="DC">DC tarandı</option><option value="OVER">%100 üzeri</option><option value="PF">PF kaydı olan</option><option value="MISSING">Sayısal sonuç yok / Engellenen</option>';
  const scStateOptions=SC_STATUS_FILTER_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('');
  profile.innerHTML='<option value="BALANCED">Dengeli</option><option value="FAST">Hızlı</option><option value="DETAILED">Ayrıntılı</option><option value="STRICT">Strict</option>';mode.innerHTML='<option>MAX</option><option>MIN</option>';state.innerHTML=ctx.analysisTab==='SC'?scStateOptions:n1StateOptions;metric.innerHTML='<option value="p">P (MW)</option><option value="q">Q (MVAr)</option><option value="loading">Yük (%)</option>';
@@ -59,19 +42,18 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
  profileSetting.append(profileLabel,profileSelect,element('small','ga-muted','SC hesabı ağ yaklaşımını kullanır; MAX/MIN kaynak varsayımları ve veri yeterliliği ayrıca gösterilir. IEC/PF paritesi doğrulanmadı.'));
  settings.body.append(modes,profileSetting,element('p','ga-muted','Limitler düzenlenebilir kullanıcı eşikleridir. IEC 60909-0:2016 · ağ yaklaşımı; IEC doğrulanmadı.'));
  let lastNetwork:unknown,lastOptions:unknown,lastFamily='',lastTmArea='',tab='cases',page=0,sort='name',descending=false,rows:CompactRow[]=[],selected:CompactRow|null=null,lastRefs:unknown[]=[],lastKey='';
- let scUnit:'A'|'kA'='A';
+ const scUnit='kA' as const;
  const options=():YtmStudyOptions=>{
   const prior=ctx.studyOptions??ctx.ytmStudy?.options,base={...prior,ytmId:area.value,tmId:tm.value||undefined,profile:(profile.value||profileSelect.value) as YtmStudyOptions['profile'],timeBudgetMs:Number(budget.value)*1000,families:[ctx.analysisTab==='SC'?'SC' as const:'N1' as const],scModes:modes.value==='BOTH'?undefined:[modes.value as 'MAX'|'MIN'],voltageBands:voltage.value?[Number(voltage.value)]:undefined};
   return {...base,...(prior?.voltageMinPu!==undefined||Number(low.value)!==.9?{voltageMinPu:Number(low.value)}:{}),...(prior?.voltageMaxPu!==undefined||Number(high.value)!==1.1?{voltageMaxPu:Number(high.value)}:{}),...(prior?.loadingLimitPercent!==undefined||Number(loading.value)!==100?{loadingLimitPercent:Number(loading.value)}:{})};
  };
  const start=(resume=false)=>{if(ctx.analysisTab==='LF'){void ctx.run('powerFlow',requestedRole(ctx));return;}const o=resume&&ctx.ytmStudy?{...options(),families:ctx.ytmStudy.options.families,scModes:ctx.ytmStudy.options.scModes}:options();ctx.studyOptions=o;void ctx.runYtmStudy?.(o,resume);};
  const run=button('Analiz Et',()=>start()),resume=button('Devam',()=>start(true)),cancel=button('İptal',()=>ctx.cancel()),settingsButton=button('Gelişmiş ayarlar',settings.open),evidenceButton=button('Yöntem ve kanıt',()=>{const proof={run:runEvidence(ctx),selected:selectedCaseEvidence(ctx),studyIdentity:ctx.ytmStudy?.identity,options:ctx.studyOptions};evidence.body.replaceChildren(element('p','','Sayısal çözüm; kaynak, yöntem veya PF eşdeğerliği doğrulaması değildir.'),button('Kanıt JSON',()=>downloadText(JSON.stringify(proof,null,2),'GA_Analysis_Evidence.local.json','application/json')),element('pre','',JSON.stringify(proof,null,2)));evidence.open();});
- const unitBtn=button('Birim: A',()=>{scUnit=scUnit==='A'?'kA':'A';unitBtn.textContent='Birim: '+scUnit;render();},'Kısa devre akım birimini değiştir (A / kA)');
  const maxSortBtn=button('Maks. Akım',()=>{sort='maxIkss';descending=true;page=0;render();},'Maksimum kısa devre akımına göre azalan sırala');
  controls.append(area,tm,voltage,profile,mode,run,resume,cancel,settingsButton,button('Gelişmiş araçlar',openTools),evidenceButton);status.setAttribute('role','status');root.append(controls,status,scNotice,kpis,lists,filters,host,pager,settings.element,evidence.element,detail.element);
  function scopeChanged(){if(lastTmArea!==area.value){tm.value='';ctx.filters.siteId='';}ctx.filters.areaId=area.value;ctx.filters.siteId=tm.value;ctx.studyOptions=options();ctx.benchmarkMap=null;page=0;ctx.notify();}
- for(const field of [area,tm,voltage,profile,profileSelect,modes,low,high,loading])field.addEventListener('change',()=>{if(field===profileSelect)profile.value=profileSelect.value;else if(field===profile)profileSelect.value=profile.value;scopeChanged();});budget.onchange=()=>{ctx.studyOptions=options();};mode.onchange=()=>{if(!selectScMode(ctx,mode.value as 'MAX'|'MIN'))ctx.setMessage('Seçilen mod için güncel sonuç yok.');page=0;ctx.notify();};
- const changed=()=>{page=0;render();};search.oninput=changed;state.onchange=changed;metric.onchange=()=>render();
+ for(const field of [area,tm,voltage,profile,profileSelect,modes,low,high,loading])field.addEventListener('change',()=>{if(field===profileSelect)profile.value=profileSelect.value;else if(field===profile)profileSelect.value=profile.value;scopeChanged();});budget.onchange=()=>{ctx.studyOptions=options();};mode.onchange=()=>{ctx.resultView.scMode=mode.value as 'MAX'|'MIN';if(!selectScMode(ctx,ctx.resultView.scMode))ctx.setMessage('3F '+mode.value+' seçildi. Hesaplamak için Analiz Et.');page=0;ctx.notify();};
+ const changed=()=>{page=0;render();};search.oninput=changed;state.onchange=changed;nodeFilter.onchange=changed;metric.onchange=()=>render();
  const list=(key:string,label:string)=>{const b=button(label,()=>{tab=key;page=0;sort='name';lastKey='';render();});b.dataset.list=key;lists.append(b);};
  const filtered=()=>{
   const q=search.value.toLocaleLowerCase('tr-TR'),family=ctx.analysisTab;
@@ -91,7 +73,7 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
    if(family==='SC')return scStateMatches(state.value,r);
    return state.value==='AC'&&r.acLabel?.startsWith('Sayısal')||state.value==='DC'&&r.dcLabel?.startsWith('Tarandı')||state.value==='OVER'&&(r.loading!=null&&r.loading>100||r.overloads?.length)||state.value==='PF'&&(Object.values(r.metrics).some(v=>v.pf!==null)||r.overloads?.some(v=>v.source==='PF'))||state.value==='MISSING'&&!Object.values(r.metrics).some(v=>v.ga!==null)&&!r.acLabel?.startsWith('Sayısal')&&!r.dcLabel?.startsWith('Tarandı');
   };
-  return sortCompactRows(rows.filter(r=>(!q||r.searchText.includes(q))&&voltageMatches(r)&&stateMatches(r)),sort,descending);
+  return sortCompactRows(rows.filter(r=>(!q||r.searchText.includes(q))&&voltageMatches(r)&&stateMatches(r)&&(!nodeFilter.value||r.raw.nodeKind===nodeFilter.value)),sort,descending);
  };
  function exportRows(){
   const family=ctx.analysisTab,identity=runEvidence(ctx).resultIdentity;
@@ -105,75 +87,36 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
     Gerilim_kV:r.metrics.voltage?.ga??null,
     Aci_deg:r.metrics.angle?.ga??null,
     '3F_Ikss_A':r.raw.GA_3F_Ikss_A??null,
-    '1F_Ikss_A':r.raw.GA_1F_Ikss_A??null,
     '3F_Ikss_kA':r.raw.GA_3F_Ikss_kA??null,
-    '1F_Ikss_kA':r.raw.GA_1F_Ikss_kA??null,
     PF_3F_Ikss_kA:r.metrics.ikss?.pf??null,
-    PF_1F_Ikss_kA:null,
     Fark_3F_kA:r.metrics.ikss?.delta??null,
     Hesap_Durumu:r.raw.Hesap_Durumu,
     Durum_3F:r.raw.status_3F,
-    Durum_1F:r.raw.status_1F,
     Gerekce_3F:r.raw.reason_3F,
-    Gerekce_1F:r.raw.reason_1F,
     Mod:r.raw.mode,
-    Z1_R_ohm:r.raw.Z1_R_ohm,
-    Z1_X_ohm:r.raw.Z1_X_ohm,
-    Z2_R_ohm:r.raw.Z2_R_ohm,
-    Z2_X_ohm:r.raw.Z2_X_ohm,
-    Z0_R_ohm:r.raw.Z0_R_ohm,
-    Z0_X_ohm:r.raw.Z0_X_ohm,
     electricalBusId:r.raw.electricalBusId,
     siteIds:r.raw.siteIds,
     Z3F_DrivingPoint_R_ohm:r.raw.Z3F_DrivingPoint_R_ohm,
     Z3F_DrivingPoint_X_ohm:r.raw.Z3F_DrivingPoint_X_ohm,
-    Z1F_Loop_R_ohm:r.raw.Z1F_Loop_R_ohm,
-    Z1F_Loop_X_ohm:r.raw.Z1F_Loop_X_ohm,
     Standard:'IEC60909-0:2016',
     IEC_Dogrulandi:0,
     identity_json:JSON.stringify(identity),
+    Tanisal_Fark_3F_kA:r.raw.diagnosticDelta_kA??null,
+    Dugum_Sinifi:r.raw.nodeKind,
+    Dugum_Kaniti:r.raw.nodeEvidence,
     PF_reference_file:ctx.benchmark?.groups.SC.workbook.file??null,
     PF_reference_sha256:ctx.benchmark?.groups.SC.workbook.sha256??null
    }));
   }
   return filtered().map(r=>({...r.raw,TM:r.tm,YTM:r.ytm,identity_json:JSON.stringify(identity),PF_reference_file:ctx.benchmark?.groups[family].workbook.file??null,PF_reference_sha256:ctx.benchmark?.groups[family].workbook.sha256??null,...(r.overloads?{overloads:JSON.stringify(r.overloads)}:{})}));
  }
- const exportCsv=button('CSV',()=>downloadText(csvDocument(recordTable(exportRows())),'GA_'+ctx.analysisTab+'.local.csv','text/csv;charset=utf-8')),exportXlsx=button('XLSX',()=>downloadComparisonWorkbook([{name:ctx.analysisTab,rows:recordTable(exportRows())}],'GA_'+ctx.analysisTab+'_Table.local.xlsx')),exportJson=button('JSON',()=>downloadText(JSON.stringify({identity:runEvidence(ctx).resultIdentity,mode:ctx.analysisTab==='SC'?mode.value:undefined,tab,rows:exportRows()},null,2),'GA_'+ctx.analysisTab+'_Table.local.json','application/json'));
- filters.append(search,unitBtn,maxSortBtn,state,metric,exportCsv,exportXlsx,exportJson,button('Tüm çalışma JSON',()=>{const current=runEvidence(ctx);downloadText(JSON.stringify(current.stale?{run:current}:ctx.analysisTab==='LF'?ctx.resultStore.active:ctx.ytmStudy??{hybrid:ctx.hybridResult,sc:ctx.scResult},null,2),'GA_YTM_Study.local.json','application/json');}));
+ const exportCsv=button('CSV',()=>downloadText(csvDocument(recordTable(exportRows())),'GA_'+ctx.analysisTab+'.local.csv','text/csv;charset=utf-8')),exportXlsx=button('XLSX',()=>downloadComparisonWorkbook([{name:ctx.analysisTab,rows:recordTable(exportRows())}],'GA_'+ctx.analysisTab+'_Table.local.xlsx')),exportJson=button('JSON',()=>downloadText(JSON.stringify({schemaVersion:ctx.analysisTab==='SC'?'GA_SC_3PH_1':undefined,identity:runEvidence(ctx).resultIdentity,mode:ctx.analysisTab==='SC'?mode.value:undefined,tab,rows:exportRows()},null,2),'GA_'+ctx.analysisTab+'_Table.local.json','application/json'));
+ filters.append(search,nodeFilter,maxSortBtn,state,metric,exportCsv,exportXlsx,exportJson,button('Tüm çalışma JSON',()=>{const current=runEvidence(ctx);downloadText(JSON.stringify(current.stale?{run:current}:ctx.analysisTab==='LF'?ctx.resultStore.active:cleanStudy(ctx.ytmStudy)??{hybrid:ctx.hybridResult,sc:ctx.scResult},null,2),'GA_YTM_Study.local.json','application/json');}));
  const previous=button('Önceki',()=>{page--;render();}),next=button('Sonraki',()=>{page++;render();}),count=element('span');pager.append(previous,count,next);
  function showDetail(row:CompactRow){
   selected=row;const d=detail.body,family=ctx.analysisTab;
-  if(family==='SC'){
-   d.replaceChildren(
-    element('h3','',row.name),
-    element('p','ga-muted',`${row.tm} · ${row.ytm} · FID: ${row.fid} · Baz Gerilim: ${row.kv} kV`),
-    element('p','ga-sc-notice','⚠️ IEC 60909-0:2016 ağ yaklaşımı; IEC / PF paritesi doğrulanmadı. Eksik/engellenen sayılar sıfır kabul edilmez.')
-   );
-   const actions=element('div','ga-compact-controls');
-   actions.append(button('Haritada göster',()=>toMap(row)),button('Tam kayıt JSON',()=>downloadText(JSON.stringify(row.detail,null,2),'GA_SC_'+row.fid+'.json','application/json')));
-   d.append(actions);
-
-   const ikssTable=element('table','ga-compact-detail-table');
-   ikssTable.innerHTML=`<thead><tr><th>Arıza Türü</th><th>GA Ikss (A)</th><th>GA Ikss (kA)</th><th>PF Ikss (kA)</th><th>Δ Ikss (kA)</th><th>Durum</th></tr></thead><tbody><tr><td><strong>3F (Üç Faz)</strong></td><td>${row.raw.GA_3F_Ikss_A!=null?format(row.raw.GA_3F_Ikss_A,0):'Hesaplanamadı'}</td><td>${row.raw.GA_3F_Ikss_kA!=null?format(row.raw.GA_3F_Ikss_kA,3):'Hesaplanamadı'}</td><td>${row.metrics.ikss?.pf!=null?format(row.metrics.ikss.pf,3):'—'}</td><td>${row.metrics.ikss?.delta!=null?(row.metrics.ikss.delta>0?'+':'')+format(row.metrics.ikss.delta,3):'—'}</td><td>${row.raw.status_3F}</td></tr><tr><td><strong>1F (Tek Faz-Toprak)</strong></td><td>${row.raw.GA_1F_Ikss_A!=null?format(row.raw.GA_1F_Ikss_A,0):'Hesaplanamadı'}</td><td>${row.raw.GA_1F_Ikss_kA!=null?format(row.raw.GA_1F_Ikss_kA,3):'Hesaplanamadı'}</td><td></td><td></td><td>${row.raw.status_1F}</td></tr></tbody>`;
-
-   const rawObj = row.raw as Record<string, unknown>;
-   const fmtZ=(r:number|null|undefined,x:number|null|undefined)=>{
-    if(r==null||x==null)return 'Hesaplanamadı / Bilgi yok';
-    return `${format(r,4)} + j${format(x,4)} Ω (|Z| = ${format(Math.hypot(r,x),4)} Ω)`;
-   };
-   const zTable=element('table','ga-compact-detail-table');
-   zTable.innerHTML=`<thead><tr><th>Bileşen Empedansı</th><th>Değer (R + jX)</th></tr></thead><tbody><tr><td>Pozitif Bileşen (Z₁)</td><td>${fmtZ(rawObj.Z1_R_ohm as number|null,rawObj.Z1_X_ohm as number|null)}</td></tr><tr><td>Negatif Bileşen (Z₂)</td><td>${fmtZ(rawObj.Z2_R_ohm as number|null,rawObj.Z2_X_ohm as number|null)}</td></tr><tr><td>Sıfır Bileşen (Z₀)</td><td>${fmtZ(rawObj.Z0_R_ohm as number|null,rawObj.Z0_X_ohm as number|null)}</td></tr><tr><td>3F Sürme Noktası Empedansı (Zkk)</td><td>${fmtZ(rawObj.Zkk_R_ohm as number|null,rawObj.Zkk_X_ohm as number|null)}</td></tr><tr><td>1F Çevrim (Z₁+Z₂+Z₀+3Zf)</td><td>${fmtZ(rawObj.Z1F_Loop_R_ohm as number|null,rawObj.Z1F_Loop_X_ohm as number|null)}</td></tr></tbody>`;
-
-   const lfInfo=element('div','ga-compact-triple');
-   lfInfo.innerHTML=`<p><strong>LF Çalışma Noktası:</strong> Gerilim U = ${row.metrics.voltage?.ga!=null?format(row.metrics.voltage.ga,2)+' kV':'—'} · Açı θ = ${row.metrics.angle?.ga!=null?format(row.metrics.angle.ga,1)+'°':'—'}</p>`;
-
-   const methodInfo=element('div','ga-field');
-   methodInfo.innerHTML=`<h4>Hesap Yöntemi ve Kanıt</h4><p><strong>Standart:</strong> IEC 60909-0:2016 (Ağ yaklaşımı) · <strong>Mod:</strong> ${String(rawObj.mode??'—')} · <strong>Model:</strong> ${String(rawObj.modelHash??'—').slice(0,8)}</p><p><strong>3F Gerekçe:</strong> ${String(rawObj.reason_3F||'—')}</p><p><strong>1F Gerekçe:</strong> ${String(rawObj.reason_1F||'—')}</p>`;
-
-   d.append(element('h4','','Kısa Devre Akımları'),ikssTable,element('h4','','Bileşen Empedansları (Ω)'),zTable,lfInfo,methodInfo,element('pre','ga-compact-raw',JSON.stringify(row.raw,null,2)));
-   detail.open();
-   return;
-  }
+  detail.element.classList.toggle('ga-sc-result-dialog',family==='SC');
+  if(family==='SC'){d.replaceChildren(scDetail(row,'GA',()=>toMap(row)));detail.open();return;}
   d.replaceChildren(element('h3','',row.name),element('p','',row.fid+' · '+row.status+(row.acLabel?' · '+row.acLabel:'')),button('Haritada göster',()=>toMap(row)),button('Tam kayıt JSON',()=>downloadText(JSON.stringify(row.detail,null,2),'GA_'+ctx.analysisTab+'_'+row.fid+'.json','application/json')));
   if(row.caseId){const c=ctx.hybridResult?.cases.find(c=>c.outage.caseId===row.caseId);ctx.resultView.caseId=row.caseId;
    for(const [source,label] of [['GA_AC','GA AC >%100'],['GA_DC','GA DC yaklaşık >%100'],['PF','PF kayıtlı >%100']] as const){const values=row.overloads?.filter(v=>v.source===source)??[];d.append(element('h3','',label),element('p','',values.length?values.map(v=>v.name+' ['+v.fid+'] '+(source==='GA_DC'?'~':'')+format(v.percent)+'% · '+v.ytm+(v.boundary?' · sınır ötesi':'')).join('\n'):source==='PF'?'Kayıt bulunmadı; PF tam POST matrisi değildir.':row.missingDetail||'Saklanan kayıtta %100 üzeri ekipman yok.'));}
@@ -187,35 +130,35 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
  const triplet=(v:Triple|undefined)=>{const cell=element('div','ga-compact-triple');for(const [label,value] of [['GA',v?.ga],['PF',v?.pf],['Δ',v?.delta]] as const){const line=element('span');line.append(element('small','',label),element('b','',(label==='Δ'&&value!=null&&value>0?'+':'')+format(value,3)));cell.append(line);}cell.title=v?.reason??'Kayıt yok';return cell;};
  function render(){
   const family=ctx.analysisTab;
-  if(lastNetwork!==ctx.network){lastNetwork=ctx.network;lastTmArea='';area.replaceChildren();for(const id of new Set(ctx.network?.sites.map(s=>s.areaId).filter(Boolean)??[])){const o=element('option','',ctx.network!.sites.find(s=>s.areaId===id)!.areaName);o.value=id;area.append(o);}area.value=ctx.filters.areaId||ctx.ytmStudy?.options.ytmId||area.options[0]?.value||'';ctx.filters.areaId=area.value;}
+  if(lastNetwork!==ctx.network){lastNetwork=ctx.network;populateVoltages();lastTmArea='';area.replaceChildren();for(const id of new Set(ctx.network?.sites.map(s=>s.areaId).filter(Boolean)??[])){const o=element('option','',ctx.network!.sites.find(s=>s.areaId===id)!.areaName);o.value=id;area.append(o);}area.value=ctx.filters.areaId||ctx.ytmStudy?.options.ytmId||area.options[0]?.value||'';ctx.filters.areaId=area.value;}
   if(ctx.filters.areaId&&area.value!==ctx.filters.areaId)area.value=ctx.filters.areaId;
   if(lastTmArea!==area.value){lastTmArea=area.value;tm.replaceChildren(element('option','','Tüm TM'));tm.options[0].value='';for(const s of ctx.network?.sites.filter(s=>s.areaId===area.value)??[]){const o=element('option','',s.name);o.value=s.id;tm.append(o);}tm.value=ctx.filters.siteId;if(tm.selectedIndex<0)tm.value='';}
   const stored=ctx.studyOptions??ctx.ytmStudy?.options;if(stored&&lastOptions!==stored){lastOptions=stored;profile.value=stored.profile??'BALANCED';profileSelect.value=stored.profile??'BALANCED';low.value=String(stored.voltageMinPu??.9);high.value=String(stored.voltageMaxPu??1.1);loading.value=String(stored.loadingLimitPercent??100);budget.value=String((stored.timeBudgetMs??178000)/1000);voltage.value=String(stored.voltageBands?.[0]??'');modes.value=stored.scModes?.length===1?stored.scModes[0]:'BOTH';}
-  if(lastFamily!==family){lastFamily=family;tab=family==='LF'?'lines':family==='SC'?'sc':'cases';lists.replaceChildren();if(family==='LF'){list('lines','Hatlar');list('transformers','Trafolar');list('buses','Baralar');}else if(family==='N1'){list('cases','Kesintiler');list('overloads','Aşırı yüklenen ekipmanlar');}else list('sc','Bara akımları · 3F ve 1F');state.innerHTML=family==='SC'?scStateOptions:n1StateOptions;state.value='';page=0;lastKey='';}
-  mode.hidden=family!=='SC';profile.hidden=family!=='N1';modes.hidden=family!=='SC';scNotice.hidden=family!=='SC';unitBtn.hidden=family!=='SC';maxSortBtn.hidden=family!=='SC';if(ctx.scResult)mode.value=ctx.scResult.profile.calculateMode;metric.hidden=family!=='LF'||tab==='buses';root.dataset.metric=metric.value;root.dataset.family=family;run.disabled=ctx.busy||!ctx.network||family!=='LF'&&!area.value;cancel.hidden=!ctx.busy;cancel.disabled=!ctx.busy;
-  const current=!!(ctx.ytmStudy&&ctx.network&&ytmStudyIsCurrent(ctx.ytmStudy,ctx.network,ctx.scenario.current,ctx.analysisSettings.value,ctx.studyOptions));const pending=family==='N1'?ctx.ytmStudy?.n1?.cases.some(c=>['NOT_RUN_BUDGET','NOT_EVALUATED_BUDGET','CANCELLED','DC_UNSCREENABLE'].includes(c.status)):ctx.ytmStudy&&(ctx.ytmStudy.options.scModes??['MAX','MIN']).some(m=>{const sc=m==='MAX'?ctx.ytmStudy!.scMax:ctx.ytmStudy!.scMin,sc1=m==='MAX'?ctx.ytmStudy!.sc1LgMax:ctx.ytmStudy!.sc1LgMin;return !sc||!sc1||sc.faults.length<ctx.ytmStudy!.faultTargets.length||sc1.faults.length<ctx.ytmStudy!.faultTargets.length||sc.faults.some(f=>['NOT_RUN_BUDGET','NOT_RUN','CANCELLED'].includes(f.status))||sc1.faults.some(f=>['NOT_RUN_BUDGET','NOT_RUN','CANCELLED'].includes(f.status));});resume.hidden=family==='LF'||!ctx.ytmStudy||!pending;resume.disabled=ctx.busy||!current||ctx.studyResumeAvailable===false||!ctx.ytmStudy||!studyFamilies(ctx.ytmStudy.options).includes(family==='SC'?'SC':'N1');
+  if(lastFamily!==family){lastFamily=family;tab=family==='LF'?'lines':family==='SC'?'sc':'cases';lists.replaceChildren();if(family==='LF'){list('lines','Hatlar');list('transformers','Trafolar');list('buses','Baralar');}else if(family==='N1'){list('cases','Kesintiler');list('overloads','Aşırı yüklenen ekipmanlar');}else list('sc','Bara akımları · 3F');state.innerHTML=family==='SC'?scStateOptions:n1StateOptions;state.value='';page=0;lastKey='';}
+  mode.hidden=family!=='SC';profile.hidden=family!=='N1';modes.hidden=family!=='SC';scNotice.hidden=family!=='SC';nodeFilter.hidden=family!=='SC';maxSortBtn.hidden=family!=='SC';mode.value=ctx.resultView.scMode??ctx.scResult?.profile.calculateMode??mode.value;metric.hidden=family!=='LF'||tab==='buses';root.dataset.metric=metric.value;root.dataset.family=family;run.disabled=ctx.busy||!ctx.network||family!=='LF'&&!area.value;cancel.hidden=!ctx.busy;cancel.disabled=!ctx.busy;
+  const current=!!(ctx.ytmStudy&&ctx.network&&ytmStudyIsCurrent(ctx.ytmStudy,ctx.network,ctx.scenario.current,ctx.analysisSettings.value,ctx.studyOptions));const pending=family==='N1'?ctx.ytmStudy?.n1?.cases.some(c=>['NOT_RUN_BUDGET','NOT_EVALUATED_BUDGET','CANCELLED','DC_UNSCREENABLE'].includes(c.status)):ctx.ytmStudy&&(ctx.ytmStudy.options.scModes??['MAX','MIN']).some(m=>{const sc=m==='MAX'?ctx.ytmStudy!.scMax:ctx.ytmStudy!.scMin;return (ctx.ytmStudy!.pendingCounts?.[m==='MAX'?'SC_MAX':'SC_MIN']??0)>0||!sc||sc.faults.some(f=>f.status==='CANCELLED');});resume.hidden=family==='LF'||!ctx.ytmStudy||!pending;resume.disabled=ctx.busy||!current||ctx.studyResumeAvailable===false||!ctx.ytmStudy||!studyFamilies(ctx.ytmStudy.options).includes(family==='SC'?'SC':'N1');
   voltage.options[0].textContent='Tüm gerilimler';
   const proof=runEvidence(ctx);if(proof.stale&&detail.element.open)detail.close();root.dataset.resultId=JSON.stringify(proof.resultIdentity);root.dataset.workflow=proof.workflow;status.textContent=`${ctx.network?.name??'Model yüklenmedi'} · ${ctx.resultStore.role==='base'&&family==='LF'?'Baz':ctx.scenario.selected.name} · ${proof.label}${proof.retainedFamily?' · önceki geçerli aile kaydı':''}${proof.elapsedMs===null?'':' · '+format(proof.elapsedMs/1000,1)+' s'}${ctx.busy?' · '+ctx.status:''}`;
-  const refs=[ctx.network,ctx.ytmStudy,ctx.hybridResult,ctx.scResult,ctx.scResult1Lg,ctx.resultStore.active,ctx.benchmark,ctx.powerFactoryReference,ctx.powerFactoryControlContextNumericFile],key=[family,tab,ctx.filters.areaId,ctx.filters.siteId,stableJson(ctx.analysisSettings.value),ctx.studyOptions?studyScopeKey(ctx.studyOptions):'',proof.stale,proof.workflow,proof.acCalculated,proof.acAttempted,ctx.resultStore.role,ctx.network?capacitySession(ctx.network.modelHash).revision:0].join('|');
+  const refs=[ctx.network,ctx.ytmStudy,ctx.hybridResult,ctx.scResult,ctx.resultStore.active,ctx.benchmark,ctx.powerFactoryReference,ctx.powerFactoryControlContextNumericFile],key=[family,tab,ctx.filters.areaId,ctx.filters.siteId,stableJson(ctx.analysisSettings.value),ctx.studyOptions?studyScopeKey(ctx.studyOptions):'',proof.stale,proof.workflow,proof.acCalculated,proof.acAttempted,ctx.resultStore.role,ctx.network?capacitySession(ctx.network.modelHash).revision:0].join('|');
   if(key!==lastKey||!refs.every((r,i)=>r===lastRefs[i])){lastKey=key;lastRefs=refs;rows=proof.stale?[]:family==='N1'?compactN1Rows(ctx):family==='SC'?compactScRows(ctx):compactLfRows(ctx,tab as LfList);if(family==='N1'&&tab==='overloads')rows=rows.flatMap(r=>(r.overloads??[]).map(v=>({...r,key:r.key+'|'+v.source+'|'+v.cls+'|'+v.fid,name:v.name,fid:v.fid,cls:v.cls,kv:v.kv,ytm:v.ytm,status:v.source,loading:v.percent,loadingSource:v.source==='GA_DC'?'~DC':v.source==='GA_AC'?'AC':'PF seyrek',overloads:[v],raw:{...r.raw,affectedFID:v.fid,affectedName:v.name,evidenceSource:v.source,postLoadingPercent:v.percent}})));}
   const values=filtered(),pages=Math.max(1,Math.ceil(values.length/50));page=Math.max(0,Math.min(page,pages-1));previous.disabled=page===0;next.disabled=page===pages-1;count.textContent=`${values.length} / ${rows.length} kayıt · ${page+1}/${pages}${family==='SC'?' · elektriksel bara başına tek satır':''}`;
-  const cards=family==='N1'?[['Aday',proof.candidateCount],['DC taranan',proof.dcScreened],['AC denenen',proof.acAttempted],['AC sayısal',proof.acCalculated],['AC doğrulanan',proof.acVerified],['DC∪AC farklı',proof.distinctNumerical]]:family==='SC'?[['Elektriksel bara',proof.electricalBuses],['Fiziksel terminal',proof.physicalTerminals],['Yaklaşık hesaplanan',proof.numericalAvailable],['PF 3F eşleşen',values.filter(r=>r.metrics.ikss?.delta!==null).length]]:[['Sayısal bara',proof.numericalAvailable],['Listede kayıt',rows.length],['Kontrol',proof.numericalAvailable?'Kısmi':'—']];kpis.replaceChildren(...cards.map(([label,value])=>{const card=element('div');card.append(element('small','',String(label)),element('strong','',String(value)));return card;}));for(const b of lists.querySelectorAll<HTMLButtonElement>('[data-list]'))b.setAttribute('aria-pressed',String(b.dataset.list===tab));
+  const cards=family==='N1'?[['Aday',proof.candidateCount],['DC taranan',proof.dcScreened],['AC denenen',proof.acAttempted],['AC sayısal',proof.acCalculated],['AC doğrulanan',proof.acVerified],['DC∪AC farklı',proof.distinctNumerical]]:family==='SC'?[['Elektriksel bara',proof.electricalBuses],['Fiziksel terminal',proof.physicalTerminals],['Yaklaşık hesaplanan',proof.numericalAvailable],['PF 3F değeri bulunan',values.filter(r=>r.metrics.ikss?.pf!=null).length],['Karşılaştırılabilirliği doğrulanan',values.filter(r=>r.metrics.ikss?.delta!=null).length]]:[['Sayısal bara',proof.numericalAvailable],['Listede kayıt',rows.length],['Kontrol',proof.numericalAvailable?'Kısmi':'—']];kpis.replaceChildren(...cards.map(([label,value])=>{const card=element('div');card.append(element('small','',String(label)),element('strong','',String(value)));return card;}));for(const b of lists.querySelectorAll<HTMLButtonElement>('[data-list]'))b.setAttribute('aria-pressed',String(b.dataset.list===tab));
   host.replaceChildren();if(!ctx.network||proof.stale){host.append(element('p','ga-notice',proof.stale?'Sonuç farklı model, senaryo, kapsam veya ayara ait. Güncel liste ve dışa aktarıma alınmadı.':'Önce bir model yükleyin.'));return;}
   const table=element('table','ga-compact-table'),cols=element('colgroup'),thead=element('thead'),tr=element('tr'),tbody=element('tbody');
-  const columns=family==='SC'?[['tm','TM'],['name','Bara'],['kv','Baz kV'],['u','U(kV)'],['angle','Açı(°)'],['ikss3F',scUnit==='A'?'3F Ikss(A)':'3F Ikss(kA)'],['ikss1F',scUnit==='A'?'1F Ikss(A)':'1F Ikss(kA)'],['detail','Detay']]:family==='N1'?[['name',tab==='overloads'?'Ekipman':'Kesinti'],['kv','kV'],['dc','DC'],['ac','AC'],['loading','Maks. yük (%)'],['over','>%100 etkilenen'],['detail','Detay']]:tab==='buses'?[['tm','TM'],['name','Bara'],['kv','kV'],['ga','GA U (kV)'],['pf','PF U (kV)'],['delta','ΔU (kV)'],['detail','Detay']]:[['name',tab==='lines'?'Hat':'Trafo'],['kv',tab==='lines'?'kV':'HV kV'],['p',tab==='lines'?'P (MW)':'P HV (MW)'],['q',tab==='lines'?'Q (MVAr)':'Q HV (MVAr)'],['loading','Yük (%)'],['detail','Detay']];
+  const columns=family==='SC'?[['tm','TM'],['name','Bara'],['kv','Baz kV'],['u','U(kV)'],['angle','Açı(°)'],['ikss3F','3F Ikss (kA)'],['pfSc','PF 3F Ikss (kA)'],['diagnostic','Tanısal fark (kA)'],['status','Durum'],['detail','Detay']]:family==='N1'?[['name',tab==='overloads'?'Ekipman':'Kesinti'],['kv','kV'],['dc','DC'],['ac','AC'],['loading','Maks. yük (%)'],['over','>%100 etkilenen'],['detail','Detay']]:tab==='buses'?[['tm','TM'],['name','Bara'],['kv','kV'],['ga','GA U (kV)'],['pf','PF U (kV)'],['delta','ΔU (kV)'],['detail','Detay']]:[['name',tab==='lines'?'Hat':'Trafo'],['kv',tab==='lines'?'kV':'HV kV'],['p',tab==='lines'?'P (MW)':'P HV (MW)'],['q',tab==='lines'?'Q (MVAr)':'Q HV (MVAr)'],['loading','Yük (%)'],['detail','Detay']];
   for(const [key,label] of columns){const col=element('col');col.dataset.column=key;cols.append(col);const th=element('th');th.dataset.column=key;th.scope='col';th.append(key==='detail'?element('span','',label):button(label,()=>{descending=sort===key?!descending:false;sort=key;page=0;render();}));tr.append(th);}thead.append(tr);table.append(cols,thead,tbody);
   for(const row of values.slice(page*50,(page+1)*50)){const line=element('tr');line.tabIndex=0;line.dataset.fid=row.fid;line.dataset.caseId=row.caseId??'';line.dataset.rowKey=row.key;line.onclick=()=>{selected=row;line.setAttribute('aria-selected','true');};line.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();showDetail(row);}};line.ondblclick=()=>toMap(row);
    for(const [key,label] of columns){const td=element('td');td.dataset.column=key;td.dataset.label=label;
     if(key==='name'){td.append(element('strong','ga-compact-name',row.name),element('small','',row.fid+(family==='N1'?' · '+row.tm:'')));td.title=row.name+' · '+row.fid;}
-    else if(key==='kv')td.textContent=format(row.kv,0);
+    else if(key==='kv')td.textContent=nominalKv(row.kv);
     else if(key==='tm'){td.textContent=row.tm;td.title=row.tm;}
     else if(key==='u'){const uVal=row.metrics.voltage?.ga;td.textContent=uVal!=null?format(uVal,2):'—';td.title=uVal!=null?`${format(uVal,2)} kV (LF)`:'LF sonucu yok';}
     else if(key==='angle'){const aVal=row.metrics.angle?.ga;td.textContent=aVal!=null?format(aVal,1)+'°':'—';td.title=aVal!=null?`${format(aVal,1)}° (LF)`:'LF sonucu yok';}
     else if(key==='ikss3F'){
      const ga=row.metrics.ikss?.ga,pf=row.metrics.ikss?.pf,delta=row.metrics.ikss?.delta,st3F=row.raw.status_3F;
      if(st3F==='CALCULATED_NETWORK_APPROXIMATION'&&ga!=null&&Number.isFinite(ga)){
-      const valStr=formatScVal(ga,scUnit);td.textContent=valStr;
-      const diffStr=delta!=null?` (PF: ${formatScVal(pf,scUnit)} ${scUnit}, Δ: ${delta>0?'+':''}${formatScVal(delta,scUnit)} ${scUnit})`:'';
+      const valStr=scCurrentKa(ga);td.textContent=valStr;
+      const diffStr=delta!=null?` (PF: ${scCurrentKa(pf)} ${scUnit}, Δ: ${delta>0?'+':''}${scCurrentKa(delta)} ${scUnit})`:'';
       td.title=`3F Ikss: ${valStr} ${scUnit}${diffStr}`;
      }else if(st3F==='BLOCKED'){td.textContent='Engellendi';td.className='ga-sc-status-blocked';td.title='Engellendi: '+(row.raw.reason_3F||st3F);}
      else if(st3F==='NOT_COMPUTABLE'){td.textContent='Hesaplanamaz';td.className='ga-sc-status-uncomputed';td.title='Hesaplanamaz: '+(row.raw.reason_3F||st3F);}
@@ -223,17 +166,9 @@ export function createCompactStudyView(ctx:AppContext,openTools:()=>void):Featur
      else if(st3F==='STALE'){td.textContent='Güncel Değil';td.className='ga-sc-status-stale';td.title='3F sonucu güncel değil (STALE)';}
      else{td.textContent=String(st3F||'Hesaplanamadı');td.className='ga-sc-status-uncomputed';td.title=String(row.raw.reason_3F||st3F);}
     }
-    else if(key==='ikss1F'){
-     const ga1F=row.metrics.ikss1F?.ga,st1F=row.raw.status_1F;
-     if(st1F==='CALCULATED_NETWORK_APPROXIMATION'&&ga1F!=null&&Number.isFinite(ga1F)){
-      const valStr=formatScVal(ga1F,scUnit);td.textContent=valStr;
-      td.title=`1F Ikss: ${valStr} ${scUnit} (PF 1F referansı yok)`;
-     }else if(st1F==='BLOCKED'){td.textContent='Engellendi';td.className='ga-sc-status-blocked';td.title='Engellendi: '+(row.raw.reason_1F||st1F);}
-     else if(st1F==='NOT_COMPUTABLE'){td.textContent='Hesaplanamaz';td.className='ga-sc-status-uncomputed';td.title='Hesaplanamaz: '+(row.raw.reason_1F||st1F);}
-     else if(st1F==='NOT_RUN'){td.textContent='Hesaplanmadı';td.className='ga-sc-status-notrun';td.title='1F hesabı çalıştırılmadı';}
-     else if(st1F==='STALE'){td.textContent='Güncel Değil';td.className='ga-sc-status-stale';td.title='1F sonucu model/senaryo ile uyumsuz (STALE)';}
-     else{td.textContent=String(st1F||'Hesaplanamadı');td.className='ga-sc-status-uncomputed';td.title=String(row.raw.reason_1F||st1F);}
-    }
+    else if(key==='pfSc'){td.textContent=scCurrentKa(row.metrics.ikss?.pf);td.title=String(row.raw.referenceReason??'PF referansı yok');}
+    else if(key==='diagnostic'){td.textContent=format(row.raw.diagnosticDelta_kA as number|null,3);td.title='TANISAL GA−PF; doğrulanmış parite değildir · '+String(row.raw.referenceReason??'');}
+    else if(key==='status'){td.textContent=row.raw.Hesap_Durumu==='CALCULATED'?'Hesaplandı':String(row.raw.Hesap_Durumu);td.title=String(row.raw.reason_3F??'');}
     else if(key==='dc')td.textContent=row.dcLabel??'Taranmadı';
     else if(key==='ac'){td.textContent=row.acLabel??row.status;td.title=row.status;}
     else if(key==='over'){const values=row.overloads?.filter(v=>v.source===(row.loadingSource==='AC'?'GA_AC':row.loadingSource==='PF seyrek'?'PF':'GA_DC'))??[];td.textContent=values.length?values.slice(0,2).map(v=>v.name).join('; ')+(values.length>2?' +'+(values.length-2):''):row.missingDetail||'Saklanan kayıtta yok';td.title=values.map(v=>v.name+' ['+v.fid+']').join('; ')||td.textContent;const text=td.textContent;td.replaceChildren(element('span','ga-compact-name',text??''));}

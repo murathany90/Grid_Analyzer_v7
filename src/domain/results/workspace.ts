@@ -1,15 +1,16 @@
+import {cleanWorkspace} from './sc-persistence';
 import {buildBenchmarkMapData,type BenchmarkMapSelection} from '../benchmark/map-layer';
 import {resolveN1Post,selectN1Result} from '../benchmark/post-result-source';
 import {sha256} from '@noble/hashes/sha2.js';
 import type {AppContext} from '../../app/contracts';
 import {stableJson,identityKey} from '../calculation/identity';
 import {scenarioSignature,scenarioChanged} from '../scenario/overlay';
-export interface ResultView {scenarioId:string;fid?:string;analysis:'LF'|'N1'|'SC';source:'GA'|'PF'|'GA−PF'|'Senaryo−Baz';phase:'BASE'|'PRE'|'POST'|'CHANGE';metric:string;caseId?:string;faultId?:string;side?:string}
+export interface ResultView {scMode?:'MAX'|'MIN';scenarioId:string;fid?:string;analysis:'LF'|'N1'|'SC';source:'GA'|'PF'|'GA−PF'|'Senaryo−Baz';phase:'BASE'|'PRE'|'POST'|'CHANGE';metric:string;caseId?:string;faultId?:string;side?:string}
 export const initialResultView=():ResultView=>({scenarioId:'B0',analysis:'LF',source:'GA',phase:'BASE',metric:'pFromMw'});
 export function workspaceKey(ctx:AppContext):string{return stableJson({model:ctx.network?.modelHash,scenario:scenarioSignature(ctx.scenario.current),settings:ctx.analysisSettings.value,control:ctx.powerFactoryControlContextHash});}
-export interface ScenarioResults {ytm?:AppContext['ytmStudy'];studyOptions?:AppContext['studyOptions'];n1:AppContext['n1Result'];ac:AppContext['n1AcResults'];hybrid:AppContext['hybridResult'];sc:AppContext['scResult'];sc1Lg?:AppContext['scResult1Lg'];scContext:AppContext['scContext']}
+export interface ScenarioResults {ytm?:AppContext['ytmStudy'];studyOptions?:AppContext['studyOptions'];n1:AppContext['n1Result'];ac:AppContext['n1AcResults'];hybrid:AppContext['hybridResult'];sc:AppContext['scResult'];scContext:AppContext['scContext']}
 /** References are shared, never cloned. Evicted entries may be restored from IndexedDB. */
-export class WorkspaceResultCache {private entries=new Map<string,ScenarioResults>();constructor(private limit=6){}set(key:string,value:ScenarioResults){this.entries.delete(key);this.entries.set(key,value);while(this.entries.size>this.limit)this.entries.delete(this.entries.keys().next().value!);}get(key:string){const entry=this.entries.get(key);if(entry){this.entries.delete(key);this.entries.set(key,entry);}return entry;}clear(){this.entries.clear();}}
+export class WorkspaceResultCache {private entries=new Map<string,ScenarioResults>();constructor(private limit=6){}set(key:string,value:ScenarioResults){this.entries.delete(key);this.entries.set(key,cleanWorkspace(value));while(this.entries.size>this.limit)this.entries.delete(this.entries.keys().next().value!);}get(key:string){const entry=this.entries.get(key);if(entry){this.entries.delete(key);this.entries.set(key,entry);}return entry;}clear(){this.entries.clear();}}
 function shortId(family:string,key:string){return family+'-'+Array.from(sha256(new TextEncoder().encode(key)),v=>v.toString(16).padStart(2,'0')).join('').slice(0,20);}
 const n1Ids=new WeakMap<AppContext,{key:string;refs:unknown[];id:string|null}>();
 /** READY belongs to a recorded case/phase/metric, never to the enclosing run. */
@@ -31,4 +32,4 @@ export function activeResultId(ctx:AppContext):string|null{const v=ctx.resultVie
   return activeN1Id(ctx);
 }
 
-export function workspaceMapSelection(ctx:AppContext):BenchmarkMapSelection{const v=ctx.resultView;return {analysis:v.analysis,source:v.source==='PF'?'PF':v.source==='GA−PF'?'DELTA':v.source==='Senaryo−Baz'?'SCENARIO_DELTA':'GA',metric:v.metric,table:v.analysis==='LF'?'GA_Reference_Raw':v.analysis==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:v.caseId,n1Layer:v.phase==='PRE'||v.phase==='BASE'?'BASE':v.phase==='CHANGE'?'CHANGE':'POST',side:v.side};}
+export function workspaceMapSelection(ctx:AppContext):BenchmarkMapSelection{const v=ctx.resultView;return {analysis:v.analysis,source:v.source==='PF'?'PF':v.source==='GA−PF'?'DELTA':v.source==='Senaryo−Baz'?'SCENARIO_DELTA':'GA',metric:v.metric,...(v.analysis==='SC'?{scMode:v.scMode??ctx.scResult?.profile.calculateMode}:{}),table:v.analysis==='LF'?'GA_Reference_Raw':v.analysis==='N1'?'N1_RecordedExtrema_Raw':'SC_BusResults_Raw',caseId:v.caseId,n1Layer:v.phase==='PRE'||v.phase==='BASE'?'BASE':v.phase==='CHANGE'?'CHANGE':'POST',side:v.side};}

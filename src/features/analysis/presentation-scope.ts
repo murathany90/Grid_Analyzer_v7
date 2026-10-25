@@ -28,5 +28,9 @@ export function currentLf(ctx:AppContext){
 export function scFaultsInScope(ctx:AppContext,r:ScResult){
  const area=ctx.filters.areaId,site=ctx.filters.siteId;if(!area&&!site)return r.faults;
  const n=ctx.network;if(!n)return [];const sites=new Map(n.sites.map(s=>[s.id,s])),terminals=new Map(n.buses.flatMap(t=>[t.id,t.sourceId].map(id=>[id,t] as const)));
- return r.faults.filter(f=>terminals.get(f.physicalTerminalFid)?.siteIds.some(id=>(!site||id===site)&&(!area||sites.get(id)?.areaId===area)));
+ const inScope=(fid:string)=>terminals.get(fid)?.siteIds.some(id=>(!site||id===site)&&(!area||sites.get(id)?.areaId===area));
+ const direct=r.faults.filter(f=>inScope(f.physicalTerminalFid)),seen=new Set(direct.map(f=>f.electricalBusId??f.physicalTerminalFid));
+ // A driving-point result can be stored once for a node spanning several TMs.
+ for(const f of r.faults){const key=f.electricalBusId??f.physicalTerminalFid;if(seen.has(key))continue;const fid=f.physicalTerminalFids.find(inScope);if(fid){direct.push({...f,physicalTerminalFid:fid});seen.add(key);}}
+ return direct;
 }

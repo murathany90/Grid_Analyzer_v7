@@ -23,7 +23,7 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   const cubicleEquipment=new Map(cubicleRows.map(r=>[str(r.FID),str(r.obj_id)]));
   const endpoint = (id: unknown): string => cubs.get(str(id)) || '';
   const terminals = rows('ElmTerm');
-  const buses = terminals.map(r => ({ ...base('ElmTerm', r), vnKv: num(r.uknom), parentId: str(r.fold_id), sourceRefs: { ...base('ElmTerm', r).sourceRefs, vnKv: [ref('ElmTerm', r.FID, 'uknom', 'kV')] } }));
+  const buses = terminals.map(r => ({ ...base('ElmTerm', r), vnKv: num(r.uknom), usage:rawNumber(r.iUsage)??undefined, parentId: str(r.fold_id), sourceRefs: { ...base('ElmTerm', r).sourceRefs, vnKv: [ref('ElmTerm', r.FID, 'uknom', 'kV')] } }));
   const busById = new Map(buses.map(b => [b.id, b]));
   const branchBase = (cls: string, r: Row, from: string, to: string) => ({ ...base(cls, r), from, to,
     siteIds: [...new Set([...(busById.get(from)?.siteIds || []), ...(busById.get(to)?.siteIds || [])])] });
@@ -173,5 +173,5 @@ export function mapCanonical(m: DgsModel, modelHash: string): CanonicalNetwork {
   return { schemaVersion: 1, modelHash, name: m.name, studyCase:m.scenario, size: m.size, baseMva: BASE, buses, lines, transformers, generators, loads, shunts, seriesCompensators, externalGrids, internationalConnections, switches: [...switches, ...cubicleSwitches], stationControllers,loadFlowOptionsRaw,loadFlowSettings,diagnostics,unsupportedReactiveLimitClasses,sourceFidelity,
     secondaryControllers: rows('ElmSecctrl').map(r => base('ElmSecctrl',r)), boundaries: rows('ElmBoundary').map(r => base('ElmBoundary',r)), sites, classCounts,
     records: Object.values(classCounts).reduce((a,b) => a+b,0), warnings,
-    capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'BLOCKED',reasons:['Bu sürümde uygulanmadı; sekans/reaktans kapsamı doğrulanmalı.']}, shortCircuitGround:{state:'BLOCKED',reasons:['Sıfır sekans ve vektör grubu kapsamı doğrulanmadı.']}, n1:{state:'PARTIAL',scope:'REDUCED_GE66_DC_P_ONLY',reasons:['Reduced DC screening of in-service lines and two-winding transformers in the >=66 kV network.','Active-power islanding and estimated loading only; reactive power, voltage and Full AC contingency verification are not covered.','SCREENED_NO_VIOLATION does not mean AC security is verified.']} } };
+    capabilities: { powerFlow: { state: externalGrids.some(x => x.inService) ? 'PARTIAL' : 'BLOCKED', reasons: powerReasons }, shortCircuit3Phase: {state:'PARTIAL',reasons:['3F MAX/MIN ağ yaklaşımı; kaynak verisi ve yöntem kapsamı ayrıca denetlenir.']}, n1:{state:'PARTIAL',scope:'REDUCED_GE66_DC_P_ONLY',reasons:['Reduced DC screening of in-service lines and two-winding transformers in the >=66 kV network.','Active-power islanding and estimated loading only; reactive power, voltage and Full AC contingency verification are not covered.','SCREENED_NO_VIOLATION does not mean AC security is verified.']} } };
 }

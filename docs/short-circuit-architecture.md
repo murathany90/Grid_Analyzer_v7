@@ -40,8 +40,8 @@ assumptions and omissions are retained with results.
 
 Loads, charging and shunts are omitted from this series positive-sequence
 approximation. Only Zkk (ohm), Ikss (kA) and Skss (MVA) are calculated. ip, Ib,
-Ith, machine decay, meshed kappa, negative/zero sequence, grounding and asymmetric
-faults are NOT_IMPLEMENTED. Invalid quantities remain null. Equipment duty
+Ith, machine decay and meshed kappa are NOT_IMPLEMENTED. The exposed fault
+calculation is three-phase MAX/MIN only. Invalid quantities remain null. Equipment duty
 certification is unavailable.
 
 ## Comparison and identity

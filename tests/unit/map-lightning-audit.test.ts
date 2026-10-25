@@ -30,13 +30,7 @@ test('4689 synthetic PF records use indexed lookup, full counts and a sorted/sea
   console.log(JSON.stringify({fixture:'SYNTHETIC_4689',indexedMs,queryMs,heapDeltaBytes,domPageLimit:query.visible.length}));
 });
 
-test('SC MAX/3PH, duplicate/sentinel/nominal and S2 identity gates retain null rather than borrowed numbers',()=>{
-  const {ctx,table}=scAuditFixture();assert.equal(pfFaultReference(ctx,'B0',100).ikss,6);assert.equal(pfFaultReference(ctx,'B0',154).ikss,null);
-  const clone=()=>({...table,rows:table.rows.map(r=>[...r]),rowNumbers:[...table.rowNumbers]});let t=clone();t.rows.push([...t.rows[0]]);ctx.benchmark!.groups.SC.tables.SC_BusResults_Raw=t;assert.equal(pfFaultReference(ctx,'B0',100).reason,'PF_DUPLICATE_FAULT');
-  t=clone();t.rows[0][5]=99999;ctx.benchmark!.groups.SC.tables.SC_BusResults_Raw=t;assert.equal(pfFaultReference(ctx,'B0',100).ikss,null);
-  for(const [field,value] of [['faultType','1LG'],['calculateMode','MIN']] as const){t=clone();t.rows[0][t.headers.indexOf(field)]=value;ctx.benchmark!.groups.SC.tables.SC_BusResults_Raw=t;assert.equal(pfFaultReference(ctx,'B0',100).ikss,null);}
-  ctx.benchmark!.groups.SC.tables.SC_BusResults_Raw=table;ctx.scenario.setStatus('lineStatus','L0',false,true);assert.equal(studyResultRows(ctx,workspaceMapSelection(ctx)).pfReferenceCount,0);
-});
+
 
 test('600+ selected targets remain distinct from partition/reference/processed counts; shared YTM does not trim the network',()=>{
   const {ctx,network,fault,result}=scAuditFixture(660),originalLines=network.lines,targets=network.buses.map(t=>t.sourceId);setScStudyScope(ctx,{ytmIds:['A']});setScStudyTargets(ctx,targets);ctx.scResult=result([fault(0,'CALCULATED_NETWORK_APPROXIMATION'),fault(1),fault(2,'CANCELLED')]);

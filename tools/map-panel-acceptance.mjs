@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 export async function assertStudyPanel(page,shared,{rowsRequired=false}={}){
-  // The current Lightning SC surface is a dedicated paired 3F/1F panel.
+  // The current Lightning SC surface is a dedicated 3F panel.
   const sc=page.locator('.ga-lightning-sc-panel');
   if(await sc.isVisible()){
     const geometry=await sc.evaluate(root=>{const host=root.querySelector('.ga-lightning-sc-table-host'),panel=root.closest('.ga-lightning'),rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,height:r.height,width:r.width};};return {surface:'DEDICATED_SC',panel:rect(panel),table:{...rect(host),clientHeight:host.clientHeight},rows:root.querySelectorAll('tbody tr').length,documentOverflow:document.documentElement.scrollWidth>innerWidth,overflow:getComputedStyle(host).overflowY};});

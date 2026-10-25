@@ -48,7 +48,7 @@ window.ready=true;
     await n1.getByRole('button',{name:'Özel limitleri temizle',exact:true}).click();assert.equal(await n1.getByRole('button',{name:'Otomatik hibrit (DC → Full AC)',exact:true}).isEnabled(),true);
     await page.evaluate(()=>{window.largeSc();ctx.resultView.faultId=undefined;ctx.notify();});const sc=page.locator('#ga-analysis-SC');await openLegacy(sc,'SC');await sc.locator('.ga-workspace-results[data-status="SC_BATCH_NETWORK_APPROXIMATION"]').waitFor();
     assert.equal(await sc.locator('.ga-workspace-results').getAttribute('data-status'),'SC_BATCH_NETWORK_APPROXIMATION');assert.match(await sc.locator('.ga-result-context').textContent(),/Toplu ağ yaklaşımı sonuçları/);
-    for(const type of ['LL','1LG','2LG'])assert.equal(await sc.getByLabel('SC arıza türü',{exact:true}).locator('option[value="'+type+'"]').isDisabled(),true);
+    assert.deepEqual(await sc.getByLabel('SC arıza türü',{exact:true}).locator('option').evaluateAll(o=>o.map(v=>v.value)),['3PH']);
     assert.equal(await sc.getByLabel('SC yöntem edisyonu',{exact:true}).locator('option[value=IEC2016]').isDisabled(),true);
     await sc.getByText('Gelişmiş / Açık varsayımlar',{exact:true}).click();assert.equal(await sc.getByLabel('Kesici açma süresi s',{exact:true}).isDisabled(),true);assert.equal(await sc.getByLabel('Termik temizleme süresi s',{exact:true}).isDisabled(),true);
     for(const width of desktopWidths([1366,1440,1600,1920,768,390])){
