@@ -1,0 +1,417 @@
+{
+  "generatedAt": "2026-10-25T23:34:56.420Z",
+  "scope": "All equipment identities/endpoints in mapped classes; explicit numeric electrical fields. Source variants and uncovered fields reported, never silently filled.",
+  "cases": [
+    {
+      "stem": "control1/20261014_1200_SN3_TR0",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 4529844,
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "raw": {
+        "name": "20261014_1200_SN3_TR0.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 5805688,
+        "sha256": "9e1fa9933dba8030adcb3bb222cc9d7cc97dffa3e3f4b3d71eb83b9fd2d297e8"
+      },
+      "counts": {
+        "sav": {
+          "bus": 6851,
+          "load": 2520,
+          "shunt": 139,
+          "generator": 2920,
+          "line": 2403,
+          "switch": 2563,
+          "transformer": 3703,
+          "substation": 1618,
+          "other": 236
+        },
+        "raw": {
+          "bus": 6851,
+          "generator": 2920,
+          "load": 2520,
+          "shunt": 139,
+          "line": 2403,
+          "switch": 2563,
+          "transformer": 3703,
+          "substation": 1618,
+          "other": 236
+        }
+      },
+      "compared": 239048,
+      "uncovered": {},
+      "errorCount": 7,
+      "errorFields": {
+        "ide": 4,
+        "pg": 1,
+        "qg": 2
+      },
+      "completeness": {
+        "sav": "COMPLETE",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 0,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/savnw",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "savnw.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 22944,
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "raw": {
+        "name": "savnw.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 25361,
+        "sha256": "5a16621242a355045202c50b9a491786a996fda001b8f1c36c6abb80c7940891"
+      },
+      "counts": {
+        "sav": {
+          "bus": 23,
+          "load": 8,
+          "shunt": 5,
+          "generator": 6,
+          "line": 23,
+          "transformer": 11
+        },
+        "raw": {
+          "bus": 23,
+          "generator": 6,
+          "load": 8,
+          "shunt": 5,
+          "line": 23,
+          "transformer": 11
+        }
+      },
+      "compared": 1004,
+      "uncovered": {},
+      "errorCount": 1,
+      "errorFields": {
+        "qg": 1
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "COMPLETE"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 0,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/sample",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "sample.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 57916,
+        "sha256": "94911703e38cb6cb6a66a8cb04b79c4707337ac2c82dc21188cd1a7a311ef967"
+      },
+      "raw": {
+        "name": "sample.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 56515,
+        "sha256": "3fceb29af8329d5c63609a06a717e5169d4f81f52a58f11a0250507c0dee5baa"
+      },
+      "counts": {
+        "sav": {
+          "bus": 52,
+          "load": 21,
+          "shunt": 22,
+          "generator": 12,
+          "line": 31,
+          "switch": 2,
+          "transformer": 18,
+          "other": 8,
+          "dc": 5,
+          "facts": 2
+        },
+        "raw": {
+          "bus": 48,
+          "generator": 12,
+          "load": 21,
+          "shunt": 22,
+          "line": 31,
+          "switch": 2,
+          "transformer": 18,
+          "other": 8,
+          "dc": 26,
+          "facts": 2
+        }
+      },
+      "compared": 1696,
+      "uncovered": {
+        "shunt.stat": 9
+      },
+      "errorCount": 5,
+      "errorFields": {
+        "qg": 2,
+        "qt": 1,
+        "binit": 2
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 4,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/bench",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "bench.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 841956,
+        "sha256": "95133c56464f39bea65dec45870e41539d840fba46091405509ab85386ca7a8f"
+      },
+      "raw": {
+        "name": "bench.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 1210679,
+        "sha256": "7f752a0d7d9616b624a29f1c260dece2d9e4141d9f27637c62941529577d81c8"
+      },
+      "counts": {
+        "sav": {
+          "bus": 1648,
+          "load": 1220,
+          "shunt": 182,
+          "generator": 313,
+          "line": 2294,
+          "transformer": 308
+        },
+        "raw": {
+          "bus": 1648,
+          "generator": 313,
+          "load": 1220,
+          "shunt": 182,
+          "line": 2294,
+          "transformer": 308
+        }
+      },
+      "compared": 79353,
+      "uncovered": {},
+      "errorCount": 32,
+      "errorFields": {
+        "va": 24,
+        "qg": 7,
+        "pg": 1
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 0,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/savnw_nb",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "savnw_nb.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 50888,
+        "sha256": "e35b961c479c8c6a0d7d24264471546eb19d0a8c5e51ede34adc5a04694690a8"
+      },
+      "raw": {
+        "name": "savnw_nb.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 69151,
+        "sha256": "e4bafa6e7a471b7db134dd67e5e6a33786f37577b709974da909f0fafea66eb3"
+      },
+      "counts": {
+        "sav": {
+          "bus": 24,
+          "load": 8,
+          "shunt": 5,
+          "generator": 6,
+          "line": 23,
+          "transformer": 11,
+          "substation": 12,
+          "node": 145,
+          "switch": 174,
+          "terminal": 87
+        },
+        "raw": {
+          "bus": 23,
+          "generator": 6,
+          "load": 8,
+          "shunt": 5,
+          "line": 23,
+          "transformer": 11,
+          "substation": 12,
+          "node": 145,
+          "switch": 174,
+          "terminal": 87
+        }
+      },
+      "compared": 1381,
+      "uncovered": {},
+      "errorCount": 6,
+      "errorFields": {
+        "vm": 1,
+        "qg": 5
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "COMPLETE"
+      },
+      "missingFromSavCount": 1,
+      "missingFromRawCount": 2,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/sample_nb",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "sample_nb.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 124444,
+        "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5"
+      },
+      "raw": {
+        "name": "sample_nb.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 142055,
+        "sha256": "16ba4306ff5d5f0fb42f4657df5ebfd82496b67d968ccdb696524a9af3e7eb3a"
+      },
+      "counts": {
+        "sav": {
+          "bus": 52,
+          "load": 21,
+          "shunt": 22,
+          "generator": 12,
+          "line": 31,
+          "switch": 365,
+          "transformer": 18,
+          "substation": 18,
+          "node": 292,
+          "terminal": 171,
+          "other": 8,
+          "dc": 5,
+          "facts": 2
+        },
+        "raw": {
+          "bus": 48,
+          "generator": 12,
+          "load": 21,
+          "shunt": 22,
+          "line": 31,
+          "switch": 365,
+          "transformer": 18,
+          "substation": 18,
+          "node": 292,
+          "terminal": 171,
+          "other": 8,
+          "dc": 26,
+          "facts": 2
+        }
+      },
+      "compared": 2476,
+      "uncovered": {
+        "shunt.stat": 9
+      },
+      "errorCount": 4,
+      "errorFields": {
+        "qg": 2,
+        "binit": 2
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 4,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    },
+    {
+      "stem": "EXAMPLE/sample_nb_sec",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "sample_nb_sec.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 124900,
+        "sha256": "2fbf107d437fa9fd039d055c71b93516fa0502c70acebdefed3cc9a77557cd71"
+      },
+      "raw": {
+        "name": "sample_nb_sec.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 142519,
+        "sha256": "458fb1e50bbbd2bd31ef8f937e1952b3ddd7267eac2bf3e76dffd2c25000bf3f"
+      },
+      "counts": {
+        "sav": {
+          "bus": 55,
+          "load": 21,
+          "shunt": 22,
+          "generator": 12,
+          "line": 31,
+          "switch": 365,
+          "transformer": 18,
+          "substation": 18,
+          "node": 292,
+          "terminal": 171,
+          "other": 8,
+          "dc": 5,
+          "facts": 2
+        },
+        "raw": {
+          "bus": 48,
+          "generator": 12,
+          "load": 21,
+          "shunt": 22,
+          "line": 31,
+          "switch": 365,
+          "transformer": 18,
+          "substation": 18,
+          "node": 292,
+          "terminal": 171,
+          "other": 8,
+          "dc": 26,
+          "facts": 2
+        }
+      },
+      "compared": 2462,
+      "uncovered": {
+        "shunt.stat": 9
+      },
+      "errorCount": 74,
+      "errorFields": {
+        "va": 39,
+        "vm": 22,
+        "qg": 8,
+        "pg": 1,
+        "binit": 4
+      },
+      "completeness": {
+        "sav": "PARTIAL",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 2,
+      "missingFromRawCount": 9,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    }
+  ]
+}

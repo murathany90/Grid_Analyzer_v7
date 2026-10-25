@@ -1,0 +1,20 @@
+✔ native SAV refuses an unverified layout without attempting electrical extraction (1.4265ms)
+✔ native SAV 621-array position parity: EXAMPLE/savnw.sav (5.5544ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample.sav (4.4776ms)
+✔ native SAV 621-array position parity: EXAMPLE/bench.sav (39.1471ms)
+✔ native SAV 621-array position parity: EXAMPLE/bench2.sav (136.2614ms)
+✔ native SAV 621-array position parity: EXAMPLE/savnw_nb.sav (5.9657ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample_nb.sav (8.9597ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample_nb_sec.sav (9.8436ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample_zils.sav (16.0351ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample_zils_nb.sav (11.7048ms)
+✔ native SAV 621-array position parity: EXAMPLE/sample_zils_nb_sec.sav (8.9688ms)
+✔ native SAV 621-array position parity: control1/20261014_1200_SN3_TR0.sav (113.7784ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 667.8243

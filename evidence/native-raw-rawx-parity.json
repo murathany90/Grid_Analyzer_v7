@@ -1,0 +1,660 @@
+{
+  "schema": "ga.psse.raw-parity.v1",
+  "tolerance": 0.00001,
+  "scope": "Oriented identities, endpoints, status, source numerical/control/rating fields and derived winding impedance/ratios for core equipment, plus area/zone/owner. Display labels, star internals and encoded source residue excluded. CR/CX/CNXA winding fields reported separately because preceding normalized scope omitted them. Public evidence hashes equipment identities; it contains no model records.",
+  "cases": [
+    {
+      "model": "bench",
+      "raw": {
+        "name": "bench.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 1210679,
+        "sha256": "7f752a0d7d9616b624a29f1c260dece2d9e4141d9f27637c62941529577d81c8"
+      },
+      "rawx": {
+        "name": "bench.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 1431709,
+        "sha256": "83655427879360868c35af9ab2aa028bf0eaebc71945c64719746040ce2a348f"
+      },
+      "completeness": {
+        "raw": "COMPLETE",
+        "rawx": "COMPLETE"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 174767,
+      "excludedDisplayAndResidueFields": 12904,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 2772,
+      "extendedStatus": "PASS_ADDITIONAL_MAPPED_FIELDS",
+      "extendedDifferences": [],
+      "counts": {
+        "left": 5990,
+        "right": 5990
+      },
+      "sourceResidue": {
+        "left": {},
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 0,
+          "TWO_TERMINAL_DC": 0,
+          "VSC_DC_LINE": 0,
+          "MULTI_TERMINAL_DC": 0,
+          "NTERMDCCONV": 0,
+          "NTERMDCBUS": 0,
+          "NTERMDCLINK": 0,
+          "FACTS_DEVICE": 0,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "fault_calc_3wdg_auto_neutral_current",
+      "raw": {
+        "name": "fault_calc_3wdg_auto_neutral_current.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 10792,
+        "sha256": "5812e1c0e92cdb602ff233d6e9e0acc8c0e8960fb51fe71c3fb2860d9459dfbb"
+      },
+      "rawx": {
+        "name": "fault_calc_3wdg_auto_neutral_current.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 13585,
+        "sha256": "01aa09963de583a38b5d74e13c3e40614a7c8004148ab79be669db1f0a1b9c6e"
+      },
+      "completeness": {
+        "raw": "COMPLETE",
+        "rawx": "COMPLETE"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 360,
+      "excludedDisplayAndResidueFields": 24,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 18,
+      "extendedStatus": "PASS_ADDITIONAL_MAPPED_FIELDS",
+      "extendedDifferences": [],
+      "counts": {
+        "left": 9,
+        "right": 9
+      },
+      "sourceResidue": {
+        "left": {},
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 0,
+          "TWO_TERMINAL_DC": 0,
+          "VSC_DC_LINE": 0,
+          "MULTI_TERMINAL_DC": 0,
+          "NTERMDCCONV": 0,
+          "NTERMDCBUS": 0,
+          "NTERMDCLINK": 0,
+          "FACTS_DEVICE": 0,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "ieee_harmonics_test_case",
+      "raw": {
+        "name": "ieee_harmonics_test_case.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 20032,
+        "sha256": "01abe9ee2878535c80c91e242027a06747278bf4599099ce4f4c53c3f8d2b838"
+      },
+      "rawx": {
+        "name": "ieee_harmonics_test_case.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 25459,
+        "sha256": "f6c8af0323642157b94634f3985e1f92ca112b51be623e6ed61960b9b2c39bf9"
+      },
+      "completeness": {
+        "raw": "COMPLETE",
+        "rawx": "COMPLETE"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 1853,
+      "excludedDisplayAndResidueFields": 133,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 63,
+      "extendedStatus": "PASS_ADDITIONAL_MAPPED_FIELDS",
+      "extendedDifferences": [],
+      "counts": {
+        "left": 56,
+        "right": 56
+      },
+      "sourceResidue": {
+        "left": {},
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 0,
+          "TWO_TERMINAL_DC": 0,
+          "VSC_DC_LINE": 0,
+          "MULTI_TERMINAL_DC": 0,
+          "NTERMDCCONV": 0,
+          "NTERMDCBUS": 0,
+          "NTERMDCLINK": 0,
+          "FACTS_DEVICE": 0,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample",
+      "raw": {
+        "name": "sample.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 56515,
+        "sha256": "3fceb29af8329d5c63609a06a717e5169d4f81f52a58f11a0250507c0dee5baa"
+      },
+      "rawx": {
+        "name": "sample.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 69540,
+        "sha256": "3b2163dfd633705cdc976af387b3d716e30c1da75f93e3b818fd5c802b035ef3"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 5085,
+      "excludedDisplayAndResidueFields": 402,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 174,
+        "right": 174
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample_nb",
+      "raw": {
+        "name": "sample_nb.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 142055,
+        "sha256": "16ba4306ff5d5f0fb42f4657df5ebfd82496b67d968ccdb696524a9af3e7eb3a"
+      },
+      "rawx": {
+        "name": "sample_nb.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 135661,
+        "sha256": "584685ce974ad95e7cba95cc5414a6fc1a05141fb7a785be2e5001e6b1733a2a"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 13217,
+      "excludedDisplayAndResidueFields": 1246,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 1018,
+        "right": 1018
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample_nb_sec",
+      "raw": {
+        "name": "sample_nb_sec.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 142519,
+        "sha256": "458fb1e50bbbd2bd31ef8f937e1952b3ddd7267eac2bf3e76dffd2c25000bf3f"
+      },
+      "rawx": {
+        "name": "sample_nb_sec.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 135913,
+        "sha256": "df6e22bc7ed067076393e937bc89ce5124b6043dd5a58dc47eea968f70132714"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 13217,
+      "excludedDisplayAndResidueFields": 1246,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 1018,
+        "right": 1018
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample_zils",
+      "raw": {
+        "name": "sample_zils.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 60805,
+        "sha256": "0d15dbf0443fe121b9f67c84b9358feee582885bb5cafb877f3fcbb303b27315"
+      },
+      "rawx": {
+        "name": "sample_zils.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 74825,
+        "sha256": "aeee8951efae3baeaef92a91fe7db51f634e4460f34a67594b790a8dc37da25c"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 5685,
+      "excludedDisplayAndResidueFields": 450,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 198,
+        "right": 198
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample_zils_nb",
+      "raw": {
+        "name": "sample_zils_nb.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 160117,
+        "sha256": "589d9e39224d3f32d1598090cba73354cb31833cd41e0aaf45fff6efd1c0a594"
+      },
+      "rawx": {
+        "name": "sample_zils_nb.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 152389,
+        "sha256": "1f1f5481d2b270c805bd286f459e390ff84775de3f1aae851f5d4953d25dc75b"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 15235,
+      "excludedDisplayAndResidueFields": 1443,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 1191,
+        "right": 1191
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "sample_zils_nb_sec",
+      "raw": {
+        "name": "sample_zils_nb_sec.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 160581,
+        "sha256": "a9ffc7c25010eb6001578786919f3b1149fb28035e2bd10b973e89c6eed24cec"
+      },
+      "rawx": {
+        "name": "sample_zils_nb_sec.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 152638,
+        "sha256": "a1fd0a603e1462e2575094b93a8bb97e749c3111110e917e5f41de6df3c73ed5"
+      },
+      "completeness": {
+        "raw": "PARTIAL",
+        "rawx": "PARTIAL"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 15235,
+      "excludedDisplayAndResidueFields": 1443,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 162,
+      "extendedStatus": "SOURCE_INPUT_DIFFERENCES",
+      "extendedDifferences": [
+        {
+          "equipmentSha256": "a0956abcc38572b9147eb41e144546f70f0571b917a6105d7dce26a2629f120e",
+          "field": "cx3",
+          "left": 0.00394,
+          "right": 0
+        },
+        {
+          "equipmentSha256": "49f157e0f1f3e1254093e51a75e6eb8272ebc8adc343cb209a6264d4a0f43789",
+          "field": "cx3",
+          "left": 0.00014,
+          "right": 0
+        }
+      ],
+      "counts": {
+        "left": 1191,
+        "right": 1191
+      },
+      "sourceResidue": {
+        "left": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 6,
+          "VSC_DC_LINE": 6,
+          "MULTI_TERMINAL_DC": 14,
+          "FACTS_DEVICE": 2,
+          "INDUCTION_MACHINE": 4
+        },
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 4,
+          "TWO_TERMINAL_DC": 2,
+          "VSC_DC_LINE": 2,
+          "MULTI_TERMINAL_DC": 1,
+          "NTERMDCCONV": 4,
+          "NTERMDCBUS": 5,
+          "NTERMDCLINK": 4,
+          "FACTS_DEVICE": 2,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "savnw",
+      "raw": {
+        "name": "savnw.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 25361,
+        "sha256": "5a16621242a355045202c50b9a491786a996fda001b8f1c36c6abb80c7940891"
+      },
+      "rawx": {
+        "name": "savnw.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 33627,
+        "sha256": "15e100b4ab3e25f434553971db69376d7b745a701324e6e075ff8705fa672314"
+      },
+      "completeness": {
+        "raw": "COMPLETE",
+        "rawx": "COMPLETE"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 2773,
+      "excludedDisplayAndResidueFields": 213,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 99,
+      "extendedStatus": "PASS_ADDITIONAL_MAPPED_FIELDS",
+      "extendedDifferences": [],
+      "counts": {
+        "left": 90,
+        "right": 90
+      },
+      "sourceResidue": {
+        "left": {},
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 0,
+          "TWO_TERMINAL_DC": 0,
+          "VSC_DC_LINE": 0,
+          "MULTI_TERMINAL_DC": 0,
+          "NTERMDCCONV": 0,
+          "NTERMDCBUS": 0,
+          "NTERMDCLINK": 0,
+          "FACTS_DEVICE": 0,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    },
+    {
+      "model": "savnw_nb",
+      "raw": {
+        "name": "savnw_nb.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 69151,
+        "sha256": "e4bafa6e7a471b7db134dd67e5e6a33786f37577b709974da909f0fafea66eb3"
+      },
+      "rawx": {
+        "name": "savnw_nb.rawx",
+        "format": "RAWX",
+        "revision": 36,
+        "byteLength": 66103,
+        "sha256": "ee8859d20a9cb702feb76426d290a0708012d89ffdd339d0c384d77d930609cc"
+      },
+      "completeness": {
+        "raw": "COMPLETE",
+        "rawx": "COMPLETE"
+      },
+      "status": "PASS_NORMALIZED_FIELDS",
+      "coreComparedLeaves": 6789,
+      "excludedDisplayAndResidueFields": 631,
+      "coreDifferences": [],
+      "extendedComparedLeaves": 99,
+      "extendedStatus": "PASS_ADDITIONAL_MAPPED_FIELDS",
+      "extendedDifferences": [],
+      "counts": {
+        "left": 508,
+        "right": 508
+      },
+      "sourceResidue": {
+        "left": {},
+        "right": {
+          "VOLTAGE_DROOP_CONTROL": 0,
+          "TWO_TERMINAL_DC": 0,
+          "VSC_DC_LINE": 0,
+          "MULTI_TERMINAL_DC": 0,
+          "NTERMDCCONV": 0,
+          "NTERMDCBUS": 0,
+          "NTERMDCLINK": 0,
+          "FACTS_DEVICE": 0,
+          "GNE": 0
+        },
+        "status": "RETAINED_NOT_ELECTRICALLY_COMPARED"
+      },
+      "fullElectricalParity": "NOT_CLAIMED_UNSUPPORTED_SOURCE_MODELS_AND_UNVERIFIED_SOLVERS"
+    }
+  ],
+  "summary": {
+    "passed": 11,
+    "total": 11,
+    "additionalInputDifferences": 12
+  }
+}

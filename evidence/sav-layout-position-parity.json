@@ -1,0 +1,127 @@
+{
+  "scope": "All 621 layout-31 indexed source arrays: presence and logical position, native development oracle against independent Python and TypeScript implementations. Not an equipment-parameter parity certificate.",
+  "nativeOracle": "PSS/E 36.5 caspy.Savecase()/usrcas.dll read-only development trace; native code is not used by the browser decoder.",
+  "cases": [
+    {
+      "file": "EXAMPLE/savnw.sav",
+      "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b",
+      "indexedPositionDigest": "21d27823ad4c87b52bd3a1bc3e3f72cb075ee3e78fb0e51a085d84193f48e4b6",
+      "indexedFields": 621,
+      "decodedPresentFields": 273,
+      "consumedBytes": 19480,
+      "payloadBytes": 19944,
+      "unmappedTailBytes": 464,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample.sav",
+      "sha256": "94911703e38cb6cb6a66a8cb04b79c4707337ac2c82dc21188cd1a7a311ef967",
+      "indexedPositionDigest": "c3904a2f557b474e747d6d75844be95040723596604cc8e50b3187fbc8b26cd7",
+      "indexedFields": 621,
+      "decodedPresentFields": 444,
+      "consumedBytes": 49920,
+      "payloadBytes": 54916,
+      "unmappedTailBytes": 4996,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/bench.sav",
+      "sha256": "95133c56464f39bea65dec45870e41539d840fba46091405509ab85386ca7a8f",
+      "indexedPositionDigest": "183a46bd43edc261223d0f33d46b3234b92c8b2b61450df5eab8b31088a75f6f",
+      "indexedFields": 621,
+      "decodedPresentFields": 158,
+      "consumedBytes": 838936,
+      "payloadBytes": 838956,
+      "unmappedTailBytes": 20,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/bench2.sav",
+      "sha256": "01050aea53a4bdb50c5b2f33c418eb86f9272893e73e10a1d886202d93c40165",
+      "indexedPositionDigest": "c024ccce804c56a88a816f2b69796013a3a431fc606effc18f36833521cc4b71",
+      "indexedFields": 621,
+      "decodedPresentFields": 158,
+      "consumedBytes": 4180096,
+      "payloadBytes": 4180116,
+      "unmappedTailBytes": 20,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/savnw_nb.sav",
+      "sha256": "e35b961c479c8c6a0d7d24264471546eb19d0a8c5e51ede34adc5a04694690a8",
+      "indexedPositionDigest": "ce315e997e5324aa89ea4af786b467bfcba47618ea8ad193ac4405dbba668c30",
+      "indexedFields": 621,
+      "decodedPresentFields": 244,
+      "consumedBytes": 47424,
+      "payloadBytes": 47888,
+      "unmappedTailBytes": 464,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample_nb.sav",
+      "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5",
+      "indexedPositionDigest": "ab91977b3aecab43f29c8df00fc42b30fd31bd85d2b244c36ec1b20d56d2da9a",
+      "indexedFields": 621,
+      "decodedPresentFields": 492,
+      "consumedBytes": 111420,
+      "payloadBytes": 121200,
+      "unmappedTailBytes": 9780,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample_nb_sec.sav",
+      "sha256": "2fbf107d437fa9fd039d055c71b93516fa0502c70acebdefed3cc9a77557cd71",
+      "indexedPositionDigest": "ed9323f5c7608b624b2559ee50e0a831d34937f3e5a50a30e57318662e0c6c3d",
+      "indexedFields": 621,
+      "decodedPresentFields": 492,
+      "consumedBytes": 111876,
+      "payloadBytes": 121656,
+      "unmappedTailBytes": 9780,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample_zils.sav",
+      "sha256": "8439ae444ef031961e3c0440981a03aabdb503860eae84c6d9a7c8398c765b14",
+      "indexedPositionDigest": "c58e48695af81cefd5995c0f035861a1e62a1b2ced51379484863b6fd5f7c6b3",
+      "indexedFields": 621,
+      "decodedPresentFields": 444,
+      "consumedBytes": 54600,
+      "payloadBytes": 59404,
+      "unmappedTailBytes": 4804,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample_zils_nb.sav",
+      "sha256": "7a1d40b88e019d72d5b6c8772348edfc3a82683bafa4210679824d9409c22a6a",
+      "indexedPositionDigest": "75a705c0e1f7bcbeafbbdff937b268ad709dbdd61339bba07988983593e38a5d",
+      "indexedFields": 621,
+      "decodedPresentFields": 492,
+      "consumedBytes": 126552,
+      "payloadBytes": 136604,
+      "unmappedTailBytes": 10052,
+      "positionMismatches": 0
+    },
+    {
+      "file": "EXAMPLE/sample_zils_nb_sec.sav",
+      "sha256": "e4f155343b2ecb47913e1888922dd3c9925dac13356afc5865f2b22b030b8752",
+      "indexedPositionDigest": "abaf43b8aab3742705f9cbaa3211141b0ba00983eb2eeb5cb0f4b50fd43748be",
+      "indexedFields": 621,
+      "decodedPresentFields": 492,
+      "consumedBytes": 127008,
+      "payloadBytes": 137060,
+      "unmappedTailBytes": 10052,
+      "positionMismatches": 0
+    },
+    {
+      "file": "control1/20261014_1200_SN3_TR0.sav",
+      "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "indexedPositionDigest": "e887812880f85345f6b8d0ee8cbf0ed4e210c4b6806eaf4e44983c1b31295a5d",
+      "indexedFields": 621,
+      "decodedPresentFields": 219,
+      "consumedBytes": 4526824,
+      "payloadBytes": 4526844,
+      "unmappedTailBytes": 20,
+      "positionMismatches": 0
+    }
+  ]
+}

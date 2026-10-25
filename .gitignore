@@ -14,3 +14,10 @@ playwright-report/
 /docs/history/local/
 /.local-fixtures/
 /local-benchmark-results/
+
+private-re/
+*.sav
+*.raw
+*.rawx
+*.pyd
+*.dll

@@ -1,0 +1,119 @@
+{
+  "scope": "Sanitized evidence identity only. No proprietary binary, assembly, pseudocode, model records, or original vendor code is included. Static REA evidence does not establish runtime execution or full format coverage.",
+  "connection": {
+    "kind": "local MCP stdio client",
+    "package": "rea-agents",
+    "version": "6.8.0",
+    "negotiatedProtocolVersion": "2025-11-25",
+    "nativeProvider": "Ghidra",
+    "nativeProviderVersion": "12.1.4",
+    "javaVersion": "21.0.9"
+  },
+  "target": {
+    "name": "usrcas.dll",
+    "installation": "PSS/E 36.5/PSSBIN",
+    "sha256": "71792eaea096eb3f2f0f4834e218d2d60cc2788efa5e8ba0be6f124daddbd73f",
+    "imageBase": "0x180000000",
+    "distributed": false
+  },
+  "results": [
+    {
+      "operation": "inspect_native_exports",
+      "evidenceId": "ev_814d04b925966de8bfb771f6d293914445cf105cd7f8ac1c246b3cc4d0ea388c",
+      "subjectSha256": "71792eaea096eb3f2f0f4834e218d2d60cc2788efa5e8ba0be6f124daddbd73f",
+      "provider": {
+        "id": "rea-native-exports",
+        "name": "REA PE/ELF export table reader",
+        "version": "1"
+      },
+      "evidenceType": "STATIC_OBSERVATION",
+      "status": "returned"
+    },
+    {
+      "operation": "inspect_pe_imports",
+      "evidenceId": "ev_549d963a276b0f81989ff7ae05ffa67c2a17a568871a10d0798fe759a2955a83",
+      "subjectSha256": "71792eaea096eb3f2f0f4834e218d2d60cc2788efa5e8ba0be6f124daddbd73f",
+      "provider": {
+        "id": "rea-pe-imports",
+        "name": "REA PE import parser",
+        "version": "1"
+      },
+      "evidenceType": "STATIC_OBSERVATION",
+      "status": "returned"
+    },
+    {
+      "operation": "batch_decompile",
+      "evidenceId": "ev_3647846fde1477b532ecc84d33af57138614b24b2a8c713907ab19565486eed2",
+      "subjectSha256": "71792eaea096eb3f2f0f4834e218d2d60cc2788efa5e8ba0be6f124daddbd73f",
+      "provider": {
+        "id": "rea-workflow",
+        "name": "REA composed investigation workflow",
+        "version": "1"
+      },
+      "evidenceType": "STATIC_OBSERVATION",
+      "status": "returned",
+      "upstreamProvider": {
+        "id": "ghidra",
+        "name": "Ghidra",
+        "version": "12.1.4"
+      },
+      "functions": [
+        {
+          "address": "0x18009ffe0",
+          "rva": "0x9ffe0",
+          "status": "ok"
+        },
+        {
+          "address": "0x1800a0470",
+          "rva": "0xa0470",
+          "status": "ok"
+        },
+        {
+          "address": "0x1800a6360",
+          "rva": "0xa6360",
+          "status": "ok"
+        },
+        {
+          "address": "0x1800033a0",
+          "rva": "0x33a0",
+          "status": "ok"
+        },
+        {
+          "address": "0x180001940",
+          "rva": "0x1940",
+          "status": "ok"
+        }
+      ],
+      "successCount": 5,
+      "requestedCount": 5
+    }
+  ],
+  "independentCorroboration": [
+    "Capstone 5.0.9 and pefile 2024.8.26 development-only static inspection",
+    "Native caspy.Savecase and read-only logical-position trace on user-installed PSS/E",
+    "Independent Python prototype and browser-native TypeScript layout reader: 621 indexed position decisions on each of eleven real inputs"
+  ],
+  "independentStaticFindings": {
+    "layout31SchemaMinimumRevisionMaximum": 31,
+    "predicate36": {
+      "effect": "always absent; native dispatch goes directly to field-return path",
+      "dispatchTableRva": "0xBA6D8",
+      "conditionNumber": 36,
+      "targetRva": "0xA6EC7",
+      "evidenceType": "CAPSTONE_STATIC_OBSERVATION"
+    },
+    "predicate47": {
+      "effect": "always absent for layout31; compatibility path is guarded by exact layout30 equality",
+      "flagRva": "0x1A6CB8",
+      "initializationRvas": [
+        "0x9FE2C",
+        "0xA01C3"
+      ],
+      "helperRvas": [
+        "0xA72F0",
+        "0xA7370"
+      ],
+      "evidenceType": "CAPSTONE_STATIC_OBSERVATION; REA/Ghidra corroborates open initialization"
+    }
+  }
+}
