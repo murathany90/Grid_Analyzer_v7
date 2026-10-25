@@ -18,7 +18,7 @@ test('exports keep numeric zeros, nulls, provenance and formula injection as tex
   const csv=benchmarkCsv(rows);assert.ok(csv.includes("'=HYPERLINK"));assert.ok(csv.includes('"0"'));assert.equal(JSON.parse(JSON.stringify(rows))[0].delta,null);
   const workbook=unzipSync(benchmarkWorkbook(rows)),xml=strFromU8(workbook['xl/worksheets/sheet1.xml']);assert.ok(!xml.includes('<f>'));assert.ok(xml.includes('HYPERLINK'));assert.ok(xml.includes('<v>0</v>'));
 });
-test('readiness excludes sentinel, missing sequence, converter and absent source model',()=>{
+test('three-phase readiness retains positive fields and rejects sentinel and absent source model',()=>{
   const raw={TypLne:{Attributes:['FID','rline','xline'],Values:[['SYN-LINE',1,2]]},ElmXnet:{Attributes:['FID','ikss','rntxn','bus1'],Values:[['SYN-X',999999,.1,'B']]},ElmGenStat:{Attributes:['FID','bus1'],Values:[['SYN-G','B']]}};
-  const r=auditShortCircuitReadiness(raw);assert.equal(r.status,'NOT_COMPUTABLE');assert.equal(r.edition,null);assert.equal(r.rows[0].status,'MISSING_ZERO_SEQUENCE');assert.equal(r.rows[1].status,'INVALID_SOURCE');assert.equal(r.rows[2].status,'MISSING_SOURCE_MODEL');
+  const r=auditShortCircuitReadiness(raw);assert.equal(r.status,'NOT_COMPUTABLE');assert.equal(r.edition,null);assert.equal(r.rows[0].status,'PARTIAL_SOURCE');assert.deepEqual(r.rows[0].availableFields,['rline','xline']);assert.match(r.rows[0].reasons[0],/POSITIVE_SEQUENCE_FIELDS_PRESENT/);assert.equal(r.rows[1].status,'INVALID_SOURCE');assert.equal(r.rows[2].status,'MISSING_SOURCE_MODEL');
 });

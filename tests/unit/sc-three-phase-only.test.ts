@@ -30,7 +30,7 @@ test('removed fault API is rejected; production source has no ground-fault engin
  await assert.rejects(calculateThreePhase(network,emptyScenario(),context,['SYN-B0'],{...profile,faultType:'1LG'} as unknown as ScProfile),/SC_UNSUPPORTED_FAULT_TYPE/);
  assert.equal(Object.hasOwn(context,'sequenceData'),false);
  async function files(dir:string):Promise<string[]>{const all=await readdir(dir,{withFileTypes:true});return (await Promise.all(all.map(e=>e.isDirectory()?files(join(dir,e.name)):Promise.resolve([join(dir,e.name)])))).flat();}
- for(const path of (await files('src')).filter(p=>p.endsWith('.ts')||p.endsWith('.css'))){const source=await readFile(path,'utf8');assert.doesNotMatch(source,/\b1LG\b|\b1F\b|sc1Lg|scResult1Lg|ikss1F|sequence-network|negativeSources|zeroSources|sequenceData/,path);}
+ for(const path of (await files('src')).filter(p=>p.endsWith('.ts')||p.endsWith('.css'))){const source=await readFile(path,'utf8');assert.doesNotMatch(source,/\b1LG\b|\b1F\b|sc1Lg|scResult1Lg|ikss1F|sequence-network|negativeSources|zeroSources|sequenceData|MISSING_ZERO_SEQUENCE|GROUND_SEQUENCE|GROUND_NOT_COMPUTABLE/,path);}
 });
 test('legacy records discard every removed field and preserve verified three-phase numbers',async()=>{
  const {network,raw}=await loaded(),context=adaptShortCircuitSources(raw,network),r=await calculateThreePhase(network,emptyScenario(),context,['SYN-B0'],profile);
