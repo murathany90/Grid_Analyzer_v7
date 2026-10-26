@@ -1,0 +1,87 @@
+{
+  "status": "PASS_WITH_DOCUMENTED_SOURCE_DIFFERENCES_AND_PARTIAL_MODEL_LIMITS",
+  "localDate": "2026-10-26",
+  "timezone": "Europe/Istanbul",
+  "html": {
+    "bytes": 111211,
+    "sha256": "9b783061b6a9fbbe3510e58a848bc641cd29553b1ad59ccb23af513cc1d68eaf",
+    "runtime": "file:// classic JavaScript + Blob worker, CSP connect-src none",
+    "dependencies": [
+      "no Python",
+      "no PSS/E",
+      "no caspy",
+      "no Siemens DLL",
+      "no backend",
+      "no localhost",
+      "no internet"
+    ]
+  },
+  "tests": {
+    "suite": {
+      "tests": 815,
+      "pass": 815,
+      "fail": 0,
+      "skipped": 0,
+      "log": "evidence/full-test-suite.log",
+      "sha256": "7e5849722d08500b92ff159cab003d4f685fc570fe4eee8efbc8533594e2df85"
+    },
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "productionBuild": "PASS",
+    "gaPortableBuild": "PASS",
+    "rawRawxNormalizedPairs": "11/11 PASS",
+    "savLayout": {
+      "files": 11,
+      "fieldDecisions": 6831,
+      "mismatches": 0
+    },
+    "savNativeOracle": {
+      "files": 11,
+      "comparisons": 841231,
+      "mismatches": 0,
+      "targetComparisons": 277131
+    },
+    "offlineExtractedHtml": {
+      "status": "PASS",
+      "httpRequests": 0,
+      "pageErrors": 0,
+      "realBuses": 6851,
+      "singleAndMultiModelZip": "PASS",
+      "invalidSav": "REJECTED"
+    },
+    "gaIntegration": "PASS; DGS network null for PSS/E; solver requests blocked; DGS replacement/regression pass"
+  },
+  "rea": {
+    "package": "6.8.0",
+    "mcpTools": 229,
+    "provider": "Ghidra 12.1.4",
+    "deepFunctions": 5,
+    "deepFunctionsPass": 5,
+    "registration": "installed with backup; doctor healthy"
+  },
+  "limits": {
+    "savProfile": "PTI SFL v1 / LILL / layout 31 only",
+    "rawRevision": [
+      35,
+      36
+    ],
+    "targetSavRaw": {
+      "comparedFields": 239048,
+      "missingEquipmentIdentities": 0,
+      "missingExternalConnections": 0,
+      "remainingDifferences": 7,
+      "fields": {
+        "ide": 4,
+        "pg": 1,
+        "qg": 2
+      }
+    },
+    "unknownExtensionsAndControlSemantics": "PARTIAL and retained; never READY",
+    "analysisStatus": {
+      "powerFlow": "BLOCKED",
+      "shortCircuit": "BLOCKED",
+      "n1": "BLOCKED"
+    },
+    "cleanSecondPhysicalMachine": "NOT_TESTED; offline browser isolation and no native runtime calls were verified"
+  }
+}

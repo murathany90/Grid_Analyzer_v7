@@ -9,6 +9,7 @@
     "four source inspection tabs render with bounded tables",
     "operating values carry explicit source provenance",
     "ZIP selected source bytes decode through the same worker",
+    "multi-model ZIP lists candidates and opens the selected real source rather than the invalid first entry",
     "invalid SAV clears the active inspection and reports failure"
   ],
   "counts": {

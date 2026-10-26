@@ -29,6 +29,7 @@ Başlıca entegrasyon dosyaları: `src/app/contracts.ts`, `controller.ts`, `app-
 | Kontrol | Sonuç | Kanıt |
 |---|---|---|
 | TypeScript tür kontrolü | PASS | `npm run typecheck` |
+| Tüm GA birim/regresyon paketi | **815/815 PASS**, sıfır SKIP | `evidence/full-test-suite.log` |
 | Odaklı birim/regresyon testleri | **37/37 PASS**, sıfır SKIP | `evidence/native-raw-web-tests.log` |
 | RAW/RAWX önceki normalize kapsam | **11/11 PASS_NORMALIZED_FIELDS** | `evidence/native-raw-rawx-parity.json` |
 | Gerçek 6.851 baralı SAV, `file://`, tarayıcı çevrimdışı | PASS | `evidence/native-web/20261014_1200_SN3_TR0.sav.browser-proof.json` |

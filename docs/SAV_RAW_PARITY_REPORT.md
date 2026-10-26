@@ -7,10 +7,10 @@ Tarayıcı decoder'ı gerçek SAV baytlarından elektriksel kayıtları okur. Ha
 Üç farklı kontrol birbirine karıştırılmamıştır:
 
 1. **Binary alan konumları:** 11 gerçek SAV'da 621 alanın varlık/konum kararlarının tamamı, toplam **6.831/6.831**, geliştirme sırasında yerel okuyucudan alınan bağımsız konum kanıtıyla eşleşti.
-2. **SAV elektriksel kayıtları:** 7 gerçek SAV'da yerel PSS/E 36.5 okuyucusuyla **386.414** kimlik, bağlantı ve parametre kontrolü geçti. Hedef kontrol modelindeki sayı **277.131**'dir. Bu geliştirme doğrulamasında caspy kullanılmıştır; HTML'de veya decoder'ın çalışma yolunda kullanılmaz.
+2. **SAV elektriksel kayıtları:** 11 gerçek SAV'da yerel PSS/E 36.5 okuyucusuyla **841.231** kimlik, bağlantı ve parametre kontrolü geçti. İlk yedi modelde 386.414; `bench2`, `sample_zils`, `sample_zils_nb`, `sample_zils_nb_sec` ek kontrolünde 454.817 eşleşme vardır. Hedef kontrol modelindeki sayı **277.131**'dir. Bu geliştirme doğrulamasında caspy kullanılmıştır; HTML'de veya decoder'ın çalışma yolunda kullanılmaz.
 3. **Ayrı kaynak dosyaları arasındaki karşılaştırma:** RAW/RAWX'in önceki normalize alan kapsamı **11/11 PASS** olarak korundu. SAV/RAW dosyaları birbirleriyle ayrıca karşılaştırıldı; gerçek kaynak farkları aşağıda açıkça korunmuştur.
 
-Kanıtlar: `evidence/sav-layout-position-parity.json`, `sav-native-oracle-parity.json`, `native-raw-rawx-parity.json`, `sav-raw-parity.json`. Yeniden üretim araçları `tools/psse-sav-native-oracle.py`, `psse-raw-parity.ts`, `psse-sav-raw-parity.ts` dosyalarıdır. Siemens modülü veya model baytları dağıtılmaz.
+Kanıtlar: `evidence/sav-layout-position-parity.json`, `sav-native-oracle-parity.json`, `sav-native-extra-oracle-parity.json`, `native-raw-rawx-parity.json`, `sav-raw-parity.json`. Yeniden üretim araçları `tools/psse-sav-native-oracle.py`, `psse-raw-parity.ts`, `psse-sav-raw-parity.ts` dosyalarıdır. Ek dört modeli tekrar çalıştırmak için aynı Python geliştirme aracında `--case bench2 --case sample_zils --case sample_zils_nb --case sample_zils_nb_sec --output evidence/sav-native-extra-oracle-parity.json` seçeneklerini kullanın. Siemens modülü veya model baytları dağıtılmaz.
 
 ## Gerçek kontrol modeli
 
@@ -36,7 +36,7 @@ Bu toleranslardan sonra **7 gerçek fark** kalmıştır: dört baranın IDE duru
 
 ## Diğer modeller ve önemli kaynak ayrımları
 
-`savnw`, `sample`, `bench`, `savnw_nb`, `sample_nb`, `sample_nb_sec` ve diğer beş binary örnekte gerçek baytlar incelenmiştir. Yerel okuyucuyla tam elektriksel karşılaştırma yapılan yedi modelin sonuçları ayrı kanıtta bulunur. SAV↔RAW karşılaştırması bazı örneklerde kayıtlı çalışma noktası farkları da bulur; örneğin `sample_nb_sec` için 74 alan farkı vardır. Bunlar çalışan RAW okuyucu ile SAV başarısı taklit edilerek kapatılmamıştır.
+`savnw`, `sample`, `bench`, `bench2`, `savnw_nb`, `sample_nb`, `sample_nb_sec`, `sample_zils`, `sample_zils_nb`, `sample_zils_nb_sec` ve gerçek kontrol modelinin baytları incelenmiştir. On bir modelde yerel okuyucuyla raporun tanımladığı elektriksel alanlar karşılaştırılmıştır. Sıfır empedanslı hat/node-breaker varyantları da bu karşılaştırmaya dahildir. SAV↔RAW karşılaştırması bazı örneklerde kayıtlı çalışma noktası farkları bulur; örneğin `sample_nb_sec` için 74 alan farkı vardır. Bunlar çalışan RAW okuyucu ile SAV başarısı taklit edilerek kapatılmamıştır.
 
 - SAV üç sargılı trafonun iç yıldız eşdeğer baralarını da saklar; `sample`'daki dört ek SAV barası açıkça `threeWindingStar` olarak işaretlenir. Üç sargılı ekipman birleştirilirken özgün üç kol, tüm sargılar ve yıldız kayıtları korunur. Bu yardımcı baralar, daraltılmış ekipman grafiğinde ayrı fiziksel ada sayılmaz.
 - Node-breaker SAV'da aynı dış bara numarasının farklı kesimleri olabilir. `1000 * dışBara + kesim` paketlenmiş kimliği korunur; farklı kesimler tek baraya birleştirilmez. RAW'ın toplulaştırılmış bara gösterimiyle fark ayrıca raporlanır. Node/anahtar/terminal bağlantıları kaynak indekslerinden çözülür.

@@ -12,6 +12,7 @@ import argparse,collections,ctypes,hashlib,json,os,subprocess,sys,tempfile
 parser=argparse.ArgumentParser()
 parser.add_argument('--root',default=os.environ.get('PSSE_TEST_ROOT',r'C:\Program Files\PTI\PSSE36\36.5'))
 parser.add_argument('--output',default='evidence/sav-native-oracle-parity.json')
+parser.add_argument('--case',dest='selected_cases',action='append',help='Optional case stem; repeat to validate additional local fixtures')
 args=parser.parse_args()
 repo=Path(__file__).resolve().parents[1]
 root=Path(args.root).resolve();bin_dir=root/'PSSBIN';py_dir=root/f'PSSPY{sys.version_info.major}{sys.version_info.minor}'
@@ -27,7 +28,7 @@ import caspy
 private_base=repo/'private-re';private_base.mkdir(exist_ok=True)
 private_dir=Path(tempfile.mkdtemp(prefix='native-oracle-',dir=str(private_base))).resolve()
 if private_base.resolve() not in private_dir.parents:raise SystemExit('Private oracle output escaped workspace')
-cases=['savnw','sample','bench','sample_nb','sample_nb_sec','savnw_nb','20261014_1200_SN3_TR0']
+cases=args.selected_cases or ['savnw','sample','bench','sample_nb','sample_nb_sec','savnw_nb','20261014_1200_SN3_TR0']
 paths={name:root/('control1' if name.startswith('2026') else 'EXAMPLE')/(name+'.sav') for name in cases}
 jobs=[{'path':str(paths[name]),'output':str(private_dir/(name+'-decoded.json'))} for name in cases]
 manifest=private_dir/'jobs.json';manifest.write_text(json.dumps(jobs))

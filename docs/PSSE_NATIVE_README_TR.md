@@ -8,6 +8,8 @@ Dört sekme: **Model Özeti**, **Şebeke Envanteri**, **İşletme Verileri**, **
 
 Doğrulanmış SAV profili: **PTI SFL v1, LILL, layout 31**; PSS/E 36.5 örnekleri ve 6.851 baralı gerçek modelle test edilmiştir. RAW/RAWX: 35/36. Başka bir SAV düzeni sessizce tahmin edilmez, açık hata verir.
 
+Son doğrulama: **815/815 otomatik test**, 11/11 normalize RAW/RAWX çifti, 11 gerçek SAV'da 6.831 alan-konum kararı ve 11 SAV'da 841.231 yerel referans kontrolü geçti. Hedef SAV ile çevrimdışı tarayıcı testi HTTP(S) isteği olmadan geçti.
+
 Gösterilen Vm/Va, P/Q, kademe ve durumlar kaynakta kayıtlıdır veya kanıtı belirtilen kaynak dönüşümüdür. GA tarafından yeniden hesaplanmış sonuç değildir. Tüm yük akışı, kısa devre ve N-1 analizleri **BLOCKED**'dır. **PARTIAL** kapsamı olan model yalnız tanısal kaynak incelemesidir; kalite sekmesindeki eksikleri okuyun. Veri `READY` diye sunulmaz.
 
 Teslim içeriği:
