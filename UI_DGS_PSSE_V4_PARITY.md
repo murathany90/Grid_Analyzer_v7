@@ -1,25 +1,21 @@
 # DGS ↔ PSS/E UI parity — V4 status (2026-10-28)
 
-Branch `fix/psse-v1-real-model-parity`, commit `ace166996ba66d1643d2da07af44c15673c854a4`.
+Branch `fix/psse-v1-real-model-parity`, commits `71c206e` (UI milestone) on top of `ace1669`+`2a7470e`. PSS/E stays a separate module and result store; DGS reference code untouched (`git diff acd6d86..71c206e -- src/map src/features/sld` is empty).
 
-## What exists (verified this session)
+## Implemented this session (verified by typecheck, unit tests and the Chrome `file://` smoke harness)
 
-- Separate PSS/E modules kept isolated from DGS data/results: `src/features/psse/{map-view,sld-view,analysis-view,geography,diagram-utils,view-model,psse-diagrams.css}`. `git diff acd6d86..ace1669 -- src/map src/features/sld` is **empty**: DGS reference code untouched.
-- PSS/E map: toolbar filters (YTM/AREA, Trafo Merkezi, BM/bus OWNER, exact-kV group, service status, SOURCE_SAVED/GA_PSSE_CALCULATED layer, single inclusive ≤36 kV checkbox), basemap + network SVG stage, fullscreen toggle, Chrome/Edge `file://` smoke-tested in V3 with zero network requests.
-- TM-based horizontal SLD skeleton (voltage-descending busbars, feeder readouts, transformer symbol), analysis view with result tables and CSV export.
+1. **Map area fills the viewport** (spec gaps 1–3): `.ga-psse-geo-stage` height `clamp(320px, 100dvh − 260px, 1100px)`, fullscreen `100vw/100vh`, the stale `height:auto` override removed; canvas backing store = element `rect × devicePixelRatio`; ResizeObserver→rAF repaint; wheel zoom anchored at the cursor (DGS behavior). Measured live: stage 740 px at 1600×1000, canvas 1566×740.
+2. **Single shared coordinate transform** (gap 1): one uniform world→pixel factor `k=min(w/1200,h/690)` drives both the basemap canvas (`translate+scale(k·zoom)`) and the SVG `viewBox` (letterboxed around the world center) — the Turkey outline is now aspect-true at any window size, `Türkiye'ye sığdır` and `Şebekeye sığdır` remain separate actions, PNG export stretches both layers identically.
+3. **MW flow arrows** on the calculated layer (gap 4/5, static, reduced-motion safe): 1–3 arrowheads per branch from solved `pFromMw` sign (direction) and magnitude/loading (count, size), DGS arrow fill `#ffe2a2`, tooltips with MW direction and loading; nothing drawn on the SOURCE_SAVED layer (no saved branch flows — honest).
+4. **⚡ Lightning panel ported** (gap 9): new isolated `src/features/psse/lightning-panel.ts` using the DGS visual shell (⚡ toggle bottom-right, '⚡ Elektriksel Sonuçlar' header, minimize/close, tab row). **Only 'Yük Akışı' and 'Senaryolar' are enabled**; 'Kısıt (N-1)' and 'Kısa Devre' render disabled with explicit reasons (no PSS/E N-1/SC engine in this package; `.iec` is not a short-circuit result). The LF tab shows model/SHA context, classification, iterations, residual and per-bus Vm/Va from the GA result; the Scenarios tab shows the scenario hash, operation list and the source-file safety note. Read-only over the PSS/E result store.
+5. Filters: the pre-existing single inclusive `≤36 kV` checkbox satisfies the single-control rule; YTM/BM/TM/service/layer filters unchanged.
 
-## Gap analysis completed this session (spec, not code)
+## Remaining gaps (documented, not implemented)
 
-A dedicated read-only exploration compared DGS (`src/map/*`, `src/features/sld/*`) against the PSS/E implementation and produced a concrete, file:line-referenced gap list (session subagent report). Top findings, quantified:
+- DGS 5-band voltage multi-select (current exact-kV group select remains; no duplicate ≤36 kV control exists), delta (Baz/Senaryo/Fark) result-role selector, branch-width scaling by 95th-percentile MW, DGS loading/delta palettes in `psse/diagram-utils.ts`, zoom-based label simplification beyond the existing density rule, animated flow (static arrows shipped).
+- SLD: DGS horizontal rail bands with orthogonal routing/crossing hops/label reservation (PSS/E SLD keeps its voltage-descending layout).
+- Basemap province-border detail levels and legend chips still use the pre-existing PSS/E scales.
 
-1. PSS/E map is a fixed 1200×690 stage with `preserveAspectRatio:'none'`, a stale `−370px` CSS offset and non-DPR-correct canvas backing store — the Turkey outline distortion root cause. DGS uses element-measured canvases (`rect*dpr`, `setTransform`), `height=innerHeight−top−38`, `scale=min(w/21,h/10)`, cursor-anchored wheel zoom, ResizeObserver→rAF.
-2. Voltage colors come from ad-hoc arrays in `psse/diagram-utils.ts` instead of the DGS settings palette (`#e6534e/#8d80d8/#449bda/#51b6bc/#8fb0a0`, loading ramp, delta colors).
-3. Exact-kV filter select instead of the DGS 5-band multi-select with a single `≤36 kV` band.
-4. No flow arrows/animation overlay, no MW-scaled branch widths (95th-percentile scaling), no delta (Baz/Senaryo/Fark) selector.
-5. ⚡ lightning panel not ported yet; required shape: DGS shell with **only 'Yük Akışı' and 'Senaryolar' tabs enabled**, N-1/Kısa Devre disabled (no fabricated results).
+## Verification
 
-## Session outcome
-
-The 150-minute window went to the P0 AC/FDNS mandate; **none of the ten UI parity items above were implemented in this session** — no PSS/E UI file was modified (`git diff acd6d86..ace1669 -- src/features/psse` is empty). The gap list is the deliverable: it is concrete enough to implement directly next session. Visual acceptance screenshots (1600×1000 Map/SLD/Analysis/Attachments/Lightning comparisons) were therefore **not retaken**; the V3 screenshots remain valid for the unchanged UI.
-
-**Honest status: spec ready, implementation WIP.**
+`npm run typecheck`; focused PSSE unit tests 54/54; `node tools/psse-offline-browser.mjs chrome dist-portable/GridAnalyzer_v7.html` → `status:"PASS"`, 0 external requests, 0 console errors, synthetic DGS+RAWX imports and NR/FDNS/DC solves all green on the rebuilt artifact; screenshot `local-benchmark-results/psse-offline-browser/v4-map-check.png` (private location, synthetic data only). No real-model screenshots are committed.
