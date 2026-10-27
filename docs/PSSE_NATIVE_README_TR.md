@@ -1,26 +1,43 @@
-# Grid Analyzer — PSS/E Native Web Test
+# Grid Analyzer · Çevrimdışı PSS/E ve DGS çalışma kitabı
 
-ZIP'i bir klasöre çıkartın ve **index.html** dosyasına çift tıklayın. Chrome veya Edge üzerinde **Dosya seç** ile SAV, RAW, RAWX veya ZIP yükleyin. ZIP'te birden fazla model varsa açılacak kaydı seçin. İnternet, kurulum, Python, PSS/E, localhost veya sunucu gerekmez.
+ZIP'i çıkarın ve `index.html` dosyasını Chrome veya Edge'de açın. İnternet, sunucu, Python veya yüklü PSS/E gerekmez. Uygulama `file://` üzerinden çalışır; ağ bağlantısı kapalı CSP kullanır, hesapları yerel Blob worker'larda yürütür ve model dosyasını servise göndermez.
 
-Dört sekme: **Model Özeti**, **Şebeke Envanteri**, **İşletme Verileri**, **Model Kalitesi**. Envanter türünü, aramayı, nominal gerilimi ve kaynak durumunu seçebilir; sütun başlığıyla sıralayabilir, sayfalayabilir, ekipman ayrıntısını açabilir ve modeli JSON olarak indirebilirsiniz. Dosya içeriği bir servise gönderilmez.
+## Model yükleme ve ortak gezinme
 
-**Kullanıcı özel isteği:** Grid Analyzer'ın Şebeke Modeli sayfasına benzer bağımsız arayüz ve gerçek SAV dosyasını tarayıcıda açma işlevi uygulanmıştır. Yerel kontrol klasörünüzdeki `20261014_1200_SN3_TR0.sav` doğrudan seçilebilir. Kaynak modeller dağıtım ZIP'ine eklenmemiştir.
+Tek model seçicisinden DGS JSON/ZIP veya PSS/E SAV/RAW/RAWX/ZIP yükleyin. ZIP içinde birden fazla desteklenen model varsa açılacak üyeyi açıkça seçin. Başlıkta etkin kaynak **DGS MODU** veya **PSS/E MODU** olarak gösterilir. İki mod aynı **Şebeke Modeli**, **Harita**, **Tek Hat Şeması**, **Analizler**, **Yardım** ve **Ayarlar** gezinme etiketlerini kullanır; her mod kendi veri ve analiz bileşenlerini açar.
 
-Doğrulanmış SAV profili: **PTI SFL v1, LILL, layout 31**; PSS/E 36.5 örnekleri ve 6.851 baralı gerçek modelle test edilmiştir. RAW/RAWX: 35/36. Başka bir SAV düzeni sessizce tahmin edilmez, açık hata verir.
+PSS/E **Şebeke Modeli** kaydedilmiş kaynak envanterini, kaynak değerlerini, alan birimlerini ve bağlantı topolojisini gösterir. Bunlar hesap sonucu değildir. PSS/E **Harita** ve **Tek Hat Şeması** bara/hat/trafo durumlarını, filtreleri ve seçili hesap sonuçlarını görselleştirir. Paylaşılan tema ve sayı hassasiyeti **Ayarlar**'da; yöntem ve hesap seçenekleri PSS/E **Analizler**'dedir.
 
-Son doğrulama: **815/815 otomatik test**, 11/11 normalize RAW/RAWX çifti, 11 gerçek SAV'da 6.831 alan-konum kararı ve 11 SAV'da 841.231 yerel referans kontrolü geçti. Hedef SAV ile çevrimdışı tarayıcı testi HTTP(S) isteği olmadan geçti.
+## PSS/E çözüm yöntemleri
 
-Gösterilen Vm/Va, P/Q, kademe ve durumlar kaynakta kayıtlıdır veya kanıtı belirtilen kaynak dönüşümüdür. GA tarafından yeniden hesaplanmış sonuç değildir. Tüm yük akışı, kısa devre ve N-1 analizleri **BLOCKED**'dır. **PARTIAL** kapsamı olan model yalnız tanısal kaynak incelemesidir; kalite sekmesindeki eksikleri okuyun. Veri `READY` diye sunulmaz.
+- **Tam AC · NR_POLAR:** ayrı seyrek polar Newton çözümü, ZIP yükleri, sabit kontrol profili ve seçenek olarak reaktif güç sınırları.
+- **FDNS_XB:** bağımsız fast-decoupled XB matrisi ve iterasyonları. NR'ye geri düşmez.
+- **Kayıpsız doğrusal DC:** ayrı aktif güç çözümü. Açılar ve aktif güç akışları hesaplanır; Vm, Q, akım ve AC kayıpları üretilmez. PSS/E 36.5 uyumlu kademe profili ve ayrı kademe duyarlı yaklaşım seçenekleri bulunur.
 
-Teslim içeriği:
+Çözücü toleransı ve AC iterasyon sınırı kullanıcı tarafından ayarlanabilir. Gerilim/termik ihlaller kaynak sınırlarını kullanır; kaynak sınırı bulunmadığında kullanıcıya açık çalışma eşiği olarak işaretlenir. Bir PSS/E senaryosu kaynak modeli veya DGS senaryosunu değiştirmeden cihaz durumunu açıp kapatır.
 
-- `index.html`: tüm çalışma kodu, CSS ve worker içindeki tek dosya.
-- Üç teknik rapor; `evidence/` doğrulama kanıtları.
-- `validation-private/`: yalnız bu yerel teslim için gerçek model ekran görüntüleri ve ayrıntılı karşılaştırma kanıtları.
-- `source/`: özgün decoder, ortak arayüz, otomatik testler ve geliştirme araçları.
-- `git/`: ayrı commit yamaları ve dal/push bilgisi.
-- `THIRD_PARTY_LICENSES.txt`: açık kaynak bağımlılık lisansları. Siemens DLL, PYD veya tescilli kod içermez.
+Sonuç kaynağı ayrı sınıflandırılır: `SOURCE_SAVED`, `GA_PSSE_CALCULATED` ve içe aktarılan salt okunur `PSSE_REFERENCE`. Her GA hesap kimliği kaynak/model, topoloji, senaryo, yöntem, seçenek ve motor sürümünü içerir. CSV ve JSON dışa aktarımları yalnız mevcut hesap durumunu ve kaynak kategorisini açıkça işaretler.
 
-Kaynak geliştirme için GitHub'daki `feature/ga-native-psse-browser-import` dalını alın. Tam GA checkout'unda `npm ci`, `npm run typecheck`, `npm test`, `node tools/build-psse-web.mjs` komutları kullanılır. Node/npm yalnız geliştirme ve yeniden paketleme içindir. `tools/psse-sav-native-oracle.py` isteğe bağlı geliştirme doğrulamasıdır ve kurulu PSS/E'yi referans olarak kullanır; HTML'in çalışma bağımlılığı değildir.
+## Hesap kapsamı ve sınırlamalar
 
-SAV↔RAW kontrol dosyalarında 7 gerçek çalışma noktası/durum farkı korunmuştur. Eski normalize RAW↔RAWX kapsamı 11/11 geçer; ek CX3 kaynak farkları ayrıca raporlanır. Tam sınırlar ve test kapsamı `SAV_RAW_PARITY_REPORT.md` ile `GA_INTEGRATION_REPORT.md` içindedir.
+Çözücü durumu `CONVERGED` tek başına PSS/E ile tam eşdeğerlik anlamına gelmez. Desteklenmeyen aktif kaynak fiziği çözümü `BLOCKED` yapar; açıkça çözücü dışında bırakılan sınırlı fizik `PARTIAL` olarak raporlanır. Üç yöntemin, seçeneklerin ve karşılaştırmaların ayrıntısı `MODEL_FIDELITY_REPORT.md`, `PSSE_AC_DC_PARITY_REPORT.md` ve `PSSE_SOLVER_RESEARCH.md` içindedir.
+
+- AC çözücüleri PSS/E kaynak THRSHZ'siyle ideal bağlantı olarak sınıflandırılan etkin hatları henüz eş bara grubuna daraltmadığından bu profil **BLOCKED**'dır. Etkin, sıfırdan farklı veya kaynağı bilinmeyen BP/bypass da doğrulanmış bir politika uygulanana kadar bloklanır.
+- DC, doğrulanmış sonlu pozitif X ideal bağlantı gruplarını daraltıp uç akışlarını geri kurabilir. Test edilen gerçek şebekede DC çalışır fakat katı PSS/E DCLF rapor yuvarlama karşılaştırma sonucu `DIFFERENCES`'tır; raporda bu farklar sayısal olarak verilir.
+- Gerçek modeldeki gerilim-droop ve uzak gerilim kontrolü AC denklem desteği tamamlanmadığından tam büyük model AC parity iddiası yoktur. Bilinmeyen aktif HVDC, FACTS, endüksiyon, kontrol tablosu veya kaynak topolojisi de sessizce varsayılmaz.
+- Bilinmeyen fiziksel bara kV değeri boş bırakılır. Bu durumda amper ve akım tabanlı termik değerler kullanılamaz; 3 sargılı iç yıldız düğümüne fiziksel gerilim tabanı atanmaz.
+
+PSS/E kaynak verileri korunur; hesap sonucu olarak yeniden etiketlenmez veya `PSSE_REFERENCE` ile birleştirilmez. Paket hiçbir gerçek SAV/RAW/RAWX model dosyası, lisanslı referans verisi, Siemens DLL/PYD, çalıştırılabilir kod veya tescilli PSS/E belgesi içermez. Kanıt dosyaları sentetik örneklerden ve anonimleştirilmiş toplam karşılaştırmalardan oluşur.
+
+## Pakettekiler
+
+- `index.html`: uygulama, CSS, çalışma kodu ve Blob worker'lar.
+- `THIRD_PARTY_LICENSES.txt`: kullanılan açık kaynak bağımlılık lisansları.
+- Model sadakati, DGS regresyonu, performans, mimari, araştırma ve parite raporları.
+- `evidence/`: kaynak model içermeyen anonimleştirilmiş karşılaştırmalar ve çevrimdışı tarayıcı raporları.
+- `source/`: uygulama TypeScript/CSS kaynakları, ilgili testler ve yeniden üretim araçları.
+- `git/`: teslim metadata'sı ve paketleme anında mevcutsa commit yamaları.
+
+## Geliştirme
+
+Node.js/npm yalnız kaynak kodu doğrulamak ve dağıtımı üretmek içindir. Tam kaynak checkout'unda `npm ci`, `npm run typecheck`, `npm test`, `node tools/build-psse-web.mjs` ve `node tools/package-psse-web.mjs` komutları kullanılabilir. Yerel PSS/E referans araçları yalnız isteğe bağlı geliştirme karşılaştırmalarıdır; HTML çalışma bağımlılığı değildir.

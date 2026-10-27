@@ -19,8 +19,13 @@ export interface CatalogQuery { className: string; search?: string; siteId?: str
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 export interface AppContext {
+  /** Discriminates the sole active model family; NONE never retains an old solver input. */
+  modelMode:'NONE'|'DGS'|'PSSE';
   /** Inspection-only source model; never passed to the DGS solver. */
   psseInspection?:import('../importers/psse/types').PsseModel|null;
+  psseNetwork?:import('../domain/psse/network').PsseBusBranchNetwork|null;
+  psseScenario?:import('../domain/psse/scenario').PsseScenario|null;
+  psseCalculation?:import('../domain/psse/results').PsseCalculationResult|null;
   psseInventoryKind?:import('../importers/psse/types').PsseKind;
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;
@@ -72,6 +77,8 @@ export interface AppContext {
   loadFiles(files: FileList | File[]): Promise<void>;
   loadPowerFactoryControlContext(file: File): Promise<void>;
   run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
+  runPsseCalculation(method:'NR_POLAR'|'FDNS_XB'|'LOSSLESS_DC',options?:Record<string,unknown>):Promise<void>;
+  setPsseScenario(operations:readonly import('../domain/psse/scenario').PsseScenarioOperation[]):void;
   runModelQuality(scope:'base'|'scenario'): Promise<void>;
   loadN1Catalog(scope:'base'|'scenario',season:CapacitySeason,includeAllVoltages?:boolean):Promise<void>;
   runN1Screen(options:N1ScreenOptions):Promise<void>;

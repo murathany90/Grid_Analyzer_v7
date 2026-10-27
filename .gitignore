@@ -21,3 +21,6 @@ private-re/
 *.rawx
 *.pyd
 *.dll
+__pycache__/
+*.pyc
+/dist-psse/

@@ -19,7 +19,7 @@ try{
  const render=()=>{document.querySelector('#analysis').hidden=ctx.view!=='analysis';document.querySelector('#map').hidden=ctx.view!=='map';if(ctx.view==='analysis')view.render();else if(ctx.view==='map')lightning.render();};ctx.subscribe(render);ctx.view='analysis';ctx.analysisTab='N1';ctx.resultView.analysis='N1';render();window.ready=true;
  </script></body></html>`}));
  await page.goto('http://127.0.0.1:5391/unification.html');await page.waitForFunction(()=>window.ready);
- const importMs=await page.evaluate(async()=>{const t=performance.now(),b=await(await fetch('/native-input.json')).blob();await ctx.loadFiles([new File([b],'native-input.json')]);return performance.now()-t;});
+ const importMs=await page.evaluate(async()=>{const t=performance.now(),b=await(await fetch('/native-input.json')).blob();await ctx.loadFiles([new File([b],'native-input.json')]);ctx.setView('analysis:N1');return performance.now()-t;});
  assert.equal(await page.getByText('Tek YTM · N-1 + Kısa Devre',{exact:true}).count(),0);
  const primary=page.locator('.ga-analysis-workspace .ga-ytm-study'),area=await page.evaluate(()=>ctx.network.sites.find(s=>/Orta Anadolu/i.test(s.areaName))?.areaId??ctx.network.sites.find(s=>s.areaId)?.areaId);await primary.getByLabel('Toplu analiz YTM',{exact:true}).selectOption(area);
  await primary.getByRole('button',{name:'Gelişmiş ayarlar',exact:true}).click();

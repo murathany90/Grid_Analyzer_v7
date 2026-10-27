@@ -63,4 +63,5 @@
 .ga-analysis-dialog>header button{font-size:23px;min-width:36px;padding:2px 10px}
 .ga-sc-detail{display:grid;gap:6px;font-size:12px}.ga-sc-detail p{margin:3px 0}.ga-sc-detail pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .ga-compact-study[data-family="SC"] .ga-compact-table{min-width:1080px;table-layout:auto}
+.ga-compact-study[data-family="SC"] .ga-compact-table-host{max-width:100%;overflow-x:auto}
 .ga-compact-study[data-family="SC"] col{width:auto!important}.ga-compact-study[data-family="SC"] td[data-column="diagnostic"],.ga-compact-study[data-family="SC"] td[data-column="pfSc"]{text-align:right;font-variant-numeric:tabular-nums}

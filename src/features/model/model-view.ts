@@ -61,12 +61,12 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
   let loadingNow = false;
   function selectEntry(entries:ModelEntry[]):Promise<ModelEntry|null>{
     return new Promise(resolve=>{const dialog=element('dialog','ga-zip-dialog'),select=element('select'),size=element('p','ga-muted');
-      dialog.setAttribute('aria-label','ZIP içinden model seç');select.setAttribute('aria-label','ZIP JSON dosyası');
+      dialog.setAttribute('aria-label','ZIP içinden model seç');select.setAttribute('aria-label','ZIP içindeki model dosyası');
       entries.forEach((e,i)=>select.append(new Option(e.name,String(i))));
       const update=()=>{size.textContent=`Açılmış boyut: ${format(entries[Number(select.value)].size/1024**2,2)} MiB`;};select.onchange=update;update();
       const finish=(entry:ModelEntry|null)=>{dialog.close();dialog.remove();resolve(entry);};
       dialog.append(element('h3','','ZIP içinden model seç'),select,size,button('Seçilen modeli yükle',()=>finish(entries[Number(select.value)])),button('Vazgeç',()=>finish(null)));
-      dialog.oncancel=e=>{e.preventDefault();finish(null);};root.append(dialog);dialog.showModal();
+      dialog.oncancel=e=>{e.preventDefault();finish(null);};document.body.append(dialog);dialog.showModal();
     });
   }
   const load = async (files: FileList | File[]) => {

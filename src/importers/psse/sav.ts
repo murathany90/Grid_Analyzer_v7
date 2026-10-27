@@ -189,7 +189,7 @@ export function decodeSav(bytes: Uint8Array, name: string): PsseModel {
   const ratingFields = (index: number): SourceRow => Object.fromEntries(ratings(index).map((rating, i) => [`rate${i + 1}`, rating]));
   const ends = (index: number): [number, number] => [branchFrom[index] + 1, int('Ito', index)];
   for (let i = 0; i < branchCount; i++) {
-    const [from, to] = ends(i), tap = int('Tapno', i), breaker = maybe('Brkno', i) ?? 0;
+    const [from, to] = ends(i), tap = int('Tapno', i), breaker = maybe('Brkno', i) ?? 0, bypass = maybe('Bypass', i);
     if (tap && breaker) throw Error('SAV_BRANCH_HAS_TRANSFORMER_AND_SWITCH_ID');
     if (tap) {
       const index = Math.abs(tap) - 1;
@@ -198,12 +198,12 @@ export function decodeSav(bytes: Uint8Array, name: string): PsseModel {
       continue;
     }
     const ckt = text('Numckt', i, 2), [rpu, xpu] = inverseNegativeAdmittance('Gb', i), [gi, bi] = complex('Gbline', 2 * i), [gj, bj] = complex('Gbline', 2 * i + 1), stat = int('Icom', i);
-    const fields: SourceRow = { savIndex: i + 1, ibus: externalBus(from), jbus: externalBus(to), ckt, rpu, xpu, bpu: 2 * num('B2s', i), ...ratingFields(i), gi, bi, gj, bj, stat, originalStatus: maybe('Orgicom', i), len: num('Linlen', i), meteredBus: externalBus(int('Imeter', i)), owners: linkedOwners('Lnofst', 'Lnonxt', 'Lnonum', 'Lnopct', i), name: label('Brname', i, 40), ratingMask };
+    const fields: SourceRow = { savIndex: i + 1, ibus: externalBus(from), jbus: externalBus(to), ckt, rpu, xpu, bpu: 2 * num('B2s', i), bp: bypass, ...ratingFields(i), gi, bi, gj, bj, stat, originalStatus: maybe('Orgicom', i), len: num('Linlen', i), meteredBus: externalBus(int('Imeter', i)), owners: linkedOwners('Lnofst', 'Lnonxt', 'Lnonum', 'Lnopct', i), name: label('Brname', i, 40), ratingMask };
     if (breaker) {
       const index = breaker - 1;
       fields.switchIndex = breaker; fields.nstat = int('Brknst', index); fields.nstatus = fields.nstat; fields.stype = int('Brktyp', index); fields.sourceBrktyp = fields.stype; fields.sourceBrknst = fields.nstat; fields.ratingSetIndex = int('Brkrsetnum', index); fields.rsetnam = Number(fields.ratingSetIndex) ? text('Rsetname', Number(fields.ratingSetIndex) - 1, 40) : '';
-      branchIds[i] = addEquipment(model, 'switch', `system:${identity(from)}:${identity(to)}:${ckt}`, fields, [bus(from), bus(to)], stat, label('Brknam', index, 40), { status: op(stat, 'Icom', i) }).id;
-    } else branchIds[i] = addEquipment(model, 'line', `${identity(from)}:${identity(to)}:${ckt}`, fields, [bus(from), bus(to)], stat, String(fields.name), { status: op(stat, 'Icom', i) }).id;
+      branchIds[i] = addEquipment(model, 'switch', `system:${identity(from)}:${identity(to)}:${ckt}`, fields, [bus(from), bus(to)], stat, label('Brknam', index, 40), { status: op(stat, 'Icom', i), ...(bypass===null?{}:{bp:op(bypass,'Bypass',i,'code')}) }).id;
+    } else branchIds[i] = addEquipment(model, 'line', `${identity(from)}:${identity(to)}:${ckt}`, fields, [bus(from), bus(to)], stat, String(fields.name), { status: op(stat, 'Icom', i), ...(bypass===null?{}:{bp:op(bypass,'Bypass',i,'code')}) }).id;
   }
   if (transformerBranch.some(index => index < 0)) throw Error('SAV_ORPHAN_TRANSFORMER_WINDING');
   const winding = (index: number) => {
