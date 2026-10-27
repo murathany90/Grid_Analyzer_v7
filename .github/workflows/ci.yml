@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/psse-ac-dc-busbranch-v1]
+    branches: [main, feature/psse-ac-dc-busbranch-v1, fix/psse-v1-real-model-parity]
   pull_request:
     branches: [main]
 

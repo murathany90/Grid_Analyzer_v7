@@ -1,0 +1,46 @@
+{
+  "schema": "ga.psse.v2.final-browser-acceptance.v1",
+  "htmlSha256": "e50035bf2b11826b7af34617be6d988a73a01adc9c350ff3ca981d7d72aaa32d",
+  "htmlBytes": 2510822,
+  "extractedZipFileMode": {
+    "chrome": {
+      "status": "PASS",
+      "browser": "156.0.8078.48",
+      "networkRequests": 0
+    },
+    "msedge": {
+      "status": "PASS",
+      "browser": "156.0.4314.50",
+      "networkRequests": 0
+    }
+  },
+  "actualSource": {
+    "chrome": {
+      "status": "PASS",
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "gaRoute": "PASS",
+      "dc": "LIMITED_PROFILE",
+      "methodOptionStaleness": {
+        "changedMethodHidden": true,
+        "changedOptionsHidden": true,
+        "matchingIdentityRestored": true
+      }
+    },
+    "msedge": {
+      "status": "PASS",
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "gaRoute": "PASS",
+      "dc": "LIMITED_PROFILE",
+      "methodOptionStaleness": {
+        "changedMethodHidden": true,
+        "changedOptionsHidden": true,
+        "matchingIdentityRestored": true
+      }
+    }
+  },
+  "limits": [
+    "Real AC profile BLOCKED; strict DC DIFFERENCES unchanged.",
+    "Chrome reuses verified matching-artifact file-phase evidence and reruns GA/synthetic phase after harness-only fixes; Edge completes all phases in one run.",
+    "Actual model screenshots and detailed dumps stay local."
+  ]
+}

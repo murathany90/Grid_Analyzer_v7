@@ -1,0 +1,3 @@
+
+> grid-analyzer-v7@8.2.5 typecheck
+> tsc --noEmit

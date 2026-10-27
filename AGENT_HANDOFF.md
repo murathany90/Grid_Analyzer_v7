@@ -1,5 +1,15 @@
 # Agent handoff
 
+## V2 correction — current delta (2026-10-27)
+
+- Branch `fix/psse-v1-real-model-parity` starts at verified feature baseline `e3fdc50`; the same checkout/work continues after quota interruption. No main merge. New source is 20261026 1600 SAV (8cc8...60b), not the old 20261014 case.
+- Method gates: DC no longer inherits AC PV-without-generator or false LOADTYPE-physics blocks; RAW droop metadata has the SAV method scope. Tiny licensed experiments prove these changes. Four RAW idle-PV-island preprocessing differences remain blocked. Engine2 separates old result identities; inactive calculated buses have null outputs.
+- Root cause gate2: old/new strict DC max MW remain .246691514/.244676928; no tolerance widening. Original conditioning witness supports precision sensitivity, not a complete vendor-arithmetic explanation. AC real profile remains blocked; failed reference FDNS remains failed.
+- Dedicated PSS/E geography/SLD/Analysis changes and attachment-safe import are saved. Diagram final layout/export and table-first UI acceptance pass. DGS electrical/model/map/SLD source files remain unmodified.
+- New tools: official RAW exporter, cache-only comparison/diagnostic exporters, original V2 fixtures. Source SAV/RAW 239858-field comparison has zero missing IDs and four IDE differences. Local 28-CSV and five-sheet workbook export separates source/calculated/reference, with blank blocked GA AC fields; public evidence is aggregate only.
+- Root final guard narrows the droop exception to named source findings; unrelated partial-source ERROR/WARNING stays BLOCKED (negative test). First full run caught the DGS generic JSON-only reader regression; corrected in `e12b774`, focused14/14 and the final complete860/860 (zero skips) pass. Full nine-suite DGS E2E, final lint/typecheck, standard and portable builds pass. Portable raw bytes match committed HEAD.
+- Implementation commits: `4bb80ad` core/oracle proof, `50196f5` independent workspace/attachments, `e12b774` baseline DGS JSON-reader contract. `6cc1a7e` adds shared identity admission/publication with32/32 focused and860/860 full tests. Sol reviewed the corrected guard with no further critical defect; quota then ended both agents. Parent completed Chrome/Edge extracted artifact and actual new-source file/GA-route acceptance on e50035bf...a32d (all PASS; Chrome matching-file-phase reuse recorded). Remote CI/push proof is recorded only for the final matching head in delivery metadata. V1 evidence below is historical, not reused as V2 execution proof.
+
 ## Gate A — architecture (2026-10-27)
 
 - Architect review complete at base `6ed2aaf527ea245948ffe7344bc6d7c73b63b389`; no feature code or commits created by the architect.

@@ -1,0 +1,124 @@
+{
+  "schema": "ga.psse.v2.native-browser.v1",
+  "status": "PASS",
+  "channel": "msedge",
+  "browser": "156.0.4314.50",
+  "htmlSha256": "e50035bf2b11826b7af34617be6d988a73a01adc9c350ff3ca981d7d72aaa32d",
+  "htmlBytes": 2510822,
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "urlSchemes": [
+    "file:",
+    "http:"
+  ],
+  "sourceHashes": {
+    "savSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+    "sourceZipSha256": "8de0c179a0122c1ab4aaada655064247384545ccf0167a3ae8aeffadf407b0e1"
+  },
+  "sourceCounts": {
+    "bus": 6875,
+    "line": 2414,
+    "transformer": 3715,
+    "generator": 2932,
+    "load": 2516
+  },
+  "loadMs": {
+    "fileSav": 3784,
+    "fileDc": 5744,
+    "originalSourceZip": 1969,
+    "gaRoute": 20436
+  },
+  "dc": {
+    "numericalStatus": "CONVERGED",
+    "publicationStatus": "LIMITED_PROFILE",
+    "physicsCoverage": "PARTIAL",
+    "busCount": 6875,
+    "vmValuesUnavailable": true,
+    "iterations": 1,
+    "maxPMismatchPu": 7.884353829534785e-12,
+    "identity": {
+      "schema": "ga.psse.calculation-identity.v1",
+      "mode": "PSSE",
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "modelHash": "6ed1aa0db6b78d15e51ebe0fec6ea0d8ed4e92d52d3bfc4a3ba2610384f42944",
+      "topologyHash": "957011fdb29981e177f9a2b8688087ea472cb075a32548e024e3531bb75d92c4",
+      "normalizedModelHash": "6ed1aa0db6b78d15e51ebe0fec6ea0d8ed4e92d52d3bfc4a3ba2610384f42944",
+      "normalizedRevision": "psse-normalize-1",
+      "scenarioHash": "156b9bacdb1cf03d46014d3697d29cd8eb3b982f49d3d7d732df1d87c500a198",
+      "solver": "LOSSLESS_DC",
+      "engineVersion": "GA_PSSE_ENGINE_2",
+      "algorithmId": "LOSSLESS_DC",
+      "algorithmRevision": "lossless-dc-1",
+      "controlPolicyId": "FIXED_CONTROLS",
+      "controlPolicyRevision": "fixed-controls-1",
+      "optionsHash": "750c1cb7a9cea93707d7317ed959a2959490486a934446078df2673a16248b22",
+      "resultSchemaRevision": "psse-result-1",
+      "initialVoltagePolicy": "FLAT_REFERENCE",
+      "id": "psse-0bc707636e41e22792be6d8fc04db244d92ff3bee0362365382072967720ea75"
+    }
+  },
+  "acReadiness": "NR_POLAR and FDNS_XB actually ran and returned structured BLOCKED; no worker exception",
+  "attachments": {
+    "count": 5,
+    "formats": [
+      "IEC",
+      "GCP",
+      "MON",
+      "CON",
+      "INVENTORY_JSON"
+    ],
+    "inventoryJsonDownload": true,
+    "iecDownload": true
+  },
+  "mixedMemberSelected": true,
+  "cancellation": {
+    "sourceChangedDuringCalculation": true,
+    "newMode": "DGS MODU",
+    "stalePsseResultVisible": false,
+    "elapsedMs": 2819
+  },
+  "staleReference": {
+    "validReferenceMatched": true,
+    "foreignShaRejected": true,
+    "priorMatchVisible": false
+  },
+  "workerDiagnostic": {
+    "visible": true,
+    "phase": "CALCULATION",
+    "stackVisible": true
+  },
+  "heapSnapshots": {
+    "afterSavLoad": {
+      "kind": "point-in-time; not peak",
+      "scope": "main frame only",
+      "usedBytes": 435000000
+    },
+    "afterDc": {
+      "kind": "point-in-time; not peak",
+      "scope": "main frame only",
+      "usedBytes": 724925220,
+      "totalBytes": 790011904,
+      "embedderBytes": 52335840,
+      "backingBytes": 12640380
+    }
+  },
+  "network": {
+    "externalRequests": 0,
+    "consoleErrors": []
+  },
+  "failedStep": null,
+  "originalSourceZip": true,
+  "gaRoute": {
+    "status": "PASS",
+    "modelCountsMatch": true,
+    "inventoryAttachmentsVisible": true,
+    "dcPublication": "LIMITED_PROFILE"
+  },
+  "methodOptionStaleness": {
+    "changedMethodHidden": true,
+    "changedOptionsHidden": true,
+    "matchingIdentityRestored": true
+  }
+}

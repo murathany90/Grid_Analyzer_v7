@@ -7,24 +7,27 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {zipSync,unzipSync,strToU8} from 'fflate';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const output=path.resolve(process.argv[2]??path.join(os.homedir(),'Downloads','GA_PSSE_AC_DC_OFFLINE_TEST.zip'));
-const base='6ed2aaf527ea245948ffe7344bc6d7c73b63b389';
+const output=path.resolve(process.argv[2]??path.join(os.homedir(),'Downloads','GA_PSSE_AC_DC_OFFLINE_TEST_FIXED.zip'));
+const base='e3fdc50d23c4ddea47c8e746853db25c19478458';
 const git=(...args)=>execFileSync('git',args,{cwd:root,maxBuffer:64*1024*1024});
 const entries=Object.create(null),sha=b=>createHash('sha256').update(b).digest('hex');
 function add(name,data){if(/(^|\/)\.\.(\/|$)|^[\/\\]|\.(?:sav|raw|rawx|dll|pyd|exe|pyc)$/i.test(name))throw Error('Forbidden distribution entry: '+name);if(entries[name])throw Error('Duplicate distribution entry: '+name);entries[name]=new Uint8Array(data);}
 function file(source,target=source){add(target,fs.readFileSync(path.join(root,source)));}
 function directory(source,target,select=()=>true){const parent=path.join(root,source);if(!fs.existsSync(parent))return;for(const entry of fs.readdirSync(parent,{withFileTypes:true})){const relative=source+'/'+entry.name,destination=target+'/'+entry.name;if(entry.isDirectory())directory(relative,destination,select);else if(entry.isFile()&&select(relative))file(relative,destination);}}
 file('dist-psse/index.html','index.html');file('dist-psse/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt');
-for(const name of ['AGENT_HANDOFF.md','ARCHITECTURE_DECISIONS.md','DGS_REGRESSION_REPORT.md','MODEL_FIDELITY_REPORT.md','PERFORMANCE_REPORT.md','PSSE_SOLVER_RESEARCH.md','PSSE_AC_DC_PARITY_REPORT.md'])file(name,name);
+for(const name of ['AGENT_HANDOFF.md','ARCHITECTURE_DECISIONS.md','BUG_ROOT_CAUSE.md','DGS_REGRESSION_REPORT.md','MODEL_FIDELITY_REPORT.md','PERFORMANCE_REPORT.md','PSSE_SOLVER_RESEARCH.md','PSSE_AC_DC_PARITY_REPORT.md','UI_DGS_PSSE_PARITY.md'])file(name,name);
 file('docs/PSSE_NATIVE_README_TR.md','README_TR.md');
 directory('src','source/src',name=>/\.(?:ts|mts|css|svg|mjs)$/i.test(name)||/(?:^|\/)(?:LICENSE|LICENSE\.txt|THIRD_PARTY_LICENSES\.txt)$/i.test(name));
 directory('licenses','source/licenses',name=>/-LICENSE(?:\.txt)?$/i.test(name));
 for(const name of fs.readdirSync(path.join(root,'tests/unit')).filter(n=>n.startsWith('psse-')&&n.endsWith('.test.ts')))file('tests/unit/'+name,'source/tests/unit/'+name);
 for(const name of fs.readdirSync(path.join(root,'tests/fixtures')).filter(n=>n.startsWith('psse-')&&n.endsWith('.ts')))file('tests/fixtures/'+name,'source/tests/fixtures/'+name);
 file('tests/fixtures/small-dgs.json','source/tests/fixtures/small-dgs.json');
-for(const name of ['build-psse-web.mjs','package-psse-web.mjs','psse-synthetic-cases.ts','psse-offline-browser.mjs','psse-native-mode-browser.mjs','psse-diagrams-browser.mjs','psse-diagrams-harness.html','psse-diagrams-harness.ts','psse-parity.ts','psse-parity-report.py','psse-reference.py','psse_reference_io.py','psse-reference-index.py','psse-dc-contraction-experiment.ts','psse-dc-diagnostic.ts','psse-fixed-q-diagnostic.py','psse-q-state-reference.py','psse-threshold-metadata.py','psse-pqbrak-metadata.py','psse-generate-sav.py'])if(fs.existsSync(path.join(root,'tools',name)))file('tools/'+name,'source/tools/'+name);
+for(const name of ['build-psse-web.mjs','package-psse-web.mjs','psse-synthetic-cases.ts','psse-v2-fixtures.ts','psse-v2-native-browser.mjs','psse-v2-export-comparison.ts','psse-v2-dc-diagnose.ts','psse-v2-dc-arithmetic-probe.ts','psse-v2-dc-tiny-precision.ts','psse-v2-dc-tiny-precision-report.ts','psse-offline-browser.mjs','psse-native-mode-browser.mjs','psse-diagrams-browser.mjs','psse-diagrams-harness.html','psse-diagrams-harness.ts','psse-parity.ts','psse-parity-report.py','psse-reference.py','psse_reference_io.py','psse-reference-index.py','psse-dc-contraction-experiment.ts','psse-dc-diagnostic.ts','psse-fixed-q-diagnostic.py','psse-q-state-reference.py','psse-threshold-metadata.py','psse-pqbrak-metadata.py','psse-generate-sav.py','psse-export-raw.py'])if(fs.existsSync(path.join(root,'tools',name)))file('tools/'+name,'source/tools/'+name);
 directory('evidence/psse-ac-dc','evidence/psse-ac-dc',name=>/\.(?:json|png|log)$/i.test(name));
-directory('local-benchmark-results/psse-offline-browser','evidence/offline-browser',name=>/\.(?:json|png)$/i.test(name));
+directory('evidence/psse-v2','evidence/psse-v2',name=>/\.(?:json|png|csv|log)$/i.test(name));
+directory('evidence/psse-ui-parity','evidence/psse-ui-parity',name=>/\.(?:json|png)$/i.test(name));
+file('evidence/psse-v2/GEO_PROVENANCE.csv','GEO_PROVENANCE.csv');
+file('evidence/psse-v2/TM_KOORDINAT_ESLEME_SABLONU.csv','TM_KOORDINAT_ESLEME_SABLONU.csv');
 for(const name of ['package.json','package-lock.json','vite.config.ts','tsconfig.json','.gitattributes'])file(name,'source/'+name);
 const revisions=git('rev-list','--reverse',base+'..HEAD').toString().trim().split(/\s+/).filter(Boolean);
 revisions.forEach((revision,index)=>add(`git/${String(index+1).padStart(2,'0')}-${revision.slice(0,12)}.patch`,git('format-patch','-1',revision,'--stdout')));

@@ -1,0 +1,22 @@
+✔ energization rollback and undo are atomic, preserve prior and later explicit edits, and shared prerequisites (4.1078ms)
+✔ explicit calculation role uses empty base while preserving and isolating the active scenario (0.268ms)
+✔ typed engineering/raw CSV uses deterministic Turkish decimals, BOM/sep and formula guards (0.5123ms)
+✔ P/Q magnitude and V station aggregation respect missing values, voltage filters and terminal identity (0.5179ms)
+✔ full SVG export clones the logical fit box without mutating a panned/zoomed live viewport (0.1936ms)
+✔ full station keeps 23/34 feeders and every voltage level, with actual selector switch paths (0.8618ms)
+✔ browser ZIP loader accepts JSON, single/multiple JSON ZIP and rejects corruption, traversal and bombs (38.4513ms)
+✔ native archive extension selection preserves the default DGS JSON reader (5.662ms)
+✔ native model selection rejects JSON caches and unsafe paths (2.001ms)
+✔ native SAV ZIP corruption cannot become a model (0.3225ms)
+✔ PSS/E ZIP companion files remain opaque attachments and inventory JSON is not mistaken for DGS or RAWX (3.684ms)
+✔ source operating numbers sort numerically and preserve negative values and provenance (6.6607ms)
+✔ native inventory query applies source IDs, voltage and status without inventing missing values (0.4162ms)
+✔ native inventory pagination clamps pages and limits transfers to 100 rows (0.4666ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 476.4431

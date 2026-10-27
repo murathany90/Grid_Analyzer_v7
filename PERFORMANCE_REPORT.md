@@ -1,10 +1,31 @@
 # Offline performance report
 
+## V2 new-source measurements
+
+The current cache-only Engine2 parity run uses the requested 6,875-bus / 8,700-normalized-branch SAV, not the historical 6,851-bus case. It completes DC in **2,257.961 ms**, one sparse solve, max active-P residual **7.88435e-12 pu**. The old case on Engine2 takes 2,412 ms in the same retained run. These are single local Node measurements while other checks were running, not medians or browser benchmarks. Reference PSS/E solves were reused by source/method/options hashes.
+
+Readiness and contraction now index source equipment once per audit and use a set of active-generator buses. The former repeated equipment scans are removed. The post-fix GA route proof (`evidence/psse-v2/ga-dev-route-smoke.json`) loads the new SAV in 5.244 s and performs DC in 3.557 s; both AC methods safely return BLOCKED. This route proof predates the last presentation-only build; final file-mode artifact/browser measurements are recorded separately when that build is frozen. A BLOCKED response is not an AC scalability/convergence pass.
+
+Geography indexes 1,625 source station coordinates and 6,581 exact source-name bus associations, with 294 unmatched buses. The drawing uses cached geography, viewport filtering and bounded visible topology/SLD neighborhoods, rather than rendering 6,875 busbars in one sheet. Actual source coordinate rows and model screenshots remain private. Main-frame heap snapshots do not measure worker heaps or peak process memory.
+
+## Final V2 extracted artifact and actual-model browser measurements
+
+HTML `e50035bf2b11826b7af34617be6d988a73a01adc9c350ff3ca981d7d72aaa32d`, 2,510,822 bytes. Both extracted-file browser runs pass with zero external requests and no console/page errors. The actual-source runs exercise real NR/FDNS BLOCKED dispatch, DC, cancellation, mixed ZIP/attachments, worker diagnostics and reference/stale guards. Timings are single headless observations on this machine, not medians.
+
+| Browser | Page load ms | Synthetic NR / FDNS / DC ms | New SAV load ms | Real DC UI ms | GA mixed-ZIP load + DC ms | Main-frame heap after DC MB |
+|---|---:|---:|---:|---:|---:|---:|
+| chrome 156.0.8078.48 | 282 | 95 / 103 / 63 | 3294 | 4816 | 15203 | 1292.2 |
+| msedge 156.0.4314.50 | 266 | 82 / 91 / 66 | 3784 | 5744 | 20436 | 724.9 |
+
+Heap measurements are point-in-time main-frame snapshots, **not peak process or worker memory**. Chrome's retained heap is substantially larger than Edge's in these observations; garbage-collection timing and retained native inspection/result data affect it. Worker/peak memory is NOT_MEASURED, and this is not a bounded-memory certification. Edge additionally imports the original requested ZIP in 1969 ms and validates its SAV hash plus five attachments. Chrome reuses the previously completed matching-byte file phase and freshly reruns GA/synthetic checks after harness fixes. Public proof: `evidence/psse-v2/browser-acceptance.json` and `native-browser/`; actual screenshots remain private.
+
+## Historical V1 measurements
+
 **Measured:** 2026-10-27
-**Artifact:** current standalone `dist-psse/index.html`, packaged as the `index.html` ZIP member
+**Historical V1 artifact:** standalone HTML packaged as the V1 `index.html` member
 **SHA-256:** `8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235`
 
-The standalone HTML is **2,470,180 bytes** (about 2.36 MiB). It includes the application IIFE, styles, worker code, and required runtime data. The page runs from `file://`, uses Blob workers, and sets `connect-src 'none'`; no web service, CDN, or online runtime is used. This hash matches the `index.html` member extracted from the preliminary ZIP in Downloads; the post-commit delivery archive will be repacked after CI.
+The historical V1 standalone HTML was **2,470,180 bytes** (about 2.36 MiB). It includes the application IIFE, styles, worker code and required runtime data; file mode uses Blob workers and no online runtime. V2 measurements and its final hash are recorded separately; historical timings are not reused as V2 evidence.
 
 ## Extracted-file browser results
 

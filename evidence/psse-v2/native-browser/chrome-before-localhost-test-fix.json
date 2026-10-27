@@ -1,0 +1,81 @@
+{
+  "schema": "ga.psse.v2.native-browser.v1",
+  "status": "FAIL",
+  "channel": "chrome",
+  "browser": "156.0.8078.48",
+  "htmlSha256": "e50035bf2b11826b7af34617be6d988a73a01adc9c350ff3ca981d7d72aaa32d",
+  "htmlBytes": 2510822,
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "urlSchemes": [
+    "file:",
+    "http:"
+  ],
+  "sourceHashes": {
+    "savSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+    "sourceZipSha256": "8de0c179a0122c1ab4aaada655064247384545ccf0167a3ae8aeffadf407b0e1"
+  },
+  "sourceCounts": {
+    "bus": 6875,
+    "line": 2414,
+    "transformer": 3715,
+    "generator": 2932,
+    "load": 2516
+  },
+  "loadMs": {
+    "fileSav": 4832,
+    "fileDc": 8360
+  },
+  "dc": {
+    "numericalStatus": "CONVERGED",
+    "publicationStatus": "LIMITED_PROFILE",
+    "physicsCoverage": "PARTIAL",
+    "busCount": 6875,
+    "vmValuesUnavailable": true
+  },
+  "acReadiness": "NR_POLAR and FDNS_XB actually ran and returned structured BLOCKED; no worker exception",
+  "attachments": {
+    "count": 5,
+    "formats": [
+      "IEC",
+      "GCP",
+      "MON",
+      "CON",
+      "INVENTORY_JSON"
+    ],
+    "inventoryJsonDownload": true,
+    "iecDownload": true
+  },
+  "mixedMemberSelected": true,
+  "cancellation": {
+    "sourceChangedDuringCalculation": true,
+    "newMode": "DGS MODU",
+    "stalePsseResultVisible": false,
+    "elapsedMs": 3774
+  },
+  "staleReference": null,
+  "workerDiagnostic": null,
+  "heapSnapshots": {
+    "afterSavLoad": {
+      "kind": "point-in-time; not peak",
+      "scope": "main frame only",
+      "usedBytes": 386000000
+    },
+    "afterDc": {
+      "kind": "point-in-time; not peak",
+      "scope": "main frame only",
+      "usedBytes": 1021078104,
+      "totalBytes": 1069383680,
+      "embedderBytes": 80972064,
+      "backingBytes": 15774893
+    }
+  },
+  "network": {
+    "externalRequests": 0,
+    "consoleErrors": []
+  },
+  "failedStep": "ga-route",
+  "errorClass": "Error"
+}

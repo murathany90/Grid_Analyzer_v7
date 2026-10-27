@@ -1,0 +1,51 @@
+{
+  "schema": "ga.dgs.v2-regression.v1",
+  "command": "npm run test:e2e",
+  "exitCode": 0,
+  "suites": 9,
+  "log": "final-dgs-e2e.log",
+  "logSha256": "aace5364f69f5f0193e645824f069ff08faf5df4a419c7e8fe8db78c0ef53c1d",
+  "protectedDgsSourceDiff": "none",
+  "sameViewport": {
+    "width": 1600,
+    "height": 1000,
+    "images": [
+      {
+        "view": "analysis",
+        "sha256": "15dd13f3566158365095082e465e23abd9c671d969fb4731d7d7ed3a6977b16b",
+        "identical": true
+      },
+      {
+        "view": "map",
+        "sha256": "efd75498c3a1f6487278462a8a1b8a1f342419c48d8d194e3c2bd01a0b1a62ff",
+        "identical": true
+      },
+      {
+        "view": "sld",
+        "sha256": "a5c585d3d2de035a3a5ff3f718883b753366bcbee50ba446ed9542d2c4f004a8",
+        "identical": true
+      }
+    ]
+  },
+  "sharedShellChanges": "JSON candidate identification + opaque PSSE attachments, mode/error/result isolation; DGS numerical modules unchanged",
+  "unitRegression": {
+    "tests": 860,
+    "pass": 860,
+    "fail": 0,
+    "skip": 0,
+    "log": "final-tests.log",
+    "sha256": "0313c80029613eb6142e22c05daa4d81c5816d5681f2a8bcbd1a4718728a4809"
+  },
+  "jsonReaderCorrection": {
+    "initialPass": 857,
+    "initialFail": 1,
+    "targetedRepairPass": 14,
+    "change": "Generic JSON-only archive reader retains baseline candidates; inventory classification applies to PSS/E/mixed picker only"
+  },
+  "currentResultGuard": {
+    "focusedTests": 32,
+    "pass": 32,
+    "log": "final-current-result-guard.log",
+    "scope": "old-engine/source/topology/method/options/id rejection; genuine NR/FDNS/DC and scenario topology admission"
+  }
+}

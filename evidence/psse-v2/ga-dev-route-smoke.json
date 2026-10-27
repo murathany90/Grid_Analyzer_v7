@@ -1,0 +1,58 @@
+{
+  "schema": "ga.psse.v2-route-smoke.v1",
+  "status": "PASS_WITH_METHOD_LIMITATIONS",
+  "route": "http://127.0.0.1:5190/",
+  "browser": "Chrome 156",
+  "source": {
+    "family": "private local PSS/E SAV; source bytes and hash excluded",
+    "counts": {
+      "buses": 6875,
+      "lines": 2414,
+      "transformers": 3715,
+      "generators": 2932,
+      "loads": 2516,
+      "fixedAndSwitchedShunts": 137,
+      "systemSwitches": 2571,
+      "substations": 1625
+    }
+  },
+  "loadMs": 5244,
+  "methods": {
+    "NR_POLAR": {
+      "status": "BLOCKED",
+      "physicsCoverage": "BLOCKED",
+      "primaryCauses": [
+        "AC_IDEAL_LINK_CONTRACTION_UNSUPPORTED",
+        "ACTIVE_UNSUPPORTED_EQUIPMENT"
+      ]
+    },
+    "FDNS_XB": {
+      "status": "BLOCKED",
+      "physicsCoverage": "BLOCKED",
+      "primaryCauses": [
+        "AC_IDEAL_LINK_CONTRACTION_UNSUPPORTED",
+        "ACTIVE_UNSUPPORTED_EQUIPMENT"
+      ]
+    },
+    "LOSSLESS_DC": {
+      "status": "CONVERGED",
+      "publicationStatus": "LIMITED_PROFILE",
+      "physicsCoverage": "PARTIAL",
+      "iterations": 1,
+      "elapsedMs": 3557,
+      "maxActivePowerResidualPu": 7.884353829534785e-12,
+      "informationalReactiveControlOmissions": 1878
+    }
+  },
+  "runtimeErrors": {
+    "console": [],
+    "page": [],
+    "failedHttpResponses": []
+  },
+  "limits": [
+    "AC is not claimed equivalent for the unsupported voltage-droop/ideal-link controls.",
+    "DC solves angles and active power only; Vm, Q, current and AC losses are unavailable.",
+    "Strict DC comparison remains DIFFERENCES; see parity-lossless_dc-v2-new.json."
+  ],
+  "privateModelIncluded": false
+}

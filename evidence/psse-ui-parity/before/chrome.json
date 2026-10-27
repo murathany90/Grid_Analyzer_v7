@@ -1,0 +1,23 @@
+{
+  "schema": "ga.psse.diagrams-browser.v1",
+  "phase": "before",
+  "channel": "chrome",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "status": "PASS",
+  "screenshots": [
+    "dgs-map.png",
+    "dgs-analysis.png",
+    "dgs-sld.png",
+    "psse-map.png",
+    "psse-analysis.png",
+    "psse-sld.png"
+  ],
+  "errors": [],
+  "blockedExternal": [],
+  "browserVersion": "156.0.8078.48",
+  "dgsMode": "DGS MODU",
+  "psseMode": "PSS/E MODU"
+}

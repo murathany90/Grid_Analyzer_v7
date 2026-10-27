@@ -1,0 +1,152 @@
+{
+  "schema": "ga.psse.diagrams-browser.v1",
+  "phase": "after",
+  "channel": "chrome",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "status": "PASS",
+  "screenshots": [
+    "dgs-map.png",
+    "dgs-analysis.png",
+    "dgs-sld.png",
+    "psse-map.png",
+    "psse-analysis.png",
+    "psse-sld.png",
+    "psse-map-calculated.png",
+    "psse-sld-calculated.png",
+    "psse-sld-three-winding.png"
+  ],
+  "errors": [],
+  "blockedExternal": [],
+  "browserVersion": "156.0.8078.48",
+  "dgsMode": "DGS MODU",
+  "psseMode": "PSS/E MODU",
+  "sldConnectivity": {
+    "ordinary": 3,
+    "ordinaryConnected": 3,
+    "three": 0,
+    "threeConnected": 0,
+    "devices": 3,
+    "deviceConnected": 3,
+    "symbols": 3,
+    "symbolKinds": [
+      "generator",
+      "load"
+    ],
+    "deviceLabels": [
+      true,
+      true,
+      true
+    ],
+    "busPositions": [
+      {
+        "id": "bus:1",
+        "x1": 148,
+        "x2": 212,
+        "y": 337
+      },
+      {
+        "id": "bus:2",
+        "x1": 983,
+        "x2": 1047,
+        "y": 256.66666666666663
+      },
+      {
+        "id": "bus:3",
+        "x1": 983,
+        "x2": 1047,
+        "y": 417.3333333333333
+      }
+    ],
+    "minSameLaneSpacing": 160.66666666666669,
+    "contentBounds": {
+      "minX": 142.6953125,
+      "minY": 227.6666717529297,
+      "maxX": 1052.6357421875,
+      "maxY": 504.3333435058594
+    },
+    "viewBox": {
+      "x": 98.33333587646484,
+      "y": 60,
+      "width": 983.3333129882812,
+      "height": 600
+    },
+    "svgBottom": 891.828125,
+    "viewportHeight": 1000,
+    "svgHeight": 600
+  },
+  "sldSvgExport": {
+    "status": "PASS",
+    "filename": "psse-tek-hat-1c61707fa08b.svg",
+    "containsProvenance": true,
+    "containsStyles": true
+  },
+  "calculatedLayer": "CONVERGED production solver result for synthetic fixture",
+  "threeWindingPorts": [
+    {
+      "bus": true,
+      "winding": 1,
+      "end": {
+        "x": 736.6666870117188,
+        "y": 319
+      },
+      "port": {
+        "x": 736.6666666666666,
+        "y": 318.99999999999994
+      },
+      "center": {
+        "x": 736.6666666666666,
+        "y": 336.99999999999994
+      }
+    },
+    {
+      "bus": true,
+      "winding": 2,
+      "end": {
+        "x": 736.6666870117188,
+        "y": 355
+      },
+      "port": {
+        "x": 736.6666666666666,
+        "y": 354.99999999999994
+      },
+      "center": {
+        "x": 736.6666666666666,
+        "y": 336.99999999999994
+      }
+    },
+    {
+      "bus": true,
+      "winding": 3,
+      "end": {
+        "x": 762.6666870117188,
+        "y": 337
+      },
+      "port": {
+        "x": 762.6666666666666,
+        "y": 336.99999999999994
+      },
+      "center": {
+        "x": 736.6666666666666,
+        "y": 336.99999999999994
+      }
+    }
+  ],
+  "diagramChecks": {
+    "turkeyBasemap": "PASS",
+    "lowVoltage36Inclusive": "PASS",
+    "searchableTopology": "PASS",
+    "panZoom": "PASS",
+    "fullscreen": "PASS",
+    "mapPngExport": "PASS",
+    "sldSvgExport": "PASS",
+    "busbarPorts": "PASS",
+    "devicePorts": "PASS",
+    "viewportFit": "PASS",
+    "calculatedLayers": "PASS",
+    "threeWindingThreeLegs": "PASS",
+    "internalStarBusbars": 0
+  }
+}

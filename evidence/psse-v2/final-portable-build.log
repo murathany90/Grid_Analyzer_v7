@@ -1,0 +1,15 @@
+
+> grid-analyzer-v7@8.2.5 build:portable
+> vite build --mode portable
+
+vite v8.3.1 building client environment for portable...
+
+ WARN  inlineDynamicImports option is deprecated, please use codeSplitting: false instead.
+
+transforming...
+✓ 271 modules transformed.
+rendering chunks...
+computing gzip size...
+dist-portable/GridAnalyzer_v7.html  2,540.87 kB │ gzip: 834.76 kB
+
+✓ built in 508ms
