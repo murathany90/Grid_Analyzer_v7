@@ -47,7 +47,7 @@ export async function inspectModelFile(file:File,options:{extensions?:readonly s
     total+=size;if(size>MAX_MODEL||total>2*1024**3||size/Math.max(1,compressedSize)>1000)throw failure('açılmış boyut / sıkıştırma oranı güvenlik sınırını aşıyor.');
     const entry={name,size,compressedSize,offset,method,crc},extension=name.split('.').at(-1)?.toLowerCase();allEntries.push(entry);
     if(['iec','gcp','mon','con'].includes(extension??'')){if(flags&1||![0,8].includes(method)||offset+30+compressedSize>directoryOffset)throw failure(`şifreli, desteklenmeyen veya bozuk ${extension?.toUpperCase()} yan dosyası.`);attachments.push(entry);}
-    if(extension==='json'){
+    if(extension==='json'&&!jsonOnly){
       if(flags&1||![0,8].includes(method)||offset+30+compressedSize>directoryOffset)throw failure('şifreli, desteklenmeyen veya bozuk JSON girdisi.');
       if(await isDgsModelJson(await extractEntry(entry))){if(supported(name))entries.push(entry);}else attachments.push(entry);
       continue;
