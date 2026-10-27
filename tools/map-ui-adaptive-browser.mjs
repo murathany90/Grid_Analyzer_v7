@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {createServer} from 'vite';
 import {chromium} from 'playwright';
 import {readFile} from 'node:fs/promises';
+import {zipSync,strToU8} from 'fflate';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fixture=path.join(root,'tests','fixtures','small-dgs.json');
@@ -171,6 +172,93 @@ try{
       await sldVoltages.locator('input[data-help-id="map.voltage.154"]').check();
       await page.waitForTimeout(300);
       check('re-checking bands restores the SLD site list',await sldSites.locator('option').count()===siteOptionsBefore);
+      await page.getByRole('button',{name:'Şebeke Modeli',exact:true}).click();
+      await page.locator('.ga-model-view').waitFor();
+      // --- model file input hygiene: CRC failure keeps the input re-usable ---
+      const modelAName=await page.locator('.ga-head-model').textContent();
+      const zipA=zipSync({'model-a.json':strToU8(JSON.stringify(visualRaw))},{level:0});
+      const corrupt=Buffer.from(zipA);corrupt[corrupt.length>>1]^=0xff;
+      await page.locator('#modelFileInput').setInputFiles({name:'corrupt.zip',mimeType:'application/zip',buffer:corrupt});
+      await page.waitForFunction(()=>/Model yüklenemedi/.test(document.querySelector('footer [role=status]')?.textContent||''));
+      check('ZIP CRC failure surfaces a Turkish error and keeps the app alive',errors.length===0);
+      check('failed load clears the file input for re-picking',await page.locator('#modelFileInput').evaluate(el=>el.value===''));
+      // --- multi-JSON ZIP: selection dialog, cancel path, then explicit pick ---
+      const modelB=JSON.parse(JSON.stringify(visualRaw));
+      modelB.ElmSite.Values[0][modelB.ElmSite.Attributes.indexOf('loc_name')]='B Model Station';
+      const zipMulti=zipSync({'a-model.json':strToU8(JSON.stringify(visualRaw)),'b-model.json':strToU8(JSON.stringify(modelB))},{level:0});
+      const zipDialog=page.locator('dialog[aria-label="ZIP içinden model seç"]');
+      await page.locator('#modelFileInput').setInputFiles({name:'multi.zip',mimeType:'application/zip',buffer:Buffer.from(zipMulti)});
+      await zipDialog.waitFor();
+      await zipDialog.getByRole('button',{name:'Vazgeç'}).click();
+      await page.waitForTimeout(250);
+      check('ZIP dialog cancel clears the file input',await page.locator('#modelFileInput').evaluate(el=>el.value===''));
+      await page.locator('#modelFileInput').setInputFiles({name:'multi.zip',mimeType:'application/zip',buffer:Buffer.from(zipMulti)});
+      await zipDialog.waitFor();
+      await zipDialog.locator('select[aria-label="ZIP JSON dosyası"]').selectOption({index:1});
+      await zipDialog.getByRole('button',{name:'Seçilen JSON’u yükle'}).click();
+      const previousHeader=modelAName??'';
+      await page.waitForFunction(prev=>document.querySelector('.ga-head-model')?.textContent?.trim()&&document.querySelector('.ga-head-model').textContent!==prev,previousHeader,{timeout:30000});
+      const modelBName=await page.locator('.ga-head-model').textContent();
+      check('second ZIP entry loads as model B',modelBName!==modelAName,`${modelAName?.slice(0,24)} → ${modelBName?.slice(0,24)}`);
+      await page.getByRole('button',{name:'Harita',exact:true}).click();
+      await page.locator('.ga-map-wrap').waitFor();
+      check('model B starts with a clean display scope',await page.locator('.ga-map-view').getAttribute('data-area-scope')==='ALL'&&await page.locator('.ga-map-view').getAttribute('data-analysis-site-id')===''&&await page.locator('.ga-map-view').getAttribute('data-map-site-id')==='');
+      check('model B does not inherit A result identity',await page.locator('.ga-map-view').getAttribute('data-result-id')==='NOT_RUN');
+      // --- degenerate model (no explicit ElmSite rows): importer derives sites
+      // from the parent hierarchy; the map must render and the YTM menu work ---
+      const modelZero=JSON.parse(JSON.stringify(visualRaw));modelZero.ElmSite.Values=[];
+      await page.locator('#modelFileInput').setInputFiles({name:'zero-sites.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(modelZero))});
+      await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));
+      await page.waitForTimeout(400);
+      const zeroSites=Number(await page.locator('#networkCanvas').getAttribute('data-visible-sites'));
+      check('degenerate no-ElmSite model loads and the map renders',await page.locator('#networkCanvas').getAttribute('data-visible-lines')!==null);
+      await page.locator('.ga-map-view .ga-area-menu>summary').evaluate(el=>{el.parentElement.open=true;});
+      check('degenerate model keeps the YTM menu functional',await page.locator('.ga-map-view .ga-area-menu').isVisible());
+      await page.keyboard.press('Escape');
+      // --- A→B→A: returning to A restores only A's own workspace results ---
+      await page.locator('#modelFileInput').setInputFiles({name:'synthetic-map-visual-dgs.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(visualRaw))});
+      await page.waitForFunction(prev=>document.querySelector('.ga-head-model')?.textContent?.trim()&&document.querySelector('.ga-head-model').textContent!==prev,modelBName,{timeout:30000});
+      await page.waitForTimeout(600);
+      check('A→B→A: model A identity restored',modelAName===await page.locator('.ga-head-model').textContent());
+      check('A→B→A: A workspace result identity restored, B identity not carried',await page.locator('.ga-map-view').getAttribute('data-result-id')===resultId,`id=${(await page.locator('.ga-map-view').getAttribute('data-result-id'))?.slice(0,14)}`);
+      check('A→B→A: display scope reset clean',await page.locator('.ga-map-view').getAttribute('data-area-scope')==='ALL'&&await page.locator('.ga-map-view').getAttribute('data-analysis-site-id')===''&&await page.locator('.ga-map-view').getAttribute('data-map-site-id')==='');
+      // --- N-1 display context: map display churn never runs solvers ---
+      await page.locator('select[aria-label="Benchmark harita analizi"]').selectOption('N1');
+      const n1Runs=Number(await page.locator('.ga-map-view').getAttribute('data-run-count'));
+      await page.locator('.ga-map-view .ga-area-menu>summary').evaluate(el=>{el.parentElement.open=true;});
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Temizle'}).click();
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Tümünü seç'}).click();
+      await page.keyboard.press('Escape');
+      check('N-1 display context: YTM churn triggers zero solver runs',Number(await page.locator('.ga-map-view').getAttribute('data-run-count'))===n1Runs);
+      // --- SC panel TM focus must not conflict with the map YTM scope ---
+      await page.locator('.ga-map-view .ga-area-menu>summary').evaluate(el=>{el.parentElement.open=true;});
+      const areaBoxes=page.locator('.ga-map-view .ga-area-menu .ga-area-list input');
+      if(await areaBoxes.count()>1)await areaBoxes.nth(1).uncheck();
+      await page.keyboard.press('Escape');
+      const scopedSites=await page.locator('#networkCanvas').getAttribute('data-visible-sites');
+      await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();
+      await page.locator('.ga-lightning').getByRole('button',{name:'Kısa Devre',exact:true}).click();
+      await page.locator('.ga-lightning-sc-panel').waitFor();
+      const scTm=page.locator('select[aria-label="Seçili TM"]');
+      const focusId=await scTm.locator('option').nth(1).getAttribute('value');
+      await scTm.selectOption({index:1});
+      await page.waitForTimeout(300);
+      check('SC panel TM focus overrides the YTM display scope (no contradiction)',await page.locator('#networkCanvas').getAttribute('data-visible-sites')==='1'&&await page.locator('.ga-map-view').getAttribute('data-map-site-id')===focusId,`site=${focusId} visible=${await page.locator('#networkCanvas').getAttribute('data-visible-sites')}`);
+      await scTm.selectOption('');
+      await page.waitForTimeout(200);
+      check('clearing the SC TM focus restores the YTM-scoped view',await page.locator('#networkCanvas').getAttribute('data-visible-sites')===scopedSites);
+      await page.locator('.ga-lightning').getByRole('button',{name:'Kapat',exact:true}).click().catch(()=>{});
+      await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();
+      // --- capacity: map choice is display-only, engineering session untouched ---
+      await page.locator('select[aria-label="Benchmark harita analizi"]').selectOption('');
+      await page.locator('.ga-map-options>summary').click();
+      await page.locator('select[aria-label="Harita kapasite sınırı"]').selectOption('summer');
+      await page.keyboard.press('Escape');
+      check('map keeps its own capacity display choice',await page.locator('.ga-map-view').getAttribute('data-capacity-season')==='summer');
+      check('map capacity choice leaves the engineering session untouched',await page.locator('.ga-map-view').getAttribute('data-session-capacity-season')==='nominal',`session=${await page.locator('.ga-map-view').getAttribute('data-session-capacity-season')}`);
+      await page.locator('.ga-map-options>summary').click();
+      await page.locator('select[aria-label="Harita kapasite sınırı"]').selectOption('inherit');
+      await page.keyboard.press('Escape');
       check('no page errors during acceptance',errors.length===0,errors.join(' | '));
     }
     await context.close();

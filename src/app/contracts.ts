@@ -20,7 +20,14 @@ export interface CatalogRow { id: string; name: string; siteIds: string[]; attri
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 /** Map-only display scope. Never feeds calculation scope, result identity or caches of results. */
 export type MapAreaScopeMode = 'ALL' | 'NONE' | 'SELECTED';
-export interface MapDisplayFilters { areaMode: MapAreaScopeMode; areaIds: string[]; voltages: Set<VoltageBand>; siteId: string }
+/**
+ * Map-only capacity display choice. 'inherit' follows the engineering
+ * capacity session (Kapasite görünümü); any season overrides the loading
+ * denominators for the MAP presentation without touching the session that
+ * analyses and the N-1 catalog scope use.
+ */
+export type MapCapacitySeason = 'inherit' | 'nominal' | 'summer' | 'winter' | 'operational';
+export interface MapDisplayFilters { areaMode: MapAreaScopeMode; areaIds: string[]; voltages: Set<VoltageBand>; siteId: string; capacitySeason: MapCapacitySeason }
 export interface AppContext {
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;

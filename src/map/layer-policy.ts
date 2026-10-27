@@ -113,7 +113,7 @@ export function buildMapPresentationData(ctx:AppContext,s:BenchmarkMapSelection)
   const transformed=s.source==='GA'&&target==='ElmTr2'?{...s,metric:s.metric==='pHvMw'?'pFromMw':'qFromMvar'}:s;
   const data=s.analysis==='LF'&&(target==='ElmTerm'&&['GA','PF'].includes(s.source)||s.source==='GA'&&s.metric==='loadingPercent')?empty:buildBenchmarkMapData(ctx,transformed),result=currentMapLf(ctx),n=ctx.network;
   if(!n)return data;
-  if(s.analysis==='LF'&&s.source==='GA'&&s.metric==='loadingPercent'&&result){for(const [key,loading] of mapLoadingValues(n,result))data.branches.set(key,{value:loading.maximum,unit:'%',status:loading.status,details:[loading.basis+' · '+loading.season+' · '+loading.source]});}
+  if(s.analysis==='LF'&&s.source==='GA'&&s.metric==='loadingPercent'&&result){const mapSeason=ctx.mapDisplay&&ctx.mapDisplay.capacitySeason!=='inherit'?ctx.mapDisplay.capacitySeason:undefined;for(const [key,loading] of mapLoadingValues(n,result,mapSeason))data.branches.set(key,{value:loading.maximum,unit:'%',status:loading.status,details:[loading.basis+' · '+loading.season+' · '+loading.source]});}
   if(s.analysis==='N1'&&s.source==='GA'&&s.n1Layer==='NEW_CONSTRAINTS'){
     const post=buildBenchmarkMapData(ctx,{...s,n1Layer:'POST'}),changes=ctx.hybridResult?.cases.find(c=>c.outage.caseId===s.caseId)?.constraintChanges?.filter(c=>['NEW','WORSENED'].includes(c.state))??[];
     const equipment=new Map([...n.lines,...n.transformers].map(e=>[e.sourceClass+':'+e.id,e])),thermal=new Map(changes.filter(c=>c.metric==='postLoadingPercent').map(c=>[c.sourceClass+':'+c.fid,c]));

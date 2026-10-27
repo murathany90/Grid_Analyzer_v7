@@ -15,7 +15,7 @@ import {aggregateStationVoltages,aggregateStationAngles,stationVoltageDeltas,flo
 import {deltaColor} from './delta-style';
 import {buildIslandMapData,islandColor,type IslandMapData} from './island-map';
 import {effectiveNetwork,emptyScenario,scenarioSignature} from '../domain/scenario/overlay';
-import {capacitySession} from '../domain/model/capacity';
+import {capacitySession,type CapacitySeason} from '../domain/model/capacity';
 import {modelPresentationIndex} from './presentation-index';
 import {splitTopologyVisible,mapTopologyPresentation} from './topology-presentation';
 import {ScreenHitGrid} from './screen-hit-grid';
@@ -136,12 +136,15 @@ export class CanvasMapRenderer implements MapRenderer {
     if(!this.lengths.size)for(const[id,path]of this.paths){const segments=path.slice(1).map((p,i)=>Math.hypot(p[0]-path[i][0],p[1]-path[i][1]));this.lengths.set(id,{segments,total:segments.reduce((a,b)=>a+b,0)});}
     const site=this.ctx.mapDisplay.siteId,sites=modelPresentationIndex(n).siteById,volts=this.ctx.mapDisplay.voltages,inAreaScope=scopeAreaFilter(this.ctx.mapDisplay),visibleKey=mapScopeKey(this.ctx.mapDisplay)+'|'+this.showSites;
     if(this.visibleNetwork!==n||this.visibleKey!==visibleKey){this.visibleNetwork=n;this.visibleKey=visibleKey;
-    this.visibleLines=n.lines.filter(l=>(!site||l.siteIds.includes(site))&&voltageMatches(l.vnKv,volts)&&l.siteIds.some(id=>inAreaScope(sites.get(id)?.areaId??'')));
-    this.visibleSites=this.showSites?n.sites.filter(s=>(!site||s.id===site)&&s.lat!=null&&s.lon!=null&&inAreaScope(s.areaId)&&s.voltages.some(v=>voltageMatches(v,volts))):[];}
+    // An explicit TM focus (map TM scope, e.g. from the Lightning SC panel)
+    // overrides the YTM/voltage display scope for that TM and its lines, so a
+    // focused TM outside the active YTM scope never disappears.
+    this.visibleLines=site?n.lines.filter(l=>l.siteIds.includes(site)):n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&l.siteIds.some(id=>inAreaScope(sites.get(id)?.areaId??'')));
+    this.visibleSites=this.showSites?(site?n.sites.filter(s=>s.id===site&&s.lat!=null&&s.lon!=null):n.sites.filter(s=>s.lat!=null&&s.lon!=null&&inAreaScope(s.areaId)&&s.voltages.some(v=>voltageMatches(v,volts)))):[];}
     this.canvas.dataset.visibleLines=String(this.visibleLines.length);this.canvas.dataset.visibleSites=String(this.visibleSites.length);
     const hitKey=this.screenKey+'|'+mapScopeKey(this.ctx.mapDisplay)+'|'+[...volts].sort().join('|');if(hitKey!==this.hitGridKey||this.hitGridNetwork!==n){this.hitGrid=new ScreenHitGrid(this.visibleLines,this.paths,this.width,this.height);this.hitGridKey=hitKey;this.hitGridNetwork=n;}
-    const result=this.ctx.benchmarkMap?.analysis==='LF'&&this.ctx.benchmarkMap.source==='GA'?this.ctx.resultStore.get(this.ctx.resultStore.role==='base'?'base':'scenario','powerFlow'):settings.displayMode==='delta'?this.ctx.resultStore.get('scenario'):this.ctx.resultStore.active,baseline=this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType),scenarioResult=this.ctx.resultStore.get('scenario'),comparable=this.ctx.resultStore.comparable(),lfKey=[...volts].sort().join(',')+'|'+capacitySession(n.modelHash).revision+'|'+comparable,lfRefs=[n,result,baseline,scenarioResult];
-    if(this.lfKey!==lfKey||!lfRefs.every((r,i)=>r===this.lfRefs[i])){this.lfKey=lfKey;this.lfRefs=lfRefs;this.flowRows=new Map([...displayBranches(n,result).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));this.lfBase=new Map([...displayBranches(n,baseline).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.angles=aggregateStationAngles(result?.buses||[],volts);this.voltageDeltas=comparable?stationVoltageDeltas(baseline?.buses||[],scenarioResult?.buses||[],volts):new Map();}
+    const result=this.ctx.benchmarkMap?.analysis==='LF'&&this.ctx.benchmarkMap.source==='GA'?this.ctx.resultStore.get(this.ctx.resultStore.role==='base'?'base':'scenario','powerFlow'):settings.displayMode==='delta'?this.ctx.resultStore.get('scenario'):this.ctx.resultStore.active,baseline=this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType),scenarioResult=this.ctx.resultStore.get('scenario'),comparable=this.ctx.resultStore.comparable(),mapSeason=this.ctx.mapDisplay.capacitySeason==='inherit'?undefined:this.ctx.mapDisplay.capacitySeason as CapacitySeason,lfKey=[...volts].sort().join(',')+'|'+capacitySession(n.modelHash).revision+'|'+(mapSeason??'inherit')+'|'+comparable,lfRefs=[n,result,baseline,scenarioResult];
+    if(this.lfKey!==lfKey||!lfRefs.every((r,i)=>r===this.lfRefs[i])){this.lfKey=lfKey;this.lfRefs=lfRefs;this.flowRows=new Map([...displayBranches(n,result,mapSeason).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));this.lfBase=new Map([...displayBranches(n,baseline,mapSeason).values()].filter(b=>b.sourceClass==='ElmLne').map(b=>[b.id,b]));this.voltages=aggregateStationVoltages(result?.buses||[],volts);this.angles=aggregateStationAngles(result?.buses||[],volts);this.voltageDeltas=comparable?stationVoltageDeltas(baseline?.buses||[],scenarioResult?.buses||[],volts):new Map();}
     const results=this.flowRows,base=this.lfBase;
     if(settings.displayMode==='island'){
       const role=this.ctx.resultStore.role,scenarioRevision=this.ctx.scenario.revision,cached=this.islandMapCache;

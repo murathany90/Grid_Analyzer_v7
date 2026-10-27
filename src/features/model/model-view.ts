@@ -52,7 +52,7 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
   classPanel.append(element('h3', '', 'DGS sınıf sayıları'));
   const classList = element('div', 'ga-class-counts');
   classPanel.append(classList);
-  let loadGeneration=0;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;render();});drop.append(cancelLoad);message.hidden=true;
+  let loadGeneration=0,abortEntrySelection:(()=>void)|null=null;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;choose.disabled=false;input.value='';abortEntrySelection?.();abortEntrySelection=null;render();});drop.append(cancelLoad);message.hidden=true;
   const hero=element('div','ga-model-hero'),identityPanel=element('section','ga-model-identity');hero.append(drop,identityPanel);
   if(options.unified)root.append(heading,hero,message,summary,capabilityPanel,classPanel);else root.append(heading,drop,message,summary,capabilityPanel,warningsPanel,classPanel);
 
@@ -62,7 +62,8 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
       dialog.setAttribute('aria-label','ZIP içinden model seç');select.setAttribute('aria-label','ZIP JSON dosyası');
       entries.forEach((e,i)=>select.append(new Option(e.name,String(i))));
       const update=()=>{size.textContent=`Açılmış boyut: ${format(entries[Number(select.value)].size/1024**2,2)} MiB`;};select.onchange=update;update();
-      const finish=(entry:ModelEntry|null)=>{dialog.close();dialog.remove();resolve(entry);};
+      const finish=(entry:ModelEntry|null)=>{abortEntrySelection=null;dialog.close();dialog.remove();resolve(entry);};
+      abortEntrySelection=()=>finish(null);
       dialog.append(element('h3','','ZIP içinden model seç'),select,size,button('Seçilen JSON’u yükle',()=>finish(entries[Number(select.value)])),button('Vazgeç',()=>finish(null)));
       dialog.oncancel=e=>{e.preventDefault();finish(null);};root.append(dialog);dialog.showModal();
     });
@@ -83,12 +84,18 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     } catch (error) {
       ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
+      // Superseded generations are cleaned up by their own cancel path; the
+      // newest run owns the shared input state. Resetting here anyway would
+      // clobber a newer in-flight load.
       if(generation!==loadGeneration)return;
       loadingNow = false;
       input.disabled = false;
       choose.disabled = false;
       loading.textContent = 'JSON dosyası bu tarayıcı oturumuna yüklenir.';
+      // Clearing the selection lets the user re-pick the identical file: the
+      // browser fires no change event while input.value still holds it.
       input.value = '';
+      abortEntrySelection=null;
       render();
     }
   };
