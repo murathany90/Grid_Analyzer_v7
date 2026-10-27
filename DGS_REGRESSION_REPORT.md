@@ -14,4 +14,6 @@ The DGS model, solver, and import path remain in use for DGS mode. PSS/E uses an
 
 The post-implementation-commit `npm test` run passes **850/850 tests with zero skips**. Its log is `evidence/psse-ac-dc/final-tests.log`; the initial run and BP golden failure are retained separately as `final-tests-before-bp-golden.log`.
 
+The first remote CI run exposed the previous README-only root-document convention once the seven requested delivery reports were tracked. The focused repository-documentation regression now passes with an exact authorized report list; Markdown link resolution and private-file exclusions remain checked. Remote CI intentionally skips 22 installed/licensed model fixture checks that ran locally; their inputs are excluded from Git. The final head's actual CI result/log is retained in the delivery metadata.
+
 The offline browser checks use local `file://` pages with external network access disabled. They verify the DGS path in the same artifact that contains the PSS/E features; they do not substitute the PSS/E import path for DGS.

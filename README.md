@@ -1,10 +1,16 @@
 # Grid Analyzer — Şebeke Analiz Sistemi
 
-> **Güncel kod tabanı:** `main` · **Uygulama sürümü:** `8.2.5` · **Doküman revizyonu:** 23.10.2026
-> **Güncel kaynak geçmişi:** [main commitleri](https://github.com/murathany90/Grid_Analyzer_v7/commits/main/)
-> **Güncel CI:** [main dalının validate koşuları](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Amain) — durum ve test sayısı seçilen commitin koşu kaydından kontrol edilir.
+> **Güncel kod tabanı:** `feature/psse-ac-dc-busbranch-v1` · **Uygulama sürümü:** `8.2.5` · **Doküman revizyonu:** 27.10.2026
+> **Güncel kaynak geçmişi:** [PSS/E çalışma dalı commitleri](https://github.com/murathany90/Grid_Analyzer_v7/commits/feature/psse-ac-dc-busbranch-v1/)
+> **Güncel CI:** [çalışma dalının validate koşuları](https://github.com/murathany90/Grid_Analyzer_v7/actions/workflows/ci.yml?query=branch%3Afeature%2Fpsse-ac-dc-busbranch-v1) — durum ve test sayısı seçilen commitin koşu kaydından kontrol edilir.
 
 Grid Analyzer, **DIgSILENT PowerFactory DGS JSON/ZIP** şebeke verilerini tarayıcıda açıp analiz etmek için geliştirilmiş, Türkçe kullanıcı arayüzüne sahip bir güç sistemi inceleme uygulamasıdır. Envanter, kaynak model kalite denetimi, işletme verileri, harita, trafo merkezi tek hat şeması, senaryo/manevra, yük akışı (LF), N-1/kısıt, kısa devre (SC) ve PowerFactory karşılaştırma iş akışlarını bir araya getirir.
+
+Bu dal, ortak dosya seçicisine **PSS/E SAV/RAW/RAWX/ZIP** ve ayrı bus-branch çalışma modunu ekler. DGS mevcut node-breaker modeli ve motorlarıyla çalışır; PSS/E kendi modeli, worker'ı, senaryosu, NR/FDNS_XB/DC motorları ve Model/Analiz/Harita/SLD bileşenlerini kullanır. Başlıkta yeşil **DGS MODU** veya mavi **PSS/E MODU** görünür.
+
+PSS/E için doğrulanmış sabit kontrol profilleri hazırdır. Sayısal yakınsama ile kapsam ayrıdır: sınırlı hesaplar **LIMITED_PROFILE**, eksik etkin fizik **BLOCKED** olarak yayımlanır. Büyük gerçek modelin AC uzak/droop kontrolleri ve otomatik kontrol/distributed-slack kapsamı tamamlanmamıştır; büyük DC'nin katı referans karşılaştırması **DIFFERENCES** olarak kalır. Ayrıntılar [model sadakati](MODEL_FIDELITY_REPORT.md) ve [sayısal parite](PSSE_AC_DC_PARITY_REPORT.md) raporlarındadır.
+
+Çevrimdışı dağıtım `GA_PSSE_AC_DC_OFFLINE_TEST.zip` içindeki `index.html` dosyasıyla doğrudan açılır; Python, PSS/E, sunucu veya internet gerekmez. [Kullanım ve paketleme](docs/PSSE_NATIVE_README_TR.md), [mimari kararlar](ARCHITECTURE_DECISIONS.md), [solver araştırması](PSSE_SOLVER_RESEARCH.md), [DGS regresyonu](DGS_REGRESSION_REPORT.md), [performans](PERFORMANCE_REPORT.md) ve [agent handoff](AGENT_HANDOFF.md) bu dalın teslim belgeleridir. Gerçek lisanslı modeller ve ham referans dökümleri Git'e/ZIP'e eklenmez.
 
 **Uygulama SCADA/EMS değildir:** Gerçek zamanlı TEİAŞ kumanda veya telemetri bağlantısı yoktur. Çizilen durumlar model/senaryo projeksiyonlarıdır; hesaplanan MW/MVAr/kV/kA değerleri fiziksel ölçüm veya onaylı işletme sınırı değildir. **LF sayısal yakınsaması, N-1 AC kontrol doğrulaması ve IEC 60909/PF paritesi birbirinden farklı kanıt düzeyleridir.**
 
