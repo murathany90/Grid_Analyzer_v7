@@ -1,0 +1,3729 @@
+{
+  "schema": "ga.psse.reference-index.v1",
+  "runs": [
+    {
+      "source": {
+        "name": "switched-continuous.rawx",
+        "sha256": "03b91b12c46b448f253c37c818bc4ba28630b098742e6fc605dface9bf206ac6"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.2631000028923154,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "5c34443c7f3efd392cc6c66f7b87ca174d3151532cbc604a49a8f16d17c6aefb"
+    },
+    {
+      "source": {
+        "name": "switched-continuous.rawx",
+        "sha256": "03b91b12c46b448f253c37c818bc4ba28630b098742e6fc605dface9bf206ac6"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002121875004377216,
+      "elapsedMs": 4.86549997003749,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "e1281d8c573d6bed2dc03686c855995117de4f46e3aec03355834d554264c4c6"
+    },
+    {
+      "source": {
+        "name": "switched-continuous.rawx",
+        "sha256": "03b91b12c46b448f253c37c818bc4ba28630b098742e6fc605dface9bf206ac6"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 1.0244548320770264e-05,
+      "elapsedMs": 3.386199998203665,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "e51b12aba9361933705de0b4eb6d2ec6d2a66a3139e5f03911b26da31bd3213c"
+    },
+    {
+      "source": {
+        "name": "three-winding.sav",
+        "sha256": "05c1a604025b01cda5ce12b03114841aa4ae565db7a1c5afd9e41ab6e8c6e56b"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 3.7392000085674226,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 5,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "5e432377b92356e1e37ea034120a74b3f321a992042a265ebab2fc24585c698f"
+    },
+    {
+      "source": {
+        "name": "three-winding.sav",
+        "sha256": "05c1a604025b01cda5ce12b03114841aa4ae565db7a1c5afd9e41ab6e8c6e56b"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 5,
+      "sysMismatchMva": 0.00030757705098949373,
+      "elapsedMs": 5.363899981603026,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "a8bd6a2ce4cf2f0826cab7ec2050e58077bf42308e151e33cc62ce46613c97d8"
+    },
+    {
+      "source": {
+        "name": "three-winding.sav",
+        "sha256": "05c1a604025b01cda5ce12b03114841aa4ae565db7a1c5afd9e41ab6e8c6e56b"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 7.211000774987042e-05,
+      "elapsedMs": 17.009500006679446,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "976f2a1432e854f2dfc8e85ebd6dbfa0959cbe4029832bfb856950579b4b1631"
+    },
+    {
+      "source": {
+        "name": "zip.rawx",
+        "sha256": "0d2d182ca9efe4c87303f9b4d42e854ce230e8313e1d3e7fc50f58d281226464"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.7306000227108598,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "a74d511fcd3ce9eda70d5e6b8858a4e6c94bc4a82e9246d6a75cec7085ac1710"
+    },
+    {
+      "source": {
+        "name": "zip.rawx",
+        "sha256": "0d2d182ca9efe4c87303f9b4d42e854ce230e8313e1d3e7fc50f58d281226464"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0008333423174917698,
+      "elapsedMs": 8.431599999312311,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "63842d7effb467676cae46ffdc111a48df1110c79fe5ff5ca2e70e2fd7817c24"
+    },
+    {
+      "source": {
+        "name": "zip.rawx",
+        "sha256": "0d2d182ca9efe4c87303f9b4d42e854ce230e8313e1d3e7fc50f58d281226464"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0003606734098866582,
+      "elapsedMs": 2.31269997311756,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "b05af7d705babab00100632f8ddb7d3891b6ec6093fcf282adb120b79b3fbd6e"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 1,
+      "sysMismatchMva": null,
+      "elapsedMs": 7.630200008861721,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 64,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "84d5c4bbb4e6b6b81245951e92ee7a657cdbef9b5dad11181486398594e4a7a5"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "4816beda4b6fc6ac54d13af39e8068f6ddf83dab1e4b8401aed3e657d51b1533",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 1e-05,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 1
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 9,
+      "sysMismatchMva": 0.0009419805137440562,
+      "elapsedMs": 6.518300040625036,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3eb361ccc0820aa6f25741e35711f46ed9c0a54c0f34e6aaed05cd38d422647d"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 9,
+      "sysMismatchMva": 0.0009360200492665172,
+      "elapsedMs": 7.102400006260723,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "02a5fd8db57035817875b1455b1144c0d0fac323da987c66249bd87d4be021d3"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "11573ae081a7d95ccd39ea4eea882192b6f8a7c1b7b4b9758baff8779026adf9",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 1e-05,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 1
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 16,
+      "sysMismatchMva": 0.00044509494910016656,
+      "elapsedMs": 2.8530999552458525,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "59964ddc019de5462b2b52dc31e59168d0c9aceecd841a4f3342fffe7acfade6"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 13,
+      "sysMismatchMva": 0.0010889123659580946,
+      "elapsedMs": 3.651399980299175,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "2bd1db5b685a647ff8bf89b98f70ff501ab5fa63c4c0a84732d1f0db93d1a02a"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "85b19233a7d0d3267253e91567dd6164ed8a26b01edd512bd2dca8685472326e",
+      "spec": {
+        "method": "nsol",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 12,
+      "sysMismatchMva": 0.0012428640620782971,
+      "elapsedMs": 1.9641999970190227,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "1aebe83490da568cf8f39549b3b06cab1f1272a878953aba522d5f13fa86d3ad"
+    },
+    {
+      "source": {
+        "name": "savnw.sav",
+        "sha256": "163102e3146101bae82cbdd0be08bba68a0de8f85600922d1284810f3efc1f4b"
+      },
+      "optionsHash": "9279a87b16ee3db295c4e877067101e893a11c85fb5d57ee246bfb68ec30043e",
+      "spec": {
+        "method": "solv",
+        "options": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 75,
+      "sysMismatchMva": 7.741018772125244,
+      "elapsedMs": 3.0024999869056046,
+      "exportErrors": [],
+      "busCount": 23,
+      "machineCount": 6,
+      "branchEndCount": 68,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "9378831ba43ac6aa262809fe350f82169116b84d76aa898c41097c552619aeaf"
+    },
+    {
+      "source": {
+        "name": "basic.rawx",
+        "sha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.7006000271067023,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "c0e66553ff99220d00e2dcfa0508509e3dec1a944459d6090089f67e05e0beb7"
+    },
+    {
+      "source": {
+        "name": "basic.rawx",
+        "sha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.00025810219813138247,
+      "elapsedMs": 6.669800030067563,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "49a011b2e86829bcf07cfb042c48108cc905237627986ce16400bfac3f74181e"
+    },
+    {
+      "source": {
+        "name": "basic.rawx",
+        "sha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.51925802230835e-06,
+      "elapsedMs": 3.0489000491797924,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "beeb05249b97c285a14258a6baa9e48fe08156dda558e756664f944e3a22d58b"
+    },
+    {
+      "source": {
+        "name": "phase.sav",
+        "sha256": "1c96cc359e5359190797be26b85170682469eaea52f904c7ba2fff0152e5000f"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 9.903799975290895,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "8bc52d772b30d8410660043c713dbff71073bad23a78c1b85754fa6572c9c481"
+    },
+    {
+      "source": {
+        "name": "phase.sav",
+        "sha256": "1c96cc359e5359190797be26b85170682469eaea52f904c7ba2fff0152e5000f"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0008430482121184468,
+      "elapsedMs": 3.362199990078807,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "c2fa13655d1fb7f9f2b9c76bfa51a968f8379a99877f0794f5f14610a81eaab1"
+    },
+    {
+      "source": {
+        "name": "phase.sav",
+        "sha256": "1c96cc359e5359190797be26b85170682469eaea52f904c7ba2fff0152e5000f"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 2.700763252505567e-05,
+      "elapsedMs": 2.7568000368773937,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "2deffddd823f8d979fc5f250ebab7355ea23b55e7e193c87b49d8d281d9ff114"
+    },
+    {
+      "source": {
+        "name": "nominal-base.rawx",
+        "sha256": "2947eddcfc8865b3986cc18b757fac4abc24777488d225c9de9ae5518277712f"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.9426000071689487,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "0862b279497bc31f554c5acb2feed31b134b89b2767b12a2fac4c2fb14cf1a60"
+    },
+    {
+      "source": {
+        "name": "nominal-base.rawx",
+        "sha256": "2947eddcfc8865b3986cc18b757fac4abc24777488d225c9de9ae5518277712f"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002832042519003153,
+      "elapsedMs": 5.277599964756519,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "a29e4514d95533951268bd4b7cd717a0c146f9ddff93d88be1f0b9d7ef17819b"
+    },
+    {
+      "source": {
+        "name": "nominal-base.rawx",
+        "sha256": "2947eddcfc8865b3986cc18b757fac4abc24777488d225c9de9ae5518277712f"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.705522537231445e-06,
+      "elapsedMs": 3.89809999614954,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "1b0f5ff4fe094b535bb106cf25f8d1f284c586754f038a581655fb51c25715d8"
+    },
+    {
+      "source": {
+        "name": "shunt.sav",
+        "sha256": "3e5e4b04f4b17a92a14f9720fbc5850958e88f4bf3241aab3d6f6e20f47a3d5c"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.952000009827316,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "53cc37b6dd0b51324d38dfd941fc83e49def5fb15aaa07ee666c845b04ed5045"
+    },
+    {
+      "source": {
+        "name": "shunt.sav",
+        "sha256": "3e5e4b04f4b17a92a14f9720fbc5850958e88f4bf3241aab3d6f6e20f47a3d5c"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0003228220157325268,
+      "elapsedMs": 10.017399967182428,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "dd57d6fd49e3da8a0166dffd0b8d4e7df072f4c0a9f84b5d97b7795c1599a074"
+    },
+    {
+      "source": {
+        "name": "shunt.sav",
+        "sha256": "3e5e4b04f4b17a92a14f9720fbc5850958e88f4bf3241aab3d6f6e20f47a3d5c"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.10140705248341e-06,
+      "elapsedMs": 8.0908999661915,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "14713f6b12d3e2467a5eff84463944f13257ba89ea8d662ad1b1ebc003b429e8"
+    },
+    {
+      "source": {
+        "name": "basic.sav",
+        "sha256": "4447a2fe1cf50b2a4c1dee37cbe60c43759aa622f0ff5b86142b10df36b61c57"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 5.103599978610873,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3f20db1cd8580f327a4baa4f4ecb77890ee88be7a83fddd0281cbee3d2fc94e6"
+    },
+    {
+      "source": {
+        "name": "basic.sav",
+        "sha256": "4447a2fe1cf50b2a4c1dee37cbe60c43759aa622f0ff5b86142b10df36b61c57"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.00025810219813138247,
+      "elapsedMs": 8.278699999209493,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "0ed02ba6d36954e82c4a8cd99607abb8be3dda210498df240ce37e6b922d10b1"
+    },
+    {
+      "source": {
+        "name": "basic.sav",
+        "sha256": "4447a2fe1cf50b2a4c1dee37cbe60c43759aa622f0ff5b86142b10df36b61c57"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.51925802230835e-06,
+      "elapsedMs": 2.771099971141666,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "9a93c6060d2a3dcfd3ffca6f13545cd497961cd11cfdc47983529e5ff72fa79d"
+    },
+    {
+      "source": {
+        "name": "cw3-cz3.rawx",
+        "sha256": "4925c26d76178bf7aaee12f13f66eccccceef0e00044661f129bb4ffb68890d7"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 0.9557000012136996,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "980afb354f64b1c6d6beb933fcd7c34528c0988f5aa1f213b2fd7ec0ad3af55b"
+    },
+    {
+      "source": {
+        "name": "cw3-cz3.rawx",
+        "sha256": "4925c26d76178bf7aaee12f13f66eccccceef0e00044661f129bb4ffb68890d7"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002832042519003153,
+      "elapsedMs": 4.1514000040479,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "a67a3d6c58a53e37cdcd5a0c002d0d0226623d86042d7973811144f7fa019039"
+    },
+    {
+      "source": {
+        "name": "cw3-cz3.rawx",
+        "sha256": "4925c26d76178bf7aaee12f13f66eccccceef0e00044661f129bb4ffb68890d7"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 7.450580596923828e-07,
+      "elapsedMs": 5.021399992983788,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "4f07eea3dcfb106d9775c46201c9f46ee870df937a017b4434e06f16ef4aac06"
+    },
+    {
+      "source": {
+        "name": "end-shunts.rawx",
+        "sha256": "653e98bd99b3fcea49ce4c309f5887f7dc526a0018b78a1e10e123c8e95ed40f"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.486400025896728,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "debccf3fdab0c9b469ba9e64114a6eb9ad8f035d9a0a8da1234040604c0afcfd"
+    },
+    {
+      "source": {
+        "name": "end-shunts.rawx",
+        "sha256": "653e98bd99b3fcea49ce4c309f5887f7dc526a0018b78a1e10e123c8e95ed40f"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002592199307400733,
+      "elapsedMs": 6.826400000136346,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3666c896d73e818106d074c5deefbf1e08f837cdb35488208e8b92f3ccb6c26f"
+    },
+    {
+      "source": {
+        "name": "end-shunts.rawx",
+        "sha256": "653e98bd99b3fcea49ce4c309f5887f7dc526a0018b78a1e10e123c8e95ed40f"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 5.587935447692871e-06,
+      "elapsedMs": 3.0601000180467963,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "4ecb55a818529aca9bb0847e537e88e19c2018b1cba790f66d0240dcfb86208a"
+    },
+    {
+      "source": {
+        "name": "cm2.rawx",
+        "sha256": "6bae05ae170b250ff6c07a923c9b7a7130f5b87aaead1a1aa0687e0e77432ace"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.0631000041030347,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "172c238b20c3f086b20917cf0d41c291ee0887b38731006923eda1d065e2db44"
+    },
+    {
+      "source": {
+        "name": "cm2.rawx",
+        "sha256": "6bae05ae170b250ff6c07a923c9b7a7130f5b87aaead1a1aa0687e0e77432ace"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0010061149951070547,
+      "elapsedMs": 4.912099975626916,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3307563046a9a5638d5469f79af861029f90b860b1499ed6347f344ababafec3"
+    },
+    {
+      "source": {
+        "name": "cm2.rawx",
+        "sha256": "6bae05ae170b250ff6c07a923c9b7a7130f5b87aaead1a1aa0687e0e77432ace"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 8.940696716308594e-06,
+      "elapsedMs": 4.3604999664239585,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3088302489797621ef8afe1bfbe973fe57d967eea38e374405b7ad2ed104880a"
+    },
+    {
+      "source": {
+        "name": "cw2-cz2.rawx",
+        "sha256": "79aae2f174267d2291ae1be97fd5aa6f73b523a244daf546a343b5cb2f056421"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.213999988976866,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "51f34ce231551d35d0bb1f97a0f9190c95fadd142deece0db2dda0664792d75d"
+    },
+    {
+      "source": {
+        "name": "cw2-cz2.rawx",
+        "sha256": "79aae2f174267d2291ae1be97fd5aa6f73b523a244daf546a343b5cb2f056421"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002832042519003153,
+      "elapsedMs": 4.669499990995973,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "b80fd4faad7f2a79cc86988420e98b79f6ef96ab85f64606d0d8476673c2c58d"
+    },
+    {
+      "source": {
+        "name": "cw2-cz2.rawx",
+        "sha256": "79aae2f174267d2291ae1be97fd5aa6f73b523a244daf546a343b5cb2f056421"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.705522537231445e-06,
+      "elapsedMs": 2.8458000160753727,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "630d65a3e1104cd9b15eb37866ddf8fedfd56a2f8d75ab19c1a8c5e650d20327"
+    },
+    {
+      "source": {
+        "name": "switched-adjm.rawx",
+        "sha256": "8deb0cb649e4bf66c8148a42a655c959fc601d426f6f240a88a0be8213ccd91d"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.244999981485307,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "c4d0e59a3289d6d3bad09fe13b0b54ca5ca5ef20395f4b5423fd9dd191ee5853"
+    },
+    {
+      "source": {
+        "name": "switched-adjm.rawx",
+        "sha256": "8deb0cb649e4bf66c8148a42a655c959fc601d426f6f240a88a0be8213ccd91d"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002121875004377216,
+      "elapsedMs": 7.02859996818006,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "bdbcfc40e7c256824eaec5144bdd9af32390970f4df7391ba0c0699554004e32"
+    },
+    {
+      "source": {
+        "name": "switched-adjm.rawx",
+        "sha256": "8deb0cb649e4bf66c8148a42a655c959fc601d426f6f240a88a0be8213ccd91d"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 1.0244548320770264e-05,
+      "elapsedMs": 2.4734000326134264,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "1a5f39dd77c60166d9645f587133bab6a6ae0f802a0131ebae1fe2b59c5d175c"
+    },
+    {
+      "source": {
+        "name": "sample.sav",
+        "sha256": "94911703e38cb6cb6a66a8cb04b79c4707337ac2c82dc21188cd1a7a311ef967"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 1,
+      "sysMismatchMva": null,
+      "elapsedMs": 9.373400011099875,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 109,
+      "dcUnparsedRows": 4,
+      "referenceSha256": "4668139835f7964f29c3cf234d0e11bff271814bc9a5fe8ffa78142702e676c6"
+    },
+    {
+      "source": {
+        "name": "sample.sav",
+        "sha256": "94911703e38cb6cb6a66a8cb04b79c4707337ac2c82dc21188cd1a7a311ef967"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 38,
+      "sysMismatchMva": 0.034197259694337845,
+      "elapsedMs": 18.956299987621605,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "219b07f3e2c881897c2aba4b58810493b38d601114f0c384df1b1ac09c62def0"
+    },
+    {
+      "source": {
+        "name": "sample.sav",
+        "sha256": "94911703e38cb6cb6a66a8cb04b79c4707337ac2c82dc21188cd1a7a311ef967"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 1,
+      "iterations": 100,
+      "sysMismatchMva": 71.01222229003906,
+      "elapsedMs": 14.436099969316274,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "1306e5e3a0f79a1070352809da35fe3152057a053d0a93a6a34076559d320dfa"
+    },
+    {
+      "source": {
+        "name": "bench.sav",
+        "sha256": "95133c56464f39bea65dec45870e41539d840fba46091405509ab85386ca7a8f"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 2,
+      "sysMismatchMva": null,
+      "elapsedMs": 230.1432999665849,
+      "exportErrors": [],
+      "busCount": 1648,
+      "machineCount": 313,
+      "branchEndCount": 5204,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 5204,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "4378931ef6b0648c15553f09d6233a12dc71e10fb486c7a87810bf9a37ed6cf9"
+    },
+    {
+      "source": {
+        "name": "bench.sav",
+        "sha256": "95133c56464f39bea65dec45870e41539d840fba46091405509ab85386ca7a8f"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 11,
+      "sysMismatchMva": 0.006653721444308758,
+      "elapsedMs": 10.149899986572564,
+      "exportErrors": [],
+      "busCount": 1648,
+      "machineCount": 313,
+      "branchEndCount": 5204,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "afed804f61b2d5ff7328310b1498dd2666ee06ecd0c97faa0573157d02d5008b"
+    },
+    {
+      "source": {
+        "name": "bench.sav",
+        "sha256": "95133c56464f39bea65dec45870e41539d840fba46091405509ab85386ca7a8f"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 4,
+      "sysMismatchMva": 0.006083429325371981,
+      "elapsedMs": 7.345299993176013,
+      "exportErrors": [],
+      "busCount": 1648,
+      "machineCount": 313,
+      "branchEndCount": 5204,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3bc1ef9e13567e3f18053ba166bd9be65718517ff7e24a9e4050b730883c15f2"
+    },
+    {
+      "source": {
+        "name": "tap.rawx",
+        "sha256": "982b42726a976a581e53d965bac299c4c50478d5e3b509b8c4d6d6acd42e613e"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.0964999673888087,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "e447a3e3ca17860daf359f0d7fa13c73a8e4aa64f1a821b66d6db5a65266193f"
+    },
+    {
+      "source": {
+        "name": "tap.rawx",
+        "sha256": "982b42726a976a581e53d965bac299c4c50478d5e3b509b8c4d6d6acd42e613e"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002832042519003153,
+      "elapsedMs": 5.871000001206994,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "561270c706c80d2e5db1b6e50086309e9552fe414c41be3d007eceaf02340e8c"
+    },
+    {
+      "source": {
+        "name": "tap.rawx",
+        "sha256": "982b42726a976a581e53d965bac299c4c50478d5e3b509b8c4d6d6acd42e613e"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.705522537231445e-06,
+      "elapsedMs": 5.020099983084947,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "7bc3d81b139ac055b90f1f630209696e050654e85b09ecc46bdb5f2822957021"
+    },
+    {
+      "source": {
+        "name": "sample_nb.sav",
+        "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 1,
+      "sysMismatchMva": null,
+      "elapsedMs": 7.096600020304322,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 109,
+      "dcUnparsedRows": 4,
+      "referenceSha256": "0dd065ac406d7ca5ab2e20e6f7b32329d81c75cf3dcd88fb072b8a23b8977d97"
+    },
+    {
+      "source": {
+        "name": "sample_nb.sav",
+        "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 38,
+      "sysMismatchMva": 0.034197259694337845,
+      "elapsedMs": 12.962099979631603,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "46dc1848cab48799d86117a3269b4e650f3f3dfb7f594a4acc967e7344fa2177"
+    },
+    {
+      "source": {
+        "name": "sample_nb.sav",
+        "sha256": "98721178c6a093c8b9cbdcfc92ee73cf28d3ee3d2bf17031c1584682a04e2ea5"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 1,
+      "iterations": 100,
+      "sysMismatchMva": 71.01222229003906,
+      "elapsedMs": 14.709799957927316,
+      "exportErrors": [],
+      "busCount": 48,
+      "machineCount": 12,
+      "branchEndCount": 94,
+      "threeWindingCount": 4,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "a1cd209c56ea93e54221ff1c076b048a2aaa8e743ba795ed282548be97e17f43"
+    },
+    {
+      "source": {
+        "name": "shunt.rawx",
+        "sha256": "adfd16365c6139271ff0e304698200a6be04ac0da1b9357adef2ac8a630c7e52"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.9138999632559717,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "7c6c5253038286dcd3f3e961ef6898a3dbe47b4cf58b73cb7f24427861f30d0d"
+    },
+    {
+      "source": {
+        "name": "shunt.rawx",
+        "sha256": "adfd16365c6139271ff0e304698200a6be04ac0da1b9357adef2ac8a630c7e52"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0003228220157325268,
+      "elapsedMs": 4.113200004212558,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "823cf16533729b13ce93d3a61550e594d2ca91b59b0fb72716610ef5300f924d"
+    },
+    {
+      "source": {
+        "name": "shunt.rawx",
+        "sha256": "adfd16365c6139271ff0e304698200a6be04ac0da1b9357adef2ac8a630c7e52"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.10140705248341e-06,
+      "elapsedMs": 2.6298000011593103,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "4287028d2f836523e0392ebce7a23e9563ae723f74029e4493c75871c8a8e091"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 1,
+      "sysMismatchMva": null,
+      "elapsedMs": 716.7244000011124,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 12244,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "85bf09db4add06889a2dc99dff61b53e1be0b0f7a4b19fadf790a8ca61fb87f5"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "767ce39aa10796787b5d433ec50cd60108129b37221419b37e494b93fb389915",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 1,
+      "sysMismatchMva": 0.016172047704458237,
+      "elapsedMs": 17.80289999442175,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "eca826a7ebc175937c6fffc3ddbc2829ba1faceac4e27571dccafc461a54d38b"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "8175deb84e69735942eaf2a4105446522c4420f385c20b2080c559bdf80033b1",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "automatic-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 1,
+      "sysMismatchMva": 0.016172047704458237,
+      "elapsedMs": 17.443599994294345,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "131af8469ac97b74aa9b73b54b31b8760aa6670ad399a03b5ff476b7cbdbab6d"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "8e1f98b0f6f76d32507720ef41daed2b848a17562ef21abba12f929a15ad25f3",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 0,
+      "sysMismatchMva": 402.2098693847656,
+      "elapsedMs": 14.337400032673031,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "5289efbb0b515bbe0ede2e8d84efbf3cf00f7e7a6e07a24505e844e6d6f9a8a5"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 1,
+      "sysMismatchMva": 87281.5703125,
+      "elapsedMs": 23.96199997747317,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "bc6026cb21c8db50d1ca42ebf4c06114e77ecd8e3495ff986f02562cfa717cb2"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "0ba32c3f0a409e38a21fa6d4b2b6768df566bd36813b77982573fb86416498ce",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 3,
+      "sysMismatchMva": 6033.23828125,
+      "elapsedMs": 12.426500034052879,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "abb1edb9aa78d715b13d3efb8a2a9d72bd846e6c5505526cce0afcfa280b9a5a"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "38dfc6ff92cd88c637b087fd15f4612ee7a37fcb44b6e72117077a597022eb1d",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "automatic-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 2,
+      "sysMismatchMva": 0.012989252805709839,
+      "elapsedMs": 8.475900045596063,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "bfda003ec54441280650c6ee8baae3dcab37185b2265aaa17efeb44f8312ed21"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 2,
+      "sysMismatchMva": 0.012989252805709839,
+      "elapsedMs": 7.480999978724867,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "0ff830d48303cea4c3cba9a20d7e6223e1e4e08d9cb4108061c98025bbcd9a0b"
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 21,
+      "sysMismatchMva": 26997.921875,
+      "elapsedMs": 38.888300012331456,
+      "exportErrors": [],
+      "busCount": 6851,
+      "machineCount": 2920,
+      "branchEndCount": 17338,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "963072d899507966b3fd26a69d3b9455bf4671c93f6f39505e3699756bd23c4a"
+    },
+    {
+      "source": {
+        "name": "q-limits.rawx",
+        "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.2315000058151782,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "c604e0109fdd144846a2b3f6a1e8568d3291fd5db45db0733e94635a01fd134e"
+    },
+    {
+      "source": {
+        "name": "q-limits.rawx",
+        "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0"
+      },
+      "optionsHash": "085d5b0919f2bd6a63bce01f5f0b442e67a03a9e775fcd915cd403266e8d0cb4",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "ierr": 0,
+      "solved": 3,
+      "iterations": 1,
+      "sysMismatchMva": 0.5358656048774719,
+      "elapsedMs": 3.897799993865192,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "93c2b038c3ccc4d5f631411b895194192f95c058eecc8e6321524716fed7576a"
+    },
+    {
+      "source": {
+        "name": "q-limits.rawx",
+        "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 4,
+      "sysMismatchMva": 0.0007203597342595458,
+      "elapsedMs": 4.438099975232035,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "16f235c011382668f1b81c99637f7a66b6d5002d19a4e98d361a2dea00d97a59"
+    },
+    {
+      "source": {
+        "name": "q-limits.rawx",
+        "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.705522537231445e-06,
+      "elapsedMs": 2.7353999903425574,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "5cfff865cecce460b114b4c48d236b411cd5dfa3bbdab18f0b3a529719f74225"
+    },
+    {
+      "source": {
+        "name": "q-limits.rawx",
+        "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0"
+      },
+      "optionsHash": "cf3b29cdc949a3842e40f2ad78d400560e1713508d80dfc81547e81b39435660",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 4,
+      "sysMismatchMva": 7.156693300203187e-06,
+      "elapsedMs": 7.378999958746135,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "0fbea67a6f4933301a6b6f046ed75660c892db9c1b8d4461ae3751942c5fab87"
+    },
+    {
+      "source": {
+        "name": "q-zero-range.rawx",
+        "sha256": "c948833df1c7759d6a2c506fc49738543bd737d884d9aa2e1a4684e89431f772"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 1.1506879673106596e-05,
+      "elapsedMs": 2.326000016182661,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3180234871284049910a826539933a17b93a6faedd16c8e4f00ac99e7ec29775"
+    },
+    {
+      "source": {
+        "name": "cm2.sav",
+        "sha256": "dbc403b33c1e69940878844b00577571e91ca3734598688c81996ab1d37514dc"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 4.088600049726665,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "26452baa07d424668be2c9310fadcdb808ee8a7b8251af315384eb245591a2c6"
+    },
+    {
+      "source": {
+        "name": "cm2.sav",
+        "sha256": "dbc403b33c1e69940878844b00577571e91ca3734598688c81996ab1d37514dc"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0010061149951070547,
+      "elapsedMs": 4.333500051870942,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "cf47408413efa82c041f5c946f198ac610868643b19e79ffef1e6405c2532eda"
+    },
+    {
+      "source": {
+        "name": "cm2.sav",
+        "sha256": "dbc403b33c1e69940878844b00577571e91ca3734598688c81996ab1d37514dc"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 8.940696716308594e-06,
+      "elapsedMs": 2.795600041281432,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "d96d5b1899d68e2bc4f6b2a254aa29520d2487d1d061433d7a55671cdb93ff17"
+    },
+    {
+      "source": {
+        "name": "phase.rawx",
+        "sha256": "dcc4e95a0c0c6ee93ae1750231bcae992cd11a4788783885465dcdb56e5158c2"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.3065999955870211,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "2fb3a7fb6182f689c4964f433eed1e1653c13177ce065c753bb299a38c120c7f"
+    },
+    {
+      "source": {
+        "name": "phase.rawx",
+        "sha256": "dcc4e95a0c0c6ee93ae1750231bcae992cd11a4788783885465dcdb56e5158c2"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0008430482121184468,
+      "elapsedMs": 7.435799983795732,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "53cbd674c3a8d6942f5d6d63c074f74ac734485d9442c901cef80c724e1f3d7a"
+    },
+    {
+      "source": {
+        "name": "phase.rawx",
+        "sha256": "dcc4e95a0c0c6ee93ae1750231bcae992cd11a4788783885465dcdb56e5158c2"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 2.700763252505567e-05,
+      "elapsedMs": 2.4346000282093883,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "04b31e2669830e3a45754d43b4cb4da4341c0f386a58b8b6650eb4609e64c15a"
+    },
+    {
+      "source": {
+        "name": "switched-on.rawx",
+        "sha256": "e238c356194329c14d7cedf8d0b0584216092e893c7d8ac2498de1c11f3fe42f"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 1.5230000135488808,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "47215772851579bafa3b9965b08c55955d086587ff639c30af7643171079e425"
+    },
+    {
+      "source": {
+        "name": "switched-on.rawx",
+        "sha256": "e238c356194329c14d7cedf8d0b0584216092e893c7d8ac2498de1c11f3fe42f"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002121875004377216,
+      "elapsedMs": 8.161099976859987,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "201e93c2936fd645bf3cc05bce2696d9262277a808008c61670a91a77708998e"
+    },
+    {
+      "source": {
+        "name": "switched-on.rawx",
+        "sha256": "e238c356194329c14d7cedf8d0b0584216092e893c7d8ac2498de1c11f3fe42f"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 1.0244548320770264e-05,
+      "elapsedMs": 5.820100021082908,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "67b44821e913f7e5ccb93b63c4285701472d33742c9ed9fefa93970c877f8454"
+    },
+    {
+      "source": {
+        "name": "switched-off.rawx",
+        "sha256": "e4b48f0caf3af8d34feefa90bda769c9b6816f7fbf8c55973ae5a43fc8e7e714"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.283699985127896,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "288d88d11f5248f80cd99ff2c2f65dab5d0e222681211a6239a71e7bdd7c6784"
+    },
+    {
+      "source": {
+        "name": "switched-off.rawx",
+        "sha256": "e4b48f0caf3af8d34feefa90bda769c9b6816f7fbf8c55973ae5a43fc8e7e714"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.00025810219813138247,
+      "elapsedMs": 4.831300000660121,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "08e5ac997797d640de447de3c5f4eb8a935066e459ad78341e1b4b22a7fcd97c"
+    },
+    {
+      "source": {
+        "name": "switched-off.rawx",
+        "sha256": "e4b48f0caf3af8d34feefa90bda769c9b6816f7fbf8c55973ae5a43fc8e7e714"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.51925802230835e-06,
+      "elapsedMs": 3.92029999056831,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "779cbab1d5545dfb6ea89a6c0491db23345754c8343e520994776efe94bc216f"
+    },
+    {
+      "source": {
+        "name": "tap.sav",
+        "sha256": "eee3bd3ad28d79bb39121125da807fd8c48169a2be13d6cb47689241f49b1fbe"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.7673000004142523,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "6c9f13eb8af3e690a5a4febc092aef90d379b70bf10152fc08599187044bac4f"
+    },
+    {
+      "source": {
+        "name": "tap.sav",
+        "sha256": "eee3bd3ad28d79bb39121125da807fd8c48169a2be13d6cb47689241f49b1fbe"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0002832042519003153,
+      "elapsedMs": 5.038300005253404,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "cabb0928d5835d7b1d95dc8435345c66132410b3ac8388297dde8b5009dc4081"
+    },
+    {
+      "source": {
+        "name": "tap.sav",
+        "sha256": "eee3bd3ad28d79bb39121125da807fd8c48169a2be13d6cb47689241f49b1fbe"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 6.705522537231445e-06,
+      "elapsedMs": 3.745199996046722,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "fe36dc6bd3b20917fb9f80345ea590d28c2ec69ebc021bbdd653b1acc8e83404"
+    },
+    {
+      "source": {
+        "name": "three-winding.rawx",
+        "sha256": "ef19260c6e0ebd26780ee2014f4dd323be5a342975b099545590aea47b89e62a"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 0.9321999968960881,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 5,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "86f030367cd83f67804fe40431cfc37d0cef7fe223eea17ca695471fef463370"
+    },
+    {
+      "source": {
+        "name": "three-winding.rawx",
+        "sha256": "ef19260c6e0ebd26780ee2014f4dd323be5a342975b099545590aea47b89e62a"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 5,
+      "sysMismatchMva": 0.00030757705098949373,
+      "elapsedMs": 6.88939995598048,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "0ae7bb561ad8ae7552fa15ca53f334b21f29b9ed80d689413a10869cb3ffff17"
+    },
+    {
+      "source": {
+        "name": "three-winding.rawx",
+        "sha256": "ef19260c6e0ebd26780ee2014f4dd323be5a342975b099545590aea47b89e62a"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 7.211000774987042e-05,
+      "elapsedMs": 2.963899984024465,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 2,
+      "threeWindingCount": 1,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "04d1c710788b1711e0dd97d267a6962a9ca7fb966bf776299ccd0ba23088dab8"
+    },
+    {
+      "source": {
+        "name": "zip.sav",
+        "sha256": "f231729c6f89787f2fd3af4035ef2944a14c4685ebff1fbd1e2de72683ec792e"
+      },
+      "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+      "spec": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "DC_API_COMPLETED_RESIDUAL_REQUIRES_COMPARISON",
+      "ierr": 0,
+      "solved": 9,
+      "iterations": 0,
+      "sysMismatchMva": null,
+      "elapsedMs": 2.728499996010214,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 6,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "3e2540351fd38251dfa0ed5abeaa847e111a5ce9ba6ff00b30921b74ee74e6f8"
+    },
+    {
+      "source": {
+        "name": "zip.sav",
+        "sha256": "f231729c6f89787f2fd3af4035ef2944a14c4685ebff1fbd1e2de72683ec792e"
+      },
+      "optionsHash": "956beb02931c47db26396dc31c01db2cdfd2174d1584deccddd8e1b9fb571204",
+      "spec": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0008333423174917698,
+      "elapsedMs": 3.1080000335350633,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "8099a58a38d496ffca08b3966167aacf5bae487f644c305e1ea246a03018706d"
+    },
+    {
+      "source": {
+        "name": "zip.sav",
+        "sha256": "f231729c6f89787f2fd3af4035ef2944a14c4685ebff1fbd1e2de72683ec792e"
+      },
+      "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+      "spec": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          1
+        ],
+        "iterations": 100,
+        "toleranceMva": 0.001,
+        "profile": "fixed-controls-v1",
+        "oracleVersion": "36.5.0",
+        "harnessVersion": 2
+      },
+      "status": "REFERENCE_CONVERGED",
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "sysMismatchMva": 0.0003606734098866582,
+      "elapsedMs": 4.266400006599724,
+      "exportErrors": [],
+      "busCount": 3,
+      "machineCount": 2,
+      "branchEndCount": 6,
+      "threeWindingCount": 0,
+      "dcReportFlowCount": 0,
+      "dcUnparsedRows": 0,
+      "referenceSha256": "d23fb16eb0c8295f28eaffaea43173243095ce981070c78f1ad65877824de2b8"
+    }
+  ]
+}

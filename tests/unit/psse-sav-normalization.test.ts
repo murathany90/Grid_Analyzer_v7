@@ -15,6 +15,7 @@ test('native SAV reconstructs source IDs, linked electrical equipment, ZIP load 
   assert.equal(load.id,'load:103:L1'); assert.deepEqual(load.buses,[103]);
   for(const [field,expected] of [['pl',40],['ql',10],['ip',2],['iq',3],['yp',4],['yq',-5]] as const)near(load.fields[field],expected);
   near(line.fields.rpu,0.01);near(line.fields.xpu,0.1);near(line.fields.bpu,0.03);near(line.fields.bi,0.02);near(line.fields.bj,0.04);
+  assert.equal(line.fields.bp,0);assert.equal(line.operating.bp.value,0);assert.equal(line.operating.bp.field,'SAV.Bypass[1]');assert.equal(line.operating.bp.provenance,'SOURCE_SAVED');assert.ok(line.operating.bp.offset!>0);
   assert.deepEqual(Array.from({length:12},(_,i)=>line.fields[`rate${i+1}`]),Array.from({length:12},(_,i)=>100+i));
   assert.equal(transformer.id,'transformer:102:103:T1');assert.deepEqual(transformer.buses,[102,103]);near(transformer.fields.r12Pu,0.02);near(transformer.fields.x12Pu,0.2);near(transformer.fields.ratio1Pu,1.05);near(transformer.fields.ang1,30);
   assert.deepEqual(Array.from({length:12},(_,i)=>transformer.fields[`wdg1rate${i+1}`]),Array.from({length:12},(_,i)=>200+i));
@@ -40,7 +41,12 @@ test('native SAV preserves isolated source status and catches a disabled slack m
 test('native SAV source operating state and parameter goldens are deterministic',()=>{
   const equipment=decodeSav(syntheticSav(),'synthetic.sav').equipment;
   const digest=createHash('sha256').update(JSON.stringify(equipment)).digest('hex');
-  assert.equal(digest,'c394ffaad414ac52c07ec41769e95fcb30729935547ce2e8f5478d789c5ec251');
+  assert.equal(digest,'1711f7185f270b032bad920c5f2d77cb2d758df24d04e10647ec65f5b6174821');
+  // The only source-contract extension is BP plus its original byte provenance.
+  // Retain the complete previous golden to detect changes in every older field.
+  const previous=structuredClone(equipment);
+  for(const item of previous)if(item.kind==='line'||item.kind==='switch'){delete item.fields.bp;delete item.operating.bp;}
+  assert.equal(createHash('sha256').update(JSON.stringify(previous)).digest('hex'),'c394ffaad414ac52c07ec41769e95fcb30729935547ce2e8f5478d789c5ec251');
 });
 
 test('native SAV display labels decode valid UTF-8 without changing source bytes or IDs',()=>{

@@ -1,0 +1,111 @@
+{
+  "schema": "ga.psse.dc-contraction-experiment.v1",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "thresholdPu": 0.00009999999747378752,
+  "thresholdEvidence": "SAV Headre[12] verified by independent tiny-fixture API THRSHZ-only save; paired RAW GENERAL and installed API default corroborate",
+  "classificationPrecision": "SOURCE_F32",
+  "headreThresholdCandidates": [
+    {
+      "index": 7,
+      "value": 0.00009999999747378752
+    },
+    {
+      "index": 12,
+      "value": 0.00009999999747378752
+    }
+  ],
+  "referenceOptionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "reportResolutionMw": 0.1,
+  "originalBuses": 6851,
+  "contractedBuses": 5940,
+  "zeroEdges": 928,
+  "nontrivialGroups": 861,
+  "cycleRank": 17,
+  "cyclicGroups": 7,
+  "contractedEngineStatus": "CONVERGED",
+  "referenceAngleOffsetDeg": 0,
+  "contractedAngleDifferenceDeg": {
+    "count": 5029,
+    "max": 0.006284412962822736,
+    "mean": 0.004147002974736863,
+    "p95": 0.005173345888285798
+  },
+  "realShuntConsumptionMw": 103.73386454435901,
+  "overReportHalfStep": 98,
+  "reportedIdealFlowWeightedCycleProjectionMw": {
+    "count": 928,
+    "max": 0.033333333333338544,
+    "mean": 0.00033866995073917824,
+    "p95": 0
+  },
+  "cachedAngles": {
+    "zeroTerminalMw": {
+      "count": 928,
+      "max": 0.2538874048739359,
+      "mean": 0.017923173603780266,
+      "p95": 0.046550458935058714
+    },
+    "regularTerminalMw": {
+      "count": 5194,
+      "max": 0.3217354719632386,
+      "mean": 0.024970376375094562,
+      "p95": 0.047453782581076354
+    },
+    "groupBalanceMw": {
+      "count": 861,
+      "max": 796.532035997225,
+      "mean": 0.926583013413215,
+      "p95": 0.00294631434206849
+    },
+    "nodalResidualMw": {
+      "count": 6851,
+      "max": 796.5320359972249,
+      "mean": 0.11681769292666412,
+      "p95": 0.0007485116243373113
+    },
+    "linearResidual": {
+      "count": 861,
+      "max": 5.174691019864931e-16,
+      "mean": 2.4663294891371746e-18,
+      "p95": 0
+    }
+  },
+  "productionContracted": {
+    "allTerminalMw": {
+      "count": 6122,
+      "max": 0.24669151403816159,
+      "mean": 0.02446078692127814,
+      "p95": 0.048037835117035854
+    },
+    "zeroTerminalMw": {
+      "count": 928,
+      "max": 0.1922094573548918,
+      "mean": 0.019017623242714134,
+      "p95": 0.048000001697801054
+    },
+    "regularTerminalMw": {
+      "count": 5194,
+      "max": 0.24669151403816159,
+      "mean": 0.025433304421029212,
+      "p95": 0.04805578615190598
+    },
+    "groupBalanceMw": {
+      "count": 861,
+      "max": 1.3670842236024328e-10,
+      "mean": 1.818705366083748e-12,
+      "p95": 6.792788553866558e-12
+    },
+    "nodalResidualMw": {
+      "count": 6851,
+      "max": 7.399073298497427e-10,
+      "mean": 1.0698996442890563e-12,
+      "p95": 1.399422244752202e-12
+    },
+    "linearResidual": {
+      "count": 861,
+      "max": 3.1254460140296137e-16,
+      "mean": 1.896136390411183e-18,
+      "p95": 0
+    }
+  }
+}

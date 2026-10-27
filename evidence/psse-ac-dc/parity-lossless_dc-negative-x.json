@@ -1,0 +1,115 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 48.88170000000002,
+  "reports": [
+    {
+      "name": "negative-x.rawx",
+      "sha256": "aa8e9bdb0a7824eef77700fa12cf0ca870b8ae8533980e4f211d4cef53bdf2c6",
+      "normalizedHash": "6df28c041a22ae1b8a8275f4290919cbe3ef52b551c0b85925353da86053c3c3",
+      "method": "LOSSLESS_DC",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaPhysicsCoverage": "SUPPORTED",
+      "gaSource": "GA_PSSE_CALCULATED",
+      "engineVersion": "GA_PSSE_ENGINE_1",
+      "gaIterations": 1,
+      "gaElapsedMs": 26.276700000000005,
+      "gaMaxPMismatchPu": 2.842170943040401e-16,
+      "gaMaxQMismatchPu": null,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "profile": "fixed-controls-v1",
+        "toleranceMva": 0.001,
+        "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+        "ierr": 0,
+        "solved": 9,
+        "iterations": 0
+      },
+      "status": "PASS",
+      "statistics": {
+        "vmPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 1.8213836483482737e-7,
+          "mean": 7.589096640003845e-8,
+          "p95": 1.8213836483482737e-7
+        },
+        "pgMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "qgMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.033333333333338544,
+          "mean": 0.03333333333332463,
+          "p95": 0.033333333333338544
+        },
+        "terminalQMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.051,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": 0
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "ga.psse.dc-load-curve-source-gate.v1",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "solver": "LOSSLESS_DC",
+  "loadVoltagePolicy": "SOURCE_SAVED",
+  "activeLoadCount": 1986,
+  "pqbrak": {
+    "value": 0.699999988079071,
+    "source": "SAV.Headre[2]",
+    "scalarPrecision": "F32"
+  },
+  "activeConstantPLoadsAbovePqbrak": 1963,
+  "activeConstantPLoadsBelowPqbrak": 0,
+  "activeConstantILoadsBelow0_5Pu": 0,
+  "activeLoadsMissingSavedVm": 0,
+  "activeLoadsWithNonblankLoadType": 0,
+  "minActiveLoadSavedVm": 0.8891536526445719,
+  "status": "SUPPORTED_FOR_THIS_SOURCE_LOAD_CURVE_GATE"
+}

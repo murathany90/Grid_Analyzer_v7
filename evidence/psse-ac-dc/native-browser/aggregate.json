@@ -1,0 +1,144 @@
+{
+  "schema": "ga.psse.native-browser-acceptance.v1",
+  "status": "PASS",
+  "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+  "countsExpected": {
+    "bus": 6851,
+    "line": 2403,
+    "transformer": 3703,
+    "generator": 2920,
+    "load": 2520
+  },
+  "channels": {
+    "chrome": {
+      "sha256": "36a7d227b0cbb8b5ed13a5d00ba580e0ab281f9640c227eb44f861781a9f9501",
+      "browser": "156.0.8078.48",
+      "sourceCounts": {
+        "sav": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        },
+        "raw": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        },
+        "savZip": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        }
+      },
+      "sources": {
+        "sav": "SAV",
+        "raw": "RAW",
+        "savZip": "SAV"
+      },
+      "loadTimingsMs": {
+        "sav": 8642,
+        "raw": 6731,
+        "savZip": 337,
+        "realDc": 8558
+      },
+      "heapBytesAfterSavLoad": 304000000,
+      "heapSnapshotsAfterRealDc": {
+        "kind": "point-in-time; not peak",
+        "mainFrame": {
+          "usedSizeBytes": 387426620,
+          "totalSizeBytes": 439611392,
+          "embedderHeapUsedBytes": 34372272,
+          "backingStorageBytes": 18587309
+        },
+        "calculationWorkers": {
+          "available": false,
+          "targetCount": 2,
+          "reason": "worker CDP snapshot unavailable"
+        }
+      },
+      "dcResult": {
+        "status": "LIMITED_PROFILE",
+        "numericalStatus": "CONVERGED",
+        "publicationStatus": "LIMITED_PROFILE",
+        "physicsCoverage": "PARTIAL",
+        "source": "GA_PSSE_CALCULATED",
+        "qAndCurrentUnavailable": true,
+        "mainFrameHeapBytesAfterSavLoad": 304000000
+      },
+      "externalRequests": 0,
+      "blockedNetworkRequests": 0,
+      "consoleErrorCount": 0
+    },
+    "msedge": {
+      "sha256": "e663567ee6f55a8cd16ceefd394596b0ea731e3a34f636a9503fe1838522931e",
+      "browser": "156.0.4314.42",
+      "sourceCounts": {
+        "sav": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        },
+        "raw": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        },
+        "savZip": {
+          "bus": 6851,
+          "line": 2403,
+          "transformer": 3703,
+          "generator": 2920,
+          "load": 2520
+        }
+      },
+      "sources": {
+        "sav": "SAV",
+        "raw": "RAW",
+        "savZip": "SAV"
+      },
+      "loadTimingsMs": {
+        "sav": 8771,
+        "raw": 9781,
+        "savZip": 318,
+        "realDc": 7277
+      },
+      "heapBytesAfterSavLoad": 386000000,
+      "heapSnapshotsAfterRealDc": {
+        "kind": "point-in-time; not peak",
+        "mainFrame": {
+          "usedSizeBytes": 384568516,
+          "totalSizeBytes": 435769344,
+          "embedderHeapUsedBytes": 34266528,
+          "backingStorageBytes": 18587351
+        },
+        "calculationWorkers": {
+          "available": false,
+          "targetCount": 2,
+          "reason": "worker CDP snapshot unavailable"
+        }
+      },
+      "dcResult": {
+        "status": "LIMITED_PROFILE",
+        "numericalStatus": "CONVERGED",
+        "publicationStatus": "LIMITED_PROFILE",
+        "physicsCoverage": "PARTIAL",
+        "source": "GA_PSSE_CALCULATED",
+        "qAndCurrentUnavailable": true,
+        "mainFrameHeapBytesAfterSavLoad": 386000000
+      },
+      "externalRequests": 0,
+      "blockedNetworkRequests": 0,
+      "consoleErrorCount": 0
+    }
+  }
+}

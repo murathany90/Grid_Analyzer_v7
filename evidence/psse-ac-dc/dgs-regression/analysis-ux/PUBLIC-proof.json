@@ -1,0 +1,2683 @@
+{
+  "dataset": "PUBLIC_SYNTHETIC_PRESENTATION_ONLY",
+  "studySha256": null,
+  "browser": "153.0.8010.12",
+  "geometry": [
+    {
+      "width": 1366,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1366,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1366,
+      "tableClientWidth": 1366,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 396.140625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 95.609375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 163.90625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 204.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 177.578125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 232.21875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 95.65625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1366,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1366,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1366,
+      "tableClientWidth": 1366,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 88.34375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 152.34375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 218.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 83.453125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 83.34375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 71.9375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 128.453125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 156.75,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 172.953125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 126.609375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 83.65625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1366,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1366,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1366,
+      "tableClientWidth": 1366,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 396.140625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 95.609375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 259.53125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 259.53125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Yük (%)",
+          "width": 259.53125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 95.65625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1366,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 1093,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1093,
+      "tableClientWidth": 1093,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 396.140625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 95.609375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 163.90625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 204.890625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 177.578125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 232.21875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 95.65625,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1366,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 1093,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1093,
+      "tableClientWidth": 1093,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 88.328125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 152.328125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 218.15625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 83.453125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 83.359375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 71.9375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 128.46875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 156.75,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 172.953125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 126.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 83.671875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1366,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 1093,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1366,
+      "tableScrollWidth": 1093,
+      "tableClientWidth": 1093,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 396.140625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 95.609375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 259.53125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 259.53125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Yük (%)",
+          "width": 259.53125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 95.65625,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1366,
+      "available": 1366
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1440,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1440,
+      "tableClientWidth": 1440,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 417.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 100.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 172.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 216,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 187.1875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 244.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 100.828125,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1440,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1440,
+      "tableClientWidth": 1440,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 93.125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 160.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 229.984375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 87.96875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 87.859375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 75.828125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 135.421875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 165.25,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 182.3125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 133.46875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 88.1875,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1440,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1440,
+      "tableClientWidth": 1440,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 417.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 100.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 273.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 273.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Yük (%)",
+          "width": 273.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 100.828125,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1440,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 1152,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1152,
+      "tableClientWidth": 1152,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 417.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 100.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 172.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 216,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 187.1875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 244.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 100.828125,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1440,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 1152,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1152,
+      "tableClientWidth": 1152,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 93.109375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 160.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 229.984375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 87.984375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 87.875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 75.84375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 135.421875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 165.234375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 182.328125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 133.453125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 88.171875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1440,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 1152,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1440,
+      "tableScrollWidth": 1152,
+      "tableClientWidth": 1152,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 417.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 100.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 273.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 273.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Yük (%)",
+          "width": 273.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 100.828125,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1440,
+      "available": 1440
+    },
+    {
+      "width": 1600,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1600,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1600,
+      "tableClientWidth": 1600,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 464,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 112,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 192,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 240,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 208,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 272,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 112,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1600,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1600,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1600,
+      "tableClientWidth": 1600,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 103.46875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 178.4375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 255.53125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 97.75,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 97.625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 84.25,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 150.46875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 183.609375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 202.578125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 148.296875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 97.984375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1600,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1600,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1600,
+      "tableClientWidth": 1600,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 464,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 112,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 304,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 304,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Yük (%)",
+          "width": 304,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 112,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1600,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 1280,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1280,
+      "tableClientWidth": 1280,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 464,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 112,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 192,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 240,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 208,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 272,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 112,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1600,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 1280,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1280,
+      "tableClientWidth": 1280,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 103.453125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 178.4375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 255.53125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 97.75,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 97.625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 84.265625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 150.484375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 183.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 202.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 148.28125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 97.984375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1600,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 1280,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1600,
+      "tableScrollWidth": 1280,
+      "tableClientWidth": 1280,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 464,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 112,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 304,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 304,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Yük (%)",
+          "width": 304,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 112,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1600,
+      "available": 1600
+    },
+    {
+      "width": 1810,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1810,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1810,
+      "tableClientWidth": 1810,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 524.90625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 126.6875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 217.1875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 271.5,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 235.296875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 307.6875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 126.734375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1810,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1810,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1810,
+      "tableClientWidth": 1810,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 117.046875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 201.859375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 289.078125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 110.578125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 110.4375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 95.3125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 170.21875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 207.703125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 229.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 167.765625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 110.84375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1810,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1810,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1810,
+      "tableClientWidth": 1810,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 524.90625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 126.6875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 343.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 343.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Yük (%)",
+          "width": 343.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 126.734375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1810,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 1448,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1448,
+      "tableClientWidth": 1448,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 524.90625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 126.6875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 217.1875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 271.5,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 235.296875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 307.6875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 126.734375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1810,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 1448,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1448,
+      "tableClientWidth": 1448,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 117.03125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 201.84375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 289.078125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 110.578125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 110.453125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 95.328125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 170.234375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 207.6875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 229.1875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 167.734375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 110.84375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1810,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 1448,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1810,
+      "tableScrollWidth": 1448,
+      "tableClientWidth": 1448,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 524.90625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 126.6875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 343.890625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 343.890625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Yük (%)",
+          "width": 343.890625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 126.734375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1810,
+      "available": 1810
+    },
+    {
+      "width": 1920,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1920,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1920,
+      "tableClientWidth": 1920,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 556.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 134.390625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 230.390625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 288,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 249.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 326.390625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 134.4375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1920,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1920,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1920,
+      "tableClientWidth": 1920,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 124.171875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 214.125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 306.640625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 117.296875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 117.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 101.109375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 180.5625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 220.328125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 243.09375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 177.953125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 117.5625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1920,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1920,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1920,
+      "tableClientWidth": 1920,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 556.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 134.390625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 364.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 364.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Yük (%)",
+          "width": 364.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 134.421875,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1920,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 1536,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1536,
+      "tableClientWidth": 1536,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 556.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 134.390625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 230.390625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 288,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 249.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 326.390625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 134.4375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1920,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 1536,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1536,
+      "tableClientWidth": 1536,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 124.15625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 214.125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 306.640625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 117.3125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 117.15625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 101.125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 180.578125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 220.3125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 243.109375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 177.9375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 117.546875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1920,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 1536,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1920,
+      "tableScrollWidth": 1536,
+      "tableClientWidth": 1536,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 556.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 134.390625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 364.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Q (MVAr)",
+          "width": 364.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Yük (%)",
+          "width": 364.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 134.421875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1920,
+      "available": 1920
+    },
+    {
+      "width": 1024,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 1024,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 1024,
+      "tableClientWidth": 1024,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 296.953125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 71.671875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 122.875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 153.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 133.109375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 174.078125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 71.71875,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1024,
+      "available": 1024
+    },
+    {
+      "width": 1024,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 1024,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 69.84375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 120.4375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 172.484375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 65.984375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 65.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 56.875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 101.5625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 123.9375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 136.734375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 100.09375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 66.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1080,
+      "available": 1024
+    },
+    {
+      "width": 1024,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 1024,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 1024,
+      "tableClientWidth": 1024,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 460.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 71.671875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 71.671875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 419.859375,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1024,
+      "available": 1024
+    },
+    {
+      "width": 1024,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 819,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 819,
+      "tableClientWidth": 819,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 296.953125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 71.671875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "DC",
+          "width": 122.875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "AC",
+          "width": 153.59375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 133.109375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 174.078125,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 71.71875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1024,
+      "available": 1024
+    },
+    {
+      "width": 1024,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 819,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 87.296875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 150.546875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tür",
+          "width": 215.609375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Baz kV",
+          "width": 82.484375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "U(kV)",
+          "width": 82.375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Açı(°)",
+          "width": 71.09375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 126.96875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 154.90625,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 170.9375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Durum",
+          "width": 125.109375,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 82.671875,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1350,
+      "available": 1024
+    },
+    {
+      "width": 1024,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 819,
+      "presentation": "TABLE",
+      "documentScrollWidth": 1024,
+      "tableScrollWidth": 819,
+      "tableClientWidth": 819,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 460.796875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "kV",
+          "width": 71.671875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "P (MW)",
+          "width": 71.671875,
+          "textHeight": 20,
+          "maxHeight": 52
+        },
+        {
+          "text": "Detay",
+          "width": 419.859375,
+          "textHeight": 20,
+          "maxHeight": 52
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 1024,
+      "available": 1024
+    },
+    {
+      "width": 768,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 768,
+      "presentation": "TABLE",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 768,
+      "tableClientWidth": 768,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Kesinti",
+          "width": 222.734375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 53.75,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "DC",
+          "width": 92.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "AC",
+          "width": 115.1875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Maks. yük (%)",
+          "width": 99.828125,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": ">%100 etkilenen",
+          "width": 130.546875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 53.796875,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 768,
+      "available": 768
+    },
+    {
+      "width": 768,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 768,
+      "presentation": "TABLE",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "TM",
+          "width": 69.84375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Bara / Düğüm",
+          "width": 120.4375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tür",
+          "width": 172.484375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Baz kV",
+          "width": 65.984375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "U(kV)",
+          "width": 65.890625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Açı(°)",
+          "width": 56.875,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "3F Ikss (kA)",
+          "width": 101.5625,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "PF 3F Ikss (kA)",
+          "width": 123.9375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Tanısal fark (kA)",
+          "width": 136.734375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Durum",
+          "width": 100.09375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 66.15625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 50,
+      "tableWidth": 1080,
+      "available": 768
+    },
+    {
+      "width": 768,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 768,
+      "presentation": "TABLE",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 768,
+      "tableClientWidth": 768,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [
+        {
+          "text": "Hat",
+          "width": 345.59375,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "kV",
+          "width": 53.75,
+          "textHeight": 16,
+          "maxHeight": 42
+        },
+        {
+          "text": "P (MW)",
+          "width": 53.75,
+          "textHeight": 36,
+          "maxHeight": 42
+        },
+        {
+          "text": "Detay",
+          "width": 314.90625,
+          "textHeight": 16,
+          "maxHeight": 42
+        }
+      ],
+      "rows": 1,
+      "tableWidth": 768,
+      "available": 768
+    },
+    {
+      "width": 768,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 614,
+      "presentation": "CARDS",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 614,
+      "tableClientWidth": 614,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 768,
+      "available": 768
+    },
+    {
+      "width": 768,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 614,
+      "presentation": "CARDS",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 1350,
+      "available": 768
+    },
+    {
+      "width": 768,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 614,
+      "presentation": "CARDS",
+      "documentScrollWidth": 768,
+      "tableScrollWidth": 614,
+      "tableClientWidth": 614,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 1,
+      "tableWidth": 768,
+      "available": 768
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "family": "N1",
+      "containerClientWidth": 390,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 390,
+      "tableClientWidth": 390,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 390,
+      "available": 390
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "family": "SC",
+      "containerClientWidth": 390,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 1080,
+      "available": 390
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "family": "LF",
+      "containerClientWidth": 390,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 390,
+      "tableClientWidth": 390,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 1,
+      "tableWidth": 390,
+      "available": 390
+    },
+    {
+      "width": 390,
+      "zoom": 1.25,
+      "family": "N1",
+      "containerClientWidth": 312,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 312,
+      "tableClientWidth": 312,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 390,
+      "available": 390
+    },
+    {
+      "width": 390,
+      "zoom": 1.25,
+      "family": "SC",
+      "containerClientWidth": 312,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 1080,
+      "tableClientWidth": 1080,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 50,
+      "tableWidth": 1350,
+      "available": 390
+    },
+    {
+      "width": 390,
+      "zoom": 1.25,
+      "family": "LF",
+      "containerClientWidth": 312,
+      "presentation": "CARDS",
+      "documentScrollWidth": 390,
+      "tableScrollWidth": 312,
+      "tableClientWidth": 312,
+      "documentOverflow": false,
+      "tableOverflow": false,
+      "headers": [],
+      "rows": 1,
+      "tableWidth": 390,
+      "available": 390
+    }
+  ],
+  "errors": [],
+  "restored": {
+    "run": {
+      "family": "N1",
+      "workflow": "COMPLETE",
+      "stale": false,
+      "retainedFamily": false,
+      "numericalAvailable": 30,
+      "candidateCount": 660,
+      "dcScreened": 296,
+      "acAttempted": 37,
+      "acCalculated": 30,
+      "acVerified": 0,
+      "distinctNumerical": 298,
+      "electricalBuses": 0,
+      "physicalTerminals": 0,
+      "elapsedMs": 172300,
+      "resultIdentity": {
+        "modelHash": "sc-audit-6278",
+        "scenarioHash": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+        "settingsHash": "{\"dc\":{\"activeBalancingMode\":\"SINGLE_REFERENCE\",\"maxLinearIterations\":20000,\"minVoltageKv\":66,\"relativeResidualTolerance\":1e-7},\"fastAc\":{\"considerQLimits\":true,\"fallbackPolicy\":\"APPROXIMATE\",\"maxIterations\":110,\"maxQLimitRounds\":5,\"minVoltageKv\":66,\"mismatchTolerance\":0.00001,\"nrRefinementEnabled\":true,\"nrRefinementMaxIterations\":20,\"usePvControls\":true},\"powerFlow\":{\"activeBalancingMode\":\"DISTRIBUTED_ADJUSTABLE_LOADS\",\"activeControlMode\":\"AS_DISPATCHED\",\"activePowerLimitsEnabled\":false,\"automaticShunt\":false,\"automaticTransformerTap\":false,\"feederLoadScaling\":false,\"interchangeSchedule\":false,\"lineResistanceTemperatureCorrection\":false,\"loadVoltageDependency\":false,\"maxActiveBalanceCorrections\":8,\"maxFinalActiveBalanceCorrections\":8,\"maxInnerIterations\":100,\"maxNoImprovementIterations\":20,\"maxOuterIterations\":50,\"maxQLimitRounds\":8,\"maxStationActiveSetRestarts\":128,\"maxStationControlCorrections\":16,\"maxStationUnitReleases\":2,\"modelEquationTolerancePercent\":0.2,\"nodalToleranceKva\":5,\"profile\":\"POWERFACTORY_TEIAS_PARITY\",\"qLimitScalingEnabled\":false,\"qLimitToleranceMvar\":0.02,\"reactiveLimitsEnabled\":true,\"repeatedReactiveLimitDetection\":3,\"stationControlMode\":\"droop\"},\"shared\":{\"generationScalePercent\":100,\"loadScalePercent\":100,\"motorScalePercent\":100,\"storageHeaterScalePercent\":100}}",
+        "optionsHash": "PUBLIC_SYNTHETIC_PRESENTATION"
+      },
+      "sourceVerified": false,
+      "methodVerified": false,
+      "pfParityVerified": false,
+      "label": "İş akışı tamamlandı · 30 sayısal AC · tam kontrol doğrulaması 0"
+    },
+    "n1": 660,
+    "sc": 500,
+    "physicalScTargets": 6278
+  },
+  "zoomMethod": "CSS zoom 1 / 1.25 in headless Chromium; not browser chrome zoom automation"
+}

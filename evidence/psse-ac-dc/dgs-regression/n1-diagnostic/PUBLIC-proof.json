@@ -1,0 +1,72 @@
+{
+  "fixture": "SYNTHETIC_REAL_WORKER",
+  "strict": {
+    "status": "BLOCKED",
+    "cases": 4,
+    "attempts": 0,
+    "dc": true
+  },
+  "diagnostic": {
+    "counts": {
+      "total": 4,
+      "catalog": 4,
+      "excludedCatalog": 0,
+      "promoted": 4,
+      "AC_CALCULATED": 3,
+      "NOT_RUN": 0,
+      "UNKNOWN": 4,
+      "dcRiskConfirmedAc": 0,
+      "dcViolationsNotConfirmedAc": 0,
+      "dcClearAcVerified": 0,
+      "dcClearVoltageRisk": 0,
+      "dcClearViolatedAc": 0,
+      "PARTIAL_SOLUTION": 3,
+      "ISLAND_UNSUPPLIED": 1,
+      "DC_SCREENED": 3,
+      "N1_NUMERICALLY_COMPUTABLE": 3,
+      "AC_DIRECT_OUTSIDE_DC": 0,
+      "ISLAND_UNSUPPLIED_COMPONENT_CASES": 1,
+      "AC_ATTEMPTED": 4,
+      "AC_NUMERICALLY_SOLVED": 4,
+      "AC_VERIFIED": 0,
+      "AC_SUCCESSFUL": 0,
+      "AC_PARTIAL": 3,
+      "AC_SKIPPED": 1,
+      "AC_UNVERIFIED": 4,
+      "uniqueViolatedElements": 0
+    },
+    "cases": [
+      {
+        "id": "N1:ElmLne:BYPASS",
+        "status": "PARTIAL_SOLUTION",
+        "reason": "PV_SOURCE_REACTIVE_LIMITS_MISSING_OR_INVALID; UNSUPPORTED_STATION_CONTROL; CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY",
+        "solved": true
+      },
+      {
+        "id": "N1:ElmLne:ISLAND",
+        "status": "ISLAND_UNSUPPLIED",
+        "reason": "UNSUPPLIED_COMPONENTS_EXCLUDED_FROM_NUMERICAL_SOLUTION; PV_SOURCE_REACTIVE_LIMITS_MISSING_OR_INVALID; UNSUPPORTED_STATION_CONTROL; CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY; ISLAND_UNSUPPLIED; SUPPLIED_COMPONENT_NUMBERS_ONLY; OUTAGE_CREATED_UNSUPPLIED_ISLAND",
+        "solved": false
+      },
+      {
+        "id": "N1:ElmLne:L0",
+        "status": "PARTIAL_SOLUTION",
+        "reason": "PV_SOURCE_REACTIVE_LIMITS_MISSING_OR_INVALID; UNSUPPORTED_STATION_CONTROL; CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY",
+        "solved": true
+      },
+      {
+        "id": "N1:ElmLne:L1",
+        "status": "PARTIAL_SOLUTION",
+        "reason": "PV_SOURCE_REACTIVE_LIMITS_MISSING_OR_INVALID; UNSUPPORTED_STATION_CONTROL; CONTROL_FIDELITY_PARTIAL; NOT_PF_PARITY",
+        "solved": true
+      }
+    ]
+  },
+  "geometry": {
+    "listHeight": 202,
+    "horizontal": false,
+    "panelWidth": 640
+  },
+  "initialHeight": 202,
+  "errors": []
+}

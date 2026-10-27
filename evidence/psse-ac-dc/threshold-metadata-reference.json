@@ -1,0 +1,24 @@
+{
+  "schema": "ga.psse.threshold-metadata-reference.v1",
+  "fixture": "Original public three-bus fixture",
+  "referenceVersion": "36.5.0",
+  "powerFlowSolves": 0,
+  "before": {
+    "ierr": 0,
+    "thrshz": 0.00009999999747378752
+  },
+  "after": {
+    "ierr": 0,
+    "thrshz": 0.0003699999942909926
+  },
+  "changedOption": "solution_parameters_5 REALAR(11)",
+  "headerChanges": [
+    {
+      "array": "Headre",
+      "oneBasedIndex": 12,
+      "zeroBasedIndex": 11,
+      "before": 0.00009999999747378752,
+      "after": 0.0003699999942909926
+    }
+  ]
+}

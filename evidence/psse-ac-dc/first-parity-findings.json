@@ -1,0 +1,789 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 46.89480000000003,
+  "reports": [
+    {
+      "name": "basic.rawx",
+      "sha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655",
+      "normalizedHash": "b6d74d5416f6567b835beca4a9aa5c401dd4a8da4df71db93ee035fc010a7bc6",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 11.182600000000036,
+      "gaMaxPMismatchPu": 1.2324874454350265e-10,
+      "gaMaxQMismatchPu": 3.6129610414548097e-10,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 3.814697269177714e-8,
+          "mean": 2.0964594393824143e-8,
+          "p95": 3.814697269177714e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 2.8480144464992918e-8,
+          "mean": 1.66962384658594e-8,
+          "p95": 2.8480144464992918e-8
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 1.0808334350585938,
+          "mean": 0.5404186248779297,
+          "p95": 1.0808334350585938
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.000048657856979161807,
+          "mean": 0.00004749832165984458,
+          "p95": 0.000048657856979161807
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.000005350206734533458,
+          "mean": 0.000002770318522064367,
+          "p95": 0.000005350206734533458
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.000034785655969926665,
+          "mean": 0.000021893488264979055,
+          "p95": 0.000034785655969926665
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.0000062221115086913414,
+          "mean": 0.0000027421827610100515,
+          "p95": 0.0000062221115086913414
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.000004370594155034269,
+          "mean": 0.0000030821084078998715,
+          "p95": 0.000004370594155034269
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "zip.rawx",
+      "sha256": "0d2d182ca9efe4c87303f9b4d42e854ce230e8313e1d3e7fc50f58d281226464",
+      "normalizedHash": "df5246f4e051f9c1533757e8b95664fcac10bac4df79c26fb611ac55aacb916e",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 1.0380999999999858,
+      "gaMaxPMismatchPu": 8.675993257156733e-11,
+      "gaMaxQMismatchPu": 3.033284734499375e-10,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 0.015159542504776247,
+          "mean": 0.005053196729497371,
+          "p95": 0.015159542504776247
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 0.079737822435618,
+          "mean": 0.03430254079592032,
+          "p95": 0.079737822435618
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 1.9019546508789062,
+          "mean": 0.9509792327880859,
+          "p95": 1.9019546508789062
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 15.772953340705058,
+          "mean": 15.49631839039189,
+          "p95": 15.772953340705058
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.9417716922243216,
+          "mean": 0.5802454148590332,
+          "p95": 0.9417716922243216
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 15.730890263544893,
+          "mean": 10.180727165318967,
+          "p95": 15.730890263544893
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.08838286234583848,
+          "mean": 0.030818868381042492,
+          "p95": 0.08838286234583848
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.9141566510640331,
+          "mean": 0.3284172563218914,
+          "p95": 0.9141566510640331
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "vmPu",
+        "vaDeg",
+        "pgMw",
+        "qgMvar",
+        "terminalPMw",
+        "terminalQMvar",
+        "branchLossMvar"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "q-limits.rawx",
+      "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0",
+      "normalizedHash": "20e34a603dd12e4d38c9220b02345f3928b313e3f4c5de5be2e6a52f3663e3ed",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 0.6385999999999967,
+      "gaMaxPMismatchPu": 2.2585400216712515e-10,
+      "gaMaxQMismatchPu": 9.71845048880482e-10,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 8.357663117131153e-8,
+          "mean": 5.964802096691812e-8,
+          "p95": 8.357663117131153e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 2.8188242140458897e-7,
+          "mean": 1.7282517698428515e-7,
+          "p95": 2.8188242140458897e-7
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 0.9639663696289062,
+          "mean": 0.48198509216308594,
+          "p95": 0.9639663696289062
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 51.209861755371094,
+          "mean": 25.604947518987473,
+          "p95": 51.209861755371094
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.000003989432084239297,
+          "mean": 0.000002805638527281218,
+          "p95": 0.000003989432084239297
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.000024255216985125116,
+          "mean": 0.000016155593374200805,
+          "p95": 0.000024255216985125116
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.0000015448068069190413,
+          "mean": 6.781826054809889e-7,
+          "p95": 0.0000015448068069190413
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.0000022096768894641627,
+          "mean": 0.000001457106662291115,
+          "p95": 0.0000022096768894641627
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw",
+        "qgMvar"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "tap.rawx",
+      "sha256": "982b42726a976a581e53d965bac299c4c50478d5e3b509b8c4d6d6acd42e613e",
+      "normalizedHash": "d88d5f7d3fb36c9a436ba2ac950a9f5f0d7552043428e5f8bafc3a125bedf372",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 3.998899999999992,
+      "gaMaxPMismatchPu": 6.315390432831691e-10,
+      "gaMaxQMismatchPu": 1.2949623595659432e-9,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 4.8195172852594226e-8,
+          "mean": 3.195962957243855e-8,
+          "p95": 4.8195172852594226e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 1.47784248838434e-7,
+          "mean": 5.059871455159737e-8,
+          "p95": 1.47784248838434e-7
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 0.848236083984375,
+          "mean": 0.4241199493408203,
+          "p95": 0.848236083984375
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.00006224587118630609,
+          "mean": 0.00005390766070423325,
+          "p95": 0.00006224587118630609
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.0000070472007820399085,
+          "mean": 0.0000037878173309024987,
+          "p95": 0.0000070472007820399085
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.000032124301199587535,
+          "mean": 0.000028084819181965297,
+          "p95": 0.000032124301199587535
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.000005993132177195548,
+          "mean": 0.000004230286137385519,
+          "p95": 0.000005993132177195548
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.000017313736726976003,
+          "mean": 0.000006344741101097877,
+          "p95": 0.000017313736726976003
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "phase.rawx",
+      "sha256": "dcc4e95a0c0c6ee93ae1750231bcae992cd11a4788783885465dcdb56e5158c2",
+      "normalizedHash": "0072f28535889b9c8ec349ac83f38c5477a3645f2ae8abd7d1b9624f2cfdcc4b",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 4,
+      "gaElapsedMs": 0.394299999999987,
+      "gaMaxPMismatchPu": 1.7763568394002505e-15,
+      "gaMaxQMismatchPu": 2.275957200481571e-15,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 3.814697269177714e-8,
+          "mean": 2.7846485524859094e-8,
+          "p95": 3.814697269177714e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 7.066857961035566e-7,
+          "mean": 4.058818300715454e-7,
+          "p95": 7.066857961035566e-7
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 1.73333740234375,
+          "mean": 0.8666706085205078,
+          "p95": 1.73333740234375
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.00012494984349586957,
+          "mean": 0.0000667403287710755,
+          "p95": 0.00012494984349586957
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.0000230426806098194,
+          "mean": 0.000016920715395940533,
+          "p95": 0.0000230426806098194
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.00009217599086852601,
+          "mean": 0.00003241789087660152,
+          "p95": 0.00009217599086852601
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.0000033096582257030605,
+          "mean": 0.000002341473070543998,
+          "p95": 0.0000033096582257030605
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.00008385242273689641,
+          "mean": 0.00003085905731244528,
+          "p95": 0.00008385242273689641
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "three-winding.rawx",
+      "sha256": "ef19260c6e0ebd26780ee2014f4dd323be5a342975b099545590aea47b89e62a",
+      "normalizedHash": "82c18f482d1fff40a2d3087b50e32a7644d83c0f094c695e3d7af4f1957cd1ce",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 4,
+      "gaElapsedMs": 1.1365000000000123,
+      "gaMaxPMismatchPu": 6.439293542825908e-15,
+      "gaMaxQMismatchPu": 5.565969987463326e-15,
+      "networkCounts": {
+        "buses": 4,
+        "branches": 4
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 3.814697269177714e-8,
+          "mean": 2.6860687007967954e-8,
+          "p95": 3.814697269177714e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 0.000001010075834528834,
+          "mean": 4.2667337159703794e-7,
+          "p95": 0.000001010075834528834
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 0.8610076904296875,
+          "mean": 0.43050575256347656,
+          "p95": 0.8610076904296875
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.0001744481182583968,
+          "mean": 0.000088629011259167,
+          "p95": 0.0001744481182583968
+        },
+        "terminalPMw": {
+          "count": 5,
+          "max": 0.000030517577499722393,
+          "mean": 0.000010891296310755471,
+          "p95": 0.000030517577499722393
+        },
+        "terminalQMvar": {
+          "count": 5,
+          "max": 0.00014323283053840896,
+          "mean": 0.00005146222138705525,
+          "p95": 0.00014323283053840896
+        },
+        "branchLossMw": {
+          "count": 1,
+          "max": 1.7308520450232123e-7,
+          "mean": 1.7308520450232123e-7,
+          "p95": 1.7308520450232123e-7
+        },
+        "branchLossMvar": {
+          "count": 1,
+          "max": 0.000002394418586959546,
+          "mean": 0.000002394418586959546,
+          "p95": 0.000002394418586959546
+        },
+        "tapPu": {
+          "count": 3,
+          "max": 2.8610229518832853e-8,
+          "mean": 9.536743172944284e-9,
+          "p95": 2.8610229518832853e-8
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "cm2.rawx",
+      "sha256": "6bae05ae170b250ff6c07a923c9b7a7130f5b87aaead1a1aa0687e0e77432ace",
+      "normalizedHash": "79167724506809ae58a89c0f9030f0d710320f098a9080a700458675a857b140",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 0.35140000000001237,
+      "gaMaxPMismatchPu": 1.3146392863205847e-9,
+      "gaMaxQMismatchPu": 2.214426031432737e-9,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 3.814697269177714e-8,
+          "mean": 2.1333465845726114e-8,
+          "p95": 3.814697269177714e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 1.6655621948302723e-7,
+          "mean": 7.098500039622498e-8,
+          "p95": 1.6655621948302723e-7
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 0.915435791015625,
+          "mean": 0.4577198028564453,
+          "p95": 0.915435791015625
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.00011073386546911479,
+          "mean": 0.00005846352009863942,
+          "p95": 0.00011073386546911479
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.0000066396035887095195,
+          "mean": 0.000003135111991348083,
+          "p95": 0.0000066396035887095195
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.00007912899629403114,
+          "mean": 0.00003517368026114317,
+          "p95": 0.00007912899629403114
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.0000031510693219161112,
+          "mean": 0.000001871061331944664,
+          "p95": 0.0000031510693219161112
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.00009935237490310556,
+          "mean": 0.00003428492817884413,
+          "p95": 0.00009935237490310556
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    },
+    {
+      "name": "shunt.rawx",
+      "sha256": "adfd16365c6139271ff0e304698200a6be04ac0da1b9357adef2ac8a630c7e52",
+      "normalizedHash": "95173c0fe701c58b887cba59e4d842670b591e550a4a4094ae82681a0a195345",
+      "method": "NR_POLAR",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "CONVERGED",
+      "gaIterations": 3,
+      "gaElapsedMs": 0.36599999999998545,
+      "gaMaxPMismatchPu": 4.259326225053428e-11,
+      "gaMaxQMismatchPu": 4.0290626390770967e-10,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "optionsHash": "9821c30ef02b5eeef52d64ad3518f2ba2f6e08b2cc9285172e96f0db5d9ee908",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 3
+      },
+      "status": "DIFFERENCES",
+      "statistics": {
+        "vmPu": {
+          "count": 3,
+          "max": 5.58824289065285e-8,
+          "mean": 3.4522048257083306e-8,
+          "p95": 5.58824289065285e-8
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 1.2896111911686603e-7,
+          "mean": 5.2599830269173253e-8,
+          "p95": 1.2896111911686603e-7
+        },
+        "pgMw": {
+          "count": 2,
+          "max": 2.0312957763671875,
+          "mean": 1.0156497955322266,
+          "p95": 2.0312957763671875
+        },
+        "qgMvar": {
+          "count": 2,
+          "max": 0.00004859794500333692,
+          "mean": 0.000046570340050067216,
+          "p95": 0.00004859794500333692
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.000007502918464297181,
+          "mean": 0.000003886799392560647,
+          "p95": 0.000007502918464297181
+        },
+        "terminalQMvar": {
+          "count": 6,
+          "max": 0.00003341991859429072,
+          "mean": 0.000021248123950157183,
+          "p95": 0.00003341991859429072
+        },
+        "branchLossMw": {
+          "count": 3,
+          "max": 0.0000030470749337041525,
+          "mean": 0.0000015320244687681377,
+          "p95": 0.0000030470749337041525
+        },
+        "branchLossMvar": {
+          "count": 3,
+          "max": 0.000004359721280877693,
+          "mean": 0.0000018058113835373035,
+          "p95": 0.000004359721280877693
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "limits": {
+        "vmPu": 0.0001,
+        "vaDeg": 0.05,
+        "pgMw": 0.5,
+        "qgMvar": 0.5,
+        "terminalPMw": 0.5,
+        "terminalQMvar": 0.5,
+        "branchLossMw": 0.5,
+        "branchLossMvar": 0.5,
+        "tapPu": 0.00001
+      },
+      "violations": [
+        "pgMw"
+      ],
+      "missingCount": 0,
+      "referenceExportErrors": 0,
+      "dcUnparsedRows": null
+    }
+  ]
+}

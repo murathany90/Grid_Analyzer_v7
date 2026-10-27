@@ -1,0 +1,129 @@
+{
+  "schema": "ga.dgs.regression.evidence.v1",
+  "status": "PASS",
+  "command": "npm run test:e2e",
+  "fixtureScope": "PUBLIC synthetic fixtures only; no private or licensed models",
+  "suiteCount": 9,
+  "suites": [
+    {
+      "name": "browser-smoke.mjs",
+      "status": "PASS",
+      "proofs": []
+    },
+    {
+      "name": "pf-benchmark-browser-smoke.ts",
+      "status": "PASS",
+      "proofs": []
+    },
+    {
+      "name": "map-lightning-audit-browser-smoke.mjs",
+      "status": "PASS",
+      "proofs": []
+    },
+    {
+      "name": "n1-diagnostic-browser-smoke.mjs",
+      "status": "PASS",
+      "proofs": [
+        {
+          "path": "evidence/psse-ac-dc/dgs-regression/n1-diagnostic/PUBLIC-proof.json",
+          "sha256": "036d51ed78da4ddba2ac29b84a642cd140731aee6edb0ad11e7b516caf950ca2"
+        }
+      ]
+    },
+    {
+      "name": "sld-browser-smoke.mjs",
+      "status": "PASS",
+      "proofs": []
+    },
+    {
+      "name": "n1-sc-browser-acceptance.mjs PUBLIC AUTO",
+      "status": "PASS",
+      "proofs": [
+        {
+          "path": "evidence/psse-ac-dc/dgs-regression/n1-sc/PUBLIC-AUTO-browser-proof.json",
+          "sha256": "5fae98762de6dcdbe47c627c68f2497dc2fbf4a5aac5945a7e95bea37c37024f"
+        }
+      ]
+    },
+    {
+      "name": "workspace-unification-browser.mjs",
+      "status": "PASS",
+      "proofs": [
+        {
+          "path": "evidence/psse-ac-dc/dgs-regression/workspace-unification/PUBLIC-proof.json",
+          "sha256": "a03c3010e8ad90cc16adbbea5128eaa0da334d3ac2a335be07adfe293092ac58"
+        }
+      ]
+    },
+    {
+      "name": "analysis-ux-browser.mjs",
+      "status": "PASS",
+      "proofs": [
+        {
+          "path": "evidence/psse-ac-dc/dgs-regression/analysis-ux/PUBLIC-proof.json",
+          "sha256": "72cf1c05ca1b90a17330d91bc94bce38011a45efae323bb4618f190a885af7d6"
+        }
+      ]
+    },
+    {
+      "name": "network-model-browser.mjs",
+      "status": "PASS",
+      "proofs": [
+        {
+          "path": "evidence/psse-ac-dc/dgs-regression/network-model/PUBLIC-proof.json",
+          "sha256": "c0126434740dd997ab83b99a723a66dbf410790372bfb17fc0ff82bce9b3b177"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/workspace-unification/PUBLIC-640.png",
+      "sha256": "ad7cb7da1c0ded5a53dfd7473b158fa5d80f834a608791046fb44c198f16e275"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/workspace-unification/PUBLIC-420.png",
+      "sha256": "46676db51097dbd616a15c8cd1a11781f689b07ebeb464af80128153e25f2176"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/workspace-unification/PUBLIC-390.png",
+      "sha256": "a1e2ee99bceb0d70449c85e1975aee7fda0a5f6354937c08dfd95928411722d2"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/analysis-ux/PUBLIC-LF-1366-1.png",
+      "sha256": "660b80afcd06825ed18b3f60896ee2171ffa939f9af07a2312bf43794e10e77a"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/analysis-ux/PUBLIC-N1-1366-1.png",
+      "sha256": "50a875ad966ef111568e1f6c18b2243bfae79448c6e2d7f9f119c44c493fe92f"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/analysis-ux/PUBLIC-SC-1366-1.png",
+      "sha256": "1c93fc52a0b48c854106134caf6910a46078b1235f6695bd63cc54d02df00436"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/network-model/PUBLIC-summary-1366.png",
+      "sha256": "23dd3476c76e04151f1ab260b9ab700607941895e0dfc2472b86f94ccf8cde63"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/network-model/PUBLIC-inventory-1366.png",
+      "sha256": "d81d3c4c77dc7c85e3ab68a98c53d5fd7a5dbb5f41a7a15354bff59dbb542a76"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/network-model/PUBLIC-operating-1366.png",
+      "sha256": "47c8caa9d83722c0e61991690f24861ea27ba3fd51e94533c8af56c2c4bee0bf"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/network-model/PUBLIC-quality-1366.png",
+      "sha256": "5e00135bdd22bb18432fdae77173bfe76dd13cfda44f907e1d1ffd7519ca5059"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/offline-browser/chrome-dgs-model.png",
+      "sha256": "35027df108a81147b081cb2e1462aac8dbf430567d056900661f94fd635184a0"
+    },
+    {
+      "path": "evidence/psse-ac-dc/dgs-regression/offline-browser/chrome-dgs-map.png",
+      "sha256": "a24eeb1c508fe4ab28f2c16c8b2d4007d7419eac34e12cdc52c550bfc4df17c9"
+    }
+  ]
+}

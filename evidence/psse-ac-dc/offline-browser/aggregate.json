@@ -1,0 +1,105 @@
+{
+  "schema": "ga.psse.extracted-offline-browser-evidence.v1",
+  "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+  "source": "Public synthetic DGS and PSS/E fixtures only",
+  "channels": {
+    "chrome": {
+      "report": {
+        "schema": "ga.psse.offline-browser.v1",
+        "status": "PASS",
+        "urlScheme": "file:",
+        "browser": "156.0.8078.48",
+        "channel": "chrome",
+        "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+        "htmlBytes": 2470180,
+        "loadMs": 194,
+        "totalElapsedMs": 2850,
+        "commonPickerReloadMs": 1934,
+        "uploads": {
+          "dgsJson": true,
+          "dgsZip": true,
+          "psseRawx": true,
+          "mixedZipMember": "cases/basic.rawx"
+        },
+        "syntheticCounts": {
+          "buses": 3,
+          "branches": 3
+        },
+        "solves": {
+          "NR_POLAR": 83,
+          "FDNS_XB": 58,
+          "LOSSLESS_DC": 56
+        },
+        "externalRequests": 0,
+        "blockedNetworkRequests": 0,
+        "consoleErrors": [],
+        "screenshots": [
+          "dgs-model.png",
+          "dgs-map.png",
+          "psse-analysis.png",
+          "psse-help.png",
+          "psse-map.png",
+          "psse-sld.png"
+        ]
+      },
+      "files": {
+        "report.json": "bd2a377610ad98375ff9ce3860ec515f335ce29469f33386835aa481b46c2138",
+        "dgs-model.png": "35027df108a81147b081cb2e1462aac8dbf430567d056900661f94fd635184a0",
+        "dgs-map.png": "a24eeb1c508fe4ab28f2c16c8b2d4007d7419eac34e12cdc52c550bfc4df17c9",
+        "psse-analysis.png": "03488e504ab4e3f78db120eb012226684ecccab2d371caac697d3d425571a6d2",
+        "psse-help.png": "a00b371bd4f9c3ec2d11410c10b4e27ac02f24c5b01c9df7c162dcca51005807",
+        "psse-map.png": "3f74f65af26015c36be6f299abde56a1b4ee629c53fea678f155e7ae08bf8231",
+        "psse-sld.png": "00bb99ea69d2c6727201c7263d264bfeaa999d81ea3cb05b4b38b0ee2f096925"
+      }
+    },
+    "msedge": {
+      "report": {
+        "schema": "ga.psse.offline-browser.v1",
+        "status": "PASS",
+        "urlScheme": "file:",
+        "browser": "156.0.4314.42",
+        "channel": "msedge",
+        "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+        "htmlBytes": 2470180,
+        "loadMs": 242,
+        "totalElapsedMs": 3017,
+        "commonPickerReloadMs": 1998,
+        "uploads": {
+          "dgsJson": true,
+          "dgsZip": true,
+          "psseRawx": true,
+          "mixedZipMember": "cases/basic.rawx"
+        },
+        "syntheticCounts": {
+          "buses": 3,
+          "branches": 3
+        },
+        "solves": {
+          "NR_POLAR": 82,
+          "FDNS_XB": 60,
+          "LOSSLESS_DC": 67
+        },
+        "externalRequests": 0,
+        "blockedNetworkRequests": 0,
+        "consoleErrors": [],
+        "screenshots": [
+          "dgs-model.png",
+          "dgs-map.png",
+          "psse-analysis.png",
+          "psse-help.png",
+          "psse-map.png",
+          "psse-sld.png"
+        ]
+      },
+      "files": {
+        "report.json": "c699b75fda19c1f5d60a7f95f7b5b991397b8d436aca8e572036996bdc89c46c",
+        "dgs-model.png": "35027df108a81147b081cb2e1462aac8dbf430567d056900661f94fd635184a0",
+        "dgs-map.png": "a24eeb1c508fe4ab28f2c16c8b2d4007d7419eac34e12cdc52c550bfc4df17c9",
+        "psse-analysis.png": "4d254b2114788d3be2bc3b982a826aa20fc2f92b6fe37d0832379cfd79bb33f4",
+        "psse-help.png": "fa266cf6dde7cac0f0698320f6f5007d09b5a716a49244d9664507c81a2c4f2f",
+        "psse-map.png": "3f74f65af26015c36be6f299abde56a1b4ee629c53fea678f155e7ae08bf8231",
+        "psse-sld.png": "e0c96ec08f36dd3937dfa0c2aeb2dce8b74e5a3d5eda4ebd7058bed268f074b1"
+      }
+    }
+  }
+}

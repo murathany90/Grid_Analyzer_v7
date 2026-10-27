@@ -1,0 +1,96 @@
+{
+  "schema": "ga.psse.q-state-experiment.v1",
+  "fixture": "Original public three-bus Q-limit fixture",
+  "sourceSha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0",
+  "savedSha256": "e57fa1e922544203f3914ca3ce932e06c8131e61e27cb8ab25d6ceae490a779c",
+  "runs": [
+    {
+      "condition": "Fresh RAWX; apply Q limits",
+      "options": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 3,
+      "vmPu": [
+        1.0399999618530273,
+        1.027467966079712,
+        1.0039584636688232
+      ],
+      "qMvar": [
+        43.240108489990234,
+        5.0
+      ],
+      "scheduledVoltagePu": [
+        1.0399999618530273,
+        1.059999942779541
+      ]
+    },
+    {
+      "condition": "Reload Q-limited SAV; ignore new limit monitoring; flat voltage start",
+      "options": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        -1,
+        1
+      ],
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 2,
+      "vmPu": [
+        1.0399999618530273,
+        1.059999942779541,
+        1.020808219909668
+      ],
+      "qMvar": [
+        -8.072460174560547,
+        56.20134353637695
+      ],
+      "scheduledVoltagePu": [
+        1.0399999618530273,
+        1.059999942779541
+      ]
+    },
+    {
+      "condition": "Fresh RAWX; ignore Q limits; flat voltage start",
+      "options": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        -1,
+        1
+      ],
+      "ierr": 0,
+      "solved": 0,
+      "iterations": 2,
+      "vmPu": [
+        1.0399999618530273,
+        1.059999942779541,
+        1.020808219909668
+      ],
+      "qMvar": [
+        -8.072460174560547,
+        56.20134353637695
+      ],
+      "scheduledVoltagePu": [
+        1.0399999618530273,
+        1.059999942779541
+      ]
+    }
+  ],
+  "interpretation": "A saved reactive active set and a flat voltage initialization are independent state dimensions; compare observed values before assigning semantics."
+}

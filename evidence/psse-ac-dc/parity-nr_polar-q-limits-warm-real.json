@@ -1,0 +1,35 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 1586.7199,
+  "reports": [
+    {
+      "name": "20261014_1200_SN3_TR0.sav",
+      "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "normalizedHash": "c5a27ee8949e81101c9695f653fd0d96a172b9b6e364cfb14b9bf2c1264c306c",
+      "method": "NR_POLAR",
+      "initial": "SOURCE_SAVED",
+      "qLimits": true,
+      "gaStatus": "BLOCKED",
+      "gaIterations": 0,
+      "gaElapsedMs": 443.87109999999984,
+      "gaMaxPMismatchPu": null,
+      "gaMaxQMismatchPu": null,
+      "networkCounts": {
+        "buses": 6851,
+        "branches": 8669
+      },
+      "reference": {
+        "optionsHash": "414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 2
+      },
+      "status": "BLOCKED",
+      "findingCounts": {
+        "ACTIVE_UNSUPPORTED_EQUIPMENT": 227,
+        "GENERATOR_DYNAMIC_OR_DROOP_CONTROL_UNSUPPORTED": 2279,
+        "REMOTE_REGULATION_UNSUPPORTED": 473
+      }
+    }
+  ]
+}

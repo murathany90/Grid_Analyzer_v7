@@ -1,0 +1,421 @@
+{
+  "tag": "PUBLIC",
+  "checks": [
+    "native JSON/ZIP load and lazy catalogs",
+    "summary class links target a previously mounted catalog",
+    "column profiles, additional raw fields and complete JSON/CSV exports",
+    "shared scope/selection retained across lazy sections",
+    "stale scope responses discarded; no hidden-tab queries",
+    "full unified quality, filters, CSV/JSON, proven FID inventory/map/SLD jumps",
+    "source/scenario/LF separation and stale guard after operating edit",
+    "line and switch scenario commands, source immutability and undo",
+    "light/dark theme and fixed hierarchical column order",
+    "desktop 1366/1920 and 125% zoom; keyboard tabs",
+    "IndexedDB model/scenario/LF restoration; >35 warnings; cancellation and native ZIP"
+  ],
+  "geometry": [
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1,
+      "scrollWidth": 1366,
+      "active": "summary",
+      "rows": [],
+      "sticky": true,
+      "tableBottom": null
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1,
+      "scrollWidth": 1366,
+      "active": "inventory",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 415.625
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1,
+      "scrollWidth": 1366,
+      "active": "operating",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 453.890625
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1,
+      "scrollWidth": 1366,
+      "active": "quality",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 673.6875
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1,
+      "scrollWidth": 1920,
+      "active": "summary",
+      "rows": [],
+      "sticky": true,
+      "tableBottom": null
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1,
+      "scrollWidth": 1920,
+      "active": "inventory",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 415.625
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1,
+      "scrollWidth": 1920,
+      "active": "operating",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 453.890625
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "zoom": 1,
+      "scrollWidth": 1920,
+      "active": "quality",
+      "rows": [
+        {
+          "height": 30.5,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        },
+        {
+          "height": 30,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 900.6875
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1.25,
+      "scrollWidth": 1366,
+      "active": "summary",
+      "rows": [],
+      "sticky": true,
+      "tableBottom": null
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1.25,
+      "scrollWidth": 1366,
+      "active": "inventory",
+      "rows": [
+        {
+          "height": 38,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 515.734375
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1.25,
+      "scrollWidth": 1366,
+      "active": "operating",
+      "rows": [
+        {
+          "height": 38,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 563.078125
+    },
+    {
+      "width": 1366,
+      "height": 768,
+      "zoom": 1.25,
+      "scrollWidth": 1366,
+      "active": "quality",
+      "rows": [
+        {
+          "height": 38,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        },
+        {
+          "height": 37.5,
+          "nowrap": true
+        }
+      ],
+      "sticky": true,
+      "tableBottom": 649.984375
+    }
+  ],
+  "errors": [],
+  "importMs": 335,
+  "model": {
+    "hash": "75a5e2cddb813023548a9310f37af21b55222dac00bdff15811f1d4715aeca13",
+    "records": 85,
+    "sites": 2,
+    "sourceDiagnostics": 1,
+    "classes": 19
+  },
+  "quality": {
+    "unique": 16,
+    "origins": {
+      "SOURCE": 15,
+      "AUDIT": 1,
+      "GEOGRAPHY": 14
+    },
+    "codes": {
+      "TRANSFORMER_TAP_FALLBACK": 0,
+      "GENERATOR_Q_LIMITS_MISSING": 1,
+      "CONTROLLER_Q_LIMITS_UNAVAILABLE": 0,
+      "CONTROLLER_LOCAL_VOLTAGE_CONFLICT": 0,
+      "REDUCED_MODEL_INPUTS_EXCLUDED": 0
+    }
+  },
+  "globalSort": {
+    "sourceRows": 50,
+    "mixedRows": 43,
+    "solvedRows": 50,
+    "qualityRows": 45,
+    "sourcePrecisionPreserved": true,
+    "staleRejected": true,
+    "geometry": [
+      {
+        "zoom": 1,
+        "height": 284,
+        "max": 286,
+        "top": 387.6875
+      },
+      {
+        "zoom": 1.25,
+        "height": 100,
+        "max": 102,
+        "top": 522.484375
+      }
+    ]
+  }
+}

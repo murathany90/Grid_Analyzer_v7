@@ -1,0 +1,107 @@
+{
+  "schema": "ga.psse.native-mode-browser.v1",
+  "status": "PASS",
+  "urlScheme": "file:",
+  "channel": "msedge",
+  "browserVersion": "156.0.4314.42",
+  "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+  "htmlBytes": 2470180,
+  "sourceFormats": {
+    "sav": "SAV",
+    "raw": "RAW",
+    "savZip": "SAV"
+  },
+  "sourceCounts": {
+    "sav": {
+      "bus": 6851,
+      "line": 2403,
+      "transformer": 3703,
+      "generator": 2920,
+      "load": 2520
+    },
+    "raw": {
+      "bus": 6851,
+      "line": 2403,
+      "transformer": 3703,
+      "generator": 2920,
+      "load": 2520
+    },
+    "savZip": {
+      "bus": 6851,
+      "line": 2403,
+      "transformer": 3703,
+      "generator": 2920,
+      "load": 2520
+    }
+  },
+  "sourceSha256": {
+    "sav": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+    "raw": "9e1fa9933dba8030adcb3bb222cc9d7cc97dffa3e3f4b3d71eb83b9fd2d297e8",
+    "savZip": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+  },
+  "loadTimingsMs": {
+    "sav": 8771,
+    "raw": 9781,
+    "savZip": 318,
+    "realDc": 7277
+  },
+  "heapBytesAfterSavLoad": 386000000,
+  "heapScope": "performance.memory snapshot for the main frame only; worker allocations excluded",
+  "heapSnapshotsAfterRealDc": {
+    "kind": "point-in-time; not peak",
+    "mainFrame": {
+      "usedSizeBytes": 384568516,
+      "totalSizeBytes": 435769344,
+      "embedderHeapUsedBytes": 34266528,
+      "backingStorageBytes": 18587351
+    },
+    "calculationWorkers": {
+      "available": false,
+      "targetCount": 2,
+      "reason": "worker CDP snapshot unavailable"
+    }
+  },
+  "dcResult": {
+    "status": "LIMITED_PROFILE",
+    "numericalStatus": "CONVERGED",
+    "publicationStatus": "LIMITED_PROFILE",
+    "physicsCoverage": "PARTIAL",
+    "source": "GA_PSSE_CALCULATED",
+    "qAndCurrentUnavailable": true,
+    "mainFrameHeapBytesAfterSavLoad": 386000000
+  },
+  "cancellation": {
+    "secondDcStartedWhileBusy": true,
+    "sourceChangedToDgs": true,
+    "dgsRemainedAfterWait": true,
+    "waitMs": 8277,
+    "elapsedUntilDgsLoadedMs": 735,
+    "stalePsseResultVisible": false
+  },
+  "syntheticResult": {
+    "status": "CONVERGED",
+    "numericalStatus": "CONVERGED",
+    "publicationStatus": "CONVERGED",
+    "source": "GA_PSSE_CALCULATED",
+    "referenceBeforeForeign": "MATCHED",
+    "foreignReference": "rejected; prior MATCHED cleared",
+    "solveMs": 81,
+    "jsonIdentity": {
+      "mode": "PSSE",
+      "sourceSha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655",
+      "modelHash": "24156ed0dd0cef8fa734a27626cf427c70415e06b29da44291d36426c0316f64",
+      "scenarioHash": "6a13d7808748b02978cbd2974578af8316f1b2707e6e9544a03347faa27087f0",
+      "resultId": "psse-48c7adef21a9c55e366eb094bfc142097014fc72dfee753733ceb9b0bfa51ac4"
+    }
+  },
+  "csvDownload": {
+    "status": "PASS",
+    "selectedTable": "buses",
+    "containsIdentity": true,
+    "containsSourceUnits": true
+  },
+  "externalRequests": 0,
+  "blockedNetworkRequests": 0,
+  "consoleErrorCount": 0,
+  "failedStep": null
+}

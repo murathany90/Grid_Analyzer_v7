@@ -1,0 +1,450 @@
+{
+  "tag": "PUBLIC",
+  "modelPath": "PUBLIC_SYNTHETIC_NATIVE_VAC_FIXTURE",
+  "importMs": 301.19999998807907,
+  "area": "N1",
+  "browser": "153.0.8010.12",
+  "runs": [
+    {
+      "status": "COMPLETE",
+      "workerControllerMs": 237.30000001192093,
+      "stageMs": {
+        "MODEL_PREPARATION": 0.19999998807907104,
+        "CATALOG": 1.699999988079071,
+        "DC_SCREEN": 10.700000047683716,
+        "AC_APPROX": 0,
+        "AC_FULL": 21.400000035762787,
+        "SC_SOURCE_PREP": 0,
+        "SC_FACTORIZATION": 0,
+        "SC_BATCH": 0,
+        "REPORT": 203.29999995231628
+      },
+      "families": [
+        "N1"
+      ],
+      "model": "702b6f2c0ab9f6bbffe9ffb987318c3816b3ed37381d04ca367e0f4246102fc9",
+      "scenario": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+      "catalog": 15,
+      "dc": 12,
+      "ac": 4,
+      "verified": 0,
+      "caseSamples": [
+        {
+          "id": "N1:ElmLne:L154-01",
+          "dc": true,
+          "residualMw": 0.0025367828011435556,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-01",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-04",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmTr2:TR400-154",
+          "dc": false,
+          "residualMw": 0.00043419745452411007,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        }
+      ],
+      "distinct": 15,
+      "physical": 0,
+      "electrical": 0,
+      "stages": [
+        "MODEL_PREPARATION",
+        "YTM_CHECKPOINT",
+        "CATALOG",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "DC_SCREEN",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "N1_TOPOLOGY",
+        "N1_FACTOR",
+        "N1_SCREEN",
+        "N1_FACTOR",
+        "N1_RESULT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "AC_FULL",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "N1_TOPOLOGY",
+        "N1_FACTOR",
+        "N1_SCREEN",
+        "N1_FACTOR",
+        "N1_RESULT",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "REPORT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT"
+      ],
+      "calls": [
+        {
+          "type": "PREPARE"
+        },
+        {
+          "type": "RUN_YTM_STUDY",
+          "families": [
+            "N1"
+          ]
+        }
+      ],
+      "clickToPaintMs": 288
+    },
+    {
+      "status": "COMPLETE",
+      "workerControllerMs": 42.80000001192093,
+      "stageMs": {
+        "MODEL_PREPARATION": 0.09999996423721313,
+        "CATALOG": 0,
+        "DC_SCREEN": 0,
+        "AC_APPROX": 0,
+        "AC_FULL": 0,
+        "SC_SOURCE_PREP": 15.900000035762787,
+        "SC_FACTORIZATION": 0,
+        "SC_BATCH": 0.7000000476837158,
+        "REPORT": 26.099999964237213
+      },
+      "families": [
+        "SC"
+      ],
+      "model": "702b6f2c0ab9f6bbffe9ffb987318c3816b3ed37381d04ca367e0f4246102fc9",
+      "scenario": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+      "catalog": 15,
+      "dc": 12,
+      "ac": 4,
+      "verified": 0,
+      "caseSamples": [
+        {
+          "id": "N1:ElmLne:L154-01",
+          "dc": true,
+          "residualMw": 0.0025367828011435556,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-01",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-04",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmTr2:TR400-154",
+          "dc": false,
+          "residualMw": 0.00043419745452411007,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        }
+      ],
+      "distinct": 15,
+      "physical": 6,
+      "electrical": 5,
+      "max": {
+        "BLOCKED": 6
+      },
+      "min": {
+        "BLOCKED": 6
+      },
+      "stages": [
+        "MODEL_PREPARATION",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "SC_BATCH",
+        "SC_FAULT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "SC_BATCH",
+        "SC_FAULT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "REPORT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT"
+      ],
+      "calls": [
+        {
+          "type": "ADAPT_SC_CONTEXT",
+          "mode": "MAX"
+        },
+        {
+          "type": "ADAPT_SC_CONTEXT",
+          "mode": "MIN"
+        },
+        {
+          "type": "RUN_YTM_STUDY",
+          "families": [
+            "SC"
+          ]
+        }
+      ],
+      "clickToPaintMs": 75
+    },
+    {
+      "status": "COMPLETE",
+      "workerControllerMs": 179.80000001192093,
+      "stageMs": {
+        "MODEL_PREPARATION": 0.10000002384185791,
+        "CATALOG": 0.20000004768371582,
+        "DC_SCREEN": 1.199999988079071,
+        "AC_APPROX": 0,
+        "AC_FULL": 8.100000023841858,
+        "SC_SOURCE_PREP": 12.900000035762787,
+        "SC_FACTORIZATION": 0,
+        "SC_BATCH": 0.2999999523162842,
+        "REPORT": 156.99999994039536
+      },
+      "families": [
+        "N1",
+        "SC"
+      ],
+      "model": "702b6f2c0ab9f6bbffe9ffb987318c3816b3ed37381d04ca367e0f4246102fc9",
+      "scenario": "[[\"busOrTerminalStatus\",[]],[\"generatorDispatch\",[]],[\"lineStatus\",[]],[\"loadAdjustments\",[]],[\"restoredTerminals\",[]],[\"switchState\",[]],[\"transformerStatus\",[]]]",
+      "catalog": 15,
+      "dc": 12,
+      "ac": 4,
+      "verified": 0,
+      "retained": 0,
+      "computedThisAttempt": 4,
+      "caseSamples": [
+        {
+          "id": "N1:ElmLne:L154-01",
+          "dc": true,
+          "residualMw": 0.0025367828011435556,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-01",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmLne:L400-04",
+          "dc": false,
+          "residualMw": 0.0026967965681023998,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        },
+        {
+          "id": "N1:ElmTr2:TR400-154",
+          "dc": false,
+          "residualMw": 0.00043419745452411007,
+          "status": "PARTIAL_SOLUTION",
+          "retained": false
+        }
+      ],
+      "distinct": 15,
+      "physical": 6,
+      "electrical": 5,
+      "max": {
+        "BLOCKED": 6
+      },
+      "min": {
+        "BLOCKED": 6
+      },
+      "stages": [
+        "MODEL_PREPARATION",
+        "YTM_CHECKPOINT",
+        "CATALOG",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "DC_SCREEN",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "N1_TOPOLOGY",
+        "N1_FACTOR",
+        "N1_SCREEN",
+        "N1_FACTOR",
+        "N1_RESULT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "SC_BATCH",
+        "SC_FAULT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "SC_BATCH",
+        "SC_FAULT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "AC_FULL",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "N1_TOPOLOGY",
+        "N1_FACTOR",
+        "N1_SCREEN",
+        "N1_FACTOR",
+        "N1_RESULT",
+        "HYBRID_PHASE",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_AC_CASE",
+        "N1_AC_VALIDATE",
+        "MODEL",
+        "TOPOLOGY",
+        "INIT",
+        "YBUS",
+        "INNER_NR",
+        "RESULT",
+        "YTM_CASE_DETAIL",
+        "YTM_CHECKPOINT",
+        "HYBRID_PHASE",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT",
+        "REPORT",
+        "YTM_CHECKPOINT",
+        "YTM_CHECKPOINT"
+      ],
+      "calls": [
+        {
+          "type": "ADAPT_SC_CONTEXT",
+          "mode": "MAX"
+        },
+        {
+          "type": "ADAPT_SC_CONTEXT",
+          "mode": "MIN"
+        },
+        {
+          "type": "RUN_YTM_STUDY",
+          "families": [
+            "N1",
+            "SC"
+          ]
+        }
+      ],
+      "clickToPaintMs": 271
+    }
+  ],
+  "geometry": [
+    {
+      "width": 640,
+      "document": 640,
+      "rows": 15
+    },
+    {
+      "width": 420,
+      "document": 420,
+      "rows": 15
+    },
+    {
+      "width": 390,
+      "document": 390,
+      "rows": 15
+    }
+  ],
+  "errors": []
+}

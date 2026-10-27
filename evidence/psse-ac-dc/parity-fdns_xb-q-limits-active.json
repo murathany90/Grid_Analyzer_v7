@@ -1,0 +1,47 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 33.48920000000004,
+  "reports": [
+    {
+      "name": "q-limits.rawx",
+      "sha256": "bd61ad4e0da56ae2343b410b5430a5dd5a5c2887bae15cbe52c670c8676658f0",
+      "normalizedHash": "1207bb138ff17c9cfc241a66fd349c02d8c2b089bdc7b25ef3dcb81fbdc1e575",
+      "method": "FDNS_XB",
+      "initial": "FLAT",
+      "qLimits": true,
+      "gaStatus": "CONVERGED",
+      "gaPhysicsCoverage": "SUPPORTED",
+      "gaSource": "GA_PSSE_CALCULATED",
+      "engineVersion": "GA_PSSE_ENGINE_1",
+      "gaIterations": 12,
+      "gaElapsedMs": 20.1404,
+      "gaMaxPMismatchPu": 4.0290126790409886e-10,
+      "gaMaxQMismatchPu": 1.2322559639343922e-10,
+      "networkCounts": {
+        "buses": 3,
+        "branches": 3
+      },
+      "reference": {
+        "method": "fdns",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ],
+        "profile": "fixed-controls-v1",
+        "toleranceMva": 0.001,
+        "optionsHash": "085d5b0919f2bd6a63bce01f5f0b442e67a03a9e775fcd915cd403266e8d0cb4",
+        "ierr": 0,
+        "solved": 3,
+        "iterations": 1
+      },
+      "status": "REFERENCE_NOT_CONVERGED",
+      "findingCounts": {}
+    }
+  ]
+}

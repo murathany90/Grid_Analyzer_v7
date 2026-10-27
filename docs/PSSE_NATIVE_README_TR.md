@@ -27,7 +27,7 @@ Sonuç kaynağı ayrı sınıflandırılır: `SOURCE_SAVED`, `GA_PSSE_CALCULATED
 - Gerçek modeldeki gerilim-droop ve uzak gerilim kontrolü AC denklem desteği tamamlanmadığından tam büyük model AC parity iddiası yoktur. Bilinmeyen aktif HVDC, FACTS, endüksiyon, kontrol tablosu veya kaynak topolojisi de sessizce varsayılmaz.
 - Bilinmeyen fiziksel bara kV değeri boş bırakılır. Bu durumda amper ve akım tabanlı termik değerler kullanılamaz; 3 sargılı iç yıldız düğümüne fiziksel gerilim tabanı atanmaz.
 
-PSS/E kaynak verileri korunur; hesap sonucu olarak yeniden etiketlenmez veya `PSSE_REFERENCE` ile birleştirilmez. Paket hiçbir gerçek SAV/RAW/RAWX model dosyası, lisanslı referans verisi, Siemens DLL/PYD, çalıştırılabilir kod veya tescilli PSS/E belgesi içermez. Kanıt dosyaları sentetik örneklerden ve anonimleştirilmiş toplam karşılaştırmalardan oluşur.
+PSS/E kaynak verileri korunur; hesap sonucu olarak yeniden etiketlenmez veya `PSSE_REFERENCE` ile birleştirilmez. Paket hiçbir gerçek SAV/RAW/RAWX model dosyası, lisanslı referans verisi, Siemens DLL/PYD, yerel çalıştırılabilir dosya veya tescilli PSS/E belgesi içermez. Kanıt dosyaları sentetik örneklerden ve anonimleştirilmiş toplam karşılaştırmalardan oluşur.
 
 ## Pakettekiler
 

@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-10-26T21:40:28.586Z",
+  "scope": "All equipment identities/endpoints in mapped classes; explicit numeric electrical fields. Source variants and uncovered fields reported, never silently filled.",
+  "cases": [
+    {
+      "stem": "20261014_1200_SN3_TR0",
+      "status": "DIFFERENCES",
+      "sav": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "format": "SAV",
+        "revision": 31,
+        "byteLength": 4529844,
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "raw": {
+        "name": "20261014_1200_SN3_TR0.raw",
+        "format": "RAW",
+        "revision": 36,
+        "byteLength": 5805688,
+        "sha256": "9e1fa9933dba8030adcb3bb222cc9d7cc97dffa3e3f4b3d71eb83b9fd2d297e8"
+      },
+      "counts": {
+        "sav": {
+          "bus": 6851,
+          "load": 2520,
+          "shunt": 139,
+          "generator": 2920,
+          "line": 2403,
+          "switch": 2563,
+          "transformer": 3703,
+          "substation": 1618,
+          "other": 236
+        },
+        "raw": {
+          "bus": 6851,
+          "generator": 2920,
+          "load": 2520,
+          "shunt": 139,
+          "line": 2403,
+          "switch": 2563,
+          "transformer": 3703,
+          "substation": 1618,
+          "other": 236
+        }
+      },
+      "compared": 239048,
+      "uncovered": {},
+      "errorCount": 7,
+      "errorFields": {
+        "ide": 4,
+        "pg": 1,
+        "qg": 2
+      },
+      "completeness": {
+        "sav": "COMPLETE",
+        "raw": "PARTIAL"
+      },
+      "missingFromSavCount": 0,
+      "missingFromRawCount": 0,
+      "privateDetails": "Retained locally, omitted from public evidence"
+    }
+  ]
+}

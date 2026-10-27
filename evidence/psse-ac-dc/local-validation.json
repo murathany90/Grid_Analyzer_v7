@@ -1,0 +1,40 @@
+{
+  "schema": "ga.psse.local-validation.v1",
+  "implementationCommit": "cba1354ac6df11b92c0dfa3d072ffd9d6dada1a4",
+  "checkedAtUtc": "2026-10-27T07:53:41.0809134Z",
+  "unitAndRegression": {
+    "command": "npm test",
+    "status": "PASS",
+    "tests": 850,
+    "passed": 850,
+    "failed": 0,
+    "skipped": 0,
+    "log": "final-tests.log",
+    "logSha256": "e86c64876ef5c07370c53a5e91f654ac9a04a6a34f904aea9352095d92d148d9"
+  },
+  "typecheck": {
+    "command": "npm run typecheck",
+    "status": "PASS",
+    "log": "final-typecheck.log"
+  },
+  "lint": {
+    "command": "npm run lint",
+    "status": "PASS",
+    "sourceFiles": 574,
+    "log": "final-lint.log"
+  },
+  "builds": {
+    "standard": "PASS",
+    "portable": "PASS",
+    "standalone": "PASS",
+    "standaloneSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+    "portableSha256": "3c533134edb3f4a57e934772e6833afe3214fde85ad214d0df3b37dc40f1af8b",
+    "portableCommittedByteProvenance": "PASS"
+  },
+  "goldenMigration": {
+    "scope": "Additive SAV BP value and original byte provenance only; complete legacy equipment golden preserved after removing only those added fields",
+    "legacySha256": "c394ffaad414ac52c07ec41769e95fcb30729935547ce2e8f5478d789c5ec251",
+    "currentSha256": "1711f7185f270b032bad920c5f2d77cb2d758df24d04e10647ec65f5b6174821"
+  },
+  "scope": "Verified fixed-control NR/FDNS/DC profiles; unsupported master requirements remain explicit. Source/runtime unchanged during final test harness fixes."
+}

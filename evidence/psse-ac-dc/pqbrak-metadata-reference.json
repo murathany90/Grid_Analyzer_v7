@@ -1,0 +1,38 @@
+{
+  "schema": "ga.psse.pqbrak-metadata-reference.v1",
+  "fixture": "Original public three-bus fixture",
+  "referenceVersion": "36.5.0",
+  "powerFlowSolves": 0,
+  "before": {
+    "ierr": 0,
+    "pqbrak": 0.699999988079071
+  },
+  "after": {
+    "ierr": 0,
+    "pqbrak": 0.8199999928474426
+  },
+  "changedOption": "solution_parameters_5 REALAR(10)",
+  "headerChanges": [
+    {
+      "array": "Headre",
+      "oneBasedIndex": 2,
+      "zeroBasedIndex": 1,
+      "before": 0.699999988079071,
+      "after": 0.8199999928474426
+    },
+    {
+      "array": "Headre",
+      "oneBasedIndex": 13,
+      "zeroBasedIndex": 12,
+      "before": 23.906705856323242,
+      "after": 16.177942276000977
+    },
+    {
+      "array": "Headre",
+      "oneBasedIndex": 14,
+      "zeroBasedIndex": 13,
+      "before": 24.156604766845703,
+      "after": 13.890063285827637
+    }
+  ]
+}

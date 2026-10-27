@@ -1,0 +1,38 @@
+{
+  "schema": "ga.psse.offline-browser.v1",
+  "status": "PASS",
+  "urlScheme": "file:",
+  "browser": "156.0.4314.42",
+  "channel": "msedge",
+  "htmlSha256": "8d06b8f7e2ddf1ae83e0c1e139388328fc237638d52398c5e4719f5637abb235",
+  "htmlBytes": 2470180,
+  "loadMs": 242,
+  "totalElapsedMs": 3017,
+  "commonPickerReloadMs": 1998,
+  "uploads": {
+    "dgsJson": true,
+    "dgsZip": true,
+    "psseRawx": true,
+    "mixedZipMember": "cases/basic.rawx"
+  },
+  "syntheticCounts": {
+    "buses": 3,
+    "branches": 3
+  },
+  "solves": {
+    "NR_POLAR": 82,
+    "FDNS_XB": 60,
+    "LOSSLESS_DC": 67
+  },
+  "externalRequests": 0,
+  "blockedNetworkRequests": 0,
+  "consoleErrors": [],
+  "screenshots": [
+    "dgs-model.png",
+    "dgs-map.png",
+    "psse-analysis.png",
+    "psse-help.png",
+    "psse-map.png",
+    "psse-sld.png"
+  ]
+}

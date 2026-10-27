@@ -27,3 +27,6 @@ licenses/** binary
 **/*.png binary
 **/*.jpg binary
 **/*.wasm binary
+
+# Captured terminal evidence keeps its original bytes and formatting.
+evidence/psse-ac-dc/*.log -text -whitespace

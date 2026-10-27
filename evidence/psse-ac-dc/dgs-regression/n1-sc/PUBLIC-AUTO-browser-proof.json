@@ -1,0 +1,88 @@
+{
+  "tag": "PUBLIC",
+  "area": "AUTO",
+  "importMs": 305.9000000357628,
+  "result": {
+    "clickToPaintMs": 225.9000000357628,
+    "elapsedMs": 179.19999998807907,
+    "status": "COMPLETE",
+    "n1Counts": {
+      "total": 15,
+      "catalog": 15,
+      "excludedCatalog": 0,
+      "promoted": 4,
+      "AC_CALCULATED": 4,
+      "NOT_RUN": 0,
+      "UNKNOWN": 4,
+      "dcRiskConfirmedAc": 0,
+      "dcViolationsNotConfirmedAc": 0,
+      "dcClearAcVerified": 0,
+      "dcClearVoltageRisk": 0,
+      "dcClearViolatedAc": 0,
+      "PARTIAL_SOLUTION": 4,
+      "DC_CLEAR_NOT_AC_VERIFIED": 11,
+      "DC_SCREENED": 12,
+      "N1_NUMERICALLY_COMPUTABLE": 15,
+      "AC_DIRECT_OUTSIDE_DC": 3,
+      "ISLAND_UNSUPPLIED_COMPONENT_CASES": 1,
+      "AC_ATTEMPTED": 4,
+      "AC_NUMERICALLY_SOLVED": 4,
+      "AC_VERIFIED": 0,
+      "AC_SUCCESSFUL": 0,
+      "AC_PARTIAL": 4,
+      "AC_SKIPPED": 0,
+      "AC_UNVERIFIED": 15,
+      "uniqueViolatedElements": 0,
+      "UNSOLVED_ISLAND": 11
+    },
+    "catalog": 15,
+    "cases": 15,
+    "targets": 6,
+    "electrical": 5,
+    "max": {
+      "BLOCKED": 6
+    },
+    "min": {
+      "BLOCKED": 6
+    },
+    "stages": {
+      "MODEL_PREPARATION": 0.19999998807907104,
+      "CATALOG": 1.5,
+      "DC_SCREEN": 10.300000011920929,
+      "AC_APPROX": 0,
+      "AC_FULL": 21.200000047683716,
+      "SC_SOURCE_PREP": 13.399999976158142,
+      "SC_FACTORIZATION": 0,
+      "SC_BATCH": 6.300000011920929,
+      "REPORT": 126.29999995231628
+    },
+    "quality": {
+      "REFERENCE_VALIDATED": 0,
+      "NATIVE_COMPUTED": 0,
+      "ENGINEERING_APPROX": 4,
+      "DC_SCREEN_ONLY": 11,
+      "NOT_COMPUTABLE": 10,
+      "REFERENCE_ONLY": 0
+    },
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36"
+  },
+  "detailCache": {
+    "caseId": "N1:ElmLne:L154-01",
+    "loaded": true
+  },
+  "geometry": [
+    {
+      "width": 640,
+      "document": 640,
+      "rows": 6,
+      "cells": 162
+    },
+    {
+      "width": 420,
+      "document": 420,
+      "rows": 6,
+      "cells": 162
+    }
+  ],
+  "errors": []
+}
