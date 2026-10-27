@@ -21,8 +21,11 @@ Branch `fix/psse-v1-real-model-parity`, commit `ace166996ba66d1643d2da07af44c156
 
 `ARCHIVED`/`CATALOG_ONLY` statuses are surfaced without pretending any of these feed the solver.
 
-## V4 session outcome
+## V4 session outcome (implemented)
 
-The 150-minute window was spent on the P0 AC/FDNS mandate (see `AC_FDNS_ROOT_CAUSE_V4.md`); the planned inventory-UI extension ( Şebeke Modeli → Envanter → 'Kaynak Ekleri / YTBS Dosyaları' sub-tab with per-attachment provenance, record counts, model-hash isolation and identity-based readable naming) is **not implemented in this session**. No existing attachment code was removed or regressed: the full unit/regression suite (873/873, `.tmp/v4-final-tests.log`) passes on commit `ace1669`, including the attachment roundtrip tests. Security gates from the mandate (zip-slip, compression-bomb, size limits, model-change isolation) remain as in V3 and were not modified.
+The panel was extended in this session (commit series ending `ace1669`→`249fc93`→ this commit) without removing the V3 capture layer:
 
-**Honest status: WIP.** The foundation is intact and tested; the readable-name/label-merge UI layer remains open work for the next session.
+- `attachments.ts`: catalog-only parser `parsePsseInventoryCatalog` for the YTBS inventory JSON — per-table `{recordCount, malformedCount}` for `bus/acline/transformer/generator/load/fixshunt/sysswd/contingency`, BOM-tolerant, opaque-on-invalid (returns `null`), rows kept unmodified; identity label index keyed `(table, ibus, ckt|machid|id) → ad`, most-specific key first, **no name-only merging**; `contingencyCount` documented as future N-1 input candidate, never a result. `.sav` classification (`VERIFIED_INPUT`) added additively.
+- `attachment-view.ts`: 'Kaynak Ekleri / YTBS Dosyaları' heading; per-row status badge with exactly `ARCHIVED` / `CATALOG_ONLY` / `VERIFIED_INPUT`; full `SHA-256 <64hex>` kept text-visible; expandable catalog: 8 table counts + malformed counts, ≤50 preview rows per table with `ad` as primary text and `ibus/ckt/machid/id` as secondary technical keys; contingency labeled 'gelecek N-1 girdisi adayı (sonuç değil)'; download byte-exact; per-model isolation preserved and tested.
+- Tests: `tests/unit/psse-attachment-inventory.test.ts` (6) + the pre-existing roundtrip/integration tests — 13/13; full suite 880/880 on the committed head; Chrome `file://` smoke (which asserts the 5 opaque sidecars, visible SHA provenance and byte-exact `.iec` download) PASS with zero external requests.
+- Still WIP: wiring the catalog's identity labels into the map/SLD primary naming (TM/line display names from the YTBS `ad` fields) — the catalog and lookup API exist; the network-view naming integration is next-session work. `.seq`/`.dyr` types remain recognized-but-absent. Security gates (zip-slip, bomb, size, model isolation) unchanged from V3.
