@@ -5,7 +5,9 @@
 - Verified starting SHA: `6c9e67be5c9603758943fcb7bccc5dbde67fbd0a`, branch `fix/psse-v1-real-model-parity`; initial remote fetch matches.
 - Fresh baseline: typecheck and all860 unit/regression tests passed.
 - Fresh YTBS source dictionary/coordinate audit for both original SAVs: see `YTBS_AREA_ZONE_OWNER_MAPPING.md` and `evidence/psse-v3/mapping-*.json`.
-- Full AC implementation/reference work is IN PROGRESS, not a successful V3 delivery. UI work waits for AC. Read `docs/psse-v3/SESSION_CHECKPOINT.md` for next commands.
+- Last verified remote checkpoint: `b212cf83ce1ece241f0a7247968043fd6b80c1ea`; GitHub CI run40576084224 succeeded.
+- Licensed reference matrix and nine tiny controller replays completed: see `docs/psse-v3/AC_REFERENCE_HANDOFF.md`. Both full SAVs have a converged FNSL reference; strict FDNS failures remain explicitly recorded.
+- Full AC implementation work is IN PROGRESS, not a successful V3 delivery. UI work waits for AC. Read `docs/psse-v3/SESSION_CHECKPOINT.md` for next commands.
 - Current commit SHA is the Git commit containing this section (`git log -1 --format=%H -- AGENT_HANDOFF.md`); the explicit preceding verified SHA is given above to avoid a self-referential commit hash. Root will record verified remote checkpoints in later handoffs.
 
 ## V2 correction — current delta (2026-10-27)

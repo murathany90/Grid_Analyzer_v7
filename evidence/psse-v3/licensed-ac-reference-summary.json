@@ -1,0 +1,976 @@
+{
+  "schema": "ga.psse.v3-reference-matrix.v1",
+  "sourceProvenance": "PSSE_REFERENCE",
+  "cases": [
+    {
+      "source": {
+        "name": "20261026_1600_SN1_TR0.sav",
+        "sha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b"
+      },
+      "version": [
+        "PSS(R)E                         ",
+        36,
+        5,
+        0,
+        "February 3, 2026              ",
+        "2026_02_3_2131_12aba11b                                                                                                             "
+      ],
+      "savedState": {
+        "solved": 0,
+        "iterations": 1,
+        "sysMismatchMva": 0.07593513280153275,
+        "maxMismatch": {
+          "ierr": 0,
+          "bus": 814961,
+          "pMw": 0.00095367431640625,
+          "qMvar": 0.010263919830322266,
+          "magnitudeMva": 0.010308130043080344
+        }
+      },
+      "parameters": {
+        "THRSHZ": [
+          0,
+          9.999999747378752e-05
+        ],
+        "PQBRAK": [
+          0,
+          0.699999988079071
+        ],
+        "TOLN": [
+          0,
+          0.10000000149011612
+        ],
+        "VCTOLQ": [
+          0,
+          0.10000000149011612
+        ],
+        "VCTOLV": [
+          0,
+          9.999999747378752e-06
+        ],
+        "DVLIM": [
+          0,
+          0.9900000095367432
+        ],
+        "NDVFCT": [
+          0,
+          0.9900000095367432
+        ]
+      },
+      "counts": {
+        "buses": 6875,
+        "machines": 2932,
+        "activeMachines": 1568,
+        "activeWmod": {
+          "0": 305,
+          "4": 334,
+          "3": 768,
+          "1": 161
+        },
+        "allWmod": {
+          "0": 641,
+          "3": 1377,
+          "4": 683,
+          "1": 231
+        },
+        "activeNonzeroWmod": 1263,
+        "allNonzeroWmod": 2291,
+        "activeRemoteMachines": 454,
+        "allRemoteMachines": 850,
+        "droopRecords": 231,
+        "activeDroopRecords": 161,
+        "activeNamedDroopMachines": 0,
+        "allNamedDroopMachines": 0,
+        "apiAllNamedDroopMachines": 0,
+        "idealLines": 0,
+        "idealSwitches": 926,
+        "idealComponentsWithMultipleBuses": 860,
+        "idealContractedSourceBusCount": 5967,
+        "idealCycleRank": 18,
+        "savedEnergizedBuses": 5072,
+        "savedEnergizedContractedGroups": 4164,
+        "rawxExportBusTypeDifferences": 4,
+        "rawxType2WithoutActiveLocalMachine": 5,
+        "sourceType2WithoutActiveLocalMachine": 1,
+        "sourceType2WithoutActiveContractedGroupMachine": 1
+      },
+      "runs": [
+        {
+          "method": "fnsl",
+          "profile": "fixed-ignore-q-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 35.51570000126958,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 3,
+          "iterations": 5,
+          "sysMismatchMva": 3745.515869140625,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 829521,
+            "pMw": -0.6823815107345581,
+            "qMvar": -148.2242889404297,
+            "magnitudeMva": 148.22585967509914
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 30.557499965652823,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 0,
+          "iterations": 9,
+          "sysMismatchMva": 0.012178526259958744,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": 0.0,
+            "qMvar": -0.0007003545761108398,
+            "magnitudeMva": 0.0007003545761108398
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 172.72059997776523,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 1,
+          "iterations": 100,
+          "sysMismatchMva": 0.06016625836491585,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": 0.0,
+            "qMvar": 0.010238587856292725,
+            "magnitudeMva": 0.010238587856292725
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits-source-tolerance",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.10000000149011612,
+          "ierr": 0,
+          "elapsedMs": 7.26430001668632,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 0,
+          "iterations": 1,
+          "sysMismatchMva": 0.04446173086762428,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": 0.0,
+            "qMvar": -0.009813904762268066,
+            "magnitudeMva": 0.009813904762268066
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "automatic-limits-nondiv",
+          "options": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 31.746499997098,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 0,
+          "iterations": 9,
+          "sysMismatchMva": 0.012178526259958744,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": 0.0,
+            "qMvar": -0.0007003545761108398,
+            "magnitudeMva": 0.0007003545761108398
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-ignore-q-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 19.78999999118969,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 3,
+          "iterations": 0,
+          "sysMismatchMva": 219.74359130859375,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 715061,
+            "pMw": 0.0,
+            "qMvar": -17.899999618530273,
+            "magnitudeMva": 17.899999618530273
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 14.725899964105338,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 3,
+          "iterations": 1,
+          "sysMismatchMva": 0.050456054508686066,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": -0.0004589557647705078,
+            "qMvar": -0.010196864604949951,
+            "magnitudeMva": 0.010207188063599945
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 179.83539996203035,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 1,
+          "iterations": 100,
+          "sysMismatchMva": 0.06149286404252052,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": 0.0009477138519287109,
+            "qMvar": 0.01026540994644165,
+            "magnitudeMva": 0.010309064114343295
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits-source-tolerance",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.10000000149011612,
+          "ierr": 0,
+          "elapsedMs": 8.288699958939105,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 0,
+          "iterations": 1,
+          "sysMismatchMva": 0.04859916865825653,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": -0.00095367431640625,
+            "qMvar": -0.01026540994644165,
+            "magnitudeMva": 0.010309613769209596
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "automatic-limits-nondiv",
+          "options": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 22.26390002761036,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.07593513280153275,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 814961,
+              "pMw": 0.00095367431640625,
+              "qMvar": 0.010263919830322266,
+              "magnitudeMva": 0.010308130043080344
+            }
+          },
+          "solved": 3,
+          "iterations": 1,
+          "sysMismatchMva": 0.050456054508686066,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 814961,
+            "pMw": -0.0004589557647705078,
+            "qMvar": -0.010196864604949951,
+            "magnitudeMva": 0.010207188063599945
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "version": [
+        "PSS(R)E                         ",
+        36,
+        5,
+        0,
+        "February 3, 2026              ",
+        "2026_02_3_2131_12aba11b                                                                                                             "
+      ],
+      "savedState": {
+        "solved": 0,
+        "iterations": 1,
+        "sysMismatchMva": 0.0324079692363739,
+        "maxMismatch": {
+          "ierr": 0,
+          "bus": 220322,
+          "pMw": 0.0003366731107234955,
+          "qMvar": 0.0022341497242450714,
+          "magnitudeMva": 0.0022593746422026966
+        }
+      },
+      "parameters": {
+        "THRSHZ": [
+          0,
+          9.999999747378752e-05
+        ],
+        "PQBRAK": [
+          0,
+          0.699999988079071
+        ],
+        "TOLN": [
+          0,
+          0.10000000149011612
+        ],
+        "VCTOLQ": [
+          0,
+          0.10000000149011612
+        ],
+        "VCTOLV": [
+          0,
+          9.999999747378752e-06
+        ],
+        "DVLIM": [
+          0,
+          0.9900000095367432
+        ],
+        "NDVFCT": [
+          0,
+          0.9900000095367432
+        ]
+      },
+      "counts": {
+        "buses": 6851,
+        "machines": 2920,
+        "activeMachines": 1900,
+        "activeWmod": {
+          "4": 429,
+          "3": 975,
+          "1": 225,
+          "0": 271
+        },
+        "allWmod": {
+          "0": 641,
+          "3": 1363,
+          "4": 680,
+          "1": 236
+        },
+        "activeNonzeroWmod": 1629,
+        "allNonzeroWmod": 2279,
+        "activeRemoteMachines": 473,
+        "allRemoteMachines": 852,
+        "droopRecords": 236,
+        "activeDroopRecords": 227,
+        "activeNamedDroopMachines": 0,
+        "allNamedDroopMachines": 0,
+        "apiAllNamedDroopMachines": 0,
+        "idealLines": 0,
+        "idealSwitches": 928,
+        "idealComponentsWithMultipleBuses": 861,
+        "idealContractedSourceBusCount": 5940,
+        "idealCycleRank": 17,
+        "savedEnergizedBuses": 5029,
+        "savedEnergizedContractedGroups": 4118,
+        "rawxExportBusTypeDifferences": 4,
+        "rawxType2WithoutActiveLocalMachine": 4,
+        "sourceType2WithoutActiveLocalMachine": 0,
+        "sourceType2WithoutActiveContractedGroupMachine": 0
+      },
+      "runs": [
+        {
+          "method": "fnsl",
+          "profile": "fixed-ignore-q-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 23.783600016031414,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 3,
+          "iterations": 3,
+          "sysMismatchMva": 6033.23828125,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 829521,
+            "pMw": -5.726835250854492,
+            "qMvar": -234.32659912109375,
+            "magnitudeMva": 234.39656929581585
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 14.205500017851591,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 2,
+          "sysMismatchMva": 0.012989252805709839,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": -9.313225746154785e-08,
+            "qMvar": 0.000882614403963089,
+            "magnitudeMva": 0.0008826144088766828
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 10.493500041775405,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 2,
+          "sysMismatchMva": 0.012989252805709839,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": -9.313225746154785e-08,
+            "qMvar": 0.000882614403963089,
+            "magnitudeMva": 0.0008826144088766828
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "fixed-limits-source-tolerance",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.10000000149011612,
+          "ierr": 0,
+          "elapsedMs": 9.567799977958202,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 1,
+          "sysMismatchMva": 0.016718333587050438,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": -9.313225746154785e-08,
+            "qMvar": 0.0015382654964923859,
+            "magnitudeMva": 0.0015382654993116708
+          }
+        },
+        {
+          "method": "fnsl",
+          "profile": "automatic-limits-nondiv",
+          "options": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 17.94069999596104,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 2,
+          "sysMismatchMva": 0.012989252805709839,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": -9.313225746154785e-08,
+            "qMvar": 0.000882614403963089,
+            "magnitudeMva": 0.0008826144088766828
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-ignore-q-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            -1,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 30.302500003017485,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 3,
+          "iterations": 0,
+          "sysMismatchMva": 402.2098693847656,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 836463,
+            "pMw": 4.6074255521944e-13,
+            "qMvar": 51.031105041503906,
+            "magnitudeMva": 51.031105041503906
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits-nondiv",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 15.557599952444434,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 3,
+          "iterations": 1,
+          "sysMismatchMva": 0.016172047704458237,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": 0.00019958242774009705,
+            "qMvar": 0.0013356097042560577,
+            "magnitudeMva": 0.0013504393461261357
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 17.70359999500215,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 2,
+          "sysMismatchMva": 0.01289133820682764,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": 0.0001280568540096283,
+            "qMvar": 0.0007991679012775421,
+            "magnitudeMva": 0.0008093626457226665
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "fixed-limits-source-tolerance",
+          "options": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "toleranceMva": 0.10000000149011612,
+          "ierr": 0,
+          "elapsedMs": 16.1157000111416,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 0,
+          "iterations": 1,
+          "sysMismatchMva": 0.016172045841813087,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": 0.00019958242774009705,
+            "qMvar": 0.0013356097042560577,
+            "magnitudeMva": 0.0013504393461261357
+          }
+        },
+        {
+          "method": "fdns",
+          "profile": "automatic-limits-nondiv",
+          "options": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            1
+          ],
+          "toleranceMva": 0.001,
+          "ierr": 0,
+          "elapsedMs": 23.5116999829188,
+          "before": {
+            "solved": 0,
+            "iterations": 1,
+            "sysMismatchMva": 0.0324079692363739,
+            "maxMismatch": {
+              "ierr": 0,
+              "bus": 220322,
+              "pMw": 0.0003366731107234955,
+              "qMvar": 0.0022341497242450714,
+              "magnitudeMva": 0.0022593746422026966
+            }
+          },
+          "solved": 3,
+          "iterations": 1,
+          "sysMismatchMva": 0.016172047704458237,
+          "maxMismatch": {
+            "ierr": 0,
+            "bus": 220322,
+            "pMw": 0.00019958242774009705,
+            "qMvar": 0.0013356097042560577,
+            "magnitudeMva": 0.0013504393461261357
+          }
+        }
+      ]
+    }
+  ]
+}
