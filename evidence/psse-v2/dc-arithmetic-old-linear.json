@@ -1,0 +1,257 @@
+{
+  "schema": "ga.psse.dc-arithmetic-probe.v2",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "referenceOptionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "activeBusCount": 5029,
+  "allOracleAnglesF32": true,
+  "nonzeroPhaseBranches": 0,
+  "interpretation": "All variants are explicitly diagnostic arithmetic/input perturbations through the production DC solver. A retained linear iterate for a rejected variant is not a published calculation. They do not authorize a runtime precision change, alternate engine, relaxed threshold, or parity PASS.",
+  "probes": [
+    {
+      "transform": "MATRIX_FINAL_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.07695871208852623,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.0017382389996782877,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.01045919449974298,
+        "mean": 0.005777612076863458,
+        "p95": 0.007742961593981467
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.2617485904900718,
+        "mean": 0.025326904036613834,
+        "p95": 0.04839314275344009
+      },
+      "diagnosticNonidealOverStrict": 203,
+      "missing": 6122,
+      "elapsedMs": 1601.7997000000003
+    },
+    {
+      "transform": "MATRIX_ACCUM_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.20991834127652514,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.003938809662940912,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.008124354343178562,
+        "mean": 0.0040768276523842914,
+        "p95": 0.0065177521987643304
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.26485245974873806,
+        "mean": 0.024924400002842635,
+        "p95": 0.04831601548247022
+      },
+      "diagnosticNonidealOverStrict": 192,
+      "missing": 6122,
+      "elapsedMs": 2624.3556
+    },
+    {
+      "transform": "RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.000023841857998974092,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.006285242215702782,
+        "mean": 0.004147740795976153,
+        "p95": 0.005174012615578594
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.24670958436922774,
+        "mean": 0.024837654032406144,
+        "p95": 0.048031325346569176
+      },
+      "diagnosticNonidealOverStrict": 146,
+      "missing": 6122,
+      "elapsedMs": 2317.4892
+    },
+    {
+      "transform": "MATRIX_AND_RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.07695871427131351,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.0017382389996782877,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.010460023866079773,
+        "mean": 0.005778349897613443,
+        "p95": 0.0077436193966346455
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.2617740988138735,
+        "mean": 0.025327002520506604,
+        "p95": 0.048393512211418965
+      },
+      "diagnosticNonidealOverStrict": 203,
+      "missing": 6122,
+      "elapsedMs": 2772.8853
+    },
+    {
+      "transform": "MATRIX_ACCUM_AND_RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.2099183488941206,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.003938809662940912,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.008125300349704576,
+        "mean": 0.004077565634452664,
+        "p95": 0.006518304287161964
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.2648705317877784,
+        "mean": 0.024924521119902288,
+        "p95": 0.048315456688929004
+      },
+      "diagnosticNonidealOverStrict": 192,
+      "missing": 6122,
+      "elapsedMs": 2750.050500000001
+    },
+    {
+      "transform": "SOLUTION_F32_ONLY",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [
+        "DC_IDEAL_SWITCH_KCL_RESIDUAL"
+      ],
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 0.20715567284241843,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.006283774036411731,
+        "mean": 0.004147003697705106,
+        "p95": 0.005173868296284659
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.3627781168221702,
+        "mean": 0.024839038765494065,
+        "p95": 0.048004326952703735
+      },
+      "diagnosticNonidealOverStrict": 144,
+      "missing": 6122,
+      "elapsedMs": 3294.804
+    }
+  ]
+}

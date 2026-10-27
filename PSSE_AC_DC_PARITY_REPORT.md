@@ -1,5 +1,47 @@
 # PSS/E AC/DC numerical parity report
 
+## V2 current engine and requested new model
+
+New SAV `20261026_1600_SN1_TR0.sav` SHA-256 `8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b`; licensed RAW export SHA-256 `40086c10e93819d16861b5c35d4afdd3ee641dfe14474c76dd3594ee88aa64ea`. It is distinct from the old 20261014 model. Source SAV/RAW decode 6,875 buses, 2,414 lines, 3,715 transformers, 2,932 generators, 2,516 loads, 2,571 switches, 137 fixed shunts and 1,625 substations. Comparison checks 239,858 fields, zero missing IDs and four IDE source-state differences, retained explicitly in `evidence/psse-v2/source-new-sav-raw.json`.
+
+Engine2 has 10 unique cached experiment comparisons: 3 BLOCKED, 2 DIFFERENCES, 5 PASS. Current version results follow; historical tables below remain attributed by engine.
+
+| Source | Method / start / Q limits | GA numerical / physics | Reference ierr / solved / iterations | Outcome |
+|---|---|---|---|---|
+| 20261014_1200_SN3_TR0.sav | LOSSLESS_DC / FLAT / False | CONVERGED / PARTIAL | 0 / 0 / 1 | DIFFERENCES |
+| 20261026_1600_SN1_TR0.sav | LOSSLESS_DC / FLAT / False | CONVERGED / PARTIAL | 0 / 0 / 1 | DIFFERENCES |
+| 20261026_1600_SN1_TR0.sav | FDNS_XB / SOURCE_SAVED / True | BLOCKED / BLOCKED | 0 / 3 / 1 | BLOCKED |
+| 20261026_1600_SN1_TR0.raw | LOSSLESS_DC / FLAT / False | BLOCKED / BLOCKED | 0 / 9 / 0 | BLOCKED |
+| pv-no-generator.rawx | LOSSLESS_DC / FLAT / False | CONVERGED / SUPPORTED | 0 / 9 / 0 | PASS |
+| pq-no-generator.rawx | LOSSLESS_DC / FLAT / False | CONVERGED / SUPPORTED | 0 / 9 / 0 | PASS |
+| pv-inactive-generator.rawx | LOSSLESS_DC / FLAT / False | CONVERGED / SUPPORTED | 0 / 9 / 0 | PASS |
+| dc-loadtype-tag.rawx | LOSSLESS_DC / FLAT / False | CONVERGED / SUPPORTED | 0 / 9 / 0 | PASS |
+| dc-large-core-loss.rawx | LOSSLESS_DC / FLAT / False | CONVERGED / SUPPORTED | 0 / 9 / 0 | PASS |
+| 20261026_1600_SN1_TR0.sav | NR_POLAR / SOURCE_SAVED / True | BLOCKED / BLOCKED | 0 / 0 / 9 | BLOCKED |
+
+Old/new current real DC differences (all matched quantities, no missing IDs):
+
+| Source | Active buses / directed terminal MW | MW max / mean / P95 | Degrees max / mean / P95 |
+|---|---:|---|---|
+| 20261014_1200_SN3_TR0.sav | 5029 / 12244 | 0.246692 / 0.0239553 / 0.0480102 | 0.00628441 / 0.004147 / 0.00517335 |
+| 20261026_1600_SN1_TR0.sav | 5072 / 12330 | 0.244677 / 0.023982 / 0.0479722 | 0.00689369 / 0.00493032 / 0.00575533 |
+
+Both real SAV DC runs numerically converge in one sparse solve with PARTIAL physics and publish LIMITED_PROFILE. The new source active-P residual is 7.88435e-12 pu. They meet the initial 0.5 MW / 0.05 degree engineering bounds for compared P/angle, but fail strict 0.051 MW parity. DC Vm/Q/current/AC loss and blocked GA AC metrics remain unavailable. The new SAV warm/Q-enabled FNSL reference reaches solved=0 in 9 iterations (system mismatch 0.0121785 MVA). FDNS ierr=0 but solved=3, mismatch 0.0504561 MVA, is not a positive AC reference convergence. Both GA real AC methods remain BLOCKED by active unimplemented controls/AC ideal-link physics.
+
+The new RAW retains four isolated IDE=2 islands with no reference generator and remains BLOCKED. PSS/E's RAW reader changes these four buses to TYPE=4 before DCLF; native SAV already stores IDE=4. An original tiny RAWX empty-PV-island returns DCLF ierr=12, so a general automatic deenergization rule is unproved and was not added. LOADTYPE is verified descriptor metadata, not a static-load-law gate. RAW voltage-droop metadata is recognized; pure-Q controls are permitted DC omissions while active AC droop stays blocked.
+
+### Proven fixes and unresolved strict DC difference
+
+PV-without-online-generator is an AC voltage-control constraint. Three original PV/PQ/inactive-generator fixtures have equal six directed DCLF MW values and angles with ierr=0. DC now accepts these supported cases; AC keeps its control gate. No-slack/island/unknown-active-physics checks remain. A large core-loss/tap discriminator matches all six rounded terminal MW values; changing core-G globally is unjustified. Proofs are in `evidence/psse-v2/dc-pv-eligibility-proof.json` and `loadtype-descriptor-proof.json`.
+
+The old large case matches all 6,122 branch identities; the historical 98 over-threshold from-end rows become 102 branches when testing the worse of both ends. API angles are Float32-valued; half-ULP angle/report bounds explain most reevaluated branch differences, but angle display precision alone does not explain every nodal residual. The old case has zero nonzero phase shifts. Alternative core-G policies worsen differences. Matrix/RHS rounding fails original-equation residual/recovery checks and is not shipped.
+
+An original three-bus witness changes only one finite-link impedance: condition number increases from 13.3077 to 12308.6923; maximum MW difference rises from 0.0421965 to 0.1675026 MW and angle difference from 1.75492e-5 to 0.00392263 degrees, while production residual is 2.26805e-12 pu. One reference report nodal balance misses specified injection by 0.2 MW, beyond the 0.1 MW combined display-rounding bound. This supports numerical sensitivity/conditioning; it does not establish Siemens internals or prove every large-case discrepancy. Strict differences remain unresolved. See `dc-tiny-conditioning-proof.json`, `dc-precision-old.json`, `dc-arithmetic-old-backward.json` under `evidence/psse-v2/` and architecture §18.
+
+### Local Excel/CSV separation
+
+`tools/psse-v2-export-comparison.ts` exports separate SOURCE_SAVED, GA_PSSE_CALCULATED and PSSE_REFERENCE CSVs from cached actual Engine2 runs. The local workbook has all 10,101 matched active DC buses and 5,852 source/reference generators. Its branch sheet shows the worst 200 directed-terminal differences per model; full 24,574 matched terminal comparisons remain in CSV. Summary maximum/mean/P95 always use all rows. GA AC columns stay blank because BLOCKED; converged reference FNSL values are never substituted. Detailed licensed-derived CSV/XLSX files stay local, outside Git and the public ZIP.
+
 Measured on 2026-10-27 (Europe/Istanbul). This report is generated by `tools/psse-parity-report.py` from actual retained runs. It certifies only the named methods, fixtures and control profiles. It does not certify unsupported source physics or a blocked case.
 
 ## Reproducible conditions
@@ -14,35 +56,43 @@ AC provisional acceptance limits are Vm 1e-4 pu, angle 0.05 degrees, P/Q and net
 
 ## Run outcomes
 
-There are **87 distinct comparisons**: 10 BLOCKED, 2 DIFFERENCES, 74 PASS, 1 REFERENCE_NOT_CONVERGED. The 91 retained rows include 4 duplicate comparisons in overlapping evidence groups; each source/method/start/Q-policy/reference-options identity is counted once below. All original evidence files remain available.
+There are **101 distinct experiment/version comparisons**: 13 BLOCKED, 6 DIFFERENCES, 81 PASS, 1 REFERENCE_NOT_CONVERGED. The 105 retained rows include 4 duplicate comparisons in overlapping groups; each source/method/start/Q-policy/reference-options/engine-version identity is counted once. These are profile/experiment counts, not independent model counts. Engine1 runs remain historical evidence, not new Engine2 reruns.
 
 | Evidence group | Comparisons | PASS | Other states |
 |---|---:|---:|---|
-| [parity-fdns_xb-bench.json](evidence/psse-ac-dc/parity-fdns_xb-bench.json) | 1 | 1 | — |
-| [parity-fdns_xb-examples.json](evidence/psse-ac-dc/parity-fdns_xb-examples.json) | 3 | 0 | BLOCKED: 3 |
-| [parity-fdns_xb-extended.json](evidence/psse-ac-dc/parity-fdns_xb-extended.json) | 4 | 4 | — |
-| [parity-fdns_xb-q-limits-active.json](evidence/psse-ac-dc/parity-fdns_xb-q-limits-active.json) | 1 | 0 | REFERENCE_NOT_CONVERGED: 1 |
-| [parity-fdns_xb-sav.json](evidence/psse-ac-dc/parity-fdns_xb-sav.json) | 7 | 7 | — |
-| [parity-fdns_xb-switched.json](evidence/psse-ac-dc/parity-fdns_xb-switched.json) | 4 | 4 | — |
-| [parity-fdns_xb.json](evidence/psse-ac-dc/parity-fdns_xb.json) | 8 | 8 | — |
-| [parity-lossless_dc-bench.json](evidence/psse-ac-dc/parity-lossless_dc-bench.json) | 1 | 0 | DIFFERENCES: 1 |
-| [parity-lossless_dc-end-shunts.json](evidence/psse-ac-dc/parity-lossless_dc-end-shunts.json) | 1 | 1 | — |
-| [parity-lossless_dc-examples.json](evidence/psse-ac-dc/parity-lossless_dc-examples.json) | 3 | 0 | BLOCKED: 3 |
-| [parity-lossless_dc-extended.json](evidence/psse-ac-dc/parity-lossless_dc-extended.json) | 3 | 3 | — |
-| [parity-lossless_dc-negative-x.json](evidence/psse-ac-dc/parity-lossless_dc-negative-x.json) | 1 | 1 | — |
-| [parity-lossless_dc-real.json](evidence/psse-ac-dc/parity-lossless_dc-real.json) | 1 | 0 | DIFFERENCES: 1 |
-| [parity-lossless_dc-sav.json](evidence/psse-ac-dc/parity-lossless_dc-sav.json) | 7 | 7 | — |
-| [parity-lossless_dc-switched.json](evidence/psse-ac-dc/parity-lossless_dc-switched.json) | 4 | 4 | — |
-| [parity-lossless_dc.json](evidence/psse-ac-dc/parity-lossless_dc.json) | 8 | 8 | — |
-| [parity-nr_polar-bench.json](evidence/psse-ac-dc/parity-nr_polar-bench.json) | 1 | 1 | — |
-| [parity-nr_polar-examples.json](evidence/psse-ac-dc/parity-nr_polar-examples.json) | 3 | 0 | BLOCKED: 3 |
-| [parity-nr_polar-extended.json](evidence/psse-ac-dc/parity-nr_polar-extended.json) | 4 | 4 | — |
-| [parity-nr_polar-fixed-q.json](evidence/psse-ac-dc/parity-nr_polar-fixed-q.json) | 1 | 1 | — |
-| [parity-nr_polar-q-limits-active.json](evidence/psse-ac-dc/parity-nr_polar-q-limits-active.json) | 1 | 1 | — |
-| [parity-nr_polar-q-limits-warm-real.json](evidence/psse-ac-dc/parity-nr_polar-q-limits-warm-real.json) | 1 | 0 | BLOCKED: 1 |
-| [parity-nr_polar-sav.json](evidence/psse-ac-dc/parity-nr_polar-sav.json) | 7 | 7 | — |
-| [parity-nr_polar-switched.json](evidence/psse-ac-dc/parity-nr_polar-switched.json) | 4 | 4 | — |
-| [parity-nr_polar.json](evidence/psse-ac-dc/parity-nr_polar.json) | 8 | 8 | — |
+| [parity-lossless_dc-v2-real.json](evidence/psse-ac-dc/parity-lossless_dc-v2-real.json) (GA_PSSE_ENGINE_2) | 2 | 0 | DIFFERENCES: 2 |
+| [parity-fdns_xb-bench.json](evidence/psse-ac-dc/parity-fdns_xb-bench.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-fdns_xb-examples.json](evidence/psse-ac-dc/parity-fdns_xb-examples.json) (GA_PSSE_ENGINE_1) | 3 | 0 | BLOCKED: 3 |
+| [parity-fdns_xb-extended.json](evidence/psse-ac-dc/parity-fdns_xb-extended.json) (GA_PSSE_ENGINE_1) | 4 | 4 | — |
+| [parity-fdns_xb-q-limits-active.json](evidence/psse-ac-dc/parity-fdns_xb-q-limits-active.json) (GA_PSSE_ENGINE_1) | 1 | 0 | REFERENCE_NOT_CONVERGED: 1 |
+| [parity-fdns_xb-q-limits-warm-v2-new.json](evidence/psse-ac-dc/parity-fdns_xb-q-limits-warm-v2-new.json) (GA_PSSE_ENGINE_2) | 1 | 0 | BLOCKED: 1 |
+| [parity-fdns_xb-sav.json](evidence/psse-ac-dc/parity-fdns_xb-sav.json) (GA_PSSE_ENGINE_1) | 7 | 7 | — |
+| [parity-fdns_xb-switched.json](evidence/psse-ac-dc/parity-fdns_xb-switched.json) (GA_PSSE_ENGINE_1) | 4 | 4 | — |
+| [parity-fdns_xb.json](evidence/psse-ac-dc/parity-fdns_xb.json) (GA_PSSE_ENGINE_1) | 8 | 8 | — |
+| [parity-lossless_dc-bench.json](evidence/psse-ac-dc/parity-lossless_dc-bench.json) (GA_PSSE_ENGINE_1) | 1 | 0 | DIFFERENCES: 1 |
+| [parity-lossless_dc-end-shunts.json](evidence/psse-ac-dc/parity-lossless_dc-end-shunts.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-lossless_dc-examples.json](evidence/psse-ac-dc/parity-lossless_dc-examples.json) (GA_PSSE_ENGINE_1) | 3 | 0 | BLOCKED: 3 |
+| [parity-lossless_dc-extended.json](evidence/psse-ac-dc/parity-lossless_dc-extended.json) (GA_PSSE_ENGINE_1) | 3 | 3 | — |
+| [parity-lossless_dc-negative-x.json](evidence/psse-ac-dc/parity-lossless_dc-negative-x.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-lossless_dc-real.json](evidence/psse-ac-dc/parity-lossless_dc-real.json) (GA_PSSE_ENGINE_1) | 1 | 0 | DIFFERENCES: 1 |
+| [parity-lossless_dc-sav.json](evidence/psse-ac-dc/parity-lossless_dc-sav.json) (GA_PSSE_ENGINE_1) | 7 | 7 | — |
+| [parity-lossless_dc-switched.json](evidence/psse-ac-dc/parity-lossless_dc-switched.json) (GA_PSSE_ENGINE_1) | 4 | 4 | — |
+| [parity-lossless_dc-v2-core-loss.json](evidence/psse-ac-dc/parity-lossless_dc-v2-core-loss.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-lossless_dc-v2-new-raw.json](evidence/psse-ac-dc/parity-lossless_dc-v2-new-raw.json) (GA_PSSE_ENGINE_2) | 1 | 0 | BLOCKED: 1 |
+| [parity-lossless_dc-v2-new.json](evidence/psse-ac-dc/parity-lossless_dc-v2-new.json) (GA_PSSE_ENGINE_1) | 1 | 0 | DIFFERENCES: 1 |
+| [parity-lossless_dc-v2-pv-eligibility.json](evidence/psse-ac-dc/parity-lossless_dc-v2-pv-eligibility.json) (GA_PSSE_ENGINE_2) | 5 | 5 | — |
+| [parity-lossless_dc-v2-tiny-precision.json](evidence/psse-ac-dc/parity-lossless_dc-v2-tiny-precision.json) (GA_PSSE_ENGINE_1) | 2 | 1 | DIFFERENCES: 1 |
+| [parity-lossless_dc.json](evidence/psse-ac-dc/parity-lossless_dc.json) (GA_PSSE_ENGINE_1) | 8 | 8 | — |
+| [parity-nr_polar-bench.json](evidence/psse-ac-dc/parity-nr_polar-bench.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-nr_polar-examples.json](evidence/psse-ac-dc/parity-nr_polar-examples.json) (GA_PSSE_ENGINE_1) | 3 | 0 | BLOCKED: 3 |
+| [parity-nr_polar-extended.json](evidence/psse-ac-dc/parity-nr_polar-extended.json) (GA_PSSE_ENGINE_1) | 4 | 4 | — |
+| [parity-nr_polar-fixed-q.json](evidence/psse-ac-dc/parity-nr_polar-fixed-q.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-nr_polar-q-limits-active.json](evidence/psse-ac-dc/parity-nr_polar-q-limits-active.json) (GA_PSSE_ENGINE_1) | 1 | 1 | — |
+| [parity-nr_polar-q-limits-warm-real.json](evidence/psse-ac-dc/parity-nr_polar-q-limits-warm-real.json) (GA_PSSE_ENGINE_1) | 1 | 0 | BLOCKED: 1 |
+| [parity-nr_polar-q-limits-warm-v2-new.json](evidence/psse-ac-dc/parity-nr_polar-q-limits-warm-v2-new.json) (GA_PSSE_ENGINE_2) | 1 | 0 | BLOCKED: 1 |
+| [parity-nr_polar-sav.json](evidence/psse-ac-dc/parity-nr_polar-sav.json) (GA_PSSE_ENGINE_1) | 7 | 7 | — |
+| [parity-nr_polar-switched.json](evidence/psse-ac-dc/parity-nr_polar-switched.json) (GA_PSSE_ENGINE_1) | 4 | 4 | — |
+| [parity-nr_polar.json](evidence/psse-ac-dc/parity-nr_polar.json) (GA_PSSE_ENGINE_1) | 8 | 8 | — |
 
 ## Maximum, mean and P95 absolute differences
 
@@ -50,6 +100,8 @@ Each row uses all matched equipment quantities from PASS and DIFFERENCES compari
 
 | Evidence group | Quantity | Count | Maximum | Mean | P95 |
 |---|---|---:|---:|---:|---:|
+| lossless_dc-v2-real | vaDeg | 10101 | 0.00689369 | 0.00454033 | 0.00560363 |
+| lossless_dc-v2-real | terminalPMw | 24574 | 0.246692 | 0.0239687 | 0.0479999 |
 | fdns_xb-bench | vmPu | 1648 | 1.87363e-05 | 8.86894e-08 | 2.24165e-07 |
 | fdns_xb-bench | vaDeg | 1648 | 0.00163208 | 2.8073e-05 | 5.79661e-05 |
 | fdns_xb-bench | pgMw | 313 | 0.000149952 | 3.08206e-06 | 1.52588e-05 |
@@ -106,6 +158,14 @@ Each row uses all matched equipment quantities from PASS and DIFFERENCES compari
 | lossless_dc-sav | terminalPMw | 41 | 0.0499969 | 0.0229668 | 0.0333373 |
 | lossless_dc-switched | vaDeg | 12 | 1.99214e-07 | 1.22671e-07 | 1.99214e-07 |
 | lossless_dc-switched | terminalPMw | 24 | 0.0333333 | 0.0333333 | 0.0333333 |
+| lossless_dc-v2-core-loss | vaDeg | 3 | 2.56132e-07 | 1.24153e-07 | 2.56132e-07 |
+| lossless_dc-v2-core-loss | terminalPMw | 6 | 0 | 0 | 0 |
+| lossless_dc-v2-new | vaDeg | 5072 | 0.00689369 | 0.00493032 | 0.00575533 |
+| lossless_dc-v2-new | terminalPMw | 12330 | 0.244677 | 0.023982 | 0.0479722 |
+| lossless_dc-v2-pv-eligibility | vaDeg | 15 | 4.06965e-07 | 2.08167e-07 | 4.06965e-07 |
+| lossless_dc-v2-pv-eligibility | terminalPMw | 30 | 0.0333333 | 0.0266667 | 0.0333333 |
+| lossless_dc-v2-tiny-precision | vaDeg | 6 | 0.00392263 | 0.00131288 | 0.00392263 |
+| lossless_dc-v2-tiny-precision | terminalPMw | 12 | 0.167503 | 0.065682 | 0.167503 |
 | lossless_dc | vaDeg | 24 | 8.28472e-07 | 2.12717e-07 | 7.2689e-07 |
 | lossless_dc | terminalPMw | 47 | 0.05 | 0.0242914 | 0.0333333 |
 | nr_polar-bench | vmPu | 1648 | 1.87363e-05 | 8.91892e-08 | 2.24165e-07 |
@@ -169,16 +229,20 @@ Each row uses all matched equipment quantities from PASS and DIFFERENCES compari
 
 ## Strict DC differences and the initial engineering targets
 
-The strict DC flow threshold remains 0.051 MW. The following converged DC cases exceed it and remain DIFFERENCES. Both happen to meet the user's initial 0.5 MW and 0.05 degree targets for the compared quantities; this does not establish full source physics or strict PSS/E equivalence.
+The strict DC flow threshold remains 0.051 MW. The following converged DC cases exceed it and remain DIFFERENCES. Engineering bounds are evaluated separately for each row; they do not establish full source physics or strict PSS/E equivalence.
 
 | Case | Source coverage | Maximum MW difference | Maximum angle difference (degrees) | Matched terminal MW values | Missing identities | Initial engineering bounds |
 |---|---|---:|---:|---:|---:|---|
-| bench.sav | PARTIAL | 0.0533194 | 0.00103901 | 5204 | 0 | Met for compared P/angle only |
-| 20261014_1200_SN3_TR0.sav | PARTIAL | 0.246692 | 0.00628441 | 12244 | 0 | Met for compared P/angle only |
+| 20261014_1200_SN3_TR0.sav (GA_PSSE_ENGINE_2) | PARTIAL | 0.246692 | 0.00628441 | 12244 | 0 | Met for compared P/angle only |
+| 20261026_1600_SN1_TR0.sav (GA_PSSE_ENGINE_2) | PARTIAL | 0.244677 | 0.00689369 | 12330 | 0 | Met for compared P/angle only |
+| bench.sav (GA_PSSE_ENGINE_1) | PARTIAL | 0.0533194 | 0.00103901 | 5204 | 0 | Met for compared P/angle only |
+| 20261014_1200_SN3_TR0.sav (GA_PSSE_ENGINE_1) | PARTIAL | 0.246692 | 0.00628441 | 12244 | 0 | Met for compared P/angle only |
+| 20261026_1600_SN1_TR0.sav (GA_PSSE_ENGINE_1) | PARTIAL | 0.244677 | 0.00689369 | 12330 | 0 | Met for compared P/angle only |
+| ill-conditioned.rawx (GA_PSSE_ENGINE_1) | SUPPORTED | 0.167503 | 0.00392263 | 6 | 0 | Met for compared P/angle only |
 
 The real-model DC result contains all 6,851 original bus rows. The reference comparison covers 5,029 active buses and 12,244 directed terminal MW values, with no missing matched identities. The ideal-link reduction contracts 928 source switches and reconstructs their terminal flows with a weighted Laplacian. Cached-reference cycle projection differs by at most 0.033333 MW, within report rounding. The remaining worst full-network MW difference is not attributed to a proven single cause; it remains a documented numerical/model difference rather than being hidden with a wider strict tolerance. Evidence gaStatus describes numerical residual convergence; the public application and exports label a converged PARTIAL result LIMITED_PROFILE, not unqualified readiness or equivalence.
 
-## Source fidelity and real-model boundary
+## Historical V1 source fidelity and old-model boundary
 
 Fresh native SAV validation against the installed development-only oracle checked **277,131 source quantities with zero mismatches** (`evidence/psse-ac-dc/native-oracle.json`). The installed reference SAV and the requested Downloads SAV have identical SHA-256. Both real SAV and RAW decoded 6,851 buses, 2,403 lines, 3,703 transformers, 2,920 generators and 2,520 loads.
 

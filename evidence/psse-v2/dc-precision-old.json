@@ -1,0 +1,66 @@
+{
+  "schema": "ga.psse.dc-residual-precision.v2",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "referenceOptionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "cachedResultId": "psse-28482e6bc9a29bc7e8a8ff88fd02b0405a764def9cc10b878ea9c9ad6a57b865",
+  "directedRowsInParity": 12244,
+  "matchedBranches": 6122,
+  "missingBranches": 0,
+  "duplicateReportKeys": 0,
+  "strictComparison": "DIFFERENCES",
+  "strictLimitMw": 0.051,
+  "branchMaxEndpointErrors": {
+    "count": 6122,
+    "max": 0.24669151437979053,
+    "mean": 0.028746282409693555,
+    "p95": 0.048874608986082535
+  },
+  "branchesOverStrict": 102,
+  "bins": {
+    "IDEAL": {
+      "all": 928,
+      "overStrict": 26,
+      "maxErrorMw": 0.19220945735052908
+    },
+    "X_LT_0_0001": {
+      "all": 12,
+      "overStrict": 3,
+      "maxErrorMw": 0.24669151437979053
+    },
+    "X_LT_0_001": {
+      "all": 93,
+      "overStrict": 4,
+      "maxErrorMw": 0.11883665118614983
+    },
+    "OTHER": {
+      "all": 5089,
+      "overStrict": 69,
+      "maxErrorMw": 0.17836391909924032
+    }
+  },
+  "referenceApiAnglesExactlyFloat32": true,
+  "apiAngleReevaluationErrors": {
+    "count": 5194,
+    "max": 0.3217354719632386,
+    "mean": 0.024970376375094562,
+    "p95": 0.047453782581076354
+  },
+  "apiAngleReevaluationWithinQuantizationDisplayBound": 5193,
+  "apiAngleBounds": {
+    "count": 5194,
+    "max": 0.4115360729926355,
+    "mean": 0.0504177031034336,
+    "p95": 0.0505522732364555
+  },
+  "contractedNonreferenceNodalResidualMw": {
+    "count": 4117,
+    "max": 0.6403698128263283,
+    "mean": 0.0009196011286778732,
+    "p95": 0.0014209352427956776
+  },
+  "nonreferenceResidualWithinAngleQuantizationBound": 3064,
+  "nonreferenceNodes": 4117,
+  "fixedRealShuntConsumptionMw": 0,
+  "branchTerminalRealShuntConsumptionMw": 103.73386454435904,
+  "interpretation": "API angle quantization explains only the bounded angle-reevaluation differences. It does not by itself explain or waive production-flow versus DCLF-report differences."
+}

@@ -31,8 +31,8 @@ export function psseBypassFlag(model:PsseModel,equipment:PsseModel['equipment'][
  if(equipment.kind!=='line'&&equipment.kind!=='switch')return 0;const raw=equipment.fields.bp??equipment.fields.bypass;if(raw===null||raw===undefined||raw==='')return model.source.format==='SAV'?null:0;const value=typeof raw==='boolean'?(raw?1:0):Number(raw);return Number.isFinite(value)?value:null;
 }
 
-export function isPsseContractibleZeroImpedanceLink(model:PsseModel,branch:PsseBranch,threshold=psseZeroImpedanceThreshold(model)){
- const equipment=model.equipment.find(item=>item.id===branch.sourceEquipmentId);if(!equipment||(equipment.kind!=='switch'&&equipment.kind!=='line')||branch.rPu!==0||!Number.isFinite(branch.xPu)||threshold.valuePu<0||psseBypassFlag(model,equipment)!==0)return false;
+export function isPsseContractibleZeroImpedanceLink(model:PsseModel,branch:PsseBranch,threshold=psseZeroImpedanceThreshold(model),equipmentById?:ReadonlyMap<string,PsseModel['equipment'][number]>) {
+ const equipment=equipmentById?equipmentById.get(branch.sourceEquipmentId):model.equipment.find(item=>item.id===branch.sourceEquipmentId);if(!equipment||(equipment.kind!=='switch'&&equipment.kind!=='line')||branch.rPu!==0||!Number.isFinite(branch.xPu)||threshold.valuePu<0||psseBypassFlag(model,equipment)!==0)return false;
  if(threshold.valuePu===0)return false;
  if(threshold.scalarPrecision==='F32')return Math.fround(Math.abs(branch.xPu))<=Math.fround(threshold.valuePu);
  return Math.abs(branch.xPu)<=threshold.valuePu;

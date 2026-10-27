@@ -1,0 +1,49 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 1509.4149,
+  "reports": [
+    {
+      "name": "20261026_1600_SN1_TR0.raw",
+      "sha256": "40086c10e93819d16861b5c35d4afdd3ee641dfe14474c76dd3594ee88aa64ea",
+      "normalizedHash": "a9458b7e7805a20fb5d8bde43fdcca48f21917cbf76cd72d2b13ab9cd67cdb95",
+      "method": "LOSSLESS_DC",
+      "initial": "FLAT",
+      "qLimits": false,
+      "gaStatus": "BLOCKED",
+      "gaPhysicsCoverage": "BLOCKED",
+      "gaSource": "GA_PSSE_CALCULATED",
+      "engineVersion": "GA_PSSE_ENGINE_2",
+      "gaIterations": 0,
+      "gaElapsedMs": 402.78740000000016,
+      "gaMaxPMismatchPu": null,
+      "gaMaxQMismatchPu": null,
+      "networkCounts": {
+        "buses": 6875,
+        "branches": 8700
+      },
+      "reference": {
+        "method": "dclf_2",
+        "options": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "profile": "fixed-controls-v1",
+        "toleranceMva": 0.001,
+        "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+        "ierr": 0,
+        "solved": 9,
+        "iterations": 0
+      },
+      "status": "BLOCKED",
+      "findingCounts": {
+        "DC_REACTIVE_CONTROL_OMITTED": 1878,
+        "ISLAND_REFERENCE_COUNT": 4,
+        "ISLAND_REFERENCE_SOURCE_MISSING": 4
+      }
+    }
+  ]
+}

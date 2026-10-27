@@ -1,0 +1,336 @@
+{
+  "schema": "ga.psse.dc-arithmetic-probe.v2",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "referenceOptionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "contractedMatrixDimension": 5029,
+  "allOracleAnglesF32": true,
+  "nonzeroPhaseBranches": 0,
+  "interpretation": "All variants are explicitly diagnostic arithmetic/input perturbations through the production DC solver. They do not authorize a runtime precision change, alternate engine, relaxed threshold, or parity PASS.",
+  "probes": [
+    {
+      "transform": "BASELINE",
+      "diagnosticOnly": false,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 3.9652741853912764e-12,
+      "originalEquationResidualMw": 8.327560863108374e-10,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.006284412962823893,
+        "mean": 0.0041470029747368705,
+        "p95": 0.005173345888284331
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24669151437979053,
+        "mean": 0.023955343690888593,
+        "p95": 0.048010241985315005
+      },
+      "directedOverStrict": 198,
+      "missing": 0,
+      "elapsedMs": 1987.5384
+    },
+    {
+      "transform": "SOURCE_X_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 9.122434509178934e-12,
+      "originalEquationResidualMw": 1.837108243307739e-9,
+      "referenceEquationResidualMw": 0.6403931431642956,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.006284256680345379,
+        "mean": 0.004146989993369576,
+        "p95": 0.005173225566952766
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24668951586647836,
+        "mean": 0.02395535261311954,
+        "p95": 0.04801024198531145
+      },
+      "directedOverStrict": 198,
+      "missing": 0,
+      "elapsedMs": 3224.814700000001
+    },
+    {
+      "transform": "SOURCE_B_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 6.9205546501804884e-12,
+      "originalEquationResidualMw": 1.0510131827345948e-9,
+      "referenceEquationResidualMw": 0.6403886320748381,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.0062844962669679205,
+        "mean": 0.004147130469869348,
+        "p95": 0.005173413973516006
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24669112689628037,
+        "mean": 0.02395536637527238,
+        "p95": 0.04801024198532211
+      },
+      "directedOverStrict": 198,
+      "missing": 0,
+      "elapsedMs": 4660.3892
+    },
+    {
+      "transform": "ENGINEERING_P_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 5.22029586225159e-12,
+      "originalEquationResidualMw": 7.557389393106351e-10,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.006285007422743405,
+        "mean": 0.004147424156249994,
+        "p95": 0.005173947454501615
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24671487757080968,
+        "mean": 0.023955431169585772,
+        "p95": 0.04801054000853355
+      },
+      "directedOverStrict": 198,
+      "missing": 0,
+      "elapsedMs": 3453.660899999999
+    },
+    {
+      "transform": "SOURCE_VM_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 4.708414665099969e-12,
+      "originalEquationResidualMw": 7.275957614183426e-10,
+      "referenceEquationResidualMw": 0.6403698390657776,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.006284417629277783,
+        "mean": 0.004147007349559555,
+        "p95": 0.005173350082436912
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24669157006172782,
+        "mean": 0.023955344376326976,
+        "p95": 0.048010241985315005
+      },
+      "directedOverStrict": 198,
+      "missing": 0,
+      "elapsedMs": 2617.1821999999993
+    },
+    {
+      "transform": "MATRIX_FINAL_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.0017382389996782877,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 2359.8146000000015
+    },
+    {
+      "transform": "MATRIX_ACCUM_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.003938809662940912,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 4909.6286999999975
+    },
+    {
+      "transform": "RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 2668.2149999999965
+    },
+    {
+      "transform": "MATRIX_AND_RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.0017382389996782877,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 3030.3174999999974
+    },
+    {
+      "transform": "MATRIX_ACCUM_AND_RHS_F32",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0.003938809662940912,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 3018.149399999995
+    },
+    {
+      "transform": "SOLUTION_F32_ONLY",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "NON_CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": null,
+      "originalEquationResidualMw": 658.8270863867365,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedMwError": {
+        "count": 0,
+        "max": null,
+        "mean": null,
+        "p95": null
+      },
+      "directedOverStrict": 0,
+      "missing": 6122,
+      "elapsedMs": 3705.467499999999
+    },
+    {
+      "transform": "REAL_SHUNT_UNITY_DIAGNOSTIC",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 7.0654326833619054e-12,
+      "originalEquationResidualMw": 1.2654322034677534e-9,
+      "referenceEquationResidualMw": 0.6490846671397321,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.059291037543573566,
+        "mean": 0.047469882203280564,
+        "p95": 0.054988260853289006
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 1.8561352472763701,
+        "mean": 0.03582691237407661,
+        "p95": 0.076537920177433
+      },
+      "directedOverStrict": 1251,
+      "missing": 0,
+      "elapsedMs": 2546.0736000000034
+    },
+    {
+      "transform": "NO_REAL_SHUNT_DIAGNOSTIC",
+      "diagnosticOnly": true,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "productionComputedMismatchPu": 6.9537353653004175e-12,
+      "originalEquationResidualMw": 4.78794781599845e-10,
+      "referenceEquationResidualMw": 0.8993094071513497,
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.8891512907452537,
+        "mean": 0.7379145479746471,
+        "p95": 0.865506994438995
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 29.45954375382408,
+        "mean": 0.30707285390607986,
+        "p95": 1.1113932497637755
+      },
+      "directedOverStrict": 5483,
+      "missing": 0,
+      "elapsedMs": 3698.1587
+    }
+  ]
+}

@@ -1,5 +1,15 @@
 # PSS/E solver research
 
+## V2 oracle evidence (2026-10-27)
+
+The new `20261026_1600_SN1_TR0` SAV is opened in installed licensed PSS/E 36.5.0 before each uncached run; source SHA-256 and exact method/options hash key the retained developer cache. `tools/psse-export-raw.py` uses official `writerawversion('36',0,path)` without solving; SAV hash `8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b`, RAW hash `40086c10e93819d16861b5c35d4afdd3ee641dfe14474c76dd3594ee88aa64ea`. No vendor implementation is copied.
+
+FNSL warm/Q-enabled fixed flags `[0,0,0,0,0,0,0,1]`: ierr=0, solved=0, 9 iterations, system mismatch 0.0121785 MVA. FDNS same flags: ierr=0, solved=3, 1 iteration, mismatch 0.0504561 MVA; not converged. DCLF_2 `[0,0,1,1,0,1]`: ierr=0, one iteration, actual directed MW report retained separately from AC-valued branch APIs. Large reference runs were not repeated for UI or output-version changes.
+
+Official DataFormats LOADTYPE field and §1.30 define a descriptor/classification used for subsystem selection, not a static load-law equation. An original tag-only DCLF experiment gives identical angles and terminal flows; the false gate is removed. Original PV/PQ/offline-generator DC experiments prove PV-without-generator is not itself a DC blocker. Active AC droop/remote control remains unsupported. Four RAW isolated PV buses are reader-preprocessed to TYPE=4 by PSS/E; an original RAWX empty-island test returns ierr=12. Native GA does not infer a universal deenergization rule.
+
+The conditioning witness in `evidence/psse-v2/dc-tiny-conditioning-proof.json` supports sensitivity beyond report rounding, not a claim about proprietary arithmetic. No tolerance relaxation or production rounding hack was accepted. See architecture §18 and the current parity report for maximum/mean/P95 and unresolved strict real-case differences. Official APIs/documents were sufficient for V2; no additional REA disassembly or license manipulation was needed.
+
 Development reference: installed licensed PSS/E **36.5.0**, Python 3.14, initialized successfully on 2026-10-27 (Europe/Istanbul). The web runtime does not call this installation. No vendor implementation is copied.
 
 ## Official API observations

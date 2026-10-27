@@ -1,0 +1,53 @@
+{
+  "schema": "ga.psse.parity.v1",
+  "elapsedMs": 1863.7995,
+  "reports": [
+    {
+      "name": "20261026_1600_SN1_TR0.sav",
+      "sha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "normalizedHash": "a21679118aa55f585d77b2d9acd76f968e450a8a46a216e1f6bf004489d4657a",
+      "method": "NR_POLAR",
+      "initial": "SOURCE_SAVED",
+      "qLimits": true,
+      "gaStatus": "BLOCKED",
+      "gaPhysicsCoverage": "BLOCKED",
+      "gaSource": "GA_PSSE_CALCULATED",
+      "engineVersion": "GA_PSSE_ENGINE_2",
+      "gaIterations": 0,
+      "gaElapsedMs": 558.7512999999999,
+      "gaMaxPMismatchPu": null,
+      "gaMaxQMismatchPu": null,
+      "networkCounts": {
+        "buses": 6875,
+        "branches": 8700
+      },
+      "reference": {
+        "method": "fnsl",
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "profile": "fixed-controls-v1",
+        "toleranceMva": 0.001,
+        "optionsHash": "414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981",
+        "ierr": 0,
+        "solved": 0,
+        "iterations": 9
+      },
+      "status": "BLOCKED",
+      "findingCounts": {
+        "AC_IDEAL_LINK_CONTRACTION_UNSUPPORTED": 1,
+        "ACTIVE_UNSUPPORTED_EQUIPMENT": 161,
+        "GENERATOR_DYNAMIC_OR_DROOP_CONTROL_UNSUPPORTED": 1263,
+        "PV_WITHOUT_ACTIVE_GENERATOR": 1,
+        "REMOTE_REGULATION_UNSUPPORTED": 454
+      }
+    }
+  ]
+}

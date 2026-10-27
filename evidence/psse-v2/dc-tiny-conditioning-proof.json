@@ -1,0 +1,342 @@
+{
+  "schema": "ga.psse.dc-conditioning-witness.v2",
+  "oracleVersion": "36.5.0",
+  "fixtureOrigin": "Original public three-bus fixture, with only finite 2-3 R/X changed between control and ill-conditioned witness",
+  "oracleRuns": 2,
+  "largeOracleRuns": 0,
+  "witnesses": [
+    {
+      "name": "well-conditioned",
+      "sourceSha256": "00c8213ad29e8735a56af748453098c140c8b44dd3a25ad88d2811ff902dd45a",
+      "referenceOptionsHash": "2aaf106b0e56837494a2e82056b4ce6707de16a03bf73cabe2061f8d562d2c82",
+      "referenceFile": "private-re\\solver-reference\\00c8213ad29e8735a56af748453098c140c8b44dd3a25ad88d2811ff902dd45a-dclf_2-2aaf106b0e56837494a2e82056b4ce6707de16a03bf73cabe2061f8d562d2c82\\reference.json",
+      "electricalOptions": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        1
+      ],
+      "referenceIerr": 0,
+      "referenceAcSolvedFlag": 9,
+      "actualReportUnits": "MW",
+      "actualReportResolutionMw": 0.1,
+      "requestedReportUnits": null,
+      "conditionNumber2FromDeclaredInput": 13.307692307692308,
+      "finiteLinkResistancePu": 0.00125,
+      "finiteLinkReactancePu": 0.01625,
+      "idealLinkCount": 0,
+      "phaseShiftBranches": 0,
+      "realShuntConsumptionMw": 0,
+      "productionStatus": "CONVERGED",
+      "productionMismatchPu": 3.9790393202565614e-15,
+      "productionVsReport": {
+        "vmPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 0.00001754924323904561,
+          "mean": 0.000011155975622993234,
+          "p95": 0.00001754924323904561
+        },
+        "pgMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "qgMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.04219653179211491,
+          "mean": 0.04219653179186859,
+          "p95": 0.04219653179211491
+        },
+        "terminalQMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "referenceAngleRad": [
+        0,
+        -0.6300581097602844,
+        -0.5699424743652344
+      ],
+      "referenceAngleDeg": [
+        0,
+        -36.09967053725468,
+        -32.65529834637104
+      ],
+      "productionAnglesDeg": [
+        {
+          "bus": "1",
+          "angleDeg": 0
+        },
+        {
+          "bus": "2",
+          "angleDeg": -36.099652988011414
+        },
+        {
+          "bus": "3",
+          "angleDeg": -32.655282427687396
+        }
+      ],
+      "referenceApiAnglesAreF32": true,
+      "referenceAngleEquationResidualMw": [
+        -0.0004814221306048694,
+        -0.00010270338819395874
+      ],
+      "referenceAngleHalfUlpNodalBoundMw": [
+        0.00039660013639009913,
+        0.00039660013639009913
+      ],
+      "referenceReportNodalBalances": [
+        {
+          "bus": 2,
+          "specifiedMw": -1000,
+          "reportedOutgoingMw": -1000,
+          "residualMw": 0,
+          "roundingBoundMw": 0.1,
+          "minimumUnexplainedByDisplayRoundingMw": 0
+        },
+        {
+          "bus": 3,
+          "specifiedMw": -200,
+          "reportedOutgoingMw": -200,
+          "residualMw": 0,
+          "roundingBoundMw": 0.1,
+          "minimumUnexplainedByDisplayRoundingMw": 0
+        }
+      ],
+      "referenceDirectedFlows": [
+        {
+          "from": 1,
+          "to": 2,
+          "pMw": 630.1
+        },
+        {
+          "from": 1,
+          "to": 3,
+          "pMw": 569.9
+        },
+        {
+          "from": 2,
+          "to": 1,
+          "pMw": -630.1
+        },
+        {
+          "from": 2,
+          "to": 3,
+          "pMw": -369.9
+        },
+        {
+          "from": 3,
+          "to": 1,
+          "pMw": -569.9
+        },
+        {
+          "from": 3,
+          "to": 2,
+          "pMw": 369.9
+        }
+      ]
+    },
+    {
+      "name": "ill-conditioned",
+      "sourceSha256": "615bb08e700a1545a09f9a05552a229e680129e1f3c7b7157182766b89a4322c",
+      "referenceOptionsHash": "2aaf106b0e56837494a2e82056b4ce6707de16a03bf73cabe2061f8d562d2c82",
+      "referenceFile": "private-re\\solver-reference\\615bb08e700a1545a09f9a05552a229e680129e1f3c7b7157182766b89a4322c-dclf_2-2aaf106b0e56837494a2e82056b4ce6707de16a03bf73cabe2061f8d562d2c82\\reference.json",
+      "electricalOptions": [
+        0,
+        0,
+        1,
+        1,
+        0,
+        1
+      ],
+      "referenceIerr": 0,
+      "referenceAcSolvedFlag": 9,
+      "actualReportUnits": "MW",
+      "actualReportResolutionMw": 0.1,
+      "requestedReportUnits": null,
+      "conditionNumber2FromDeclaredInput": 12308.69230769231,
+      "finiteLinkResistancePu": 0.00000125,
+      "finiteLinkReactancePu": 0.00001625,
+      "idealLinkCount": 0,
+      "phaseShiftBranches": 0,
+      "realShuntConsumptionMw": 0,
+      "productionStatus": "CONVERGED",
+      "productionMismatchPu": 2.2680524125462397e-12,
+      "productionVsReport": {
+        "vmPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "vaDeg": {
+          "count": 3,
+          "max": 0.00392262962714085,
+          "mean": 0.002614596417439922,
+          "p95": 0.00392262962714085
+        },
+        "pgMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "qgMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "terminalPMw": {
+          "count": 6,
+          "max": 0.16750264055423258,
+          "mean": 0.08916754690678393,
+          "p95": 0.16750264055423258
+        },
+        "terminalQMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "branchLossMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "tapPu": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "referenceAngleRad": [
+        0,
+        -0.6001009345054626,
+        -0.6000359654426575
+      ],
+      "referenceAngleDeg": [
+        0,
+        -34.383250829019644,
+        -34.379528375921986
+      ],
+      "productionAnglesDeg": [
+        {
+          "bus": "1",
+          "angleDeg": 0
+        },
+        {
+          "bus": "2",
+          "angleDeg": -34.37932966939444
+        },
+        {
+          "bus": "3",
+          "angleDeg": -34.37560574629484
+        }
+      ],
+      "referenceApiAnglesAreF32": true,
+      "referenceAngleEquationResidualMw": [
+        0.08944823202909902,
+        -0.2263481801492162
+      ],
+      "referenceAngleHalfUlpNodalBoundMw": [
+        0.3668276163247916,
+        0.3668276163247916
+      ],
+      "referenceReportNodalBalances": [
+        {
+          "bus": 2,
+          "specifiedMw": -1000,
+          "reportedOutgoingMw": -999.9000000000001,
+          "residualMw": 0.09999999999990905,
+          "roundingBoundMw": 0.1,
+          "minimumUnexplainedByDisplayRoundingMw": 0
+        },
+        {
+          "bus": 3,
+          "specifiedMw": -200,
+          "reportedOutgoingMw": -200.2,
+          "residualMw": -0.19999999999998863,
+          "roundingBoundMw": 0.1,
+          "minimumUnexplainedByDisplayRoundingMw": 0.09999999999998863
+        }
+      ],
+      "referenceDirectedFlows": [
+        {
+          "from": 1,
+          "to": 2,
+          "pMw": 600.1
+        },
+        {
+          "from": 1,
+          "to": 3,
+          "pMw": 600
+        },
+        {
+          "from": 2,
+          "to": 1,
+          "pMw": -600.1
+        },
+        {
+          "from": 2,
+          "to": 3,
+          "pMw": -399.8
+        },
+        {
+          "from": 3,
+          "to": 1,
+          "pMw": -600
+        },
+        {
+          "from": 3,
+          "to": 2,
+          "pMw": 399.8
+        }
+      ]
+    }
+  ],
+  "interpretation": "The ill-conditioned fixed-P, zero-shunt, zero-phase network exhibits an oracle numerical discrepancy larger than display rounding, while the production Float64/KCL solution remains accurate. This supports a conditioning/finite-precision explanation at this scale but does not identify Siemens implementation internals or prove every old large-case difference. Keep strict large-case DIFFERENCES; do not emulate reference error by degrading runtime arithmetic."
+}

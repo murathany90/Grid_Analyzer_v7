@@ -1,0 +1,29 @@
+{
+  "schema": "ga.psse.v2.comparison-export.v1",
+  "cacheSource": "production GA_PSSE_ENGINE_2 + separately converged licensed API references",
+  "counts": {
+    "activeDcBusComparisons": 10101,
+    "directedDcTerminalComparisons": 24574,
+    "workbookBranchSample": 400,
+    "sourceGeneratorRows": 5852
+  },
+  "sourceCategories": [
+    "SOURCE_SAVED",
+    "GA_PSSE_CALCULATED",
+    "PSSE_REFERENCE"
+  ],
+  "gaAcFields": "null: BLOCKED",
+  "dcUnsolvedFields": [
+    "Vm",
+    "Q",
+    "AC losses",
+    "AC current"
+  ],
+  "workbook": {
+    "sha256": "c410f94128843ef75eac19cdb77a6a7b0c7fedd5b0c9fcc3afd6d5967797f0f3",
+    "bytes": 1350483,
+    "formulaCheck": "DC Dal!K6 = ABS(J6), cached 0.24669151437979053",
+    "visualCheck": "five bounded sheet previews inspected; no clipped headings or formula errors"
+  },
+  "detailedDataDistribution": "local Downloads only, excluded from Git and offline ZIP"
+}

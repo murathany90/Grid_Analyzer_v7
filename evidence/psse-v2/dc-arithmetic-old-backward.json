@@ -1,0 +1,81 @@
+{
+  "schema": "ga.psse.dc-arithmetic-probe.v2",
+  "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+  "referenceOptionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "activeBusCount": 5029,
+  "allOracleAnglesF32": true,
+  "nonzeroPhaseBranches": 0,
+  "interpretation": "All variants are explicitly diagnostic arithmetic/input perturbations through the production DC solver. A retained linear iterate for a rejected variant is not a published calculation. They do not authorize a runtime precision change, alternate engine, relaxed threshold, or parity PASS.",
+  "probes": [
+    {
+      "transform": "BASELINE",
+      "diagnosticOnly": false,
+      "engineReturnedStatus": "CONVERGED",
+      "physicsCoverage": "PARTIAL",
+      "failureCodes": [],
+      "productionComputedMismatchPu": 3.9652741853912764e-12,
+      "originalEquationResidualMw": 5.888420285225793e-10,
+      "referenceEquationResidualMw": 0.6403698130222107,
+      "referenceArithmeticBounds": {
+        "rows": 4117,
+        "float32UnitRoundoff": 5.960464477539063e-8,
+        "componentwiseBackwardError": {
+          "count": 4117,
+          "max": 3.619358250335085e-7,
+          "mean": 3.109997402659336e-8,
+          "p95": 8.071626734732219e-8
+        },
+        "backwardErrorInF32UnitRoundoffs": {
+          "count": 4117,
+          "max": 6.072275514725379,
+          "mean": 0.5217709818385465,
+          "p95": 1.3541942519997714
+        },
+        "entryAndAngleRoundingResidualRatio": {
+          "count": 4117,
+          "max": 4.039868985286804,
+          "mean": 0.36108328729768674,
+          "p95": 0.9442662710762358
+        },
+        "withinIndependentEntryRhsAngleHalfUlpBounds": 3967,
+        "withinRowOperationGammaBounds": 4117,
+        "rowOperationResidualRatio": {
+          "count": 4117,
+          "max": 0.867467568739229,
+          "mean": 0.0737282763728976,
+          "p95": 0.19247595859457486
+        },
+        "caution": "Bounds show compatibility with an arithmetic precision scale, not a proof of PSS/E internal arithmetic or a license to alter the runtime matrix."
+      },
+      "largestMatrixAbsoluteChange": 0,
+      "angleErrorDeg": {
+        "count": 5029,
+        "max": 0.006284412962823893,
+        "mean": 0.0041470029747368705,
+        "p95": 0.005173345888284331
+      },
+      "directedMwError": {
+        "count": 12244,
+        "max": 0.24669151437979053,
+        "mean": 0.023955343690888593,
+        "p95": 0.048010241985315005
+      },
+      "directedOverStrict": 198,
+      "diagnosticLinearAngleErrorDeg": {
+        "count": 5029,
+        "max": 0.006284412962822736,
+        "mean": 0.004147002974736867,
+        "p95": 0.005173345888285798
+      },
+      "diagnosticNonidealMwError": {
+        "count": 10388,
+        "max": 0.24669151437979053,
+        "mean": 0.024837554814486462,
+        "p95": 0.04802996162330331
+      },
+      "diagnosticNonidealOverStrict": 146,
+      "missing": 0,
+      "elapsedMs": 1235.0805000000003
+    }
+  ]
+}

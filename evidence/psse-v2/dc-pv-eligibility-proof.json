@@ -1,0 +1,105 @@
+{
+  "schema": "ga.psse.dc-pv-eligibility-proof.v1",
+  "referenceVersion": "36.5.0",
+  "options": [
+    0,
+    0,
+    1,
+    1,
+    0,
+    1
+  ],
+  "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "fixtures": [
+    {
+      "source": {
+        "name": "pv-inactive-generator.rawx",
+        "sha256": "39617fcd5722af38acb5985bdc15e59013b2bf31cfb61976e8dd5019cb00f835"
+      },
+      "beforeBusTypes": [
+        0,
+        [
+          [
+            3,
+            2,
+            1
+          ]
+        ]
+      ],
+      "afterBusTypes": [
+        3,
+        2,
+        1
+      ],
+      "ierr": 0,
+      "acSolvedFlag": 9,
+      "dcDirectedFlowCount": 6,
+      "maxMwDifferenceFromPqControl": 0.0,
+      "busAnglesDeg": [
+        0.0,
+        -2.4828175191990054,
+        -4.965634611511188
+      ]
+    },
+    {
+      "source": {
+        "name": "pv-no-generator.rawx",
+        "sha256": "77877f01f1a8d99d9079b82b770389ab695baeb18be48f7f9861165f5243a5d1"
+      },
+      "beforeBusTypes": [
+        0,
+        [
+          [
+            3,
+            2,
+            1
+          ]
+        ]
+      ],
+      "afterBusTypes": [
+        3,
+        2,
+        1
+      ],
+      "ierr": 0,
+      "acSolvedFlag": 9,
+      "dcDirectedFlowCount": 6,
+      "maxMwDifferenceFromPqControl": 0.0,
+      "busAnglesDeg": [
+        0.0,
+        -2.4828175191990054,
+        -4.965634611511188
+      ]
+    },
+    {
+      "source": {
+        "name": "pq-no-generator.rawx",
+        "sha256": "fbdb5500c2857386952d8b30c7518a295da90aae0f0e57746a5c179b193aa769"
+      },
+      "beforeBusTypes": [
+        0,
+        [
+          [
+            3,
+            1,
+            1
+          ]
+        ]
+      ],
+      "afterBusTypes": [
+        3,
+        1,
+        1
+      ],
+      "ierr": 0,
+      "acSolvedFlag": 9,
+      "dcDirectedFlowCount": 6,
+      "maxMwDifferenceFromPqControl": 0.0,
+      "busAnglesDeg": [
+        0.0,
+        -2.4828175191990054,
+        -4.965634611511188
+      ]
+    }
+  ]
+}

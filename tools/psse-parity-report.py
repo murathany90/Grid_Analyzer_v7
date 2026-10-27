@@ -14,10 +14,10 @@ raw_count = 0
 
 def identity(row):
     return (row["sha256"], row["method"], row.get("initial"), row.get("qLimits"),
-            row.get("reference", {}).get("optionsHash"))
+            row.get("reference", {}).get("optionsHash"), row.get("engineVersion", "GA_PSSE_ENGINE_1"))
 
 
-for file in sorted(evidence.glob("parity-*.json")):
+for file in sorted(evidence.glob("parity-*.json"), key=lambda p: (p.name != "parity-lossless_dc-v2-real.json", p.name)):
     data = json.loads(file.read_text(encoding="utf-8"))
     raw_rows = data.get("reports", [])
     raw_count += len(raw_rows)
@@ -54,11 +54,12 @@ lines = ["# PSS/E AC/DC numerical parity report", "",
          "DCLF_2 uses `[0,0,1,1,0,1]`: no saved-voltage loss estimate, fixed phase control, saved base-case DC angles. DC comparison uses actual DCLF report MW (0.1 MW resolution) and API angle values. `abrnreal P/Q` after saving DC angles evaluates an AC circuit and is excluded from DC parity. The PSS/E-compatible DC tap policy is distinct from the optional tap-aware lossless approximation. DC does not solve Vm, Q, AC losses or AC current.", "",
          "AC provisional acceptance limits are Vm 1e-4 pu, angle 0.05 degrees, P/Q and net terminal losses 0.5 MW/Mvar. Tap ratio threshold is 1e-5 pu. DC MW threshold is 0.051 MW to account for report rounding. Tighter observed differences are reported below; limits were not widened to hide failures. Angles use radians at the oracle API and degrees in the comparison. Transformer terminal orientation and circuit/winding identities are preserved. Net reactive branch loss includes its terminal shunts, so it may be negative.", "",
          "## Run outcomes", "",
-         f"There are **{len(reports)} distinct comparisons**: " + ", ".join(f"{count} {status}" for status, count in sorted(Counter(row['status'] for row in reports).items())) + f". The {raw_count} retained rows include {raw_count-len(reports)} duplicate comparisons in overlapping evidence groups; each source/method/start/Q-policy/reference-options identity is counted once below. All original evidence files remain available.", "",
+         f"There are **{len(reports)} distinct experiment/version comparisons**: " + ", ".join(f"{count} {status}" for status, count in sorted(Counter(row['status'] for row in reports).items())) + f". The {raw_count} retained rows include {raw_count-len(reports)} duplicate comparisons in overlapping groups; each source/method/start/Q-policy/reference-options/engine-version identity is counted once. These are profile/experiment counts, not independent model counts. Engine1 runs remain historical evidence, not new Engine2 reruns.", "",
          "| Evidence group | Comparisons | PASS | Other states |", "|---|---:|---:|---|"]
 for filename, rows, differences in groups:
     states = {s: sum(r["status"] == s for r in rows) for s in sorted(set(r["status"] for r in rows)) if s != "PASS"}
-    lines.append(f"| [{filename}](evidence/psse-ac-dc/{filename}) | {len(rows)} | {sum(r['status'] == 'PASS' for r in rows)} | " + (", ".join(f"{s}: {n}" for s, n in states.items()) or "—") + " |")
+    versions = ', '.join(sorted({r.get('engineVersion', 'GA_PSSE_ENGINE_1') for r in rows}))
+    lines.append(f"| [{filename}](evidence/psse-ac-dc/{filename}) ({versions}) | {len(rows)} | {sum(r['status'] == 'PASS' for r in rows)} | " + (", ".join(f"{s}: {n}" for s, n in states.items()) or "—") + " |")
 lines += ["", "## Maximum, mean and P95 absolute differences", "",
           "Each row uses all matched equipment quantities from PASS and DIFFERENCES comparisons retained in that evidence group after deduplication. Failed strict comparisons are included. P95 is calculated from the individual differences, not averaged percentiles. Empty quantities remain unavailable; DC has no Vm/Q/current/AC-loss claim.", "",
           "| Evidence group | Quantity | Count | Maximum | Mean | P95 |", "|---|---|---:|---:|---:|---:|"]
@@ -69,7 +70,7 @@ for filename, rows, differences in groups:
         values.sort()
         lines.append(f"| {filename.removeprefix('parity-').removesuffix('.json')} | {metric} | {len(values)} | {number(max(values))} | {number(sum(values)/len(values))} | {number(values[max(0, math.ceil(.95*len(values))-1)])} |")
 lines += ["", "## Strict DC differences and the initial engineering targets", "",
-          "The strict DC flow threshold remains 0.051 MW. The following converged DC cases exceed it and remain DIFFERENCES. Both happen to meet the user's initial 0.5 MW and 0.05 degree targets for the compared quantities; this does not establish full source physics or strict PSS/E equivalence.", "",
+          "The strict DC flow threshold remains 0.051 MW. The following converged DC cases exceed it and remain DIFFERENCES. Engineering bounds are evaluated separately for each row; they do not establish full source physics or strict PSS/E equivalence.", "",
           "| Case | Source coverage | Maximum MW difference | Maximum angle difference (degrees) | Matched terminal MW values | Missing identities | Initial engineering bounds |", "|---|---|---:|---:|---:|---:|---|"]
 for row in reports:
     if row["method"] != "LOSSLESS_DC" or row["status"] != "DIFFERENCES":
@@ -77,10 +78,10 @@ for row in reports:
     stats = row["statistics"]
     flow, angle = stats["terminalPMw"]["max"], stats["vaDeg"]["max"]
     engineering = flow is not None and angle is not None and flow <= .5 and angle <= .05 and row["missingCount"] == 0
-    lines.append(f"| {row['name']} | {row.get('gaPhysicsCoverage', 'UNKNOWN')} | {number(flow)} | {number(angle)} | {stats['terminalPMw']['count']} | {row['missingCount']} | {'Met for compared P/angle only' if engineering else 'Not met'} |")
+    lines.append(f"| {row['name']} ({row.get('engineVersion', 'GA_PSSE_ENGINE_1')}) | {row.get('gaPhysicsCoverage', 'UNKNOWN')} | {number(flow)} | {number(angle)} | {stats['terminalPMw']['count']} | {row['missingCount']} | {'Met for compared P/angle only' if engineering else 'Not met'} |")
 lines += ["",
           "The real-model DC result contains all 6,851 original bus rows. The reference comparison covers 5,029 active buses and 12,244 directed terminal MW values, with no missing matched identities. The ideal-link reduction contracts 928 source switches and reconstructs their terminal flows with a weighted Laplacian. Cached-reference cycle projection differs by at most 0.033333 MW, within report rounding. The remaining worst full-network MW difference is not attributed to a proven single cause; it remains a documented numerical/model difference rather than being hidden with a wider strict tolerance. Evidence gaStatus describes numerical residual convergence; the public application and exports label a converged PARTIAL result LIMITED_PROFILE, not unqualified readiness or equivalence.", "",
-          "## Source fidelity and real-model boundary", "",
+          "## Historical V1 source fidelity and old-model boundary", "",
           "Fresh native SAV validation against the installed development-only oracle checked **277,131 source quantities with zero mismatches** (`evidence/psse-ac-dc/native-oracle.json`). The installed reference SAV and the requested Downloads SAV have identical SHA-256. Both real SAV and RAW decoded 6,851 buses, 2,403 lines, 3,703 transformers, 2,920 generators and 2,520 loads.", "",
           "The independent SAV/RAW field comparison checked 239,048 quantities with no missing equipment identities and found seven source-state differences: four IDE values, one Pg and two Qg values. These are retained in `source-parity.json`; the files are not forced into one identical state. Native SAV byte fidelity and cross-file state parity are separate findings.", "",
           "The real source has 227 active voltage-droop control records and 473 active remote-regulating machines. These require validated AC control equations; a numerically converged reduced problem cannot establish full AC source coverage. The authoritative per-method readiness and measured real-case outcome are in the evidence JSON and model-fidelity report. A BLOCKED run is not a large-network solver convergence/performance pass.", "",
@@ -90,6 +91,31 @@ lines += ["",
           "Multiple-generator active/reactive sharing is not inferred from RMPCT. Where individual dispatch is undetermined, the model exposes aggregate generation and marks individual values unavailable. Unverified automatic taps, phase control, switched-shunt control, remote/droop AC controls, HVDC/FACTS/induction models and low-voltage load characteristics must retain explicit capability restrictions. See `MODEL_FIDELITY_REPORT.md`, `ARCHITECTURE_DECISIONS.md` and `PSSE_SOLVER_RESEARCH.md` for the exact scope and source equations.", ""]
 lines += ["## Control-state scope", "",
           "Tap differences above compare the fixed source transformer ratios, not automatic tap-controller operation. The four switched-shunt variants compare their retained initial fixed electrical state, not a discrete/continuous control search. The active-Q-limit and zero-range fixed-Q fixtures exercise the corresponding implemented bus-type/output rules; the failed FDNS active-Q oracle remains excluded from positive acceptance. There is no claimed statistical parity for unimplemented automatic control states, distributed slack or area interchange. Their absence cannot be certified by a small voltage mismatch.", ""]
+current = [r for r in reports if r.get('engineVersion') == 'GA_PSSE_ENGINE_2']
+v2 = ["## V2 current engine and requested new model", "",
+      "New SAV `20261026_1600_SN1_TR0.sav` SHA-256 `8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b`; licensed RAW export SHA-256 `40086c10e93819d16861b5c35d4afdd3ee641dfe14474c76dd3594ee88aa64ea`. It is distinct from the old 20261014 model. Source SAV/RAW decode 6,875 buses, 2,414 lines, 3,715 transformers, 2,932 generators, 2,516 loads, 2,571 switches, 137 fixed shunts and 1,625 substations. Comparison checks 239,858 fields, zero missing IDs and four IDE source-state differences, retained explicitly in `evidence/psse-v2/source-new-sav-raw.json`.", "",
+      f"Engine2 has {len(current)} unique cached experiment comparisons: " + ', '.join(f'{n} {s}' for s,n in sorted(Counter(r['status'] for r in current).items())) + ". Current version results follow; historical tables below remain attributed by engine.", "",
+      "| Source | Method / start / Q limits | GA numerical / physics | Reference ierr / solved / iterations | Outcome |", "|---|---|---|---|---|"]
+for r in current:
+    ref = r.get('reference') or {}
+    v2.append(f"| {r['name']} | {r['method']} / {r.get('initial')} / {r.get('qLimits')} | {r['gaStatus']} / {r.get('gaPhysicsCoverage')} | {ref.get('ierr')} / {ref.get('solved')} / {ref.get('iterations')} | {r['status']} |")
+v2 += ["", "Old/new current real DC differences (all matched quantities, no missing IDs):", "",
+       "| Source | Active buses / directed terminal MW | MW max / mean / P95 | Degrees max / mean / P95 |", "|---|---:|---|---|"]
+for r in current:
+    if r['method'] != 'LOSSLESS_DC' or r['status'] != 'DIFFERENCES' or not r['name'].endswith('.sav'):
+        continue
+    p, a = r['statistics']['terminalPMw'], r['statistics']['vaDeg']
+    v2.append(f"| {r['name']} | {a['count']} / {p['count']} | {' / '.join(number(p[k]) for k in ['max','mean','p95'])} | {' / '.join(number(a[k]) for k in ['max','mean','p95'])} |")
+v2 += ["",
+ "Both real SAV DC runs numerically converge in one sparse solve with PARTIAL physics and publish LIMITED_PROFILE. The new source active-P residual is 7.88435e-12 pu. They meet the initial 0.5 MW / 0.05 degree engineering bounds for compared P/angle, but fail strict 0.051 MW parity. DC Vm/Q/current/AC loss and blocked GA AC metrics remain unavailable. The new SAV warm/Q-enabled FNSL reference reaches solved=0 in 9 iterations (system mismatch 0.0121785 MVA). FDNS ierr=0 but solved=3, mismatch 0.0504561 MVA, is not a positive AC reference convergence. Both GA real AC methods remain BLOCKED by active unimplemented controls/AC ideal-link physics.", "",
+ "The new RAW retains four isolated IDE=2 islands with no reference generator and remains BLOCKED. PSS/E's RAW reader changes these four buses to TYPE=4 before DCLF; native SAV already stores IDE=4. An original tiny RAWX empty-PV-island returns DCLF ierr=12, so a general automatic deenergization rule is unproved and was not added. LOADTYPE is verified descriptor metadata, not a static-load-law gate. RAW voltage-droop metadata is recognized; pure-Q controls are permitted DC omissions while active AC droop stays blocked.", "",
+ "### Proven fixes and unresolved strict DC difference", "",
+ "PV-without-online-generator is an AC voltage-control constraint. Three original PV/PQ/inactive-generator fixtures have equal six directed DCLF MW values and angles with ierr=0. DC now accepts these supported cases; AC keeps its control gate. No-slack/island/unknown-active-physics checks remain. A large core-loss/tap discriminator matches all six rounded terminal MW values; changing core-G globally is unjustified. Proofs are in `evidence/psse-v2/dc-pv-eligibility-proof.json` and `loadtype-descriptor-proof.json`.", "",
+ "The old large case matches all 6,122 branch identities; the historical 98 over-threshold from-end rows become 102 branches when testing the worse of both ends. API angles are Float32-valued; half-ULP angle/report bounds explain most reevaluated branch differences, but angle display precision alone does not explain every nodal residual. The old case has zero nonzero phase shifts. Alternative core-G policies worsen differences. Matrix/RHS rounding fails original-equation residual/recovery checks and is not shipped.", "",
+ "An original three-bus witness changes only one finite-link impedance: condition number increases from 13.3077 to 12308.6923; maximum MW difference rises from 0.0421965 to 0.1675026 MW and angle difference from 1.75492e-5 to 0.00392263 degrees, while production residual is 2.26805e-12 pu. One reference report nodal balance misses specified injection by 0.2 MW, beyond the 0.1 MW combined display-rounding bound. This supports numerical sensitivity/conditioning; it does not establish Siemens internals or prove every large-case discrepancy. Strict differences remain unresolved. See `dc-tiny-conditioning-proof.json`, `dc-precision-old.json`, `dc-arithmetic-old-backward.json` under `evidence/psse-v2/` and architecture §18.", "",
+ "### Local Excel/CSV separation", "",
+ "`tools/psse-v2-export-comparison.ts` exports separate SOURCE_SAVED, GA_PSSE_CALCULATED and PSSE_REFERENCE CSVs from cached actual Engine2 runs. The local workbook has all 10,101 matched active DC buses and 5,852 source/reference generators. Its branch sheet shows the worst 200 directed-terminal differences per model; full 24,574 matched terminal comparisons remain in CSV. Summary maximum/mean/P95 always use all rows. GA AC columns stay blank because BLOCKED; converged reference FNSL values are never substituted. Detailed licensed-derived CSV/XLSX files stay local, outside Git and the public ZIP.", ""]
+lines[2:2] = v2
 output = repo / "PSSE_AC_DC_PARITY_REPORT.md"
 output.write_text("\n".join(lines), encoding="utf-8")
 print(json.dumps({"output": str(output), "comparisons": len(reports), "rawRows": raw_count,

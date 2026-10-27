@@ -1,0 +1,28 @@
+{
+  "schema": "ga.psse.loadtype-descriptor-proof.v1",
+  "referenceVersion": "36.5.0",
+  "source": {
+    "name": "dc-loadtype-tag.rawx",
+    "sha256": "003a6d5408d7802cfc717313e75153a83eff6c94b892c546dbdd99d4bcb25a8b"
+  },
+  "controlSource": {
+    "name": "basic.rawx",
+    "sha256": "1c61707fa08ba875e529a2597047b8ab03bbb493c4c6178057d85d1dbe8d2655"
+  },
+  "options": [
+    0,
+    0,
+    1,
+    1,
+    0,
+    1
+  ],
+  "optionsHash": "8dfe8a0268ef39091b0012c824244baeda5a48cd4af7fe1b6d0c95b5ac725ebd",
+  "changedField": "load.LOADTYPE: blank to SYNTH_CLASS",
+  "officialSemantics": "Installed DataFormats load data describes an alphanumeric classifier; section1.30 contains names/descriptions and subsystem-selection metadata. It adds no static P/I/Z equations.",
+  "ierr": 0,
+  "directedFlowCount": 6,
+  "maxMwDifference": 0.0,
+  "maxAngleDifferenceDeg": 0.0,
+  "exportErrors": 0
+}

@@ -1,6 +1,6 @@
 import type {PsseModel,PsseFinding} from '../../importers/psse/types';
 import {auditPsseCapability} from '../../domain/psse/capability';
-import {psseCalculationIdentity,psseTopologyHash,psseOptionsHash} from '../../domain/psse/identity';
+import {PSSE_ENGINE_VERSION,psseCalculationIdentity,psseTopologyHash,psseOptionsHash} from '../../domain/psse/identity';
 import type {PsseCalculationResult} from '../../domain/psse/results';
 import {createPsseScenario,type PsseScenario} from '../../domain/psse/scenario';
 import type {PsseBusBranchNetwork,PsseComplex} from '../../domain/psse/network';
@@ -25,7 +25,7 @@ function blocked(identity:ReturnType<typeof psseCalculationIdentity>,network:Pss
 function maxMismatch(p:ReturnType<typeof calculatePssePower>){return Math.max(p.maxP,p.maxQ);}
 /** Independent fixed-slope XB fast-decoupled solver. It does not call or relabel Newton. */
 export function solvePsseFdns(input:PsseSolveInput):PsseCalculationResult{
- const start=performance.now(),settings:PsseAcOptions={...DEFAULT_PSSE_AC_OPTIONS,...input.options},scenario=input.scenario??createPsseScenario(input.network),network=effectivePsseNetwork(input.network,scenario),identity=psseCalculationIdentity({mode:'PSSE',sourceSha256:network.sourceSha256,modelHash:network.modelHash,topologyHash:psseTopologyHash(network),normalizedModelHash:network.modelHash,normalizedRevision:network.revision,scenarioHash:scenario.hash,solver:'FDNS_XB',engineVersion:'GA_PSSE_ENGINE_1',algorithmId:'FDNS_XB',algorithmRevision:'psse-fdns-xb-1',controlPolicyId:settings.reactiveLimitsEnabled?'FIXED_CONTROLS_Q_LIMITS':'FIXED_CONTROLS_NO_Q_LIMITS',controlPolicyRevision:'fixed-controls-1',optionsHash:psseOptionsHash(settings),resultSchemaRevision:'psse-result-1',initialVoltagePolicy:settings.initialVoltagePolicy??'FLAT'}),audit=auditPsseCapability(input.model,network,'FDNS_XB');
+ const start=performance.now(),settings:PsseAcOptions={...DEFAULT_PSSE_AC_OPTIONS,...input.options},scenario=input.scenario??createPsseScenario(input.network),network=effectivePsseNetwork(input.network,scenario),identity=psseCalculationIdentity({mode:'PSSE',sourceSha256:network.sourceSha256,modelHash:network.modelHash,topologyHash:psseTopologyHash(network),normalizedModelHash:network.modelHash,normalizedRevision:network.revision,scenarioHash:scenario.hash,solver:'FDNS_XB',engineVersion:PSSE_ENGINE_VERSION,algorithmId:'FDNS_XB',algorithmRevision:'psse-fdns-xb-1',controlPolicyId:settings.reactiveLimitsEnabled?'FIXED_CONTROLS_Q_LIMITS':'FIXED_CONTROLS_NO_Q_LIMITS',controlPolicyRevision:'fixed-controls-1',optionsHash:psseOptionsHash(settings),resultSchemaRevision:'psse-result-1',initialVoltagePolicy:settings.initialVoltagePolicy??'FLAT'}),audit=auditPsseCapability(input.model,network,'FDNS_XB');
  if(audit.status==='BLOCKED')return blocked(identity,network,audit.findings,'BLOCKED',performance.now()-start);
  const state=initializePsseState(network,settings.initialVoltagePolicy??'FLAT'),refs=referenceBusesFor(network,state),ybus=buildPsseYbus(network),angleBuses=network.buses.map((_,i)=>i).filter(i=>network.buses[i].status===1&&state.busType[i]!==4&&!refs.has(i));let iterations=0,outerRounds=0,power:ReturnType<typeof calculatePssePower>|null=null;const findings=[...audit.findings],activeQLimits:number[]=[];
  for(;outerRounds<=(settings.maxQLimitRounds??8);outerRounds++){

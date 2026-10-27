@@ -98,6 +98,7 @@ def main():
     if args.report_units == "kva" and psspy.power_output(0):
         raise RuntimeError("PSS/E kVA report option failed")
     saved_state = {"solved": psspy.solved(), "sysMismatchMva": psspy.sysmsm(), "maxMismatch": psspy.maxmsm()}
+    loaded_bus_types = {"number": psspy.abusint(-1, 2, "NUMBER"), "type": psspy.abusint(-1, 2, "TYPE")}
     start = time.perf_counter()
     if args.method == "dclf_2":
         ierr = psspy.dclf_2(0, 1, options, [0, 0, 0], "1")
@@ -141,6 +142,7 @@ def main():
               "source": {"name": source.name, "sha256": source_hash}, "optionsHash": option_hash,
               "spec": spec, "version": psspy.psseversion(), "loadError": load_error,
               "savedState": saved_state, "ierr": ierr, "solved": psspy.solved(),
+              "loadedSourceBusTypes": loaded_bus_types,
               "iterations": psspy.iterat(), "sysMismatchMva": psspy.sysmsm(),
               "maxMismatch": psspy.maxmsm(), "elapsedMs": elapsed, "buses": buses,
               "generators": generators, "branches": branches, "threeWinding": three,
