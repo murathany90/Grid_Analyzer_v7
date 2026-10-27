@@ -2,7 +2,7 @@ import { allVoltageBands } from '../domain/model/voltage-band';
 import type { MapDisplayFilters } from '../app/contracts';
 /** Initial map-only display scope: every YTM and voltage band visible. */
 export function initialMapDisplayFilters(): MapDisplayFilters {
-  return { areaMode: 'ALL', areaIds: [], voltages: allVoltageBands() };
+  return { areaMode: 'ALL', areaIds: [], voltages: allVoltageBands(), siteId: '' };
 }
 /**
  * Tri-state YTM display scope. ALL shows every area, NONE shows none
@@ -21,9 +21,9 @@ export function scopeAreaFilter(scope: Pick<MapDisplayFilters, 'areaMode' | 'are
   const set = new Set(scope.areaIds);
   return areaId => set.has(areaId);
 }
-/** Cache-key stable serialization of the map display scope. */
+/** Cache-key stable serialization of the map display scope (including the map TM scope). */
 export function mapScopeKey(scope: MapDisplayFilters): string {
-  return scope.areaMode + '|' + [...scope.areaIds].sort().join(',') + '|' + [...scope.voltages].sort().join(',');
+  return scope.areaMode + '|' + [...scope.areaIds].sort().join(',') + '|' + [...scope.voltages].sort().join(',') + '|' + scope.siteId;
 }
 /** Counter text for the YTM menu summary: Tümü / Yok / n/N. */
 export function mapAreaScopeLabel(scope: Pick<MapDisplayFilters, 'areaMode' | 'areaIds'>, total: number): string {
@@ -35,6 +35,6 @@ export function mapAreaScopeLabel(scope: Pick<MapDisplayFilters, 'areaMode' | 'a
  * Display-only selection that mirrors a restored analytical study onto the
  * map without touching `filters` (calculation scope stays untouched).
  */
-export function mapDisplayForStudy(ytmId: string): MapDisplayFilters {
-  return { areaMode: ytmId ? 'SELECTED' : 'ALL', areaIds: ytmId ? [ytmId] : [], voltages: allVoltageBands() };
+export function mapDisplayForStudy(ytmId: string, tmId?: string): MapDisplayFilters {
+  return { areaMode: ytmId ? 'SELECTED' : 'ALL', areaIds: ytmId ? [ytmId] : [], voltages: allVoltageBands(), siteId: tmId ?? '' };
 }

@@ -30,14 +30,14 @@ export function createMapAreaFilter(ctx: AppContext, onChange: () => void) {
     const checked = collectChecked();
     ctx.mapDisplay.areaIds = checked;
     ctx.mapDisplay.areaMode = checked.length === 0 ? 'NONE' : checked.length === areas.length ? 'ALL' : 'SELECTED';
-    ctx.filters.siteId = ''; ctx.selection = null;
+    ctx.mapDisplay.siteId = ''; ctx.selection = null;
     ctx.notify();
     onChange();
   };
   const choose = (all: boolean) => {
     ctx.mapDisplay.areaMode = all ? 'ALL' : 'NONE';
     ctx.mapDisplay.areaIds = [];
-    ctx.filters.siteId = ''; ctx.selection = null;
+    ctx.mapDisplay.siteId = ''; ctx.selection = null;
     ctx.notify();
     onChange();
   };

@@ -34,7 +34,7 @@ export function createMapView(ctx:AppContext):Feature{
   const flag=(text:string,checked:boolean,action:(v:boolean)=>void)=>{const label=element('label','ga-check'),input=element('input');input.type='checkbox';input.checked=checked;input.onchange=()=>action(input.checked);label.append(input,document.createTextNode(text));return{label,input};};
   const flow=flag('Akış',ctx.settings.value.flowDefault,value=>{ctx.settings.update({flowDefault:value});ctx.notify();}),sites=flag('TM',true,value=>{renderer.showSites=value;renderer.render();}),labels=flag('Etiketler',false,value=>{renderer.showLabels=value;renderer.render();}),simple=flag('Sade güzergâh',false,value=>{renderer.simple=value;renderer.render();});
   flow.input.dataset.helpId='map.flow';sites.input.dataset.helpId='map.sites';labels.input.dataset.helpId='map.labels';simple.input.dataset.helpId='map.route';
-  const voltageFilter=createVoltageFilterFor({get voltages(){return ctx.mapDisplay.voltages;},onCommit:()=>{ctx.filters.siteId='';ctx.selection=null;ctx.notify();}},'Harita gerilim grupları',true),deltaControl=mapControl('Fark metriği',deltaMetric);
+  const voltageFilter=createVoltageFilterFor({get voltages(){return ctx.mapDisplay.voltages;},onCommit:()=>{ctx.mapDisplay.siteId='';ctx.selection=null;ctx.notify();}},'Harita gerilim grupları',true),deltaControl=mapControl('Fark metriği',deltaMetric);
   const areaFilter=createMapAreaFilter(ctx,()=>{panel.table.page=0;});
   benchmarkControls.body.append(mapControl('Kapasite',capacity),deltaControl);
   const scenarioChip=button('Baz',()=>panel.open('SCENARIOS'),'Senaryoları aç');scenarioChip.className+=' ga-map-scenario-chip';scenarioChip.dataset.helpId='map.scenario';
@@ -60,14 +60,16 @@ export function createMapView(ctx:AppContext):Feature{
   const resize=()=>{if(ctx.view==='map'){fitViewport();renderer.render();}},fullscreenChanged=()=>{fullscreen.textContent=document.fullscreenElement===root?'Çık':'Tam ekran';fullscreen.setAttribute('aria-label',fullscreen.textContent);fullscreen.title=fullscreen.textContent;resize();renderer.render();};
   window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',fullscreenChanged);
   function render(){
-    root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.runCount=String(ctx.stats.runs);root.dataset.areaScope=ctx.mapDisplay.areaMode;
+    root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.runCount=String(ctx.stats.runs);root.dataset.areaScope=ctx.mapDisplay.areaMode;root.dataset.mapSiteId=ctx.mapDisplay.siteId;root.dataset.analysisSiteId=ctx.filters.siteId;
     if(ctx.view!=='map'){closeMenus();panel.close();renderer.render();return;}
     const n=ctx.network;benchmarkControls.render();
     if(n?.modelHash!==modelHash){modelHash=n?.modelHash||'';areaFilter.setAreas([...new Map(n?.sites.map(s=>[s.areaId,s.areaName])||[])].map(([id,name])=>({id,name})));renderer.reset();}
     statusText.textContent=ctx.busy?'İşleniyor… · '+ctx.status:mapStatusText(ctx);statusBar.dataset.analysis=ctx.resultView.analysis;statusBody.replaceChildren(element('p','',ctx.status));for(const line of mapStatusDetail(ctx))statusBody.append(element('p','ga-muted',line));if(ctx.resultView.analysis==='LF'){const r=ctx.resultStore.active;if(r){const p=fullAcDiagnostics(r);statusBody.append(element('p','',`Newton toplam: ${p.newtonIterations??'—'} · Son tur: ${p.finalNewtonIterations??'—'} · NR çözümü: ${p.fullNrSolves??'—'}`));for(const warning of r.warnings.slice(0,6))statusBody.append(element('p','',warning));}}fitViewport();voltageFilter.render();areaFilter.render();
     capacity.value=n?capacitySession(n.modelHash).season:'nominal';layout.value=ctx.settings.value.layoutMode;role.value=ctx.resultStore.role;flow.input.checked=ctx.settings.value.flowDefault;layout.title=layout.selectedOptions[0]?.textContent??'';role.title=role.selectedOptions[0]?.textContent??'';
     scenarioChip.textContent=(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' · '+(activeResultId(ctx)?ctx.resultView.analysis:'Sonuç yok');
-    scenarioChip.disabled=!n;deltaControl.hidden=ctx.settings.value.displayMode!=='delta';deltaMetric.value=ctx.settings.value.deltaMetric;empty.hidden=ctx.mapDisplay.voltages.size>0;
+    scenarioChip.disabled=!n;deltaControl.hidden=ctx.settings.value.displayMode!=='delta';deltaMetric.value=ctx.settings.value.deltaMetric;
+    empty.hidden=ctx.mapDisplay.voltages.size>0&&ctx.mapDisplay.areaMode!=='NONE';
+    empty.textContent=ctx.mapDisplay.areaMode==='NONE'?'Görüntüleme kapsamında YTM seçili değil · YTM menüsünden "Tümünü seç" ile tüm YTM\'leri geri getirin.':'Haritayı görmek için en az bir gerilim grubu seçin.';
     calc.textContent=activeResultId(ctx)?'Sonuçlar':ctx.resultView.analysis==='LF'?'LF hesapla':ctx.resultView.analysis==='N1'?'N-1 seç':'SC seç';
     calc.setAttribute('aria-label',calc.textContent);calc.dataset.helpDetail=(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' · '+ctx.resultView.analysis;calc.disabled=refresh.disabled=ctx.busy||!n;
     const settings=ctx.settings.value;legend.hidden=!settings.legend;renderer.render();

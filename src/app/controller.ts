@@ -203,7 +203,7 @@ export class Application implements AppContext {
       if(job!==this.job||network!==this.network)return;
       study.options={...study.options,families:['SC']};this.ytmStudy=finishYtmStudy(study);this.studyOptions=study.options;
       const selected=this.resultView.scMode==='MIN'?(study.scMin??study.scMax):(study.scMax??study.scMin);this.scResult=selected;this.resultView.scMode=selected!.profile.calculateMode;this.scContext=selectedContext;
-      this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';this.mapDisplay=mapDisplayForStudy(study.options.ytmId);this.benchmarkMap=null;this.resultView.source='GA';this.resultView.faultId=undefined;this.resultView.metric='ikss3FKa';this.setView('analysis:SC');this.saveWorkspace();this.setMessage('Kayıtlı 3F MAX/MIN sonuçları kimlik ve kaynak denetimiyle yüklendi.');
+      this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';this.mapDisplay=mapDisplayForStudy(study.options.ytmId,study.options.tmId);this.benchmarkMap=null;this.resultView.source='GA';this.resultView.faultId=undefined;this.resultView.metric='ikss3FKa';this.setView('analysis:SC');this.saveWorkspace();this.setMessage('Kayıtlı 3F MAX/MIN sonuçları kimlik ve kaynak denetimiyle yüklendi.');
     }catch(e){if(job===this.job)this.setMessage('Çalışma sonucu yüklenemedi: '+(e instanceof Error?e.message:String(e)));}
     finally{if(job===this.job){this.busy=false;this.notify();}}
   }
@@ -235,7 +235,7 @@ export class Application implements AppContext {
           if(study.scMax)study.identity.sourceHashMAX=study.scMax.identity.sourceHash;if(study.scMin)study.identity.sourceHashMIN=study.scMin.identity.sourceHash;
           this.ytmStudy=finishYtmStudy(study);this.studyOptions=saved.studyOptions;this.hybridResult=saved.hybrid;
           const mode=saved.sc?.profile.calculateMode??'MAX';this.scResult=mode==='MAX'?study.scMax:study.scMin;
-          this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';this.mapDisplay=mapDisplayForStudy(study.options.ytmId);
+          this.filters.areaId=study.options.ytmId;this.filters.siteId=study.options.tmId??'';this.mapDisplay=mapDisplayForStudy(study.options.ytmId,study.options.tmId);
         }else if(await validate(saved.sc,'3PH')){
           this.scResult=saved.sc;
 

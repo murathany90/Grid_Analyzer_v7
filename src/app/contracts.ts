@@ -20,7 +20,7 @@ export interface CatalogRow { id: string; name: string; siteIds: string[]; attri
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
 /** Map-only display scope. Never feeds calculation scope, result identity or caches of results. */
 export type MapAreaScopeMode = 'ALL' | 'NONE' | 'SELECTED';
-export interface MapDisplayFilters { areaMode: MapAreaScopeMode; areaIds: string[]; voltages: Set<VoltageBand> }
+export interface MapDisplayFilters { areaMode: MapAreaScopeMode; areaIds: string[]; voltages: Set<VoltageBand>; siteId: string }
 export interface AppContext {
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;

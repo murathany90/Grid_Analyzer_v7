@@ -10,7 +10,7 @@ import {readFile} from 'node:fs/promises';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fixture=path.join(root,'tests','fixtures','small-dgs.json');
-const port=5184,url=`http://127.0.0.1:${port}/`;
+const port=5186,url=`http://127.0.0.1:${port}/`;
 const outDir=path.join(root,'local-benchmark-results','map-ui-adaptive-20261027','acceptance');
 await mkdir(outDir,{recursive:true});
 
@@ -65,9 +65,11 @@ try{
       check('analysis scope untouched: filters.areaId not written by map menu',analysisScope==='SELECTED');
       await page.locator('.ga-area-menu').getByRole('button',{name:'Temizle'}).click();
       check('Temizle yields Yok (not Tümü)',(await ytmSummary.textContent()).includes('Yok'));
+      check('NONE scope reports zero visible lines and sites',await page.locator('#networkCanvas').getAttribute('data-visible-lines')==='0'&&await page.locator('#networkCanvas').getAttribute('data-visible-sites')==='0');
       check('NONE scope hides all network geometry',Number(await page.locator('#networkCanvas').getAttribute('data-label-count'))===0);
       await page.locator('.ga-area-menu').getByRole('button',{name:'Tümünü seç'}).click();
       check('Tümünü seç restores Tümü',(await ytmSummary.textContent()).includes('Tümü'));
+      check('restored scope shows lines and sites again',Number(await page.locator('#networkCanvas').getAttribute('data-visible-lines'))>0&&Number(await page.locator('#networkCanvas').getAttribute('data-visible-sites'))>0);
       await page.keyboard.press('Escape');
       // --- calculation then display-filter churn: solver count and result id frozen ---
       await page.getByRole('button',{name:/LF hesapla/}).click();
@@ -75,6 +77,8 @@ try{
       const runCount=Number(await page.locator('.ga-map-view').getAttribute('data-run-count'));
       const resultId=await page.locator('.ga-map-view').getAttribute('data-result-id');
       check('LF calculated exactly once',runCount===1&&resultId!=='NOT_RUN',`runs=${runCount} id=${resultId?.slice(0,12)}`);
+      const analysisSiteBefore=await page.locator('.ga-map-view').getAttribute('data-analysis-site-id');
+      check('analytical siteId starts empty on the map',analysisSiteBefore==='',`siteId=${analysisSiteBefore}`);
       await page.getByRole('checkbox',{name:'Etiketler'}).check();
       await ytmSummary.click();await boxes.nth(0).uncheck();await page.keyboard.press('Escape');
       await page.locator('.ga-map-view .ga-voltage-menu>summary').click();
@@ -91,6 +95,8 @@ try{
       const resultAfter=await page.locator('.ga-map-view').getAttribute('data-result-id');
       check('repeated map display-filter churn triggers zero extra solver runs',runAfter===runCount,`runs=${runAfter}`);
       check('result identity hash unchanged after filter churn',resultAfter===resultId);
+      check('analytical filters.siteId untouched by map display churn',await page.locator('.ga-map-view').getAttribute('data-analysis-site-id')===analysisSiteBefore);
+      check('map TM scope stays empty without explicit TM selection',await page.locator('.ga-map-view').getAttribute('data-map-site-id')==='');
       check('computed LF result still displayed after filters removed',/NR yakınsadı/.test(await page.locator('.ga-map-status [role=status]').textContent()));
       // --- LF görünümü must not switch analysis while N-1 selected ---
       await page.locator('select[aria-label="Benchmark harita analizi"]').selectOption('N1');
@@ -104,14 +110,14 @@ try{
       await page.waitForTimeout(250);
       const nationalLabels=Number(await page.locator('#networkCanvas').getAttribute('data-label-count'));
       check('labels on: national zoom draws a bounded subset',nationalLabels>=0&&nationalLabels<=260,`count=${nationalLabels}`);
-      const canvas=await page.locator('#networkCanvas').boundingBox();
-      await page.mouse.move(canvas.x+canvas.width/2,canvas.y+canvas.height/2);
-      for(let i=0;i<9;i++)await page.mouse.wheel(0,-240);
-      await page.waitForTimeout(400);
-      const zoomedLabels=Number(await page.locator('#networkCanvas').getAttribute('data-label-count'));
-      check('labels on: zoomed view renders labels within budget',zoomedLabels>=1&&zoomedLabels<=260,`${nationalLabels}→${zoomedLabels}`);
-      const zoomedAgain=Number(await page.locator('#networkCanvas').evaluate(()=>{const c=document.querySelector('#networkCanvas');c.dispatchEvent(new WheelEvent('wheel',{deltaY:-240,cancelable:true}));return c.dataset.labelCount??'0';}));
-      check('labels on: deterministic re-layout at same viewport',zoomedAgain===zoomedLabels,`${zoomedLabels}→${zoomedAgain}`);
+      // Deterministic zoom: identical wheel sequences from fit, evaluated only
+      // after repainting settled, must produce the identical label layout.
+      const paintStable=async()=>{let prev=await page.locator('#networkCanvas').evaluate(el=>el.dataset.paintCount??'0');for(let i=0;i<25;i++){await page.waitForTimeout(150);const next=await page.locator('#networkCanvas').evaluate(el=>el.dataset.paintCount??'0');if(next===prev)return;prev=next;}};
+      const zoomByWheel=async steps=>{await page.getByRole('button',{name:'Sığdır'}).click();await page.waitForTimeout(200);const box=await page.locator('#networkCanvas').boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);for(let i=0;i<steps;i++)await page.mouse.wheel(0,-240);await paintStable();return Number(await page.locator('#networkCanvas').getAttribute('data-label-count'));};
+      const zoomA=await zoomByWheel(9);
+      check('labels on: zoomed view renders labels within budget',zoomA>=1&&zoomA<=260,`${nationalLabels}→${zoomA}`);
+      const zoomB=await zoomByWheel(9);
+      check('labels on: identical zoom sequences repaint identically after paint settles',zoomA===zoomB,`${zoomA} vs ${zoomB}`);
       await page.screenshot({path:path.join(outDir,'labels-zoom-acceptance.png')});
       await page.getByRole('button',{name:'Sığdır'}).click();
       await page.getByRole('checkbox',{name:'Etiketler'}).uncheck();
@@ -122,15 +128,49 @@ try{
       check('YTM menu opens via keyboard',await page.locator('.ga-area-menu input[type=search]').isVisible());
       await page.keyboard.press('Escape');
       check('Escape closes map menus',!await page.locator('.ga-area-menu input[type=search]').isVisible().catch(()=>false));
-      // --- Lightning panel + legend coexistence ---
-      await page.getByRole('button',{name:'Elektriksel Sonuçlar'}).click();
+      // --- Lightning panel + legend coexistence (strict rectangle disjointness) ---
+      await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();
       await page.locator('.ga-lightning').waitFor();
-      const layout=await page.evaluate(()=>{
-        const panel=document.querySelector('.ga-lightning').getBoundingClientRect(),legend=document.querySelector('.ga-map-legend').getBoundingClientRect(),toggle=document.querySelector('.ga-lightning-toggle').getBoundingClientRect();
-        return{panelVisible:panel.width>0,legendVisible:legend.width>0,toggleVisible:toggle.width>0,overlap:!(panel.left>legend.right||panel.right<legend.left&&true)&&panel.top<legend.bottom&&legend.left<panel.right};
+      await page.waitForTimeout(300);
+      const rects=await page.evaluate(()=>{
+        const r=sel=>{const b=document.querySelector(sel).getBoundingClientRect();return{left:b.left,top:b.top,right:b.right,bottom:b.bottom};};
+        return{panel:r('.ga-lightning'),legend:r('.ga-map-legend'),toggle:r('.ga-lightning-toggle'),visible:!!document.querySelector('.ga-lightning-body')&&!document.querySelector('.ga-lightning-body').hidden};
       });
-      check('Lightning open keeps legend and toggle rendered',layout.panelVisible&&layout.legendVisible&&layout.toggleVisible);
+      const intersects=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+      check('Lightning open keeps legend and toggle rendered',rects.panel.right>rects.panel.left&&rects.legend.right>rects.legend.left&&rects.toggle.right>rects.toggle.left);
+      check('Lightning panel never covers the legend',!intersects(rects.panel,rects.legend),JSON.stringify({panel:rects.panel,legend:rects.legend}));
+      check('Lightning panel never covers the toggle button',!intersects(rects.panel,rects.toggle));
       await page.screenshot({path:path.join(outDir,'lightning-coexist-1366.png')});
+      await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();
+      // --- P2: explanatory empty-map message for the YTM NONE state ---
+      await page.locator('.ga-map-view .ga-area-menu>summary').evaluate(el=>{el.parentElement.open=true;});
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Temizle'}).click();
+      await page.keyboard.press('Escape');
+      await page.locator('.ga-map-empty').waitFor({state:'visible'});
+      const emptyText=await page.locator('.ga-map-empty').textContent();
+      check('NONE state shows an explanatory empty-map message',/YTM seçili değil/.test(emptyText||''),(emptyText||'').slice(0,60));
+      await page.locator('.ga-map-view .ga-area-menu>summary').evaluate(el=>{el.parentElement.open=true;});
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Tümünü seç'}).click();
+      await page.keyboard.press('Escape');
+      check('empty overlay hides again after Tümünü seç',!await page.locator('.ga-map-empty').isVisible());
+      // --- P0: the shared voltage filter must follow model replacement (stale Set regression) ---
+      await page.locator('#modelFileInput').setInputFiles({name:'synthetic-map-visual-dgs.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(visualRaw))});
+      await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()));
+      await page.getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();
+      await page.locator('.ga-sld-svg').waitFor();
+      const sldSites=page.locator('select[aria-label="Trafo merkezi"]');
+      const siteOptionsBefore=await sldSites.locator('option').count();
+      check('SLD lists sites after a second model load',siteOptionsBefore>=1,`options=${siteOptionsBefore}`);
+      const sldVoltages=page.locator('.ga-voltage-layers[aria-label="SLD gerilim grupları"]');
+      await sldVoltages.locator('input[data-help-id="map.voltage.400"]').uncheck();
+      await sldVoltages.locator('input[data-help-id="map.voltage.154"]').uncheck();
+      await page.waitForTimeout(400);
+      const siteOptionsNarrowed=await sldSites.locator('option').count();
+      check('shared voltage filter writes to the CURRENT filters set after model replacement',siteOptionsNarrowed<siteOptionsBefore,`${siteOptionsBefore}→${siteOptionsNarrowed}`);
+      await sldVoltages.locator('input[data-help-id="map.voltage.400"]').check();
+      await sldVoltages.locator('input[data-help-id="map.voltage.154"]').check();
+      await page.waitForTimeout(300);
+      check('re-checking bands restores the SLD site list',await sldSites.locator('option').count()===siteOptionsBefore);
       check('no page errors during acceptance',errors.length===0,errors.join(' | '));
     }
     await context.close();

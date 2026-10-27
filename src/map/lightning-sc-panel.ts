@@ -15,7 +15,7 @@ export function createLightningScPanel(ctx:AppContext,actions?:ScRowActions){
  const clearSelection=()=>{selected='';lastRenderKey='';for(const tr of host.querySelectorAll('tr.is-selected')){tr.classList.remove('is-selected');tr.setAttribute('aria-selected','false');}};
  const closeDetail=()=>{clearSelection();actions?.close();};
  root.addEventListener('keydown',e=>{if(e.key==='Escape'&&selected){e.stopPropagation();closeDetail();}});
- tm.onchange=()=>{ctx.filters.siteId=tm.value;closeDetail();ctx.notify();};
+ tm.onchange=()=>{ctx.filters.siteId=tm.value;ctx.mapDisplay.siteId=tm.value;closeDetail();ctx.notify();};
  mode.onchange=()=>{if(ctx.resultView.source==='PF')return;if(!selectScMode(ctx,mode.value as 'MAX'|'MIN'))ctx.setMessage('Seçilen mod için güncel 3F sonucu yok.');closeDetail();ctx.notify();};
  voltage.onchange=()=>{selectVoltageGroup(ctx,voltage.value);closeDetail();ctx.notify();};
  kind.onchange=()=>{ctx.resultView.scNodeKind=kind.value;ctx.benchmarkMap={...(ctx.benchmarkMap??workspaceMapSelection(ctx)),nodeKind:kind.value};closeDetail();ctx.notify();};
