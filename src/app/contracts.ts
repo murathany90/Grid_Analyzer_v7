@@ -18,9 +18,16 @@ import type { BenchmarkMapSelection } from '../domain/benchmark/map-layer';
 export interface CatalogQuery { className: string; search?: string; siteId?: string; areaId?: string; voltage?: number; voltageBands?: VoltageBand[]; page?: number; pageSize?: number; sort?: string; descending?: boolean;sortKind?:SortKind;sortSnapshot?:CatalogSortSnapshot }
 export interface CatalogRow { id: string; name: string; siteIds: string[]; attributes: Record<string, unknown>; context?: EngineeringContext }
 export interface CatalogPage { rows: CatalogRow[]; total: number; attributes: string[] }
+/** Map-only display scope. Never feeds calculation scope, result identity or caches of results. */
+export type MapAreaScopeMode = 'ALL' | 'NONE' | 'SELECTED';
+export interface MapDisplayFilters { areaMode: MapAreaScopeMode; areaIds: string[]; voltages: Set<VoltageBand> }
 export interface AppContext {
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;
+  /** Visualization-only map filters (YTM/voltage display scope); separate from `filters`. */
+  mapDisplay: MapDisplayFilters;
+  /** Test/telemetry counter of explicitly requested calculation runs. */
+  stats: { runs: number };
   ytmStudy?:import('../analysis/ytm-study').YtmStudyResult|null;
   studyResumeAvailable?:boolean;
   studyOptions?:import('../analysis/ytm-study').YtmStudyOptions;
