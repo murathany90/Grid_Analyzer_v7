@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "node tools/lint.mjs",
     "test": "node --import tsx --test tests/unit/*.test.ts tests/regression/*.test.ts",
-    "test:e2e": "node tools/browser-smoke.mjs && node --import tsx tools/pf-benchmark-browser-smoke.ts && node tools/map-lightning-audit-browser-smoke.mjs && node tools/n1-diagnostic-browser-smoke.mjs && node tools/sld-browser-smoke.mjs && node tools/n1-sc-browser-acceptance.mjs tests/fixtures/small-dgs.json PUBLIC AUTO && node tools/workspace-unification-browser.mjs && node tools/analysis-ux-browser.mjs && node tools/network-model-browser.mjs",
+    "test:e2e": "node tools/browser-smoke.mjs && node --import tsx tools/pf-benchmark-browser-smoke.ts && node tools/map-lightning-audit-browser-smoke.mjs && node tools/n1-diagnostic-browser-smoke.mjs && node tools/sld-browser-smoke.mjs && node tools/n1-sc-browser-acceptance.mjs tests/fixtures/small-dgs.json PUBLIC AUTO && node tools/workspace-unification-browser.mjs && node tools/analysis-ux-browser.mjs && node tools/network-model-browser.mjs && node tools/map-ui-adaptive-browser.mjs",
     "test:full": "node --import tsx tools/full-model.ts",
     "build": "vite build",
     "build:pages": "vite build --mode pages",
