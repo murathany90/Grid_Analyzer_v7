@@ -1,0 +1,157 @@
+{
+  "schema": "ga.psse.v4-scenario-parity.v1",
+  "generatedAt": "2026-10-27T23:17:26.360Z",
+  "toleranceNote": "GA NR tolerance 1e-5 pu (0.001 MVA at 100 MVA base); vendor profiles at 0.001 MVA.",
+  "cases": [
+    {
+      "source": {
+        "name": "20261026_1600_SN1_TR0.sav",
+        "sha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b"
+      },
+      "fdns": {
+        "profile": "fdns-operational-0.001pu",
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "maxMismatchPu": 0.00017002895882634674,
+        "strictStatus": "NON_CONVERGED",
+        "strictMaxMismatchPu": 0.000026881372421350136
+      },
+      "scenarios": [
+        {
+          "scenario": "load10",
+          "vendorProfile": "fnsl-fixed",
+          "vendorIterations": 24,
+          "gaStatus": "CONVERGED",
+          "gaClassification": "SOLVED_APPROXIMATE",
+          "gaMaxMismatchPu": 1.2460344978038052e-9,
+          "comparedBuses": 5072,
+          "unmatchedBuses": 1803,
+          "vm": {
+            "max": 0.4633434759552515,
+            "mean": 0.17674441810701422,
+            "p95": 0.4039572629064714,
+            "count": 5072
+          },
+          "vaDeg": {
+            "max": 16.42010164047366,
+            "mean": 3.93578992026526,
+            "p95": 7.5054794074945335,
+            "count": 5072
+          }
+        },
+        {
+          "scenario": "load20",
+          "gaStatus": "SKIPPED_NO_VENDOR_SOLUTION"
+        },
+        {
+          "scenario": "lineout",
+          "vendorProfile": "fnsl-automatic",
+          "vendorIterations": 24,
+          "gaStatus": "CONVERGED",
+          "gaClassification": "SOLVED_APPROXIMATE",
+          "gaMaxMismatchPu": 2.307629755430418e-11,
+          "comparedBuses": 5072,
+          "unmatchedBuses": 1803,
+          "vm": {
+            "max": 0.08115460847776124,
+            "mean": 0.0019890977064920008,
+            "p95": 0.004213217074908515,
+            "count": 5072
+          },
+          "vaDeg": {
+            "max": 0.6840556287288564,
+            "mean": 0.04955170099566909,
+            "p95": 0.1030714487055775,
+            "count": 5072
+          }
+        }
+      ]
+    },
+    {
+      "source": {
+        "name": "20261014_1200_SN3_TR0.sav",
+        "sha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf"
+      },
+      "fdns": {
+        "profile": "fdns-operational-0.001pu",
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "maxMismatchPu": 0.00002238372316098544,
+        "strictStatus": "CONVERGED",
+        "strictMaxMismatchPu": 0.0000039609400133144845
+      },
+      "scenarios": [
+        {
+          "scenario": "load10",
+          "vendorProfile": "fnsl-fixed",
+          "vendorIterations": 22,
+          "gaStatus": "NON_CONVERGED",
+          "gaClassification": "NOT_CONVERGED",
+          "gaMaxMismatchPu": 0.18241916000219016,
+          "comparedBuses": 0,
+          "unmatchedBuses": 6851,
+          "vm": {
+            "max": 0,
+            "mean": 0,
+            "p95": 0,
+            "count": 0
+          },
+          "vaDeg": {
+            "max": 0,
+            "mean": 0,
+            "p95": 0,
+            "count": 0
+          }
+        },
+        {
+          "scenario": "load20",
+          "gaStatus": "SKIPPED_NO_VENDOR_SOLUTION"
+        },
+        {
+          "scenario": "lineout",
+          "vendorProfile": "fnsl-fixed",
+          "vendorIterations": 21,
+          "gaStatus": "CONVERGED",
+          "gaClassification": "SOLVED_APPROXIMATE",
+          "gaMaxMismatchPu": 9.816920609750923e-10,
+          "comparedBuses": 5029,
+          "unmatchedBuses": 1822,
+          "vm": {
+            "max": 0.04184070430707365,
+            "mean": 0.0027186185965273526,
+            "p95": 0.004012510135877223,
+            "count": 5029
+          },
+          "vaDeg": {
+            "max": 0.3510753904603803,
+            "mean": 0.08116622705674463,
+            "p95": 0.2028033764378847,
+            "count": 5029
+          }
+        },
+        {
+          "scenario": "lineout",
+          "vendorProfile": "fnsl-automatic",
+          "vendorIterations": 21,
+          "gaStatus": "CONVERGED",
+          "gaClassification": "SOLVED_APPROXIMATE",
+          "gaMaxMismatchPu": 9.816920609750923e-10,
+          "comparedBuses": 5029,
+          "unmatchedBuses": 1822,
+          "vm": {
+            "max": 0.04184070430707365,
+            "mean": 0.0027186185965273526,
+            "p95": 0.004012510135877223,
+            "count": 5029
+          },
+          "vaDeg": {
+            "max": 0.3510753904603803,
+            "mean": 0.08116622705674463,
+            "p95": 0.2028033764378847,
+            "count": 5029
+          }
+        }
+      ]
+    }
+  ]
+}
