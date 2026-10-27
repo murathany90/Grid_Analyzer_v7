@@ -1,0 +1,38 @@
+{
+  "schema": "ga.psse.v3-validation.v1",
+  "codeCommit": "6e046234d6c40bde4bd02536e377abddaa61a172",
+  "typecheck": "PASS",
+  "architectureLint": "PASS",
+  "unitAndRegression": {
+    "tests": 870,
+    "pass": 870,
+    "fail": 0,
+    "skipped": 0
+  },
+  "builds": {
+    "standard": "PASS",
+    "portable": "PASS",
+    "offlineIife": "PASS"
+  },
+  "realSavOffline": {
+    "chrome": "PASS",
+    "msedge": "PASS",
+    "htmlSha256": "f2b0fa05d0463e580059ddc9cbce76c69ca95ceb481680ff2275771c59631d0a",
+    "externalRequests": 0
+  },
+  "syntheticOffline": {
+    "chrome": "PASS",
+    "msedge": "PASS",
+    "DGS_JSON_ZIP": true,
+    "PSSE_RAWX_mixedZIP": true,
+    "NR_FDNS_DC_and_exports": true
+  },
+  "DgsSourceUnchangedFrom": "6c9e67be5c9603758943fcb7bccc5dbde67fbd0a",
+  "limitations": [
+    "Full remote/droop/automatic control parity unfinished",
+    "6875 FDNS at0.001MVA NOT_CONVERGED",
+    "Four TM category/DGS1600x1000 comparison incomplete",
+    "Both real SAVs contain zero3W transformer devices",
+    "Real RAW and SAV-ZIP browser acceptance not rerun in this V3 validation"
+  ]
+}

@@ -248,3 +248,5 @@ Güncel rehberler [belge dizininde](docs/README.md), geçmiş kabul kayıtları 
 ---
 
 *Bu README, 23.10.2026 tarihinde GitHub kaynak kodu/CI incelemesi ve kullanıcının eklediği iki gerçek model + PF referans ZIP envanteri üzerine hazırlanmıştır. Yeni bir gerçek benchmark veya tüm vakalar için PF/IEC parite koşusu yapıldığı iddia edilmez.*
+
+V3 çalışan yaklaşık AC aşaması: [kök neden ve çözüm](AC_ROOT_CAUSE_AND_SOLUTION.md), [AC/FDNS/DC paritesi](PSSE_AC_FDNS_DC_PARITY.md), [koordinat denetimi](GEO_COORDINATE_FIT_AUDIT.md), [TM tek hat kabul durumu](SLD_TM_PARITY.md) ve [DGS regresyon kapsamı](DGS_REGRESSION.md). İleri kontroller ve görsel kabul eksikleri bu raporlarda açıkça listelenir.

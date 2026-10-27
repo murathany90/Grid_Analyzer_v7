@@ -6,7 +6,8 @@ import {unzipSync,strFromU8} from 'fflate';
 const root=fileURLToPath(new URL('../',import.meta.url)),filename=process.argv[2];
 if(!filename)throw Error('Usage: node tools/verify-psse-web-package.mjs <ZIP> [fresh extraction directory]');
 const archive=fs.readFileSync(filename),entries=unzipSync(archive),hash=b=>createHash('sha256').update(b).digest('hex');
-for(const required of ['index.html','README_TR.md','SAV_BINARY_RE_SPEC.md','SAV_RAW_PARITY_REPORT.md','GA_INTEGRATION_REPORT.md','SHA256SUMS.txt','git/DELIVERY_METADATA.json'])if(!entries[required])throw Error('Missing delivery entry: '+required);
+const reports=entries['AC_ROOT_CAUSE_AND_SOLUTION.md']?['AC_ROOT_CAUSE_AND_SOLUTION.md','PSSE_AC_FDNS_DC_PARITY.md','YTBS_AREA_ZONE_OWNER_MAPPING.md','GEO_COORDINATE_FIT_AUDIT.md','SLD_TM_PARITY.md','DGS_REGRESSION.md']:['SAV_BINARY_RE_SPEC.md','SAV_RAW_PARITY_REPORT.md','GA_INTEGRATION_REPORT.md'];
+for(const required of ['index.html','README_TR.md',...reports,'SHA256SUMS.txt','git/DELIVERY_METADATA.json'])if(!entries[required])throw Error('Missing delivery entry: '+required);
 const sums=strFromU8(entries['SHA256SUMS.txt']).trim().split('\n');
 for(const line of sums){const digest=line.slice(0,64),name=line.slice(66);if(!entries[name]||hash(entries[name])!==digest)throw Error('Manifest mismatch: '+name);}
 const extract=path.resolve(process.argv[3]??path.join(root,'private-re','release-smoke-'+Date.now()));

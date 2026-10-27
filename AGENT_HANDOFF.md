@@ -1,16 +1,17 @@
 # Agent handoff
 
-## V3 working AC checkpoint (2026-10-27)
+## V3 WIP - working AC checkpoint (2026-10-27)
 
 - Branch remains `fix/psse-v1-real-model-parity`; last verified remote reference checkpoint `bf0dddb9613b5631e2ca14582e7cd12679906851`. Earlier checkpoint `b212cf83ce1ece241f0a7247968043fd6b80c1ea` passed CI run40576084224. No main merge.
 - Both original SAVs now genuinely converge using independent sparse polar NR, source-saved initial values and source-aware ideal-link contraction. Results are `SOLVED_APPROXIMATE`, not full remote/droop parity. Independent physical KCL, global P/Q balance and matched FNSL parity pass; see `docs/psse-v3/FINAL_ELECTRICAL_AUDIT.md`.
 - FDNS retains its own Bprime/Bdoubleprime iteration. 6851 converges at0.001MVA; 6875 remains NOT_CONVERGED at0.001MVA. See `docs/psse-v3/IMPLEMENTATION_HANDOFF.md`.
 - Engine3 invalidates results produced by older equations. Source native decoder and DGS electrical/model source remain unchanged.
 - Implemented view changes: one inclusive<=36kV option, separate YTM AREA/BM busOWNER, source TM selection, station horizontal busbars and external feeders, shared Canvas/SVG fit/aspect. First real Chrome file:// test passed with no network requests or page errors.
-- Validation: typecheck and architecture lint pass; 869/870 full tests passed before commit, with only the intentional committed-portable-byte gate failing because HEAD still held the old bundle. Portable has now been rebuilt; rerun after commit.
+- Remote code CI run40578943856 passed unit tests but hit an offline DGS PNG test import/navigation race; the harness now waits for completed DGS import before navigating. Production DGS code is unchanged. Final CI rerun is pending.
+- Last verified working code commit: `6e046234d6c40bde4bd02536e377abddaa61a172`, pushed and remote SHA checked. Typecheck, architecture lint and870/870 unit/regression tests pass after rebuilding/committing the portable artifact. Real Chrome/Edge file:// AC/map/TM and both synthetic offline import/export/NR/FDNS/DC tests pass with zero external requests.
 - INCOMPLETE: exact remote regulation/RMPCT and assigned droop outer loops; automatic tap/shunt controls; 6875 FDNS strict convergence; full DGS visual parity and required TM category acceptance; all requested exports and analysis UI details. Do not describe V3 as fully delivered.
 - All3 authorised agent calls are used. Reference, implementation and final audit handoffs are in `docs/psse-v3/`. Original SAVs, licensed PDFs, full reference dumps and real UI screenshots stay ignored in `private-re/`.
-- Next commands: `npm test`; `node tools/psse-v3-ui-browser.mjs msedge file:///C:/Users/Murathan%20Yeniceli/ga-native-web/dist-psse/index.html`; package `GA_PSSE_AC_DC_OFFLINE_TEST_FIXED_V3.zip`; verify remote SHA and CI.
+- Next command after this delivery: `node --import tsx tools/psse-v3-electrical-audit.ts private-re/ac-v3-reference/20261026_1600_SN1_TR0.sav "C:/Program Files/PTI/PSSE36/36.5/control1/20261014_1200_SN3_TR0.sav"`. Then address strict FDNS descent and exact remote-control equations before claiming full physics. Packaging/remote verification is handled in the final session checkpoint.
 
 ## V2 correction — current delta (2026-10-27)
 

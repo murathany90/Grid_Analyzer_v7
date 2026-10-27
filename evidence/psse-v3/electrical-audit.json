@@ -12,7 +12,7 @@
         "reactiveLimitsEnabled": true,
         "maxIterations": 80,
         "maxQLimitRounds": 12,
-        "tolerancePu": 1E-06
+        "tolerancePu": 0.000001
       },
       "reference": {
         "method": "FNSL",
@@ -26,9 +26,9 @@
         "classification": "SOLVED_APPROXIMATE",
         "iterations": 1,
         "outerRounds": 0,
-        "toleranceMva": 9.999999999999999E-05,
-        "finalMaxPMismatchMw": 1.270699481785715E-08,
-        "finalMaxQMismatchMvar": 1.815096295487706E-07,
+        "toleranceMva": 0.00009999999999999999,
+        "finalMaxPMismatchMw": 1.270699481785715e-8,
+        "finalMaxQMismatchMvar": 1.815096295487706e-7,
         "initialEffectiveMismatch": {
           "maxPMw": 0.0022451919555197975,
           "maxQMvar": 0.017002895882634674,
@@ -47,7 +47,7 @@
           {
             "phase": "NR_POLAR",
             "iteration": 1,
-            "residualPu": 1.815096295487706E-09
+            "residualPu": 1.815096295487706e-9
           }
         ],
         "diagnostics": {
@@ -60,16 +60,21 @@
               "dimension": 8303,
               "nnz": 54499,
               "ordering": "KLU_AMD",
-              "cscConversionMs": 2.8815000000004147,
-              "symbolicFactorMs": 5.113500000000386,
-              "numericFactorMs": 4.143699999999626,
-              "factorMs": 9.257200000000012,
-              "solveMs": 2.0755000000008295,
+              "cscConversionMs": 4.0875999999998385,
+              "symbolicFactorMs": 4.682699999999841,
+              "numericFactorMs": 4.901800000000094,
+              "factorMs": 9.584499999999935,
+              "solveMs": 0.6808999999998377,
               "rhsCount": 1,
               "factorizations": 1,
               "failureStage": "NONE",
               "failureMessage": null
             }
+          },
+          "initialMismatchPu": {
+            "p": 0.000022451919555197977,
+            "q": 0.00017002895882634674,
+            "max": 0.00017002895882634674
           },
           "lineSearchReductions": 0,
           "busCount": 6875,
@@ -94,7 +99,7 @@
           "idealLinkRecovery": {
             "method": "TREE_KCL_OR_MINIMUM_SOURCE_ABS_X",
             "cycleRank": 18,
-            "maxKclResidualMva": 8.134403012104164E-08
+            "maxKclResidualMva": 8.134403012104164e-8
           },
           "sourceSavedVoltageMismatchPreserved": true,
           "activeQLimitBusCount": 0
@@ -111,21 +116,21 @@
         "physicalBusKcl": {
           "pMw": {
             "count": 5072,
-            "max": 1.2706443897059216E-08,
-            "mean": 8.73707349717984E-11,
-            "p95": 3.3657343578852306E-10
+            "max": 1.2706443897059216e-8,
+            "mean": 8.73707349717984e-11,
+            "p95": 3.3657343578852306e-10
           },
           "qMvar": {
             "count": 5072,
-            "max": 1.81509630436949E-07,
-            "mean": 1.0455975544280274E-10,
-            "p95": 1.5209966619522675E-10
+            "max": 1.81509630436949e-7,
+            "mean": 1.0455975544280274e-10,
+            "p95": 1.5209966619522675e-10
           },
           "complexMva": {
             "count": 5072,
-            "max": 1.81580427439608E-07,
-            "mean": 1.706373259039786E-10,
-            "p95": 3.766096544752238E-10
+            "max": 1.81580427439608e-7,
+            "mean": 1.706373259039786e-10,
+            "p95": 3.766096544752238e-10
           }
         },
         "internalStarKcl": {
@@ -158,8 +163,8 @@
           "shuntQ": 7529.249049887123,
           "branchLossP": 901.9524263245405,
           "branchLossQ": -9644.88371438942,
-          "netPBalanceMw": -1.173634700535331E-08,
-          "netQBalanceMvar": -2.4538530851714313E-07
+          "netPBalanceMw": -1.173634700535331e-8,
+          "netQBalanceMvar": -2.4538530851714313e-7
         },
         "machineOutput": {
           "knownP": 39638.268134567086,
@@ -195,33 +200,33 @@
         "unavailableMachineQ": 0,
         "vmPu": {
           "count": 5072,
-          "max": 1.8391872049106084E-05,
-          "mean": 1.0725231917126874E-06,
-          "p95": 1.8216657289293892E-06
+          "max": 0.000018391872049106084,
+          "mean": 0.0000010725231917126874,
+          "p95": 0.0000018216657289293892
         },
         "vaDeg": {
           "count": 5072,
           "max": 0.00012019287783004984,
-          "mean": 4.337160452105194E-05,
-          "p95": 9.614037139726861E-05
+          "mean": 0.00004337160452105194,
+          "p95": 0.00009614037139726861
         },
         "pgMw": {
           "count": 1568,
           "max": 0.0011955982882224658,
-          "mean": 1.2608735321242083E-06,
-          "p95": 2.86102294921875E-06
+          "mean": 0.0000012608735321242083,
+          "p95": 0.00000286102294921875
         },
         "qgMvar": {
           "count": 1568,
           "max": 0.010266721248626709,
-          "mean": 3.991607510382616E-05,
-          "p95": 1.7762184143066406E-05
+          "mean": 0.00003991607510382616,
+          "p95": 0.000017762184143066406
         },
         "branchTerminalPMw": {
           "count": 12330,
           "max": 0.0007445775395353849,
-          "mean": 1.347326351908942E-05,
-          "p95": 5.96872690721284E-05
+          "mean": 0.00001347326351908942,
+          "p95": 0.0000596872690721284
         },
         "branchTerminalQMvar": {
           "count": 12330,
@@ -231,14 +236,14 @@
         },
         "branchPLossMw": {
           "count": 6165,
-          "max": 7.547095765403355E-05,
-          "mean": 1.865732327084966E-06,
-          "p95": 6.473351760405421E-06
+          "max": 0.00007547095765403355,
+          "mean": 0.000001865732327084966,
+          "p95": 0.000006473351760405421
         },
         "branchQLossMvar": {
           "count": 6165,
           "max": 0.0010346323480305841,
-          "mean": 3.4530625779892094E-05,
+          "mean": 0.000034530625779892094,
           "p95": 0.00014892530308003834
         },
         "lossDefinition": "Both native and reference net branch losses are the sum of the two directed terminal powers, including charging and terminal shunts.",
@@ -270,7 +275,7 @@
         "idealLinkTerminalPMw": {
           "count": 1852,
           "max": 0.0007004354187358786,
-          "mean": 2.006677837402372E-05,
+          "mean": 0.00002006677837402372,
           "p95": 0.0001127411175900761
         },
         "idealLinkTerminalQMvar": {
@@ -290,8 +295,8 @@
         "localRegulatorSavedVmVsAbove1eMinus5": 9,
         "fixedWmodOutputQErrorMvar": {
           "count": 1102,
-          "max": 6.296352328405419E-14,
-          "mean": 1.929100658203319E-16,
+          "max": 6.296352328405419e-14,
+          "mean": 1.929100658203319e-16,
           "p95": 0
         },
         "knownRegulatorQLimitViolationMvar": {
@@ -312,7 +317,7 @@
         "reactiveLimitsEnabled": true,
         "maxIterations": 80,
         "maxQLimitRounds": 12,
-        "tolerancePu": 1E-06
+        "tolerancePu": 0.000001
       },
       "reference": {
         "method": "FNSL",
@@ -326,9 +331,9 @@
         "classification": "SOLVED_APPROXIMATE",
         "iterations": 1,
         "outerRounds": 0,
-        "toleranceMva": 9.999999999999999E-05,
-        "finalMaxPMismatchMw": 1.0120793092482927E-09,
-        "finalMaxQMismatchMvar": 5.018657711630681E-09,
+        "toleranceMva": 0.00009999999999999999,
+        "finalMaxPMismatchMw": 1.0120793092482927e-9,
+        "finalMaxQMismatchMvar": 5.018657711630681e-9,
         "initialEffectiveMismatch": {
           "maxPMw": 0.00187817794511025,
           "maxQMvar": 0.002238372316098544,
@@ -342,12 +347,12 @@
           {
             "phase": "NR_POLAR",
             "iteration": 0,
-            "residualPu": 2.238372316098544E-05
+            "residualPu": 0.00002238372316098544
           },
           {
             "phase": "NR_POLAR",
             "iteration": 1,
-            "residualPu": 5.018657711630681E-11
+            "residualPu": 5.018657711630681e-11
           }
         ],
         "diagnostics": {
@@ -360,16 +365,21 @@
               "dimension": 8199,
               "nnz": 53895,
               "ordering": "KLU_AMD",
-              "cscConversionMs": 0.9053000000003522,
-              "symbolicFactorMs": 3.908400000000256,
-              "numericFactorMs": 6.291799999999057,
-              "factorMs": 10.200199999999313,
-              "solveMs": 0.474900000001071,
+              "cscConversionMs": 0.5339999999996508,
+              "symbolicFactorMs": 2.2322000000003754,
+              "numericFactorMs": 1.907599999998638,
+              "factorMs": 4.139799999999013,
+              "solveMs": 0.1473999999998341,
               "rhsCount": 1,
               "factorizations": 1,
               "failureStage": "NONE",
               "failureMessage": null
             }
+          },
+          "initialMismatchPu": {
+            "p": 0.0000187817794511025,
+            "q": 0.00002238372316098544,
+            "max": 0.00002238372316098544
           },
           "lineSearchReductions": 0,
           "busCount": 6851,
@@ -394,7 +404,7 @@
           "idealLinkRecovery": {
             "method": "TREE_KCL_OR_MINIMUM_SOURCE_ABS_X",
             "cycleRank": 17,
-            "maxKclResidualMva": 1.4016292268111763E-09
+            "maxKclResidualMva": 1.4016292268111763e-9
           },
           "sourceSavedVoltageMismatchPreserved": true,
           "activeQLimitBusCount": 0
@@ -411,21 +421,21 @@
         "physicalBusKcl": {
           "pMw": {
             "count": 5029,
-            "max": 1.0120970728166867E-09,
-            "mean": 1.7915478739827508E-11,
-            "p95": 6.855671585981327E-11
+            "max": 1.0120970728166867e-9,
+            "mean": 1.7915478739827508e-11,
+            "p95": 6.855671585981327e-11
           },
           "qMvar": {
             "count": 5029,
-            "max": 5.018659265942915E-09,
-            "mean": 1.8614969527384354E-11,
-            "p95": 6.34591962311859E-11
+            "max": 5.018659265942915e-9,
+            "mean": 1.8614969527384354e-11,
+            "p95": 6.34591962311859e-11
           },
           "complexMva": {
             "count": 5029,
-            "max": 5.03905116637712E-09,
-            "mean": 3.063881845820708E-11,
-            "p95": 1.0212537578629977E-10
+            "max": 5.03905116637712e-9,
+            "mean": 3.063881845820708e-11,
+            "p95": 1.0212537578629977e-10
           }
         },
         "internalStarKcl": {
@@ -458,8 +468,8 @@
           "shuntQ": 10710.373656252963,
           "branchLossP": 900.8867326402469,
           "branchLossQ": -9483.605329297616,
-          "netPBalanceMw": -1.0331859812140465E-09,
-          "netQBalanceMvar": -1.4137185644358397E-08
+          "netPBalanceMw": -1.0331859812140465e-9,
+          "netQBalanceMvar": -1.4137185644358397e-8
         },
         "machineOutput": {
           "knownP": 43650.52482978176,
@@ -467,7 +477,7 @@
           "unavailableActiveP": 0,
           "unavailableActiveQ": 0,
           "completePAllocationResidualMw": 0,
-          "completeQAllocationResidualMvar": -6.821210263296962E-13
+          "completeQAllocationResidualMvar": -6.821210263296962e-13
         },
         "branchLossReconstruction": {
           "pMw": {
@@ -495,50 +505,50 @@
         "unavailableMachineQ": 0,
         "vmPu": {
           "count": 5029,
-          "max": 1.4487052788503263E-06,
-          "mean": 4.5967214281564506E-07,
-          "p95": 1.0317127825398842E-06
+          "max": 0.0000014487052788503263,
+          "mean": 4.5967214281564506e-7,
+          "p95": 0.0000010317127825398842
         },
         "vaDeg": {
           "count": 5029,
-          "max": 6.684960919756122E-05,
-          "mean": 1.6114539454847737E-05,
-          "p95": 3.815864135958691E-05
+          "max": 0.00006684960919756122,
+          "mean": 0.000016114539454847737,
+          "p95": 0.00003815864135958691
         },
         "pgMw": {
           "count": 1900,
           "max": 0.00042643273098086354,
-          "mean": 6.67967359769057E-07,
-          "p95": 1.6689300537109375E-06
+          "mean": 6.67967359769057e-7,
+          "p95": 0.0000016689300537109375
         },
         "qgMvar": {
           "count": 1900,
           "max": 0.004330339459855281,
-          "mean": 1.2852284867864322E-05,
-          "p95": 2.4884939193725586E-06
+          "mean": 0.000012852284867864322,
+          "p95": 0.0000024884939193725586
         },
         "branchTerminalPMw": {
           "count": 12244,
           "max": 0.0002783705864857211,
-          "mean": 6.569795960403359E-06,
-          "p95": 2.7634574197854533E-05
+          "mean": 0.000006569795960403359,
+          "p95": 0.000027634574197854533
         },
         "branchTerminalQMvar": {
           "count": 12244,
           "max": 0.002488169187138567,
-          "mean": 6.320165687312854E-05,
+          "mean": 0.00006320165687312854,
           "p95": 0.00023035906673030127
         },
         "branchPLossMw": {
           "count": 6122,
-          "max": 9.209658662712172E-05,
-          "mean": 1.7798765643145203E-06,
-          "p95": 6.177393530037989E-06
+          "max": 0.00009209658662712172,
+          "mean": 0.0000017798765643145203,
+          "p95": 0.000006177393530037989
         },
         "branchQLossMvar": {
           "count": 6122,
           "max": 0.0005126597445510583,
-          "mean": 2.9259752273828492E-05,
+          "mean": 0.000029259752273828492,
           "p95": 0.00012464738733797276
         },
         "lossDefinition": "Both native and reference net branch losses are the sum of the two directed terminal powers, including charging and terminal shunts.",
@@ -570,13 +580,13 @@
         "idealLinkTerminalPMw": {
           "count": 1856,
           "max": 0.00024046257479426458,
-          "mean": 9.0024520132076E-06,
-          "p95": 4.849924238214953E-05
+          "mean": 0.0000090024520132076,
+          "p95": 0.00004849924238214953
         },
         "idealLinkTerminalQMvar": {
           "count": 1856,
           "max": 0.001756570922516687,
-          "mean": 7.245103704487535E-05,
+          "mean": 0.00007245103704487535,
           "p95": 0.00037621937921983317
         }
       },
@@ -590,8 +600,8 @@
         "localRegulatorSavedVmVsAbove1eMinus5": 13,
         "fixedWmodOutputQErrorMvar": {
           "count": 1404,
-          "max": 4.869646352823054E-13,
-          "mean": 7.635180276878717E-16,
+          "max": 4.869646352823054e-13,
+          "mean": 7.635180276878717e-16,
           "p95": 0
         },
         "knownRegulatorQLimitViolationMvar": {
@@ -612,28 +622,28 @@
     "residualHistoryPu": [
       0.26000000012324875,
       0.002432261729473195,
-      4.88762883055216E-07,
-      1.8984813721090177E-14
+      4.88762883055216e-7,
+      1.8984813721090177e-14
     ],
     "physical": {
       "physicalBusKcl": {
         "pMw": {
           "count": 3,
-          "max": 1.3216094885137863E-12,
-          "mean": 5.873819948950162E-13,
-          "p95": 1.3216094885137863E-12
+          "max": 1.3216094885137863e-12,
+          "mean": 5.873819948950162e-13,
+          "p95": 1.3216094885137863e-12
         },
         "qMvar": {
           "count": 3,
-          "max": 1.8900436771218665E-12,
-          "mean": 6.323830348264892E-13,
-          "p95": 1.8900436771218665E-12
+          "max": 1.8900436771218665e-12,
+          "mean": 6.323830348264892e-13,
+          "p95": 1.8900436771218665e-12
         },
         "complexMva": {
           "count": 3,
-          "max": 2.306277680930468E-12,
-          "mean": 9.15624461628337E-13,
-          "p95": 2.306277680930468E-12
+          "max": 2.306277680930468e-12,
+          "mean": 9.15624461628337e-13,
+          "p95": 2.306277680930468e-12
         }
       },
       "internalStarKcl": {
@@ -666,8 +676,8 @@
         "shuntQ": 0,
         "branchLossP": 1.5303664602676754,
         "branchLossQ": 9.148342411887615,
-        "netPBalanceMw": -9.272582701669307E-13,
-        "netQBalanceMvar": -1.900701818158268E-12
+        "netPBalanceMw": -9.272582701669307e-13,
+        "netQBalanceMvar": -1.900701818158268e-12
       },
       "machineOutput": {
         "knownP": 157.53036646026675,

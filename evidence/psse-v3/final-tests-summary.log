@@ -1,0 +1,12 @@
+✔ Norton current injection superposes on radial voltage-source fault current (56.3528ms)
+✔ native machine base and explicit missing-machine assumptions remain separate (145.3238ms)
+✔ native capital voltage-source fields and MAX/MIN source snapshots are validated (95.6518ms)
+✔ fault YTM/search/voltage filtering retains all electrical sources and outside branches (1.9573ms)
+ℹ tests 870
+ℹ suites 0
+ℹ pass 870
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12234.4255

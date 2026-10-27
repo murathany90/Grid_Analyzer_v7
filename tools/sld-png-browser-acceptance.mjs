@@ -24,6 +24,7 @@ export async function offlinePngAcceptance(browser){
     await page.goto(pathToFileURL(resolve('dist-portable/GridAnalyzer_v7.html')).href);
     const raw=JSON.parse(await readFile('tests/fixtures/small-dgs.json','utf8')),site=raw.ElmSite,index=site.Attributes.indexOf('loc_name');for(const row of site.Values)row[index]='Çığ İstasyonu — Şönt / Trafo '+row[index];
     await page.locator('#modelFileInput').setInputFiles({name:'unicode-offline.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(raw))});
+    await page.waitForFunction(()=>document.querySelector('.ga-mode-card')?.textContent?.trim()==='DGS MODU'&&document.querySelector('.ga-head-model')?.textContent?.includes('unicode-offline.json')&&document.querySelector('.ga-busy')?.hidden===true);
     await page.locator('.ga-nav').getByRole('button',{name:'Tek Hat Şeması',exact:true}).click();await page.waitForSelector('.ga-sld-svg [data-physical-switch]');
     const result=await pngBrowserAcceptance(page);assert.match(result.svg.toString(),/Çığ İstasyonu/);assert.deepEqual(external,[]);assert.deepEqual(errors,[]);
     console.log('SLD offline file:// PNG/SVG PASS: full sheet after zoom, Unicode source, white background, colored content, no network.');

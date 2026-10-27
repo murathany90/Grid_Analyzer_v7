@@ -1,0 +1,59 @@
+{
+  "schema": "ga.psse.v3-ui.v1",
+  "channel": "msedge",
+  "urlScheme": "file:",
+  "viewport": {
+    "width": 1600,
+    "height": 1000
+  },
+  "status": "PASS",
+  "errors": [],
+  "externalRequests": [],
+  "captures": [
+    "full-ac.png",
+    "map-network-fit.png",
+    "tm-1.png",
+    "tm-2.png",
+    "tm-3.png",
+    "tm-4.png"
+  ],
+  "htmlSha256": "f2b0fa05d0463e580059ddc9cbce76c69ca95ceb481680ff2275771c59631d0a",
+  "acClassification": "SOLVED_APPROXIMATE",
+  "voltageGroups": [
+    "Tüm gerilimler",
+    "400 kV",
+    "220 kV",
+    "154 kV",
+    "66 kV",
+    "≤36 kV"
+  ],
+  "mapAspectRatio": 1.7420382165605095,
+  "stationCount": 1560,
+  "stations": [
+    {
+      "station": "3282",
+      "bars": 2,
+      "horizontal": true,
+      "feeders": 2
+    },
+    {
+      "station": "8377",
+      "bars": 4,
+      "horizontal": true,
+      "feeders": 3
+    },
+    {
+      "station": "8243",
+      "bars": 4,
+      "horizontal": true,
+      "feeders": 4
+    },
+    {
+      "station": "5226",
+      "bars": 1,
+      "horizontal": true,
+      "feeders": 4
+    }
+  ],
+  "browserVersion": "156.0.4314.50"
+}

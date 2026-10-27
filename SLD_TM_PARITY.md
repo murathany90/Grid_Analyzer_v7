@@ -1,0 +1,7 @@
+# TM single-line milestone and remaining acceptance
+
+The PSS/E SLD now selects source TM membership, rather than presenting an adjacency chain as a station. Selection uses source ISUB or a unique exact source name; ambiguous or unmatched buses are not assigned heuristically. YTM/AREA, TM, voltage group, BM/BusOWNER and service filters remain separate.
+
+Each selected physical bus has a separate horizontal bar, high voltage above lower voltage, with a single <=36kV group. Connections use orthogonal routes; external lines terminate as named feeders rather than invented physical remote busbars. Existing DGS engineering symbols and shared voltage colours are reused. Calculated Vm/Va and terminal P/Q are linked by result identity. No breakers or disconnectors are invented.
+
+Chrome offline captured four distinct actual stations at1600x1000 and checked horizontal bars, source station identity and outside feeders. Screenshots remain local under `private-re/v3-ui/chrome/`. This initial sample is not the requested complete category matrix. Both supplied real SAVs contain zero3W transformers; 3W equations are verified with a public synthetic fixture. A real3W TM comparison cannot be certified from these two models. DGS ADATOPRAKPINAR visual comparison and full collision/label refinement remain pending. The deliverable must be described as a TM-layout milestone, not completed DGS visual parity.

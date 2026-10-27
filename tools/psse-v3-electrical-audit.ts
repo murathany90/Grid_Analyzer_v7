@@ -11,6 +11,7 @@ import {buildPsseYbus} from '../src/analysis/psse/ybus';
 import {applyPsseFixedControls,preparePsseAcReduction} from '../src/analysis/psse/ac-reduction';
 import type {PsseBusBranchNetwork} from '../src/domain/psse/network';
 import type {PsseCalculationResult} from '../src/domain/psse/results';
+if(process.argv.length<3)throw Error('Usage: node --import tsx tools/psse-v3-electrical-audit.ts SOURCE.sav [SOURCE.sav ...]');
 
 const options={initialVoltagePolicy:'SOURCE_SAVED' as const,reactiveLimitsEnabled:true,maxIterations:80,maxQLimitRounds:12,tolerancePu:1e-6};
 const referenceHash='414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981';

@@ -1,3 +1,7 @@
+# V3 WIP - çalışan yaklaşık AC aşaması
+
+Bu paket iki gerçek SAV için bağımsız Full AC NR çözümünü içerir. Sonuç `SOLVED_APPROXIMATE` olur: uzak Q ve bazı kaynak gerilim kontrolleri sabit tutulur. 6.875 baralı model FDNS sıkı toleransında henüz yakınsamaz. Tam DGS görsel kabulü ve ileri kontroller tamamlanmamıştır. Altı V3 raporu ve agent handoff dosyası kalan işleri açıklar. Chrome/Edge içinde `index.html` dosyasını açın; internet/Python/PSS/E çalışma zamanı gerekmez. Gerçek model dosyaları pakette bulunmaz; kendi SAV/RAW/ZIP dosyanızı yükleyin.
+
 # Grid Analyzer · Çevrimdışı PSS/E ve DGS çalışma kitabı
 
 ZIP'i çıkarın ve `index.html` dosyasını Chrome veya Edge'de açın. İnternet, sunucu, Python veya yüklü PSS/E gerekmez. Uygulama `file://` üzerinden çalışır; ağ bağlantısı kapalı CSP kullanır, hesapları yerel Blob worker'larda yürütür ve model dosyasını servise göndermez.
