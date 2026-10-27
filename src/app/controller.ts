@@ -19,7 +19,10 @@ import {normalizePsseBusBranch} from '../domain/psse/network';
 import {hashPsseSidecars} from '../importers/psse/attachments';
 import {createPsseScenario,type PsseScenarioOperation} from '../domain/psse/scenario';
 import {auditPsseCapability} from '../domain/psse/capability';
-import {pssePublicationMessage,pssePublicationStatus} from '../domain/psse/results';
+import {isCurrentPsseResult,pssePublicationMessage,pssePublicationStatus} from '../domain/psse/results';
+import {psseOptionsHash} from '../domain/psse/identity';
+import {DEFAULT_PSSE_AC_OPTIONS,effectivePsseNetwork} from '../analysis/psse/newton';
+import {DEFAULT_PSSE_DC_OPTIONS} from '../analysis/psse/dc';
 import { unpackResult,type PackedResult } from '../workers/result-codec';
 import { logger } from '../analysis/diagnostics/logger';
 import { planEnergization,applyEnergization } from '../topology/energization';
@@ -276,6 +279,7 @@ export class Application implements AppContext {
     try{
       const result=await this.psseCalculationWorker.request({model,network,scenario,method,options,progress:event=>{if(job===this.job){this.status=`PSS/E ${method} · ${event.phase} · adım ${event.iteration+1}${event.residualPu===null?'':` · artık ${event.residualPu.toExponential(2)}`}`;this.notify();}}});
       if(job!==this.job||this.psseInspection!==model||this.psseNetwork!==network||this.psseScenario?.hash!==scenario.hash)return;
+      if(!isCurrentPsseResult(result,{sourceSha256:model.source.sha256,network,effectiveNetwork:effectivePsseNetwork(network,scenario),scenario,method,optionsHash:psseOptionsHash({...(method==='LOSSLESS_DC'?DEFAULT_PSSE_DC_OPTIONS:DEFAULT_PSSE_AC_OPTIONS),...options})}))throw new PsseCalculationWorkerError('PSSE_RESULT_IDENTITY_MISMATCH: current engine/source/model/topology/scenario/method/options required.',method,'RESULT_IDENTITY',null);
       this.psseCalculation=result;const mismatch=result.maxPMismatchPu===null?'':` · ΔP ${result.maxPMismatchPu.toExponential(2)} pu${result.maxQMismatchPu===null?'':` · ΔQ ${result.maxQMismatchPu.toExponential(2)} pu`}`;this.status=`PSS/E ${method} · ${pssePublicationStatus(result)} · ${result.physicsCoverage} physics · ${result.iterations} adım · ${result.elapsedMs.toFixed(0)} ms · ${pssePublicationMessage(result)}${mismatch}`;
     }catch(error){
       if(job===this.job){const detail=error instanceof PsseCalculationWorkerError?error:null,message=error instanceof Error?error.message:String(error);this.psseWorkerError={method:detail?.method??method,phase:detail?.phase??'MAIN_THREAD',message,workerStack:detail?.workerStack??(error instanceof Error?error.stack??null:null),sourceSha256:model.source.sha256,modelHash:network.modelHash,scenarioHash:scenario.hash};this.status=`PSS/E ${method} · ${this.psseWorkerError.phase} error · ${message}`;}

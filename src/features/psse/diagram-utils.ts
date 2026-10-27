@@ -1,7 +1,7 @@
 import type {AppContext} from '../../app/contracts';
 import type {PsseBus,PsseBranch,PsseBusBranchNetwork} from '../../domain/psse/network';
 import type {PsseCalculationResult,PsseBranchResult} from '../../domain/psse/results';
-import {pssePublicationStatus} from '../../domain/psse/results';
+import {isCurrentPsseResult,pssePublicationStatus} from '../../domain/psse/results';
 import type {PsseEquipment,PsseModel} from '../../importers/psse/types';
 import {effectivePsseNetwork} from '../../analysis/psse/newton';
 import {button,element} from '../../ui/components/dom';
@@ -17,9 +17,8 @@ export interface PsseDiagramSnapshot {base:PsseBusBranchNetwork;network:PsseBusB
 export function getPsseDiagramSnapshot(ctx:AppContext):PsseDiagramSnapshot|null{
  const base=ctx.psseNetwork,model=ctx.psseInspection,scenario=ctx.psseScenario;if(!base||!model||!scenario)return null;
  if(scenario.networkHash!==base.modelHash)return null;
- const last=ctx.psseCalculation??null,identity=last?.identity;
- const calculation=last&&last.source==='GA_PSSE_CALCULATED'&&last.status==='CONVERGED'&&last.physicsCoverage!=='BLOCKED'&&identity?.mode==='PSSE'&&identity.modelHash===base.modelHash&&identity.normalizedModelHash===base.modelHash&&identity.scenarioHash===scenario.hash&&identity.sourceSha256===model.source.sha256?last:null;
- try{return{base,network:effectivePsseNetwork(base,scenario),model,scenario,calculation,lastCalculation:last};}catch{return null;}
+ const last=ctx.psseCalculation??null;
+ try{const network=effectivePsseNetwork(base,scenario),calculation=isCurrentPsseResult(last,{sourceSha256:model.source.sha256,network:base,effectiveNetwork:network,scenario})&&last.status==='CONVERGED'&&last.physicsCoverage!=='BLOCKED'?last:null;return{base,network,model,scenario,calculation,lastCalculation:last};}catch{return null;}
 }
 export type PsseEquipmentIndex=ReadonlyMap<string,PsseEquipment>;
 export function busSourceEquipment(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){if(!bus.sourceEquipmentId)return null;return index?.get(bus.sourceEquipmentId)??model.equipment.find(item=>item.id===bus.sourceEquipmentId)??null;}
