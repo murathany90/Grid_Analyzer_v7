@@ -6,7 +6,9 @@ export interface VoltageFilterTarget { voltages: Set<VoltageBand>; onCommit(): v
 /** Shared selection and classification for every engineering view. */
 export function createVoltageFilter(ctx: AppContext, name = 'Gerilim grupları', compact=false,preserveSelection=false) {
   return createVoltageFilterFor({
-    voltages: ctx.filters.voltages,
+    // Resolved per access: controller replaces the whole `filters` object on
+    // every model load, so a captured Set reference would go stale.
+    get voltages() { return ctx.filters.voltages; },
     onCommit() { ctx.filters.siteId = ''; if (!preserveSelection) ctx.selection = null; ctx.notify(); },
   }, name, compact);
 }

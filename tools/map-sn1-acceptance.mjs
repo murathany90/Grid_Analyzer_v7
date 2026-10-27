@@ -91,6 +91,8 @@ try{
     resultId=await page.locator('.ga-map-view').getAttribute('data-result-id');
   }
   check('LF result present on SN1',runCount>=1&&resultId!=='NOT_RUN',`runs=${runCount} id=${resultId?.slice(0,14)}`);
+  const engineeringBefore=await page.locator('.ga-map-status-details').textContent();
+  const analysisSiteBefore=await page.locator('.ga-map-view').getAttribute('data-analysis-site-id');
   await ytmSummary.click();
   const boxes=page.locator('.ga-map-view .ga-area-menu .ga-area-list input');
   const n=await boxes.count();
@@ -109,6 +111,8 @@ try{
   check('display-filter churn triggers zero extra solver runs',runAfter===runCount,`runs=${runAfter}`);
   check('result identity unchanged after churn',resultAfter===resultId);
   check('computed LF result still displayed after churn',/NR yakınsadı/.test(await page.locator('.ga-map-status [role=status]').textContent()));
+  check('engineering detail values (Newton/iterations) unchanged after churn',await page.locator('.ga-map-status-details').textContent()===engineeringBefore);
+  check('analytical filters.siteId untouched by SN1 map churn',await page.locator('.ga-map-view').getAttribute('data-analysis-site-id')===analysisSiteBefore);
   await page.locator('.ga-map-view').screenshot({path:path.join(outDir,'sn1-after-churn.png')});
   check('no page errors on SN1',errors.length===0,errors.slice(0,3).join(' | '));
   await writeFile(path.join(outDir,'proof.json'),JSON.stringify({model:path.basename(model),importSeconds,results,areaCount,labels:{national:nationalLabels,dense:denseLabels},timestamp:new Date().toISOString()},null,2));
