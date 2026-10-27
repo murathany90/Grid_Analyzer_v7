@@ -36,11 +36,20 @@ try{
   const page=await context.newPage();page.setDefaultTimeout(300000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(url);
+  // --- model load cancellation: input must be re-usable for the identical file ---
+  await page.locator('#modelFileInput').setInputFiles(model);
+  await page.getByRole('button',{name:'Model yüklemesini iptal et'}).waitFor({state:'visible',timeout:20000});
+  await page.getByRole('button',{name:'Model yüklemesini iptal et'}).click();
+  await page.waitForTimeout(400);
+  check('cancel stops the model load and clears the busy state',!/İşleniyor/.test(await page.locator('footer [role=status]').textContent()));
+  check('cancel clears the file input so the identical file can be re-picked',await page.locator('#modelFileInput').evaluate(el=>el.value===''));
   const started=Date.now();
   await page.locator('#modelFileInput').setInputFiles(model);
   await page.waitForFunction(()=>Boolean(document.querySelector('.ga-head-model')?.textContent?.trim()),null,{timeout:600000});
   const importSeconds=(Date.now()-started)/1000;
   check('SN1 model imported',true,`${importSeconds.toFixed(1)} s`);
+  check('SN1 model header carries the new model identity',/SN1/.test(await page.locator('.ga-head-model').textContent()));
+  check('SN1 interface handles the full 1.625 TM model',/1[.,]625 TM/.test(await page.locator('.ga-head-model').textContent()),(await page.locator('.ga-head-model').textContent())?.slice(0,40));
   await page.getByRole('button',{name:'Harita',exact:true}).click();
   await page.locator('.ga-map-wrap').waitFor();
   await page.waitForTimeout(1500);

@@ -31,17 +31,19 @@ test('counter label covers Tümü / Yok / n/N states deterministically',()=>{
   assert.equal(mapAreaScopeLabel({areaMode:'NONE',areaIds:[]},10),'Yok');
   assert.equal(mapAreaScopeLabel({areaMode:'SELECTED',areaIds:['a','b']},10),'2/10');
 });
-test('mapScopeKey is order-insensitive, separates mode/ids/voltages and includes the map TM scope',()=>{
-  const a=mapScopeKey({areaMode:'SELECTED',areaIds:['b','a'],voltages:new Set(['154','400']),siteId:''});
-  const b=mapScopeKey({areaMode:'SELECTED',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:''});
+test('mapScopeKey is order-insensitive, separates mode/ids/voltages and includes the map TM + capacity scopes',()=>{
+  const a=mapScopeKey({areaMode:'SELECTED',areaIds:['b','a'],voltages:new Set(['154','400']),siteId:'',capacitySeason:'inherit'});
+  const b=mapScopeKey({areaMode:'SELECTED',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:'',capacitySeason:'inherit'});
   assert.equal(a,b);
-  assert.notEqual(a,mapScopeKey({areaMode:'SELECTED',areaIds:['a'],voltages:new Set(['400','154']),siteId:''}));
-  assert.notEqual(a,mapScopeKey({areaMode:'ALL',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:''}));
+  assert.notEqual(a,mapScopeKey({areaMode:'SELECTED',areaIds:['a'],voltages:new Set(['400','154']),siteId:'',capacitySeason:'inherit'}));
+  assert.notEqual(a,mapScopeKey({areaMode:'ALL',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:'',capacitySeason:'inherit'}));
   // The map TM scope participates in cache keys, the analytical siteId does not.
-  assert.notEqual(a,mapScopeKey({areaMode:'SELECTED',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:'TM9'}));
+  assert.notEqual(a,mapScopeKey({areaMode:'SELECTED',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:'TM9',capacitySeason:'inherit'}));
+  // The map-only capacity display choice participates; it never touches the engineering session.
+  assert.notEqual(a,mapScopeKey({areaMode:'SELECTED',areaIds:['a','b'],voltages:new Set(['400','154']),siteId:'',capacitySeason:'summer'}));
 });
 test('model change resets the display scope; study restore seeds SELECTED+TM without mutating filters',()=>{
-  const stale={areaMode:'SELECTED' as const,areaIds:['old-area'],voltages:new Set(['154']),siteId:'OLD_TM'};
+  const stale={areaMode:'SELECTED' as const,areaIds:['old-area'],voltages:new Set(['154']),siteId:'OLD_TM',capacitySeason:'inherit' as const};
   const fresh=initialMapDisplayFilters();
   assert.notDeepEqual(fresh.areaIds,stale.areaIds);assert.equal(fresh.areaMode,'ALL');assert.equal(fresh.areaIds.length,0);assert.equal(fresh.siteId,'');
   const filters={areaId:'study-area',siteId:'TM1',voltages:allVoltageBands(),search:'q'};

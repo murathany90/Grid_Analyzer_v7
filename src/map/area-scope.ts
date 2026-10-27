@@ -2,7 +2,7 @@ import { allVoltageBands } from '../domain/model/voltage-band';
 import type { MapDisplayFilters } from '../app/contracts';
 /** Initial map-only display scope: every YTM and voltage band visible. */
 export function initialMapDisplayFilters(): MapDisplayFilters {
-  return { areaMode: 'ALL', areaIds: [], voltages: allVoltageBands(), siteId: '' };
+  return { areaMode: 'ALL', areaIds: [], voltages: allVoltageBands(), siteId: '', capacitySeason: 'inherit' };
 }
 /**
  * Tri-state YTM display scope. ALL shows every area, NONE shows none
@@ -21,9 +21,9 @@ export function scopeAreaFilter(scope: Pick<MapDisplayFilters, 'areaMode' | 'are
   const set = new Set(scope.areaIds);
   return areaId => set.has(areaId);
 }
-/** Cache-key stable serialization of the map display scope (including the map TM scope). */
+/** Cache-key stable serialization of the map display scope (including the map TM scope and capacity display choice). */
 export function mapScopeKey(scope: MapDisplayFilters): string {
-  return scope.areaMode + '|' + [...scope.areaIds].sort().join(',') + '|' + [...scope.voltages].sort().join(',') + '|' + scope.siteId;
+  return scope.areaMode + '|' + [...scope.areaIds].sort().join(',') + '|' + [...scope.voltages].sort().join(',') + '|' + scope.siteId + '|' + scope.capacitySeason;
 }
 /** Counter text for the YTM menu summary: Tümü / Yok / n/N. */
 export function mapAreaScopeLabel(scope: Pick<MapDisplayFilters, 'areaMode' | 'areaIds'>, total: number): string {
@@ -36,5 +36,5 @@ export function mapAreaScopeLabel(scope: Pick<MapDisplayFilters, 'areaMode' | 'a
  * map without touching `filters` (calculation scope stays untouched).
  */
 export function mapDisplayForStudy(ytmId: string, tmId?: string): MapDisplayFilters {
-  return { areaMode: ytmId ? 'SELECTED' : 'ALL', areaIds: ytmId ? [ytmId] : [], voltages: allVoltageBands(), siteId: tmId ?? '' };
+  return { areaMode: ytmId ? 'SELECTED' : 'ALL', areaIds: ytmId ? [ytmId] : [], voltages: allVoltageBands(), siteId: tmId ?? '', capacitySeason: 'inherit' };
 }

@@ -7,8 +7,8 @@ import {mapStatusText,mapStatusDetail} from './layer-policy';
 import {fullAcDiagnostics} from '../domain/results/diagnostics';
 import {createVoltageFilterFor} from '../ui/components/voltage-filter';
 import {createMapAreaFilter} from '../ui/components/area-filter';
-import {capacitySession,setCapacitySeason,type CapacitySeason} from '../domain/model/capacity';
-import type {AppContext,Feature} from '../app/contracts';
+import {capacitySession} from '../domain/model/capacity';
+import type {AppContext,Feature,MapCapacitySeason} from '../app/contracts';
 import {element,button,escapeHtml as h} from '../ui/components/dom';
 import {CanvasMapRenderer} from './canvas-renderer';
 import {createScBusPopup} from './sc-bus-popup';
@@ -28,7 +28,7 @@ export function createMapView(ctx:AppContext):Feature{
   const layout=element('select'),role=element('select'),search=element('input'),capacity=element('select'),deltaMetric=element('select');
   layout.setAttribute('aria-label','Hat yerleşimi');layout.dataset.helpId='map.layout';layout.innerHTML='<option value="standard">Standart</option><option value="separated">Ayrık hatlar</option>';
   role.setAttribute('aria-label','Sonuç göster');role.dataset.helpId='map.scenario';role.innerHTML='<option value="base">Baz</option><option value="scenario">Senaryo</option><option value="delta">Fark</option>';
-  capacity.setAttribute('aria-label','Harita kapasite sınırı');capacity.dataset.helpId='map.capacity';capacity.innerHTML='<option value="nominal">DGS nominal kapasite</option><option value="summer">Yaz kapasitesi</option><option value="winter">Kış kapasitesi</option><option value="operational">İşletme adayı (doğrulanmamış)</option>';
+  capacity.setAttribute('aria-label','Harita kapasite sınırı');capacity.dataset.helpId='map.capacity';capacity.innerHTML='<option value="inherit">Mühendislik oturumu</option><option value="nominal">Görüntüleme: DGS nominal kapasite</option><option value="summer">Görüntüleme: Yaz kapasitesi</option><option value="winter">Görüntüleme: Kış kapasitesi</option><option value="operational">Görüntüleme: İşletme adayı</option>';capacity.title='Yalnız harita yüklenme paydası; mühendislik kapasite oturumunu Kapasite görünümünden değiştirin.';
   deltaMetric.setAttribute('aria-label','Fark metriği');deltaMetric.dataset.helpId='map.scenarioDelta';deltaMetric.innerHTML='<option value="p">Fark: ΔP</option><option value="q">Fark: ΔQ</option><option value="v">Fark: ΔV</option><option value="loading">Fark: ΔYük %</option>';
   search.placeholder='Hat adı / FID';search.setAttribute('aria-label','Haritada hat ara');search.dataset.helpId='map.search';search.type='search';
   const flag=(text:string,checked:boolean,action:(v:boolean)=>void)=>{const label=element('label','ga-check'),input=element('input');input.type='checkbox';input.checked=checked;input.onchange=()=>action(input.checked);label.append(input,document.createTextNode(text));return{label,input};};
@@ -46,7 +46,7 @@ export function createMapView(ctx:AppContext):Feature{
   tools.append(benchmarkControls.metricControl,benchmarkControls.caseControl,flow.label,sites.label,labels.label,simple.label,searchGroup,calc,refresh,fit,fullscreen,benchmarkControls.element);
   search.onkeydown=e=>{if(e.key==='Enter')find.click();};
   layout.onchange=()=>{ctx.settings.update({layoutMode:layout.value as 'standard'|'separated'});ctx.notify();};
-  capacity.onchange=()=>{if(ctx.network){setCapacitySeason(ctx.network.modelHash,capacity.value as CapacitySeason);ctx.notify();}};
+  capacity.onchange=()=>{if(ctx.network){ctx.mapDisplay.capacitySeason=capacity.value as MapCapacitySeason;ctx.notify();}};
   role.onchange=()=>{ctx.resultStore.role=role.value as 'base'|'scenario'|'delta';if(ctx.resultView.analysis==='LF'){ctx.resultView.source=role.value==='delta'?'Senaryo−Baz':'GA';ctx.resultView.phase=role.value==='base'?'PRE':role.value==='delta'?'CHANGE':'POST';}ctx.benchmarkMap=workspaceMapSelection(ctx);ctx.notify();};
   deltaMetric.onchange=()=>{ctx.settings.update({deltaMetric:deltaMetric.value as Settings['deltaMetric']});ctx.notify();};
   function closeMenus(){root.querySelectorAll<HTMLDetailsElement>('.ga-map-menu[open]').forEach(menu=>{menu.open=false;});}
@@ -60,12 +60,12 @@ export function createMapView(ctx:AppContext):Feature{
   const resize=()=>{if(ctx.view==='map'){fitViewport();renderer.render();}},fullscreenChanged=()=>{fullscreen.textContent=document.fullscreenElement===root?'Çık':'Tam ekran';fullscreen.setAttribute('aria-label',fullscreen.textContent);fullscreen.title=fullscreen.textContent;resize();renderer.render();};
   window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',fullscreenChanged);
   function render(){
-    root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.runCount=String(ctx.stats.runs);root.dataset.areaScope=ctx.mapDisplay.areaMode;root.dataset.mapSiteId=ctx.mapDisplay.siteId;root.dataset.analysisSiteId=ctx.filters.siteId;
+    root.dataset.scenarioId=ctx.scenario.selectedId;root.dataset.resultId=activeResultId(ctx)??'NOT_RUN';root.dataset.runCount=String(ctx.stats.runs);root.dataset.areaScope=ctx.mapDisplay.areaMode;root.dataset.mapSiteId=ctx.mapDisplay.siteId;root.dataset.analysisSiteId=ctx.filters.siteId;root.dataset.capacitySeason=ctx.mapDisplay.capacitySeason;root.dataset.sessionCapacitySeason=ctx.network?capacitySession(ctx.network.modelHash).season:'nominal';
     if(ctx.view!=='map'){closeMenus();panel.close();renderer.render();return;}
     const n=ctx.network;benchmarkControls.render();
     if(n?.modelHash!==modelHash){modelHash=n?.modelHash||'';areaFilter.setAreas([...new Map(n?.sites.map(s=>[s.areaId,s.areaName])||[])].map(([id,name])=>({id,name})));renderer.reset();}
     statusText.textContent=ctx.busy?'İşleniyor… · '+ctx.status:mapStatusText(ctx);statusBar.dataset.analysis=ctx.resultView.analysis;statusBody.replaceChildren(element('p','',ctx.status));for(const line of mapStatusDetail(ctx))statusBody.append(element('p','ga-muted',line));if(ctx.resultView.analysis==='LF'){const r=ctx.resultStore.active;if(r){const p=fullAcDiagnostics(r);statusBody.append(element('p','',`Newton toplam: ${p.newtonIterations??'—'} · Son tur: ${p.finalNewtonIterations??'—'} · NR çözümü: ${p.fullNrSolves??'—'}`));for(const warning of r.warnings.slice(0,6))statusBody.append(element('p','',warning));}}fitViewport();voltageFilter.render();areaFilter.render();
-    capacity.value=n?capacitySession(n.modelHash).season:'nominal';layout.value=ctx.settings.value.layoutMode;role.value=ctx.resultStore.role;flow.input.checked=ctx.settings.value.flowDefault;layout.title=layout.selectedOptions[0]?.textContent??'';role.title=role.selectedOptions[0]?.textContent??'';
+    capacity.value=n?ctx.mapDisplay.capacitySeason:'inherit';capacity.title=capacity.selectedOptions[0]?.textContent??capacity.title;layout.value=ctx.settings.value.layoutMode;role.value=ctx.resultStore.role;flow.input.checked=ctx.settings.value.flowDefault;layout.title=layout.selectedOptions[0]?.textContent??'';role.title=role.selectedOptions[0]?.textContent??'';
     scenarioChip.textContent=(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' · '+(activeResultId(ctx)?ctx.resultView.analysis:'Sonuç yok');
     scenarioChip.disabled=!n;deltaControl.hidden=ctx.settings.value.displayMode!=='delta';deltaMetric.value=ctx.settings.value.deltaMetric;
     empty.hidden=ctx.mapDisplay.voltages.size>0&&ctx.mapDisplay.areaMode!=='NONE';
