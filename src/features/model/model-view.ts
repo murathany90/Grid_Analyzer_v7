@@ -1,5 +1,5 @@
 import {DgsSemanticDictionary} from '../../domain/dgs-semantics/classes';
-import {inspectModelFile,type ModelEntry} from '../../importers/model-file';
+import {inspectModelFile,isDgsModelJson,type ModelEntry} from '../../importers/model-file';
 import type { AppContext, Feature } from '../../app/contracts';
 import { element, button, csvCell, downloadText, format } from '../../ui/components/dom';
 import {createPsseView} from '../psse/psse-view';
@@ -78,10 +78,12 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     choose.disabled = true;
     loading.textContent = `Yükleniyor · ${selectedFiles[0].name}`;
     try {
-      const archive=await inspectModelFile(selectedFiles[0],{extensions:['json','sav','raw','rawx']});
-      const entry=archive.entries.length===1?archive.entries[0]:await selectEntry(archive.entries);
+      const archive=await inspectModelFile(selectedFiles[0],{extensions:['json','sav','raw','rawx']}),entries:ModelEntry[]=[],cached=new Map<ModelEntry,File>();
+      for(const candidate of archive.entries){if(candidate.name.toLowerCase().endsWith('.json')){const json=await archive.extract(candidate);if(!await isDgsModelJson(json))continue;cached.set(candidate,json);}entries.push(candidate);}
+      if(!entries.length)throw new Error('Seçilen JSON bir DGS tablosu değil; envanter JSON dosyaları PSS/E RAWX değildir. Gerçek PSS/E modelini SAV, RAW veya RAWX olarak açın.');
+      const entry=entries.length===1?entries[0]:await selectEntry(entries);
       if(!entry||generation!==loadGeneration)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
-      const file=await archive.extract(entry);if(generation!==loadGeneration)return;await ctx.loadFiles([file]);
+      const file=cached.get(entry)??await archive.extract(entry);if(generation!==loadGeneration)return;const psse=/\.(sav|raw|rawx)$/i.test(file.name),sidecars=psse?await Promise.all(archive.attachments.map(async attachment=>({archiveName:attachment.name,file:await archive.extract(attachment)}))):[];if(generation!==loadGeneration)return;await ctx.loadFiles([file],sidecars);
     } catch (error) {
       ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
     } finally {

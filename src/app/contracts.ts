@@ -23,9 +23,13 @@ export interface AppContext {
   modelMode:'NONE'|'DGS'|'PSSE';
   /** Inspection-only source model; never passed to the DGS solver. */
   psseInspection?:import('../importers/psse/types').PsseModel|null;
+  /** Opaque, byte-preserved ZIP companions keyed to the decoded PSS/E source hash. */
+  psseAttachments?:import('../importers/psse/attachments').PsseAttachmentBundle|null;
   psseNetwork?:import('../domain/psse/network').PsseBusBranchNetwork|null;
   psseScenario?:import('../domain/psse/scenario').PsseScenario|null;
   psseCalculation?:import('../domain/psse/results').PsseCalculationResult|null;
+  /** A worker exception, distinct from a structured BLOCKED / NON_CONVERGED result. */
+  psseWorkerError?:{method:'NR_POLAR'|'FDNS_XB'|'LOSSLESS_DC'|'UNKNOWN';phase:string;message:string;workerStack:string|null;sourceSha256:string;modelHash:string;scenarioHash:string}|null;
   psseInventoryKind?:import('../importers/psse/types').PsseKind;
   networkModelTab?:'summary'|'inventory'|'operating'|'quality';
   networkInventoryClass?:string;
@@ -74,7 +78,7 @@ export interface AppContext {
   busy: boolean; status: string; view: string;
   subscribe(fn: () => void): () => void;
   notify(): void; setView(view: string): void;
-  loadFiles(files: FileList | File[]): Promise<void>;
+  loadFiles(files: FileList | File[],psseSidecars?:readonly import('../importers/psse/attachments').PsseSidecarInput[]): Promise<void>;
   loadPowerFactoryControlContext(file: File): Promise<void>;
   run(type: AnalysisType, requestedRole?: 'base'|'scenario'): Promise<void>; cancel(): void;
   runPsseCalculation(method:'NR_POLAR'|'FDNS_XB'|'LOSSLESS_DC',options?:Record<string,unknown>):Promise<void>;

@@ -31,6 +31,8 @@ export function busZone(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){r
 export function busVoltage(bus:PsseBus){return Number.isFinite(bus.baseKv)?bus.baseKv:null;}
 export function voltageGroupKey(baseKv:number|null){return baseKv===null||!Number.isFinite(baseKv)?'unknown':String(baseKv);}
 export function voltageLabel(baseKv:number|null,digits=0){return baseKv===null||!Number.isFinite(baseKv)?'kV bilinmiyor':`${fmt(baseKv,digits)} kV`;}
+/** Explicit low-voltage group: physical levels at or below 36 kV; unknown is excluded. */
+export function isLowVoltageGroup(baseKv:number|null){return baseKv!==null&&Number.isFinite(baseKv)&&baseKv<=36;}
 export function busSavedVoltage(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){const e=busSourceEquipment(bus,model,index),raw=e?.operating.vm?.value;return typeof raw==='number'&&Number.isFinite(raw)?raw:bus.initialVm;}
 export function busSavedAngle(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){const e=busSourceEquipment(bus,model,index),raw=e?.operating.va?.value;return typeof raw==='number'&&Number.isFinite(raw)?raw:bus.initialVaDeg;}
 export function matchesStatus(status:number,filter:'all'|'in'|'out'){return filter==='all'||(filter==='in'?status===1:status===0);}
@@ -57,6 +59,13 @@ export function ringLayout(indices:number[],depths:Map<number,number>,center:num
  const byDepth=new Map<number,number[]>();for(const index of indices){const depth=depths.get(index)??1;(byDepth.get(depth)??(byDepth.set(depth,[]),byDepth.get(depth)!)).push(index);}
  const positions=new Map<number,{x:number;y:number}>(),cx=width/2,cy=height/2;positions.set(center,{x:cx,y:cy});
  for(const [depth,items]of byDepth){if(depth===0)continue;const maxRadius=Math.min(width,height)*.43,radial=Math.max(68,maxRadius*(.44+.18*Math.min(depth,3))),start=-Math.PI/2;items.forEach((index,i)=>{const angle=start+(i/items.length)*Math.PI*2;positions.set(index,{x:cx+Math.cos(angle)*radial,y:cy+Math.sin(angle)*radial});});}
+ return positions;
+}
+/** Deterministic, non-geographic feeder lanes for a small SLD neighborhood. */
+export function feederLayout(indices:number[],depths:Map<number,number>,network:PsseBusBranchNetwork,width:number,height:number){
+ const layers=new Map<number,number[]>();for(const index of indices){const depth=depths.get(index)??0;(layers.get(depth)??(layers.set(depth,[]),layers.get(depth)!)).push(index);}
+ const maxDepth=Math.max(0,...layers.keys()),positions=new Map<number,{x:number;y:number}>(),left=180,right=width-165,top=96,bottom=142;
+ for(const [depth,items]of layers){items.sort((a,b)=>{const left=network.buses[a],rightBus=network.buses[b];return(left.externalNumber??Number.MAX_SAFE_INTEGER)-(rightBus.externalNumber??Number.MAX_SAFE_INTEGER)||left.id.localeCompare(rightBus.id);});const x=maxDepth===0?width/2:left+(right-left)*depth/maxDepth,spacing=(height-top-bottom)/(items.length+1);items.forEach((index,i)=>positions.set(index,{x,y:top+spacing*(i+1)}));}
  return positions;
 }
 export function createEquipmentDialog(host:HTMLElement){
