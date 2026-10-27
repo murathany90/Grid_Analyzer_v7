@@ -1,14 +1,16 @@
 # Agent handoff
 
-## V3 fresh session in progress (2026-10-27)
+## V3 working AC checkpoint (2026-10-27)
 
-- Verified starting SHA: `6c9e67be5c9603758943fcb7bccc5dbde67fbd0a`, branch `fix/psse-v1-real-model-parity`; initial remote fetch matches.
-- Fresh baseline: typecheck and all860 unit/regression tests passed.
-- Fresh YTBS source dictionary/coordinate audit for both original SAVs: see `YTBS_AREA_ZONE_OWNER_MAPPING.md` and `evidence/psse-v3/mapping-*.json`.
-- Last verified remote checkpoint: `b212cf83ce1ece241f0a7247968043fd6b80c1ea`; GitHub CI run40576084224 succeeded.
-- Licensed reference matrix and nine tiny controller replays completed: see `docs/psse-v3/AC_REFERENCE_HANDOFF.md`. Both full SAVs have a converged FNSL reference; strict FDNS failures remain explicitly recorded.
-- Full AC implementation work is IN PROGRESS, not a successful V3 delivery. UI work waits for AC. Read `docs/psse-v3/SESSION_CHECKPOINT.md` for next commands.
-- Current commit SHA is the Git commit containing this section (`git log -1 --format=%H -- AGENT_HANDOFF.md`); the explicit preceding verified SHA is given above to avoid a self-referential commit hash. Root will record verified remote checkpoints in later handoffs.
+- Branch remains `fix/psse-v1-real-model-parity`; last verified remote reference checkpoint `bf0dddb9613b5631e2ca14582e7cd12679906851`. Earlier checkpoint `b212cf83ce1ece241f0a7247968043fd6b80c1ea` passed CI run40576084224. No main merge.
+- Both original SAVs now genuinely converge using independent sparse polar NR, source-saved initial values and source-aware ideal-link contraction. Results are `SOLVED_APPROXIMATE`, not full remote/droop parity. Independent physical KCL, global P/Q balance and matched FNSL parity pass; see `docs/psse-v3/FINAL_ELECTRICAL_AUDIT.md`.
+- FDNS retains its own Bprime/Bdoubleprime iteration. 6851 converges at0.001MVA; 6875 remains NOT_CONVERGED at0.001MVA. See `docs/psse-v3/IMPLEMENTATION_HANDOFF.md`.
+- Engine3 invalidates results produced by older equations. Source native decoder and DGS electrical/model source remain unchanged.
+- Implemented view changes: one inclusive<=36kV option, separate YTM AREA/BM busOWNER, source TM selection, station horizontal busbars and external feeders, shared Canvas/SVG fit/aspect. First real Chrome file:// test passed with no network requests or page errors.
+- Validation: typecheck and architecture lint pass; 869/870 full tests passed before commit, with only the intentional committed-portable-byte gate failing because HEAD still held the old bundle. Portable has now been rebuilt; rerun after commit.
+- INCOMPLETE: exact remote regulation/RMPCT and assigned droop outer loops; automatic tap/shunt controls; 6875 FDNS strict convergence; full DGS visual parity and required TM category acceptance; all requested exports and analysis UI details. Do not describe V3 as fully delivered.
+- All3 authorised agent calls are used. Reference, implementation and final audit handoffs are in `docs/psse-v3/`. Original SAVs, licensed PDFs, full reference dumps and real UI screenshots stay ignored in `private-re/`.
+- Next commands: `npm test`; `node tools/psse-v3-ui-browser.mjs msedge file:///C:/Users/Murathan%20Yeniceli/ga-native-web/dist-psse/index.html`; package `GA_PSSE_AC_DC_OFFLINE_TEST_FIXED_V3.zip`; verify remote SHA and CI.
 
 ## V2 correction — current delta (2026-10-27)
 

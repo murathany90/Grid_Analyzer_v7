@@ -1,0 +1,697 @@
+{
+  "schema": "ga.psse.electrical-audit.v1",
+  "auditDate": "2026-10-27",
+  "independence": "Physical KCL uses public solved bus generation, branch terminal flows, normalized source ZIP loads and bus shunts; it does not use solver residual arrays or Ybus for final validation.",
+  "privacy": "Aggregates only; full grid and identities remain private.",
+  "cases": [
+    {
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "sourceBusCount": 6875,
+      "options": {
+        "initialVoltagePolicy": "SOURCE_SAVED",
+        "reactiveLimitsEnabled": true,
+        "maxIterations": 80,
+        "maxQLimitRounds": 12,
+        "tolerancePu": 1E-06
+      },
+      "reference": {
+        "method": "FNSL",
+        "optionsHash": "414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981",
+        "solved": 0,
+        "iterations": 9,
+        "toleranceMva": 0.001
+      },
+      "native": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "outerRounds": 0,
+        "toleranceMva": 9.999999999999999E-05,
+        "finalMaxPMismatchMw": 1.270699481785715E-08,
+        "finalMaxQMismatchMvar": 1.815096295487706E-07,
+        "initialEffectiveMismatch": {
+          "maxPMw": 0.0022451919555197975,
+          "maxQMvar": 0.017002895882634674,
+          "normMva": 0.023856205106889575,
+          "sourceSavedPsseMaxComplexMismatchMva": 0.010308130043080344,
+          "hypotheticalPostPvSetpointOverwriteMaxPMw": 2.0269285100531316,
+          "hypotheticalPostPvSetpointOverwriteMaxQMvar": 130.3994267355854,
+          "caution": "Saved PSS/E mismatch and GA effective-profile mismatch enforce different control equations. The hypothetical overwrite is diagnostic and is not the SOURCE_SAVED initialization."
+        },
+        "progress": [
+          {
+            "phase": "NR_POLAR",
+            "iteration": 0,
+            "residualPu": 0.00017002895882634674
+          },
+          {
+            "phase": "NR_POLAR",
+            "iteration": 1,
+            "residualPu": 1.815096295487706E-09
+          }
+        ],
+        "diagnostics": {
+          "sparse": {
+            "dimension": 8303,
+            "nnz": 54499,
+            "backend": "KLU_WASM",
+            "linearDiagnostics": {
+              "backend": "KLU_WASM",
+              "dimension": 8303,
+              "nnz": 54499,
+              "ordering": "KLU_AMD",
+              "cscConversionMs": 2.8815000000004147,
+              "symbolicFactorMs": 5.113500000000386,
+              "numericFactorMs": 4.143699999999626,
+              "factorMs": 9.257200000000012,
+              "solveMs": 2.0755000000008295,
+              "rhsCount": 1,
+              "factorizations": 1,
+              "failureStage": "NONE",
+              "failureMessage": null
+            }
+          },
+          "lineSearchReductions": 0,
+          "busCount": 6875,
+          "branchCount": 8700,
+          "numericalNodeCount": 5967,
+          "ybusNnz": 13678,
+          "initialVoltagePolicy": "SOURCE_SAVED",
+          "controlApproximation": {
+            "remoteQHeld": 442,
+            "droopQHeld": 0,
+            "wmod3FixedQ": 768,
+            "wmod4FixedQ": 334,
+            "localVoltageSetpointHeld": 9
+          },
+          "idealLinkContraction": {
+            "contractedBranchCount": 926,
+            "contractedBusCount": 1768,
+            "nodeCount": 5967,
+            "cycleRank": 18,
+            "sourceVoltageDisagreementCount": 0
+          },
+          "idealLinkRecovery": {
+            "method": "TREE_KCL_OR_MINIMUM_SOURCE_ABS_X",
+            "cycleRank": 18,
+            "maxKclResidualMva": 8.134403012104164E-08
+          },
+          "sourceSavedVoltageMismatchPreserved": true,
+          "activeQLimitBusCount": 0
+        },
+        "findingCounts": {
+          "VOLTAGE_DROOP_UNREFERENCED": 322,
+          "GENERATOR_WMOD_MAPPED": 1263,
+          "REMOTE_REGULATION_FIXED_Q_SOURCE_SAVED": 895,
+          "LOCAL_REGULATION_SOURCE_SAVED_VOLTAGE_HELD": 9,
+          "AC_IDEAL_LINK_CYCLE_FLOW_ALLOCATION": 1
+        }
+      },
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 1.2706443897059216E-08,
+            "mean": 8.73707349717984E-11,
+            "p95": 3.3657343578852306E-10
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 1.81509630436949E-07,
+            "mean": 1.0455975544280274E-10,
+            "p95": 1.5209966619522675E-10
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 1.81580427439608E-07,
+            "mean": 1.706373259039786E-10,
+            "p95": 3.766096544752238E-10
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 39638.268134567086,
+          "generationQ": -1729.3586464875536,
+          "loadP": 38736.31570825428,
+          "loadQ": 386.2760182601278,
+          "shuntP": 0,
+          "shuntQ": 7529.249049887123,
+          "branchLossP": 901.9524263245405,
+          "branchLossQ": -9644.88371438942,
+          "netPBalanceMw": -1.173634700535331E-08,
+          "netQBalanceMvar": -2.4538530851714313E-07
+        },
+        "machineOutput": {
+          "knownP": 39638.268134567086,
+          "knownQ": -1729.3586464875536,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 0
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "matching": "bus number; machine bus+ID; directed branch buses+ckt; 3-winding buses+ckt+winding",
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "matchedBranchTerminals": 12330,
+        "matchedWindings": 0,
+        "unavailableMachineP": 0,
+        "unavailableMachineQ": 0,
+        "vmPu": {
+          "count": 5072,
+          "max": 1.8391872049106084E-05,
+          "mean": 1.0725231917126874E-06,
+          "p95": 1.8216657289293892E-06
+        },
+        "vaDeg": {
+          "count": 5072,
+          "max": 0.00012019287783004984,
+          "mean": 4.337160452105194E-05,
+          "p95": 9.614037139726861E-05
+        },
+        "pgMw": {
+          "count": 1568,
+          "max": 0.0011955982882224658,
+          "mean": 1.2608735321242083E-06,
+          "p95": 2.86102294921875E-06
+        },
+        "qgMvar": {
+          "count": 1568,
+          "max": 0.010266721248626709,
+          "mean": 3.991607510382616E-05,
+          "p95": 1.7762184143066406E-05
+        },
+        "branchTerminalPMw": {
+          "count": 12330,
+          "max": 0.0007445775395353849,
+          "mean": 1.347326351908942E-05,
+          "p95": 5.96872690721284E-05
+        },
+        "branchTerminalQMvar": {
+          "count": 12330,
+          "max": 0.009566905810014958,
+          "mean": 0.0001258980459879822,
+          "p95": 0.0005369460199848852
+        },
+        "branchPLossMw": {
+          "count": 6165,
+          "max": 7.547095765403355E-05,
+          "mean": 1.865732327084966E-06,
+          "p95": 6.473351760405421E-06
+        },
+        "branchQLossMvar": {
+          "count": 6165,
+          "max": 0.0010346323480305841,
+          "mean": 3.4530625779892094E-05,
+          "p95": 0.00014892530308003834
+        },
+        "lossDefinition": "Both native and reference net branch losses are the sum of the two directed terminal powers, including charging and terminal shunts.",
+        "nativeNetLossVersusPsseReportedPLOSS": {
+          "count": 6165,
+          "max": 0.15236120419898214,
+          "mean": 0.017059035901198692,
+          "p95": 0.06645818185634766
+        },
+        "nativeNetLossVersusPsseReportedQLOSS": {
+          "count": 6165,
+          "max": 234.98775496879557,
+          "mean": 3.7672192971658127,
+          "p95": 8.799363620343861
+        },
+        "reportedLossCaution": "PSS/E PLOSS/QLOSS are not identical to the sum of the two exported terminal powers in these cases; their direct differences are diagnostic, not equivalent-quantity parity.",
+        "windingPMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "windingQMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "idealLinkTerminalPMw": {
+          "count": 1852,
+          "max": 0.0007004354187358786,
+          "mean": 2.006677837402372E-05,
+          "p95": 0.0001127411175900761
+        },
+        "idealLinkTerminalQMvar": {
+          "count": 1852,
+          "max": 0.003975669918467872,
+          "mean": 0.00017507156548053371,
+          "p95": 0.0011147148153725084
+        }
+      },
+      "sourceSemantics": {
+        "localRegulatorSavedVmVsDifferencePu": {
+          "count": 23,
+          "max": 0.03706890944779384,
+          "mean": 0.006306569549174113,
+          "p95": 0.024185265022188096
+        },
+        "localRegulatorSavedVmVsAbove1eMinus5": 9,
+        "fixedWmodOutputQErrorMvar": {
+          "count": 1102,
+          "max": 6.296352328405419E-14,
+          "mean": 1.929100658203319E-16,
+          "p95": 0
+        },
+        "knownRegulatorQLimitViolationMvar": {
+          "count": 466,
+          "max": 0,
+          "mean": 0,
+          "p95": 0
+        },
+        "zeroPfWmod3Count": 0,
+        "networkUnmutated": true
+      }
+    },
+    {
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "sourceBusCount": 6851,
+      "options": {
+        "initialVoltagePolicy": "SOURCE_SAVED",
+        "reactiveLimitsEnabled": true,
+        "maxIterations": 80,
+        "maxQLimitRounds": 12,
+        "tolerancePu": 1E-06
+      },
+      "reference": {
+        "method": "FNSL",
+        "optionsHash": "414d5d7ca070ca60f0abc24f3a0fa653c505385b119bd53b778544a91eb3b981",
+        "solved": 0,
+        "iterations": 2,
+        "toleranceMva": 0.001
+      },
+      "native": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "outerRounds": 0,
+        "toleranceMva": 9.999999999999999E-05,
+        "finalMaxPMismatchMw": 1.0120793092482927E-09,
+        "finalMaxQMismatchMvar": 5.018657711630681E-09,
+        "initialEffectiveMismatch": {
+          "maxPMw": 0.00187817794511025,
+          "maxQMvar": 0.002238372316098544,
+          "normMva": 0.006352443965021377,
+          "sourceSavedPsseMaxComplexMismatchMva": 0.002259374642202697,
+          "hypotheticalPostPvSetpointOverwriteMaxPMw": 13.23419314773252,
+          "hypotheticalPostPvSetpointOverwriteMaxQMvar": 131.6041110668116,
+          "caution": "Saved PSS/E mismatch and GA effective-profile mismatch enforce different control equations. The hypothetical overwrite is diagnostic and is not the SOURCE_SAVED initialization."
+        },
+        "progress": [
+          {
+            "phase": "NR_POLAR",
+            "iteration": 0,
+            "residualPu": 2.238372316098544E-05
+          },
+          {
+            "phase": "NR_POLAR",
+            "iteration": 1,
+            "residualPu": 5.018657711630681E-11
+          }
+        ],
+        "diagnostics": {
+          "sparse": {
+            "dimension": 8199,
+            "nnz": 53895,
+            "backend": "KLU_WASM",
+            "linearDiagnostics": {
+              "backend": "KLU_WASM",
+              "dimension": 8199,
+              "nnz": 53895,
+              "ordering": "KLU_AMD",
+              "cscConversionMs": 0.9053000000003522,
+              "symbolicFactorMs": 3.908400000000256,
+              "numericFactorMs": 6.291799999999057,
+              "factorMs": 10.200199999999313,
+              "solveMs": 0.474900000001071,
+              "rhsCount": 1,
+              "factorizations": 1,
+              "failureStage": "NONE",
+              "failureMessage": null
+            }
+          },
+          "lineSearchReductions": 0,
+          "busCount": 6851,
+          "branchCount": 8669,
+          "numericalNodeCount": 5940,
+          "ybusNnz": 13550,
+          "initialVoltagePolicy": "SOURCE_SAVED",
+          "controlApproximation": {
+            "remoteQHeld": 460,
+            "droopQHeld": 0,
+            "wmod3FixedQ": 975,
+            "wmod4FixedQ": 429,
+            "localVoltageSetpointHeld": 13
+          },
+          "idealLinkContraction": {
+            "contractedBranchCount": 928,
+            "contractedBusCount": 1772,
+            "nodeCount": 5940,
+            "cycleRank": 17,
+            "sourceVoltageDisagreementCount": 0
+          },
+          "idealLinkRecovery": {
+            "method": "TREE_KCL_OR_MINIMUM_SOURCE_ABS_X",
+            "cycleRank": 17,
+            "maxKclResidualMva": 1.4016292268111763E-09
+          },
+          "sourceSavedVoltageMismatchPreserved": true,
+          "activeQLimitBusCount": 0
+        },
+        "findingCounts": {
+          "VOLTAGE_DROOP_UNREFERENCED": 454,
+          "GENERATOR_WMOD_MAPPED": 1629,
+          "REMOTE_REGULATION_FIXED_Q_SOURCE_SAVED": 931,
+          "LOCAL_REGULATION_SOURCE_SAVED_VOLTAGE_HELD": 13,
+          "AC_IDEAL_LINK_CYCLE_FLOW_ALLOCATION": 1
+        }
+      },
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 1.0120970728166867E-09,
+            "mean": 1.7915478739827508E-11,
+            "p95": 6.855671585981327E-11
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 5.018659265942915E-09,
+            "mean": 1.8614969527384354E-11,
+            "p95": 6.34591962311859E-11
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 5.03905116637712E-09,
+            "mean": 3.063881845820708E-11,
+            "p95": 1.0212537578629977E-10
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 43650.52482978176,
+          "generationQ": 2013.4012305868694,
+          "loadP": 42749.638097142546,
+          "loadQ": 786.6329036456591,
+          "shuntP": 0,
+          "shuntQ": 10710.373656252963,
+          "branchLossP": 900.8867326402469,
+          "branchLossQ": -9483.605329297616,
+          "netPBalanceMw": -1.0331859812140465E-09,
+          "netQBalanceMvar": -1.4137185644358397E-08
+        },
+        "machineOutput": {
+          "knownP": 43650.52482978176,
+          "knownQ": 2013.4012305868687,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -6.821210263296962E-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "matching": "bus number; machine bus+ID; directed branch buses+ckt; 3-winding buses+ckt+winding",
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "matchedBranchTerminals": 12244,
+        "matchedWindings": 0,
+        "unavailableMachineP": 0,
+        "unavailableMachineQ": 0,
+        "vmPu": {
+          "count": 5029,
+          "max": 1.4487052788503263E-06,
+          "mean": 4.5967214281564506E-07,
+          "p95": 1.0317127825398842E-06
+        },
+        "vaDeg": {
+          "count": 5029,
+          "max": 6.684960919756122E-05,
+          "mean": 1.6114539454847737E-05,
+          "p95": 3.815864135958691E-05
+        },
+        "pgMw": {
+          "count": 1900,
+          "max": 0.00042643273098086354,
+          "mean": 6.67967359769057E-07,
+          "p95": 1.6689300537109375E-06
+        },
+        "qgMvar": {
+          "count": 1900,
+          "max": 0.004330339459855281,
+          "mean": 1.2852284867864322E-05,
+          "p95": 2.4884939193725586E-06
+        },
+        "branchTerminalPMw": {
+          "count": 12244,
+          "max": 0.0002783705864857211,
+          "mean": 6.569795960403359E-06,
+          "p95": 2.7634574197854533E-05
+        },
+        "branchTerminalQMvar": {
+          "count": 12244,
+          "max": 0.002488169187138567,
+          "mean": 6.320165687312854E-05,
+          "p95": 0.00023035906673030127
+        },
+        "branchPLossMw": {
+          "count": 6122,
+          "max": 9.209658662712172E-05,
+          "mean": 1.7798765643145203E-06,
+          "p95": 6.177393530037989E-06
+        },
+        "branchQLossMvar": {
+          "count": 6122,
+          "max": 0.0005126597445510583,
+          "mean": 2.9259752273828492E-05,
+          "p95": 0.00012464738733797276
+        },
+        "lossDefinition": "Both native and reference net branch losses are the sum of the two directed terminal powers, including charging and terminal shunts.",
+        "nativeNetLossVersusPsseReportedPLOSS": {
+          "count": 6122,
+          "max": 0.1518743691571558,
+          "mean": 0.016944567679598323,
+          "p95": 0.06503202376501349
+        },
+        "nativeNetLossVersusPsseReportedQLOSS": {
+          "count": 6122,
+          "max": 234.47313622512453,
+          "mean": 3.7081410916504143,
+          "p95": 8.587784473229998
+        },
+        "reportedLossCaution": "PSS/E PLOSS/QLOSS are not identical to the sum of the two exported terminal powers in these cases; their direct differences are diagnostic, not equivalent-quantity parity.",
+        "windingPMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "windingQMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "idealLinkTerminalPMw": {
+          "count": 1856,
+          "max": 0.00024046257479426458,
+          "mean": 9.0024520132076E-06,
+          "p95": 4.849924238214953E-05
+        },
+        "idealLinkTerminalQMvar": {
+          "count": 1856,
+          "max": 0.001756570922516687,
+          "mean": 7.245103704487535E-05,
+          "p95": 0.00037621937921983317
+        }
+      },
+      "sourceSemantics": {
+        "localRegulatorSavedVmVsDifferencePu": {
+          "count": 35,
+          "max": 0.030430907825440112,
+          "mean": 0.004597396572696295,
+          "p95": 0.025707996991606308
+        },
+        "localRegulatorSavedVmVsAbove1eMinus5": 13,
+        "fixedWmodOutputQErrorMvar": {
+          "count": 1404,
+          "max": 4.869646352823054E-13,
+          "mean": 7.635180276878717E-16,
+          "p95": 0
+        },
+        "knownRegulatorQLimitViolationMvar": {
+          "count": 496,
+          "max": 0,
+          "mean": 0,
+          "p95": 0
+        },
+        "zeroPfWmod3Count": 0,
+        "networkUnmutated": true
+      }
+    }
+  ],
+  "perturbation": {
+    "fixture": "original public 3-bus synthetic fixture, starting from its previous solved voltages, with P/Q load increased by 20%",
+    "status": "CONVERGED",
+    "iterations": 3,
+    "residualHistoryPu": [
+      0.26000000012324875,
+      0.002432261729473195,
+      4.88762883055216E-07,
+      1.8984813721090177E-14
+    ],
+    "physical": {
+      "physicalBusKcl": {
+        "pMw": {
+          "count": 3,
+          "max": 1.3216094885137863E-12,
+          "mean": 5.873819948950162E-13,
+          "p95": 1.3216094885137863E-12
+        },
+        "qMvar": {
+          "count": 3,
+          "max": 1.8900436771218665E-12,
+          "mean": 6.323830348264892E-13,
+          "p95": 1.8900436771218665E-12
+        },
+        "complexMva": {
+          "count": 3,
+          "max": 2.306277680930468E-12,
+          "mean": 9.15624461628337E-13,
+          "p95": 2.306277680930468E-12
+        }
+      },
+      "internalStarKcl": {
+        "pMw": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "qMvar": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        },
+        "complexMva": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "p95": null
+        }
+      },
+      "unavailableActiveBranches": 0,
+      "totals": {
+        "generationP": 157.53036646026675,
+        "generationQ": 63.148342411885714,
+        "loadP": 156,
+        "loadQ": 54,
+        "shuntP": 0,
+        "shuntQ": 0,
+        "branchLossP": 1.5303664602676754,
+        "branchLossQ": 9.148342411887615,
+        "netPBalanceMw": -9.272582701669307E-13,
+        "netQBalanceMvar": -1.900701818158268E-12
+      },
+      "machineOutput": {
+        "knownP": 157.53036646026675,
+        "knownQ": 63.148342411885714,
+        "unavailableActiveP": 0,
+        "unavailableActiveQ": 0,
+        "completePAllocationResidualMw": 0,
+        "completeQAllocationResidualMvar": 0
+      },
+      "branchLossReconstruction": {
+        "pMw": {
+          "count": 3,
+          "max": 0,
+          "mean": 0,
+          "p95": 0
+        },
+        "qMvar": {
+          "count": 3,
+          "max": 0,
+          "mean": 0,
+          "p95": 0
+        }
+      }
+    },
+    "maxVoltageChangePu": 0.0069902461991795395
+  }
+}

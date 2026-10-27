@@ -8,7 +8,7 @@ export function psseGeneratorResults(network:PsseBusBranchNetwork,state:PsseStat
  const activeByBus=new Map<number,typeof network.generators>();for(const g of network.generators)if(g.status===1){const list=activeByBus.get(g.bus)??[];list.push(g);activeByBus.set(g.bus,list);}
  const byId=new Map<string,PsseGeneratorResult>();
  for(const [bus,units]of activeByBus){
-  const reference=state.busType[bus]===3,limited=state.qLimited.has(bus),totalP=(power.p[bus]+power.loadP[bus])*network.baseMva,totalQ=(power.q[bus]+power.loadQ[bus])*network.baseMva,plant=psseQPlantAtBus(network,bus),fixedRuleApplies=network.buses[bus]?.type===2,fixed= fixedRuleApplies?plant.fixedUnits:[],regulating=fixedRuleApplies?plant.regulatingUnits:units,fixedQ=plant.fixedQ;
+  const reference=state.busType[bus]===3,limited=state.qLimited.has(bus),totalP=(power.p[bus]+power.loadP[bus])*network.baseMva,totalQ=(power.q[bus]+power.loadQ[bus])*network.baseMva,plant=psseQPlantAtBus(network,bus),fixed=plant.fixedUnits,regulating=plant.regulatingUnits,fixedQ=plant.fixedQ;
   const unavailableRegulatorDispatch=regulating.length>1&&(reference||state.busType[bus]===2||limited);
   if(unavailableRegulatorDispatch)findings.push({severity:'WARNING',code:'PER_MACHINE_DISPATCH_UNAVAILABLE',message:`${regulating.length} regulating generators share bus ${network.buses[bus].id}; the supported bus equations determine their aggregate Q, not individual machine dispatch.`});
   for(const g of fixed){const p=reference?null:g.pMw;byId.set(g.id,{id:g.id,sourceEquipmentId:g.sourceEquipmentId,pMw:p,qMvar:g.qFixedMvar??g.qMaxMvar,limitState:'FIXED_Q'});}

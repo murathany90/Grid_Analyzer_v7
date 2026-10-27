@@ -5,6 +5,7 @@ import {isCurrentPsseResult,pssePublicationStatus} from '../../domain/psse/resul
 import type {PsseEquipment,PsseModel} from '../../importers/psse/types';
 import {effectivePsseNetwork} from '../../analysis/psse/newton';
 import {button,element} from '../../ui/components/dom';
+import {psseVoltageGroup} from './view-model';
 
 export const SVG_NS='http://www.w3.org/2000/svg';
 export const fmt=(value:number|null|undefined,digits=2)=>value==null||!Number.isFinite(value)?'—':value.toLocaleString('tr-TR',{maximumFractionDigits:digits,useGrouping:false});
@@ -27,8 +28,9 @@ export function busSearchText(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIn
 export function fieldText(e:PsseEquipment|undefined|null,key:string){return sourceText(e?.fields[key]);}
 export function busArea(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'area');}
 export function busZone(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'zone');}
+export function busOwner(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'owner');}
 export function busVoltage(bus:PsseBus){return Number.isFinite(bus.baseKv)?bus.baseKv:null;}
-export function voltageGroupKey(baseKv:number|null){return baseKv===null||!Number.isFinite(baseKv)?'unknown':String(baseKv);}
+export function voltageGroupKey(baseKv:number|null){return psseVoltageGroup(baseKv);}
 export function voltageLabel(baseKv:number|null,digits=0){return baseKv===null||!Number.isFinite(baseKv)?'kV bilinmiyor':`${fmt(baseKv,digits)} kV`;}
 /** Explicit low-voltage group: physical levels at or below 36 kV; unknown is excluded. */
 export function isLowVoltageGroup(baseKv:number|null){return baseKv!==null&&Number.isFinite(baseKv)&&baseKv<=36;}
