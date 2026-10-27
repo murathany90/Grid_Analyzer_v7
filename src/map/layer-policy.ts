@@ -43,7 +43,7 @@ export function matchedVoltageKv(pu:unknown,nominal:unknown,otherNominal:unknown
 export const lfMapTarget=(metric:string)=>LF_MAP_METRICS.find(m=>m.metric===metric)?.target;
 export function currentMapLf(ctx:AppContext){const base=ctx.resultView?.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current),r=ctx.resultStore.get(base?'base':'scenario','powerFlow');return lfSnapshotIsCurrent(r,ctx.network,base?emptyScenario():ctx.scenario.current,ctx.analysisSettings.value)?r:null;}
 export function representativeStationBus(ctx:AppContext,siteId:string,result:CalculationResult|null){
-  const n=ctx.network,nominal=n?highestNominalBySite(n,ctx.filters.voltages).get(siteId)??null:null,selected=n&&result&&nominal!==null?resultPresentationIndex(n,result).solution.bySiteAndNominal.get(siteId)?.get(nominal):undefined;
+  const n=ctx.network,nominal=n?highestNominalBySite(n,ctx.mapDisplay.voltages).get(siteId)??null:null,selected=n&&result&&nominal!==null?resultPresentationIndex(n,result).solution.bySiteAndNominal.get(siteId)?.get(nominal):undefined;
   return {nominal,bus:selected?.bus??null,count:selected?.count??0};
 }
 export function angleHasReference(result:CalculationResult|null,bus:BusResult|null):boolean{
@@ -99,8 +99,8 @@ const validReference=(r:ReturnType<typeof mapReferenceRows>[number]|null|undefin
 const stationReferences=new WeakMap<ReturnType<typeof mapReferenceRows>,{network:CanonicalNetwork;bands:string;selected:Map<string,ReturnType<typeof mapReferenceRows>[number]>}>();
 export function representativeReferenceBySite(ctx:AppContext,s:BenchmarkMapSelection){
   const selected=new Map<string,ReturnType<typeof mapReferenceRows>[number]>(),n=ctx.network;if(!n)return selected;
-  const rows=mapReferenceRows(ctx,{...s,metric:'voltageKv'}),bands=[...ctx.filters.voltages].sort().join('|'),cached=stationReferences.get(rows);if(cached?.network===n&&cached.bands===bands)return cached.selected;
-  const terms=modelPresentationIndex(n).physicalTerminalById,highest=highestNominalBySite(n,ctx.filters.voltages),index=referenceCellIndex(rows);
+  const rows=mapReferenceRows(ctx,{...s,metric:'voltageKv'}),bands=[...ctx.mapDisplay.voltages].sort().join('|'),cached=stationReferences.get(rows);if(cached?.network===n&&cached.bands===bands)return cached.selected;
+  const terms=modelPresentationIndex(n).physicalTerminalById,highest=highestNominalBySite(n,ctx.mapDisplay.voltages),index=referenceCellIndex(rows);
   for(const row of index.values()){if(!validReference(row)||row!.sourceClass!=='ElmTerm')continue;const term=terms.get(row!.fid);if(!term||term.vnKv!==row!.nominalKv)continue;
     for(const id of term.siteIds){if(highest.get(id)!==term.vnKv)continue;const old=selected.get(id);if(!old||row!.pf.value!>old.pf.value!||row!.pf.value===old.pf.value&&row!.fid.localeCompare(old.fid)<0)selected.set(id,row!);}}
   stationReferences.set(rows,{network:n,bands,selected});return selected;
@@ -182,13 +182,21 @@ export function selectedScPresentation(ctx:AppContext){
 }
 export function mapStatusText(ctx:AppContext):string{
   const v=ctx.resultView,base=(v.analysis==='LF'?ctx.resultStore.role==='base':!scenarioChanged(ctx.scenario.current))?'Baz':'Senaryo';
-  if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${base} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);return `N-1 · ${base} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
-  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);return `SC · ${base} · 3PH ${p.sc?.profile.calculateMode??'NOT_RUN'} · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
+  if(v.analysis==='N1'){if(v.source==='PF')return `N-1 · PF kayıtlı extrema · ${base} · ${v.phase} · GA−PF paritesi doğrulanmadı`;const p=selectedN1Presentation(ctx);if(p.status==='NOT_RUN')return `N-1 sonucu yok (NOT_RUN) · ${base} · Analizler > Kısıt (N-1) sekmesinden tarama çalıştırın`;return `N-1 · ${base} · ${p.method} · ${p.status}${p.post?'':' · AC POST: NOT_RUN; DC yalnız P/tahmini yük'}`;}
+  if(v.analysis==='SC'){if(v.source==='PF')return `SC · PF 3PH MAX referansı · ${base} · GA paritesi doğrulanmadı`;const p=selectedScPresentation(ctx);if(!p.sc)return `SC sonucu yok (NOT_RUN) · ${base} · Analizler > Kısa Devre sekmesinden arıza hesabı çalıştırın`;return `SC · ${base} · 3PH ${p.sc.profile.calculateMode} · ${p.status} · IEC eşdeğerliği doğrulanmadı`;}
   if(v.source!=='GA')return `LF · ${v.source==='GA−PF'?'GA−PF TANISAL / yöntem doğrulanmadı':v.source} · ${base} · ${mapPresentationGate(ctx,ctx.benchmarkMap??{analysis:'LF',source:'PF',metric:v.metric,table:'GA_Reference_Raw'}).reason||'Kayıtlı referans'}`;
-  const r=currentMapLf(ctx);if(!r)return `LF · ${base} · NOT_RUN / STALE`;
+  const r=currentMapLf(ctx);if(!r)return `LF sonucu yok (NOT_RUN / STALE) · ${base} · güncel hesap için Hesapla'yı kullanın`;
   const c=solutionCompleteness(r),label=r.identity.analysisType==='dc'?'DC P-only':r.identity.analysisType==='fastAc'?'Hızlı yaklaşık AC':'Tam AC';
   const issue=c.reason==='ACTIVE_BALANCE_PARTIAL'?'P dengesi kısmi; tam çözüm değil':c.reason==='STATION_CONTROL_FALLBACK'?'istasyon kontrolü kısmi; tam çözüm değil':c.reason==='NEWTON_NOT_CONVERGED'?r.status:'';
   return `${label} · ${base} · ${r.converged?'NR yakınsadı':r.status}${issue?' ('+issue+')':''} · ${(r.elapsedMs/1000).toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} sn`;
+}
+/** Technical status codes for the expandable map status details area. */
+export function mapStatusDetail(ctx:AppContext):string[]{
+  const v=ctx.resultView,detail:string[]=[];
+  if(v.analysis==='N1'){const p=selectedN1Presentation(ctx);detail.push(`method=${p.method}`,`status=${p.status}`);if(!p.post)detail.push('AC POST: NOT_RUN; DC yalnız P/tahmini yük');}
+  else if(v.analysis==='SC'){const p=selectedScPresentation(ctx);detail.push(`status=${p.status}`);if(p.reason)detail.push(p.reason);}
+  else if(!currentMapLf(ctx))detail.push('LF: NOT_RUN / STALE · sonuç farklı model, senaryo veya ayara ait olabilir');
+  return detail.filter(Boolean);
 }
 
 export function mapMetricTarget(metric:string):'site'|'branch'{
