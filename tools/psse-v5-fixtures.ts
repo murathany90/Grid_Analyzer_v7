@@ -31,5 +31,5 @@ export function controlFixture(name:string){
  }
  network.bus=table(buses);network.generator=table(generators);network.acline=table(lines);return JSON.stringify(raw,null,2)+'\n';
 }
-export const CONTROL_FIXTURES=['remote-single','remote-infeed','remote-infeed-mixed','remote-shared','remote-shared-fixed','remote-multi-machine','remote-multi-machine-mbase','remote-multi-machine-pg','remote-limit','droop-low','droop-deadband','droop-high','droop-limit'];
+export const CONTROL_FIXTURES=['infeed-local','remote-single','remote-infeed','remote-infeed-mixed','remote-shared','remote-shared-fixed','remote-multi-machine','remote-multi-machine-mbase','remote-multi-machine-pg','remote-limit','droop-low','droop-deadband','droop-high','droop-limit'];
 if(process.argv[1]?.replaceAll('\\','/').endsWith('/psse-v5-fixtures.ts')){const directory=process.argv[2]??'.tmp/psse-v5-fixtures';mkdirSync(directory,{recursive:true});for(const name of CONTROL_FIXTURES)writeFileSync(path.join(directory,name+'.rawx'),controlFixture(name));console.log(JSON.stringify({directory,fixtures:CONTROL_FIXTURES}));}

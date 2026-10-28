@@ -1,0 +1,21 @@
+{
+  "schema": "ga.psse.v5.control-inventory.v1",
+  "cases": [
+    {
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "buses": 6875,
+      "activeGenerators": 1568,
+      "activeDroopRecords": 161,
+      "activeAssignedDroopMachines": 0,
+      "activeRemoteRegulatingMachines": 442
+    },
+    {
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "buses": 6851,
+      "activeGenerators": 1900,
+      "activeDroopRecords": 227,
+      "activeAssignedDroopMachines": 0,
+      "activeRemoteRegulatingMachines": 460
+    }
+  ]
+}

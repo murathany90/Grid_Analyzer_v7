@@ -1,0 +1,522 @@
+{
+  "schema": "ga.psse.v5.control-reference.v1",
+  "privacy": "Original synthetic fixture names and aggregate errors only; no real-grid values.",
+  "cases": [
+    {
+      "fixture": "droop-deadband",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000095367431640625,
+      "referencePhysicalUsable": true,
+      "droopActual": {
+        "STATUS": [
+          0,
+          1
+        ],
+        "ACTSTATUS": [
+          0,
+          1
+        ],
+        "REGBUS": [
+          0,
+          3
+        ],
+        "ACTREGBUS": [
+          0,
+          3
+        ]
+      },
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 1,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 0.0000013129860918503766,
+      "maxQgMvar": 0.0007412676821658692,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "droop-high",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000110626220703125,
+      "referencePhysicalUsable": true,
+      "droopActual": {
+        "STATUS": [
+          0,
+          1
+        ],
+        "ACTSTATUS": [
+          0,
+          1
+        ],
+        "REGBUS": [
+          0,
+          3
+        ],
+        "ACTREGBUS": [
+          0,
+          3
+        ]
+      },
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 1,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 6.569591728400326e-7,
+      "maxQgMvar": 0.0003567803042088258,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "droop-limit",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000003932099938981686,
+      "referencePhysicalUsable": true,
+      "droopActual": {
+        "STATUS": [
+          0,
+          1
+        ],
+        "ACTSTATUS": [
+          0,
+          1
+        ],
+        "REGBUS": [
+          0,
+          3
+        ],
+        "ACTREGBUS": [
+          0,
+          3
+        ]
+      },
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 1,
+        "droopGroups": 1,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 3.287536676221947e-8,
+      "maxQgMvar": 0.000002117614528174272,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "droop-low",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000110626220703125,
+      "referencePhysicalUsable": true,
+      "droopActual": {
+        "STATUS": [
+          0,
+          1
+        ],
+        "ACTSTATUS": [
+          0,
+          1
+        ],
+        "REGBUS": [
+          0,
+          3
+        ],
+        "ACTREGBUS": [
+          0,
+          3
+        ]
+      },
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 1,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 7.141250384368192e-7,
+      "maxQgMvar": 0.00033659723827383914,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "infeed-local",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000004915124923727107,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 0,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 1.0843921738334927e-7,
+      "maxQgMvar": 7.537278747804521e-7,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-infeed-mixed",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000004915124923727107,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 0,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 1.0843921738334927e-7,
+      "maxQgMvar": 7.537278747804521e-7,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-infeed",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000004915124923727107,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 0,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 1.0843921738334927e-7,
+      "maxQgMvar": 7.537278747804521e-7,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-limit",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.000004915124923727107,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 1,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0.07604741172989704
+      },
+      "maxVmPu": 1.085426974967163e-7,
+      "maxQgMvar": 6.075535026184298e-7,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-multi-machine-mbase",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.0008472207227604122,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 8.493114518337563e-7,
+      "maxQgMvar": 0.000963014181024846,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-multi-machine-pg",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.0008468713845856761,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 8.493114518337563e-7,
+      "maxQgMvar": 0.000963014181024846,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-multi-machine",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.0008472207227604122,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 8.493114518337563e-7,
+      "maxQgMvar": 0.000963014181024846,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-shared-fixed",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 199.9999988079071,
+      "referencePhysicalUsable": false,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 0.011803610685903854,
+      "maxQgMvar": 224.382920067446,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": false
+    },
+    {
+      "fixture": "remote-shared",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.0008649910166204191,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 6.328799067034652e-7,
+      "maxQgMvar": 0.0010143165882539051,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    },
+    {
+      "fixture": "remote-single",
+      "referenceStatus": "REFERENCE_CONVERGED",
+      "referenceOptions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "referenceToleranceMva": 0.001,
+      "referencePhysicalMaxKclMva": 0.0008472207227604122,
+      "referencePhysicalUsable": true,
+      "droopActual": null,
+      "gaStatus": "CONVERGED",
+      "classification": "SOLVED_APPROXIMATE",
+      "controls": {
+        "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+        "groups": 1,
+        "limitedGroups": 0,
+        "droopGroups": 0,
+        "maxUnconstrainedVoltageErrorPu": 0,
+        "maxVoltageErrorPu": 0
+      },
+      "maxVmPu": 8.493114518337563e-7,
+      "maxQgMvar": 0.0009921388311795454,
+      "unmatched": 0,
+      "parityWithinReferenceTolerance": true
+    }
+  ]
+}

@@ -148,6 +148,28 @@
           }
         }
       },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5072,
+          "max": 0.0001220703125,
+          "mean": 0.0000022213288328785055,
+          "p95": 0.000009265728294849396
+        },
+        "qMvar": {
+          "count": 5072,
+          "max": 0.00034332275390625,
+          "mean": 9.88211122470973e-7,
+          "p95": 0.0000032186508178710938
+        },
+        "complexMva": {
+          "count": 5072,
+          "max": 0.00034332532255726346,
+          "mean": 0.000002865909361799351,
+          "p95": 0.000011533058653867556
+        }
+      },
       "parity": {
         "vmRelative": {
           "count": 5072,
@@ -329,6 +351,28 @@
             "mean": 0,
             "p95": 0
           }
+        }
+      },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5072,
+          "max": 0.0024480374704580754,
+          "mean": 0.00009660222294456268,
+          "p95": 0.00043964385986328125
+        },
+        "qMvar": {
+          "count": 5072,
+          "max": 0.0009822845458984375,
+          "mean": 0.00000371929173732261,
+          "p95": 0.000005066394805908203
+        },
+        "complexMva": {
+          "count": 5072,
+          "max": 0.0024480374704580754,
+          "mean": 0.00009863320249555466,
+          "p95": 0.0004441440107491201
         }
       },
       "parity": {
@@ -514,6 +558,28 @@
           }
         }
       },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5072,
+          "max": 0.002639811340486631,
+          "mean": 0.00010423991098787241,
+          "p95": 0.000474587082862854
+        },
+        "qMvar": {
+          "count": 5072,
+          "max": 0.000865936279296875,
+          "mean": 0.0000042098616978194235,
+          "p95": 0.000008344650268554688
+        },
+        "complexMva": {
+          "count": 5072,
+          "max": 0.002639811340486631,
+          "mean": 0.00010662686843443644,
+          "p95": 0.0004780038961561813
+        }
+      },
       "parity": {
         "vmRelative": {
           "count": 5072,
@@ -695,6 +761,28 @@
             "mean": 0,
             "p95": 0
           }
+        }
+      },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5072,
+          "max": 0.0001220703125,
+          "mean": 0.0000021874156145022144,
+          "p95": 0.000009104609489440918
+        },
+        "qMvar": {
+          "count": 5072,
+          "max": 0.0007376670837402344,
+          "mean": 0.0000017796657145775007,
+          "p95": 0.000003814697265625
+        },
+        "complexMva": {
+          "count": 5072,
+          "max": 0.0007376678926603697,
+          "mean": 0.0000035709158747714892,
+          "p95": 0.000011912618661084847
         }
       },
       "parity": {
@@ -880,6 +968,28 @@
           }
         }
       },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5072,
+          "max": 0.0001220703125,
+          "mean": 0.0000022213288328785055,
+          "p95": 0.000009265728294849396
+        },
+        "qMvar": {
+          "count": 5072,
+          "max": 0.00034332275390625,
+          "mean": 9.88211122470973e-7,
+          "p95": 0.0000032186508178710938
+        },
+        "complexMva": {
+          "count": 5072,
+          "max": 0.00034332532255726346,
+          "mean": 0.000002865909361799351,
+          "p95": 0.000011533058653867556
+        }
+      },
       "parity": {
         "vmRelative": {
           "count": 5072,
@@ -1061,6 +1171,28 @@
             "mean": 0,
             "p95": 0
           }
+        }
+      },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5029,
+          "max": 0.00009918212890625,
+          "mean": 0.0000021973750026050294,
+          "p95": 0.000009059906005859375
+        },
+        "qMvar": {
+          "count": 5029,
+          "max": 0.0008817315101623535,
+          "mean": 0.0000013199900675477177,
+          "p95": 0.0000029802322387695312
+        },
+        "complexMva": {
+          "count": 5029,
+          "max": 0.0008817329788215117,
+          "mean": 0.000003148370328146965,
+          "p95": 0.000010789593218788873
         }
       },
       "parity": {
@@ -1246,6 +1378,28 @@
           }
         }
       },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5029,
+          "max": 0.0024481398286297917,
+          "mean": 0.00009827153097140894,
+          "p95": 0.0004459470510482788
+        },
+        "qMvar": {
+          "count": 5029,
+          "max": 0.0010202154953731224,
+          "mean": 0.000004298910798654027,
+          "p95": 0.0000057220458984375
+        },
+        "complexMva": {
+          "count": 5029,
+          "max": 0.0024481398286297917,
+          "mean": 0.00010077488222582242,
+          "p95": 0.00045183300971984863
+        }
+      },
       "parity": {
         "vmRelative": {
           "count": 5029,
@@ -1427,6 +1581,28 @@
             "mean": 0,
             "p95": 0
           }
+        }
+      },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5029,
+          "max": 0.002639982500113547,
+          "mean": 0.0001060756287164059,
+          "p95": 0.00048224627971826806
+        },
+        "qMvar": {
+          "count": 5029,
+          "max": 0.0010996527125826105,
+          "mean": 0.000005518912724314305,
+          "p95": 0.000008161141920481896
+        },
+        "complexMva": {
+          "count": 5029,
+          "max": 0.002639982500113547,
+          "mean": 0.00010963898564072992,
+          "p95": 0.0004870892576287811
         }
       },
       "parity": {
@@ -1612,6 +1788,28 @@
           }
         }
       },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5029,
+          "max": 0.0001392364501953125,
+          "mean": 0.000002211117225260978,
+          "p95": 0.0000095367431640625
+        },
+        "qMvar": {
+          "count": 5029,
+          "max": 0.0009970664978027344,
+          "mean": 0.0000013631356834206873,
+          "p95": 0.0000037636873457813635
+        },
+        "complexMva": {
+          "count": 5029,
+          "max": 0.0009970813524833966,
+          "mean": 0.0000031775948928495063,
+          "p95": 0.000012004098217218716
+        }
+      },
       "parity": {
         "vmRelative": {
           "count": 5029,
@@ -1793,6 +1991,28 @@
             "mean": 0,
             "p95": 0
           }
+        }
+      },
+      "referencePhysical": {
+        "complete": true,
+        "definition": "API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve",
+        "pMw": {
+          "count": 5029,
+          "max": 0.00009918212890625,
+          "mean": 0.0000021973750026050294,
+          "p95": 0.000009059906005859375
+        },
+        "qMvar": {
+          "count": 5029,
+          "max": 0.0008817315101623535,
+          "mean": 0.0000013199900675477177,
+          "p95": 0.0000029802322387695312
+        },
+        "complexMva": {
+          "count": 5029,
+          "max": 0.0008817329788215117,
+          "mean": 0.000003148370328146965,
+          "p95": 0.000010789593218788873
         }
       },
       "parity": {

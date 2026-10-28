@@ -24,6 +24,8 @@ WMOD=3/4 sabit Q kaynak semantiği korunur. Gerçek ikinci SAV'ın +%10 FNSL ç�
 
 Aktif Q(V) küçük radyal örneklerde, alt/üst eğim, ölü bant ve jeneratör Q sınırıyla doğrulanır. Gerçek modellerde atanmış aktif droop makinesi görülmediği için bunlar büyük-model droop kabulü olarak sunulmaz. Çelişen VS/RMPCT engellenir; desteklenmeyen PCC bağlantılarında kaynak Q açık uyarıyla tutulur. Sürekli şönt kontrolü, ideal çevrimde tekil olmayan akış paylaşımı ve diğer önceki kapsam sınırları devam eder.
 
+Son özgün küçük örnek setinde **14 durumun 13'ü** lisanslı referans toleransı içinde eşleşir; Q(V) örneklerinde en büyük Vm farkı 0,000001313 pu'dur. Karma geleneksel/WMOD=4 makineler içeren `remote-shared-fixed` örneği eşleşmez. Bu örneğin PSS/E API jeneratör ve iki uç dal değerleriyle yeniden kurulan fiziksel KCL artığı yaklaşık **200 MVA** olduğu için bu API dökümü geçerli makine-Q doğruluk kanıtı sayılmamıştır. Hem başarısız karşılaştırma hem referans fiziksel denetimi [küçük kontrol kanıtında](evidence/psse-v5/control-reference-parity.json) tutulur. Bu gözlem diğer gerçek-model farklarının kök nedenini tek başına açıklamaz; karma santral kaynak/kontrol semantiği açık doğrulama işidir.
+
 ## Kaynak ve yöntem
 
 Kurulu lisanslı DataFormats/POM/API belgeleri ile kullanıcı YTBS kılavuzu yerel olarak incelenmiştir. Q(V) PCC tanımı ve RMPCT/makine paylaşımı için bağımsız küçük deneyler kullanılmıştır. REA gerçekten erişilebilir olup PSSPY314 psspyc.pyd üzerinde AMD64 PE ihracat özeti alınmıştır; bu inceleme FNSL algoritmasını ortaya çıkarmamıştır. Vendor kodu kopyalanmamış, lisans denetimi değiştirilmemiştir. Uygulama özgün TypeScript denklemleridir; offline paketin PSS/E/Python bağımlılığı yoktur.

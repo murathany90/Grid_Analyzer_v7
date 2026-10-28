@@ -6,8 +6,8 @@
     "version": "156.0.8078.48"
   },
   "artifact": {
-    "sha256": "a9fca5ced12c313881cbab7be56ffbfdf4d7d5740da1265f0ce4ad4917c6bd4f",
-    "bytes": 2617460
+    "sha256": "f2251cd05ed55260365632a5030266f99c7607d64b10077a74d32ad01424fcc0",
+    "bytes": 2617997
   },
   "offline": {
     "scheme": "file:",
@@ -38,7 +38,7 @@
       "publicationStatus": "LIMITED_PROFILE",
       "classification": "SOLVED_APPROXIMATE",
       "source": "GA_PSSE_CALCULATED",
-      "elapsedMs": 8704
+      "elapsedMs": 8896
     },
     "actualThreeWindingPresent": false,
     "sldRails": true

@@ -21,6 +21,17 @@ function physicalBalance(network:PsseBusBranchNetwork,result:PsseCalculationResu
  return{physicalBusKcl:kcl(physical),internalStarKcl:kcl(internal),unavailableActiveBranches,totals:{generationP,generationQ,loadP,loadQ,shuntP,shuntQ,branchLossP,branchLossQ,netPBalanceMw:generationP-loadP-shuntP-branchLossP,netQBalanceMvar:generationQ-loadQ-shuntQ-branchLossQ},machineOutput:{knownP,knownQ,unavailableActiveP:missingP,unavailableActiveQ:missingQ,completePAllocationResidualMw:missingP?null:knownP-generationP,completeQAllocationResidualMvar:missingQ?null:knownQ-generationQ},branchLossReconstruction:{pMw:stats(result.branchResults.filter(b=>b.pLossMw!==null).map(b=>b.pLossMw!-(b.pFromMw!+b.pToMw!))),qMvar:stats(result.branchResults.filter(b=>b.qLossMvar!==null).map(b=>b.qLossMvar!-(b.qFromMvar!+b.qToMvar!)))}};
 }
 
+function referencePhysicalBalance(network:PsseBusBranchNetwork,reference:any){
+ if(reference.solved!==0)return null;
+ const byNumber=new Map<number,number>(reference.buses.NUMBER.map((n:number,i:number)=>[n,i])),p=new Map<number,number>(),q=new Map<number,number>();
+ const add=(map:Map<number,number>,bus:number,value:number)=>map.set(bus,(map.get(bus)??0)+value);
+ reference.generators.NUMBER.forEach((bus:number,i:number)=>{if(reference.generators.STATUS[i]===1){add(p,bus,reference.generators.PGEN[i]);add(q,bus,reference.generators.QGEN[i]);}});
+ for(const load of network.loads.filter(l=>l.status===1)){const bus=network.buses[load.bus].externalNumber!,v=reference.buses.PU[byNumber.get(bus)!];add(p,bus,-load.pMw-load.ipMw*v-load.ypMw*v*v);add(q,bus,-load.qMvar-load.iqMvar*v-load.yqMvar*v*v);}
+ for(const shunt of network.shunts.filter(s=>s.status===1)){const bus=network.buses[shunt.bus].externalNumber!,v=reference.buses.PU[byNumber.get(bus)!];add(p,bus,-shunt.gMw*v*v);add(q,bus,shunt.bMvar*v*v);}
+ reference.branches.FROMNUMBER.forEach((bus:number,i:number)=>{if(reference.branches.STATUS[i]===1){add(p,bus,-reference.branches.P[i]);add(q,bus,-reference.branches.Q[i]);}});
+ const active=network.buses.filter(b=>b.source&&b.status===1),complete=network.branches.every(b=>b.kind!=='three-winding-leg');
+ return{complete,definition:'API machine P/Q minus normalized ZIP/shunts and all directed API branch terminal powers; source units, independent of GA solve',pMw:stats(active.map(b=>p.get(b.externalNumber!)??0)),qMvar:stats(active.map(b=>q.get(b.externalNumber!)??0)),complexMva:stats(active.map(b=>Math.hypot(p.get(b.externalNumber!)??0,q.get(b.externalNumber!)??0)))};
+}
 const refs=[...JSON.parse(readFileSync('private-re/ac-v5-reference/reference-scenarios.json','utf8')),...JSON.parse(readFileSync('private-re/ac-v5-reference/reference-scenarios-nondivergent-001.json','utf8'))],summaries:any[]=[];
 for(const filename of process.argv.slice(2)){
  const model=await decodePsse(Uint8Array.from(readFileSync(filename)).buffer,filename),network=normalizePsseBusBranch(model),equipment=new Map(model.equipment.map(e=>[e.id,e]));let baseHash:string|null=null;
@@ -34,6 +45,7 @@ for(const filename of process.argv.slice(2)){
   const summary:any={modelBusCount:network.buses.filter(b=>b.source).length,sourceSha256:model.source.sha256,scenario:variant,reference:{status:ref.status,solved:ref.solved,iterations:ref.iterations,options:ref.options,toleranceMva:ref.toleranceMva,attempts:attempts.map((a:any)=>({options:a.options,status:a.status,solved:a.solved,iterations:a.iterations}))},ga:{status:result.status,classification:result.classification,iterations:result.iterations,maxPMismatchPu:result.maxPMismatchPu,maxQMismatchPu:result.maxQMismatchPu,voltageControls:result.diagnostics.remoteRegulation},undoRestoresBase:variant==='undo'?signature===baseHash:null};
   writeFileSync('private-re/ac-v5-reference/ga-'+summary.modelBusCount+'-'+variant+'.json',JSON.stringify(result));
   if(result.status==='CONVERGED')summary.physical=physicalBalance(effective,result);
+  summary.referencePhysical=referencePhysicalBalance(effective,ref);
   if(result.status==='CONVERGED'&&ref.solved===0){
    const refBus=new Map<number,number>(ref.buses.NUMBER.map((n:number,i:number)=>[n,i])),refGen=new Map<string,number>(ref.generators.NUMBER.map((n:number,i:number)=>[n+'|'+String(ref.generators.ID[i]).trim(),i])),refBranch=new Map<string,number>(ref.branches.FROMNUMBER.map((n:number,i:number)=>[n+'|'+ref.branches.TONUMBER[i]+'|'+String(ref.branches.ID[i]).trim(),i]));
    const busById=new Map(result.busResults.map(b=>[b.id,b])),genById=new Map(result.generatorResults.map(g=>[g.id,g])),branchById=new Map(result.branchResults.map(b=>[b.id,b]));

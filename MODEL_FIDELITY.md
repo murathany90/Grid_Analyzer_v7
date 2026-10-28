@@ -10,4 +10,6 @@ Hesap motor kimliği `GA_PSSE_ENGINE_4` olmuştur. Yeni algoritma/kontrol revizy
 
 Tam parite tamamlanmamıştır: ikinci büyük model +%10 yük durumunda dal Q P95 %1,4038; kaynak WMOD=4 davranış farkı ve tüm kontrol kapsamı açıktır. Bu profil için SOLVED_FULL engellidir. Büyük modellerde aktif atanmış droop görülmemesi, küçük radyal örneklerin büyük-model droop kanıtı sayılmasını engeller.
 
+Karma sabit Q / düzenleyen makine içeren küçük santral örneğinde lisanslı API dökümünün kendi makine Q ve dal uçları da fiziksel KCL ile tutarlı değildir. Bu örnek başarıya çevrilmemiştir; 14 küçük örnekte 13 eşleşme ve bir açık uyumsuzluk ayrı raporlanır. Kaynak değerini değiştiren bir uyarlama veya referansa yapay düzeltme eklenmemiştir.
+
 Özel SAV/RAW, lisanslı belgeler, Siemens ikilileri, ham API referansları ve gerçek şebeke ekranları Git/ZIP dışında kalır. Offline teslim yalnız uygulama HTML'i, lisans bildirimleri, bu raporlar ve anonim toplu kanıtlar içerir. [AC kabul ayrıntıları](PSSE_FULL_AC_REFERENCE_PARITY.md) ve [UI kapsamı](DGS_PSSE_MAP_UI_PARITY.md) ayrı raporlanır.
