@@ -1,0 +1,41 @@
+✔ full polar NR solves from flat start and recovers single-machine slack P from balance (38.7822ms)
+✔ source YQ sign is normalized once and ZIP Q derivative matches finite differences for either source sign (3.2547ms)
+✔ NR respects aggregate Q limits and does not clamp when Q-limit enforcement is disabled (3.9704ms)
+✔ equal reactive bounds make a conventional type-2 plant fixed-Q with QT output even when limit monitoring is disabled (5.2979ms)
+✔ WMOD 2 derives symmetric PF limits, WMOD 3 derives signed fixed Q, WMOD 4 holds QG, and zero PF is invalid (2.229ms)
+✔ mixed type-2 plants keep voltage regulation and conserve fixed and regulating machine Q (3.7473ms)
+✔ SOURCE_SAVED preserves the bus voltage when local VS differs and marks the held setpoint approximation (1.9908ms)
+✔ fixed-slope FDNS is an independent engine and publishes method identity (2.3565ms)
+✔ XB B-prime removes the primary tap while retaining secondary reactance scaling (2.7796ms)
+✔ lossless DC uses its own solve, PSS/E 36.5 tap policy, phase shift and fresh load balance (6.4614ms)
+✔ lossless DC accepts finite signed series reactance and blocks zero reactance (2.7179ms)
+✔ lossless DC contracts compatible zero-impedance system switches and recovers tree and cyclic terminal flows (6.0295ms)
+✔ PSS/E ideal-switch threshold follows source scalar precision and fails closed on disabled or incompatible profiles (8.4549ms)
+✔ decoded RAW SYSTEM_WIDE GENERAL preserves explicit THRSHZ zero and gates nondefault PQBRAK (3.0643ms)
+✔ PSS/E low-voltage load gates apply the validated constant-P .7 pu and constant-I .5 pu breakpoints (0.5429ms)
+✔ lossless DC blocks source-saved low-voltage P/I curves but accepts LOADTYPE descriptors (4.5061ms)
+✔ line end shunts remain per unit and transformer primitive retains two-sided tap scaling (0.7756ms)
+✔ RAWX switched-shunt fixed-controls profile applies source STATUS and BINIT without entering automatic adjustment (4.3966ms)
+✔ lossless DC includes source terminal conductance consumption while omitting series resistance losses (0.9129ms)
+✔ three-winding status opens the specified leg and reuses one hidden star bus (3.2162ms)
+✔ all PSS/E solvers share the V2 engine identity and separate GA calculation provenance (1.9327ms)
+✔ calculation publication classification separates full, approximate, unsupported, invalid, and nonconverged outcomes (0.1231ms)
+✔ PSS/E scenarios reject unapplied action/target pairs, duplicate actions, and nonbinary status values (1.1585ms)
+✔ PSS/E diagnostics prioritize errors and warnings before a capped INFO list (0.1988ms)
+✔ PSS/E result CSV exports every typed table with identity, units, publication status and RFC 4180 escaping (1.6166ms)
+✔ active branches and injections on IDE=4/out-of-service buses fail closed (1.6092ms)
+✔ successful AC and DC results leave inactive bus quantities unavailable instead of publishing initial values or zero angles (2.0075ms)
+✔ known active SAV/RAW voltage-droop Q controls are informational only in lossless DC while unknown equipment stays blocked (1.6818ms)
+✔ PV-without-generator is a zero-injection PQ equation in AC while slack and island gates remain enforced (4.8693ms)
+✔ known DC droop exception never hides an unrelated partial-source error or warning (2.1363ms)
+✔ missing physical kV allows per-unit calculation with LIMITED_PROFILE publication status and no invented current bases (1.3904ms)
+✔ missing physical kV still blocks transformer profiles that require kV conversion (1.0525ms)
+✔ PSS/E_REFERENCE import compares only exact source and matching method, remaining a separate provenance (5.1599ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 535.7831

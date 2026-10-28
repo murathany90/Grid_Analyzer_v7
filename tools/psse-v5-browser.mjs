@@ -129,7 +129,7 @@ try{
   const initial=await canvasMetrics(1,1600,1000);
   assert.ok(await map.locator('.ga-psse-geo-station title').filter({hasText:'SOURCE_SAVED'}).count()>0,'saved source data remains labeled as source-saved');
   assert.equal(await map.locator('.ga-psse-geo-flow-arrow').count(),0,'source layer has no calculated flow arrows');
-  assert.equal(await map.getByLabel('Harita metriği').locator('option[value=p]').isDisabled(),true,'source layer cannot fabricate branch flow metric');
+  assert.equal(await map.getByLabel('Harita metriği').locator('option[value=p]').evaluate(option=>option.disabled),true,'source layer cannot fabricate branch flow metric');
   await map.getByLabel('Değer katmanı',{exact:true}).selectOption('calculated');
   assert.ok(await map.locator('.ga-psse-geo-station title').filter({hasText:'GA_PSSE_CALCULATED'}).count()>0,'calculated map values are labeled as application-calculated');
   const metric=map.getByLabel('Harita metriği');
@@ -292,7 +292,7 @@ try{
   await map.locator('button[title="Türkiye altlığını sığdır"]').click();
   await page.screenshot({path:path.join(out,'psse-map-undo-1600x1000.png')});
 
-  await go('Tek Hat Şeması');const sld=page.locator('.ga-psse-sld:visible');await sld.locator('.ga-sld-busbar').first().waitFor({timeout:30000});assert.equal(await sld.locator('[data-device-kind=breaker], [data-device-kind=disconnector]').count(),0,'SLD does not invent switching devices');const voltageRows=await sld.locator('.ga-sld-bus').evaluateAll(groups=>groups.map(group=>({kv:Number((group.querySelector('.ga-sld-kv')?.textContent??'').match(/[0-9]+(?:[.,][0-9]+)?/)?.[0]?.replace(',','.')??NaN),y:Number(group.querySelector('.ga-sld-busbar')?.getAttribute('y1'))})).filter(row=>Number.isFinite(row.kv)&&Number.isFinite(row.y)));assert.ok(voltageRows.every(a=>voltageRows.every(b=>(a.kv<=36?36:a.kv)>(b.kv<=36?36:b.kv)?a.y<=b.y:true)),'higher-voltage bus rails are above lower-voltage rails');report.workflow.sldRails=true;await go('Harita');
+  await go('Tek Hat Şeması');const sld=page.locator('.ga-psse-sld:visible');await sld.locator('.ga-sld-busbar').first().waitFor({state:'attached',timeout:30000});assert.ok(await sld.locator('.ga-sld-busbar').first().evaluate(line=>{const matrix=line.getScreenCTM();return !!matrix&&Math.hypot(matrix.a*(line.x2.baseVal.value-line.x1.baseVal.value),matrix.b*(line.x2.baseVal.value-line.x1.baseVal.value))>10;}),'SLD busbar has a visible screen span');assert.equal(await sld.locator('[data-device-kind=breaker], [data-device-kind=disconnector]').count(),0,'SLD does not invent switching devices');const voltageRows=await sld.locator('.ga-sld-bus').evaluateAll(groups=>groups.map(group=>({kv:Number((group.querySelector('.ga-sld-kv')?.textContent??'').match(/[0-9]+(?:[.,][0-9]+)?/)?.[0]?.replace(',','.')??NaN),y:Number(group.querySelector('.ga-sld-busbar')?.getAttribute('y1'))})).filter(row=>Number.isFinite(row.kv)&&Number.isFinite(row.y)));assert.ok(voltageRows.every(a=>voltageRows.every(b=>(a.kv<=36?36:a.kv)>(b.kv<=36?36:b.kv)?a.y<=b.y:true)),'higher-voltage bus rails are above lower-voltage rails');report.workflow.sldRails=true;await go('Harita');
 
   // Browser emulation checks the shared canvas/SVG transform at three pixel ratios and two sizes.
   for(const dpr of [1,1.25,2])for(const size of [{width:1600,height:1000},{width:1366,height:768}])await canvasMetrics(dpr,size.width,size.height);

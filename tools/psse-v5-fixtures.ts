@@ -9,6 +9,7 @@ export function controlFixture(name:string){
  const raw=JSON.parse(syntheticRawx('basic')),network=raw.network,buses=rows(network.bus),generators=rows(network.generator),lines=rows(network.acline);
  generators[1].ireg=3;generators[1].vs=1.01;
  if(name.startsWith('remote-infeed')){generators[1].wmod=4;generators[1].qg=5;if(name.endsWith('-mixed'))generators.push({...generators[1],machid:'2',wmod:3,wpf:1,pg:0,qg:0,qt:0,qb:0});}
+ if(name==='infeed-local'){generators[1].wmod=4;generators[1].qg=5;generators[1].ireg=0;}
  if(name==='remote-limit'){generators[1].qt=5;generators[1].qb=-5;generators[1].vs=1.08;}
  if(name.startsWith('remote-shared')){
   buses.push({...buses[1],ibus:4,name:'SYNTH 4'});generators[1].pg=40;generators[1].rmpct=70;
