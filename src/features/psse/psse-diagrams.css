@@ -270,3 +270,20 @@
 @media(max-width:1100px){.ga-psse-map-toolbar-row{flex-wrap:wrap}.ga-psse-map .ga-psse-band-filter{height:auto;min-height:34px}.ga-psse-map .ga-psse-geo-stage{height:calc(100dvh - 300px);min-height:320px}}
 
 .ga-psse-geo-link.is-focus{stroke-width:2.5!important;opacity:1;filter:drop-shadow(0 0 3px #fff)}
+/* DGS-style two-row map toolbar; additional PSS/E filters live in a menu. */
+.ga-psse-map-toolbar-row{height:34px;flex-wrap:nowrap;align-items:center;gap:6px}
+.ga-psse-map-toolbar-row>.ga-psse-diagram-control{flex:1 1 125px;min-width:0}
+.ga-psse-map-toolbar-row>.ga-psse-diagram-control:has(.ga-psse-band-filter){flex:2 1 325px;min-width:300px}
+.ga-psse-map-toolbar-row>.ga-map-menu,.ga-psse-map-toolbar-row>.ga-button,.ga-psse-map-toolbar-row>.ga-check{flex:none}
+.ga-psse-map-toolbar-row>.ga-map-menu>summary{height:34px;padding:5px 8px}
+.ga-psse-map-toolbar-row .ga-map-search{min-width:110px;flex:1 1 145px}
+.ga-psse-map-toolbar-row .ga-map-search input,.ga-psse-map-toolbar-row .ga-map-search button{height:34px;font-size:12px}
+.ga-psse-map .ga-map-menu-body .ga-psse-diagram-control{height:auto;display:grid;gap:5px}
+.ga-psse-map .ga-map-menu-body .ga-psse-diagram-control>select{width:100%}
+.ga-psse-map .ga-map-menu-body .ga-button{height:34px}
+.ga-psse-map .ga-psse-filter-menu .ga-map-menu-body{left:auto;right:0}
+@media(max-width:1100px){.ga-psse-map-toolbar-row{height:auto;flex-wrap:wrap}.ga-psse-map-toolbar-row>.ga-psse-diagram-control:has(.ga-psse-band-filter){min-width:280px}}
+.ga-psse-lightning.is-embedded{position:relative;inset:auto;width:100%;height:520px;max-width:none;box-shadow:none}
+.ga-psse-lightning.is-embedded .ga-psse-lightning-head button{display:none}
+.ga-psse-map .ga-map-scenario-chip{width:auto}
+.ga-psse-map-toolbar-row:nth-child(2)>.ga-psse-diagram-control:first-child{max-width:300px}

@@ -1,3 +1,10 @@
+## V5 checkpoint (2026-10-28)
+
+- Continuing branch fix/psse-v1-real-model-parity from c06446764b9cc49863b9b26ba1454607fd362377. No reset, branch creation or merge.
+- Separate PSS/E toolbar, result grouping and exports updated; DGS source unchanged. New 3-winding source grouping fixture passes; TypeScript and both offline/portable builds pass at this checkpoint. Final V5 real/browser gate remains pending.
+- Dongle reattached by user: licensed PSS/E 36.5 initializes for 20,000 buses. Both original SAV base cases loaded and FNSL converged (15 and 7 iterations). Raw references and real screenshots stay ignored/private.
+- Existing AC engine still publishes approximate profile. Exact remote IREG/RMPCT and enabled droop reference investigation is ongoing; no SOLVED_FULL claim.
+- Original tiny control fixtures and licensed API harness added. Two authorized V5 agents were attempted: physics model capacity failed without edits; UI agent completed. Root owns electrical work and delivery.
 # Agent handoff
 
 ## V4 UIFIX3 final delivery (2026-10-28)
@@ -102,3 +109,4 @@
 - Final native browser acceptance passes in both Chrome and Edge on the same extracted HTML hash: exact SAV/RAW/SAV-ZIP inventories and hashes, real DC LIMITED_PROFILE/null Vm, cancellation/stale-result isolation, synthetic JSON/CSV identity, reference match and foreign-source rejection. Sanitized reports are `evidence/psse-ac-dc/native-browser/{chrome,msedge}.json`; actual-model screenshots remain ignored. Heap measurements are main-frame-only snapshots, not worker totals or peak process memory.
 - Gate E closure for the verified fixed profiles is recorded in architecture §17; unfinished master requirements and both strict DC DIFFERENCES remain explicit. Final packaging records push and CI evidence only when branch/head match the packaged checkout. The resulting revision and actual remote CI/transport outcome belong in `git/DELIVERY_METADATA.json`; no private source model or raw reference dump is included.
 - Remote CI run `40470302942` reached all unit tests and exposed the old README-only root-document policy after the required reports were committed (827 pass, 22 licensed-fixture skips, one documentation failure). The repository check now strictly lists README plus the seven user-requested delivery reports; link and private-file checks are preserved. Its focused regression passes, and README links the current feature/profile reports. No runtime/HTML or electrical equations changed for this correction. Remote licensed-fixture skips are expected; the local full run exercised all 850 tests without skips.
+
