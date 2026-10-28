@@ -21,7 +21,7 @@ file('dist-psse/index.html','GridAnalyzer_v7.html');
 file('dist-psse/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt');
 for(const name of ['V4_UIFIX3_DGS_MAP_PARITY.md','V4_UIFIX3_REAL_MODEL_E2E.md','DGS_REGRESSION_UIFIX3.md','AGENT_HANDOFF.md'])file(name);
 const evidence=path.join(root,'evidence/psse-uifix3');
-if(fs.existsSync(evidence))for(const name of fs.readdirSync(evidence).sort())if(/^[a-z0-9_-]+\.(json|log)$/i.test(name))file('evidence/psse-uifix3/'+name,'test-logs/'+name);
+if(fs.existsSync(evidence))for(const name of fs.readdirSync(evidence).sort())if(/^[a-z0-9_-]+\.(json|log)$/i.test(name)){file('evidence/psse-uifix3/'+name,'test-logs/'+name);if(name.endsWith('.json'))file('evidence/psse-uifix3/'+name);}
 const htmlSha256=sha(entries['GridAnalyzer_v7.html']),browserChecks={};
 for(const channel of ['chrome','msedge']){
  const bytes=entries[`test-logs/browser-e2e-${channel}.json`];

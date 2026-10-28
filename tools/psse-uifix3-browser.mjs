@@ -13,7 +13,7 @@ const dgsZip=path.resolve(process.argv[5]??'C:/Users/Murathan Yeniceli/Downloads
 const out=path.resolve(process.argv[6]??path.join(root,'local-benchmark-results','psse-offline-browser','uifix3-private',channel));
 const aggregate=path.resolve(process.argv[7]??path.join(root,'evidence','psse-uifix3',`browser-e2e-${channel}.json`));
 const sourceHash=createHash('sha256').update(await readFile(html)).digest('hex');
-const report={schema:'ga.psse.uifix3.browser-e2e.v1',status:'FAIL',browser:{channel},artifact:{sha256:sourceHash,bytes:(await readFile(html)).byteLength},offline:{scheme:'file:',externalRequestCount:0,blockedRequestCount:0},workflow:{psseZipImport:false,dgsZipImport:false,fullAcNr:false,mapFlows:false,branchScenarioRecalculated:false,baseScenarioDelta:false,undo:false,calculationOptionsReused:false},map:{viewports:[],wheelAnchorDriftCssPx:null,childDragPan:false,fullscreen:[]},errors:[]};
+const report={schema:'ga.psse.uifix3.browser-e2e.v1',status:'FAIL',browser:{channel},artifact:{sha256:sourceHash,bytes:(await readFile(html)).byteLength},offline:{scheme:'file:',externalRequestCount:0,blockedRequestCount:0},workflow:{psseZipImport:false,dgsZipImport:false,fullAcNr:false,mapFlows:false,lightningSourceFlowsMissing:false,lightningCalculatedPqil:false,lightningDelta:false,branchScenarioRecalculated:false,baseScenarioDelta:false,undo:false,calculationOptionsReused:false},map:{viewports:[],wheelAnchorDriftCssPx:null,childDragPan:false,fullscreen:[]},errors:[]};
 await mkdir(out,{recursive:true});
 await mkdir(path.dirname(aggregate),{recursive:true});
 const browser=await chromium.launch({channel,headless:true,args:['--disable-background-networking','--disable-component-update','--disable-sync','--no-proxy-server','--host-resolver-rules=MAP * ~NOTFOUND']});
@@ -54,7 +54,11 @@ async function canvasMetrics(dpr,width,height){
   const session=await context.newCDPSession(page);
   await session.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:dpr,mobile:false});
   await page.waitForFunction(({w,h,d})=>window.innerWidth===w&&window.innerHeight===h&&Math.abs(window.devicePixelRatio-d)<.001,{w:width,h:height,d:dpr});
-  await page.waitForTimeout(80);
+  await page.evaluate(()=>window.dispatchEvent(new Event('resize')));
+  await page.waitForFunction(()=>{
+    const canvas=document.querySelector('.ga-psse-geo-stage canvas');if(!canvas)return false;const box=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio;
+    return Math.abs(canvas.width-box.width*dpr)<=1.1&&Math.abs(canvas.height-box.height*dpr)<=1.1;
+  },undefined,{timeout:10000});
   const metric=await page.locator('.ga-psse-geo-stage').evaluate(stage=>{
     const canvas=stage.querySelector('canvas'),svg=stage.querySelector('svg'),toolbar=stage.closest('.ga-psse-map')?.querySelector('.ga-psse-diagram-controls');
     if(!canvas||!svg)throw Error('Basemap canvas or geography SVG is missing');
@@ -118,9 +122,32 @@ try{
   const metric=map.getByLabel('Harita metriği');
   await metric.selectOption('p');
   assert.match(await map.locator('.ga-psse-diagram-legend').textContent(),/Aktif güç P \(MW\)/,'real calculated active power flow is displayed');
-  assert.ok(await map.locator('.ga-psse-geo-link[data-branch-id]').count()>0,'the map draws identified branches');
-  report.workflow.mapFlows=true;
+  const finiteBranchP=await map.locator('.ga-psse-geo-link[data-branch-id] title').evaluateAll(nodes=>nodes.some(node=>/P=[+-]?(?:\d+(?:[,.]\d+)?|[,.]\d+)(?:e[+-]?\d+)? MW/i.test(node.textContent??'')));
+  const calculatedFlowArrows=await map.locator('.ga-psse-geo-flow-arrow[data-branch-id]').count();
+  assert.equal(finiteBranchP,true,'at least one real branch title exposes a finite calculated P flow');
+  assert.ok(calculatedFlowArrows>0,'calculated map renders nonzero directional flow arrows');
+  report.workflow.mapFlows={finiteBranchP:true,calculatedFlowArrows:true};
   await page.screenshot({path:path.join(out,'psse-map-1600x1000.png')});
+
+  const lightning=map.locator('.ga-psse-lightning');
+  await map.locator('.ga-psse-lightning-toggle').click();
+  await lightning.waitFor({timeout:10000});
+  const lightningLayer=lightning.getByLabel('Sonuç katmanı'),lightningKind=lightning.getByLabel('Sonuç tablosu');
+  await lightningLayer.selectOption('source');await lightningKind.selectOption('branches');
+  const sourceBranchRows=await lightning.locator('.ga-psse-lightning-table tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>cell.textContent?.trim()??'')));
+  assert.ok(sourceBranchRows.length>0&&sourceBranchRows.every(row=>row.slice(2).every(cell=>cell==='— / —')),'source branch layer never invents solved P/Q/current/loading values');
+  assert.ok(sourceBranchRows.every(row=>row[0]!==''&&!/^(?:line:|branch:)/i.test(row[0])),'lightning table uses name-first branch labels');
+  report.workflow.lightningSourceFlowsMissing=true;
+  await lightningLayer.selectOption('base');
+  const calculatedBranchRows=await lightning.locator('.ga-psse-lightning-table tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>cell.textContent?.trim()??'')));
+  const finite=/[+-]?(?:\d+(?:[,.]\d+)?|[,.]\d+)(?:e[+-]?\d+)?/i;
+  assert.ok([2,3,4,5].every(index=>calculatedBranchRows.some(row=>finite.test(row[index]??''))),'calculated panel has real P, Q, current and loading values');
+  report.workflow.lightningCalculatedPqil=true;
+  await page.screenshot({path:path.join(out,'psse-lightning-1600x1000.png')});
+  await page.setViewportSize({width:1366,height:768});await page.waitForTimeout(180);
+  await page.screenshot({path:path.join(out,'psse-lightning-1366x768.png')});
+  await page.setViewportSize({width:1600,height:1000});await page.waitForTimeout(120);
+  await lightning.locator('button[title="Sonuç panelini kapat"]').click();
 
   const wheelTarget=map.locator('.ga-psse-geo-station').first();
   const wheelBox=await wheelTarget.boundingBox();
@@ -160,14 +187,16 @@ try{
   report.map.fitRoundtrip=true;
 
   const branchLines=map.locator('.ga-psse-geo-link[data-branch-id]');
-  const branchCount=await branchLines.count();
-  let selectedBranch=-1,selectedBranchToken='';
-  for(let i=0;i<branchCount;i++){
-    const title=(await branchLines.nth(i).locator('title').textContent())??'';
-    if(title.includes('serviste')&&!/3W sargısı/i.test(title)){selectedBranch=i;selectedBranchToken=await branchLines.nth(i).getAttribute('data-branch-id')??'';break;}
-  }
-  assert.ok(selectedBranch>=0,'a suitable in-service line is available on the real map');
-  const selectedLine=branchLines.nth(selectedBranch);
+  const candidate=await map.evaluate(root=>{
+    const arrowIds=new Set([...root.querySelectorAll('.ga-psse-geo-flow-arrow[data-branch-id]')].map(arrow=>arrow.getAttribute('data-branch-id')));
+    return [...root.querySelectorAll('.ga-psse-geo-link[data-branch-id]')].find(line=>{
+      const title=line.querySelector('title')?.textContent??'',id=line.getAttribute('data-branch-id');
+      return title.includes('serviste')&&!/3W sargısı/i.test(title)&&arrowIds.has(id);
+    })?.getAttribute('data-branch-id')??null;
+  });
+  assert.ok(candidate,'a served branch with a real calculated directional arrow is available');
+  const selectedBranchToken=candidate;
+  const selectedLine=map.locator(`.ga-psse-geo-link[data-branch-id="${selectedBranchToken}"]`);
   const selectedLabel=await selectedLine.getAttribute('aria-label');
   assert.ok(selectedLabel,'map line exposes its accessible branch name');
   await selectedLine.focus();await selectedLine.press('Enter');
@@ -195,10 +224,20 @@ try{
   assert.match(await map.locator('.ga-psse-diagram-legend').textContent(),/Aktif güç P \(MW\)/,'Baz flow layer is available');
   await map.getByLabel('LF görünümü').selectOption('scenario');
   assert.equal(await map.getByLabel('Değer katmanı').inputValue(),'calculated','Senaryo view uses GA-calculated results');
+  assert.equal(await map.locator(`.ga-psse-geo-flow-arrow[data-branch-id="${selectedBranchToken}"]`).count(),0,'the opened branch has no flow arrow in the active scenario view');
   await map.getByLabel('LF görünümü').selectOption('delta');
   assert.match(await map.locator('.ga-psse-diagram-legend').textContent(),/Senaryo − baz/,'Fark view uses compatible base and scenario calculations');
   report.workflow.baseScenarioDelta=true;
+  await map.locator('.ga-psse-lightning-toggle').click();
+  await lightningLayer.selectOption('delta');await lightningKind.selectOption('branches');
+  assert.match(await lightning.locator('.ga-psse-lightning-context').textContent(),/Fark = Senaryo − Baz/,'lightning panel labels the comparison as scenario minus base');
+  const deltaRows=await lightning.locator('.ga-psse-lightning-table tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>cell.textContent?.trim()??'')));
+  assert.ok(deltaRows.some(row=>[2,3,4,5].some(index=>finite.test(row[index]??''))),'lightning delta table publishes compatible finite differences');
+  report.workflow.lightningDelta=true;
+  await lightning.locator('button[title="Sonuç panelini kapat"]').click();
 
+  const technical=map.locator('.ga-psse-map-details');
+  if(!await technical.evaluate(node=>node.open))await technical.locator('summary').click();
   await map.getByLabel('Servis durumu filtresi').selectOption('all');
   const scenarioBranch=map.locator(`.ga-psse-geo-link[data-branch-id="${selectedBranchToken}"]`);
   await scenarioBranch.waitFor({timeout:10000});
@@ -231,21 +270,33 @@ try{
   // Browser emulation checks the shared canvas/SVG transform at three pixel ratios and two sizes.
   for(const dpr of [1,1.25,2])for(const size of [{width:1600,height:1000},{width:1366,height:768}])await canvasMetrics(dpr,size.width,size.height);
   const fullscreenResults=[];
+  if(await technical.evaluate(node=>node.open))await technical.locator('summary').click();
   for(const dpr of [1,1.25,2]){
     const before=await canvasMetrics(dpr,1600,1000);
     await map.getByRole('button',{name:'Tam ekran',exact:true}).click();
     await page.waitForFunction(()=>document.fullscreenElement?.classList.contains('ga-psse-map'),undefined,{timeout:10000});
-    const during=await stage.evaluate(node=>{const box=node.getBoundingClientRect();return{width:box.width,height:box.height,dpr:window.devicePixelRatio,fullscreen:document.fullscreenElement?.classList.contains('ga-psse-map')??false};});
+    const during=await page.evaluate(()=>{
+      const root=document.querySelector('.ga-psse-map'),stage=root?.querySelector('.ga-psse-geo-stage');
+      const toolbar=root?.querySelector('.ga-psse-diagram-controls'),details=root?.querySelector('.ga-psse-map-details');
+      const r=root?.getBoundingClientRect(),s=stage?.getBoundingClientRect();
+      const t=toolbar?.getBoundingClientRect(),d=details?.getBoundingClientRect();
+      return{width:s?.width??0,height:s?.height??0,rootWidth:r?.width??0,rootHeight:r?.height??0,toolbarHeight:t?.height??0,detailsHeight:d?.height??0,detailsOpen:details?.hasAttribute('open')??false,availableMapHeight:(r?.height??0)-(t?.height??0)-(d?.height??0)-40,viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},fullscreen:document.fullscreenElement===root};
+    });
+    fullscreenResults.push({dpr,width:during.width,height:during.height,rootWidth:during.rootWidth,rootHeight:during.rootHeight,toolbarHeight:during.toolbarHeight,detailsHeight:during.detailsHeight,detailsOpen:during.detailsOpen,availableMapHeight:during.availableMapHeight,passed:during.fullscreen});
+    report.map.fullscreen=fullscreenResults;
     assert.equal(during.fullscreen,true);
-    assert.ok(during.width>=before.stage.width-5&&during.height>before.stage.height,'map stage expands in app fullscreen');
-    fullscreenResults.push({dpr,width:during.width,height:during.height,passed:true});
+    assert.ok(during.rootWidth>=during.viewport.width-5&&during.rootHeight>=during.viewport.height-5,'map root fills the fullscreen viewport');
+    assert.equal(during.detailsOpen,false,'technical details are closed in fullscreen layout');
+    assert.ok(during.width>=during.rootWidth-50&&during.height>=during.availableMapHeight-10,'map stage fills available fullscreen space under the compact toolbar');
     if(dpr===2)await page.screenshot({path:path.join(out,'psse-map-fullscreen-dpr2.png')});
-    await map.getByRole('button',{name:'Çık',exact:true}).click();
+    await map.locator('button').filter({hasText:'Çık'}).click();
     await page.waitForFunction(()=>document.fullscreenElement===null,undefined,{timeout:10000});
     await page.setViewportSize({width:1600,height:1000});
   }
   report.map.fullscreen=fullscreenResults;
+  await canvasMetrics(1,1366,768);
   await page.screenshot({path:path.join(out,'psse-map-1366x768.png')});
+  await canvasMetrics(1,1600,1000);
 
   // The matching local DGS ZIP is a user-owned model. Capture only local screenshots; report no model fingerprint or data values.
   await uploadZip(dgsZip,'DGS MODU','.json');

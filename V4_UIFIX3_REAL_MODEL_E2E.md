@@ -1,22 +1,36 @@
-# V4 UIFIX3 real-model browser E2E
+# UIFIX3 real-model offline browser E2E
 
-**Status: in progress.** This is a private local validation record for the offline UI build. It contains no real-model names, identifiers, coordinates, numeric results, or screenshots.
+**Status: PASS** on the final standalone HTML artifact in Chrome and Edge. The evidence records no private model names, source/model hashes, equipment identifiers, coordinates, calculated values, or screenshots.
 
-## Scope
+## Artifact and browsers
 
-- Load the user-owned PSS/E ZIP through the browser file picker in Edge and Chrome using the standalone `file://` build.
-- Run a full AC Newton–Raphson case from `SOURCE_SAVED`, then exercise map flow values, branch detail, a one-branch outage and recalculation, Baz/Senaryo/Fark comparison, and undo.
-- Measure basemap canvas and SVG registration, pointer-anchored wheel zoom, child-element drag pan, viewport resize, DPR 1/1.25/2, and map fullscreen.
-- Compare the local DGS model ZIP at 1600×1000 and 1366×768. All real-grid captures remain under the ignored `local-benchmark-results/psse-offline-browser/uifix3-private/` directory.
+| Item | Result |
+|---|---|
+| Offline HTML | 2,599,124 bytes |
+| SHA-256 | `205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe` |
+| Chrome | 156.0.8078.48 · PASS |
+| Edge | 156.0.4314.50 · PASS |
+| Network | 0 external requests; 0 blocked requests; no page or console errors |
 
-## Interim Edge evidence
+Both browsers opened the user-owned PSS/E ZIP through `file://`, ran the local DGS ZIP comparison, and completed the same workflow against the same HTML hash. All screenshots stay in ignored `local-benchmark-results/psse-offline-browser/uifix3-private/`.
 
-The first run against the current standalone offline build imported the private PSS/E ZIP and completed full AC NR in 17.7 seconds. The result was classified `LIMITED_PROFILE` / `SOLVED_APPROXIMATE` and its source card and worker request identified `GA_PSSE_CALCULATED` and `SOURCE_SAVED` respectively. The map exposed calculated P flows.
+## PSS/E workflow
 
-At 1600×1000 and DPR 1, the first geometry sample measured a 125.4 CSS-pixel toolbar, a 1566×755 CSS-pixel map stage, and co-located canvas/SVG bounds of 1564×753 pixels. Canvas backing-store scale error and canvas/SVG overlay error were both 0 pixels. Pointer-anchored zoom drift was 0.093 CSS pixels.
+The selected `.sav` member ran full AC NR from `SOURCE_SAVED`. The worker request retained that initial voltage policy. Numerical status was `CONVERGED`; the published status was `LIMITED_PROFILE`, classification `SOLVED_APPROXIMATE`, and source `GA_PSSE_CALCULATED`. The test does not classify the partial profile as `SOLVED_FULL` or present an external PSS/E reference result.
 
-That run stopped at the fit-button locator after the UI changed its accessible name. The branch scenario, comparison, undo, fullscreen, DGS comparison, and Chrome pass remain outstanding. A new run is in progress against the updated locator and canvas-transform measurement hooks; this report will be replaced with the completed aggregate when those checks finish.
+The map showed finite calculated P flow and nonzero directional arrows. The lightning panel showed missing branch flows for the source-record layer, calculated P/Q/current/loading values for the base result, and numeric differences for the compatible scenario comparison. A served branch was opened from the map and recalculated; Baz, Senaryo and Fark were checked; the branch was undone and recalculated with the same NR options. The selected branch had no arrow in the Senaryo layer. The station detail check also confirmed no stale branch action remained attached to a station.
 
-## Privacy and evidence
+## Viewport and map alignment
 
-The harness writes screenshots only to the ignored private output directory. The tracked aggregate records browser/build metadata, workflow classifications, and geometry error measurements only. It omits source paths, source/model hashes, equipment names, identifiers, coordinates, calculated values, and screenshots.
+| Viewport | Toolbar | Map stage | Canvas and SVG | Maximum alignment error |
+|---|---:|---:|---:|---:|
+| 1600×1000, DPR 1 | 93 px | 1566×755 px | 1564×753 px | 0.000030 px |
+| 1366×768, DPR 1 | 93 px | 1332×523 px | 1330×521 px | 0.000017 px |
+
+The canvas backing store matched the requested DPR within 0.5 CSS px for DPR 1, 1.25 and 2 at both sizes. Canvas/SVG overlay bounds matched exactly. Projected station centers matched the actual basemap Canvas transform within 0.000030 CSS px. Wheel zoom stayed anchored within 0.128 px; the inverse wheel and fit interactions restored zoom and pan exactly. Dragging an SVG child panned the map without opening its station dialog.
+
+Fullscreen passed at DPR 1, 1.25 and 2 in both browsers with the compact toolbar and closed technical details. The measured map stage used at least the available fullscreen height after toolbar, details and layout spacing.
+
+## DGS comparison and privacy
+
+The matching local DGS model ZIP imported successfully in both browsers. Model and map screenshots were captured at 1600×1000 and 1366×768 for private review only. The tracked aggregate contains only workflow classifications and layout/alignment measurements: [browser E2E aggregate](evidence/psse-uifix3/browser-e2e-aggregate.json).

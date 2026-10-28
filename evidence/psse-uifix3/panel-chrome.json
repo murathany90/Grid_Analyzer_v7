@@ -1,0 +1,24 @@
+{
+  "schema": "ga.psse.uifix3.panel-browser.v1",
+  "status": "PASS",
+  "channel": "chrome",
+  "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+  "checks": [
+    "AC branch P/Q/current/loading and exact source names",
+    "SOURCE_SAVED branch flow remains missing",
+    "DC Vm/Q/current/loading remain missing",
+    "prefers-reduced-motion disables animation",
+    "fullscreen stage fills the space remaining below compact controls",
+    "offline Canvas/SVG PNG export",
+    "Model Quality retains all three local coordinate reports"
+  ],
+  "errors": [],
+  "fullscreen": {
+    "viewportHeight": 768,
+    "stageHeight": 624.734375,
+    "toolbarHeight": 93,
+    "detailsOpen": false
+  },
+  "externalRequests": 0,
+  "browser": "156.0.8078.48"
+}

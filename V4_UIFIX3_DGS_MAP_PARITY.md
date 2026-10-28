@@ -22,7 +22,7 @@ Zoom hedefinde önce fare konumu aynı dönüşümle dünyaya çevrilir, yeni pa
 
 ## Kanıt ve kabul
 
-Otomatik matematik/kimlik/adlandırma testleri ve gerçek Chrome/Edge testlerinin nihai sonuçları teslim raporlarında kaydedilir. Bu dosyanın ilk sürümü çalışma kontrol noktasıdır; gerçek tarayıcı testi için henüz PASS iddiası üretmez.
+Sonuç: Chrome ve Edge gerçek-model E2E PASS; 898/898 birim/regresyon testi, dokuz aşamalı DGS tarayıcı regresyonu, normal/portable/offline build, typecheck ve lint PASS. İki tarayıcı aynı 2.599.124 bayt HTML SHA-256 205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe üzerinde çalıştırıldı. 1600×1000 ve 1366×768, DPR 1/1.25/2: Canvas/SVG kutu farkı 0 px; gerçek kaynak noktasının affine hizalama farkı en çok 0,000029221 CSS px; fare-anchor bounding-box sapması 0,128 CSS px. Sürükleme, ters zoom, fit, resize ve fullscreen geçti. Toolbar 93 px yüksekliğinde, teknik ayrıntılar başlangıçta kapalıdır. Gerçek şebeke ekranları yerel özel kanıt klasöründe tutulur.
 
 - Gerçek model E2E: [V4_UIFIX3_REAL_MODEL_E2E.md](V4_UIFIX3_REAL_MODEL_E2E.md).
 - DGS regresyonu: [DGS_REGRESSION_UIFIX3.md](DGS_REGRESSION_UIFIX3.md).

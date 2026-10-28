@@ -1,0 +1,565 @@
+{
+  "schema": "ga.psse.uifix3.browser-e2e.v1",
+  "status": "PASS",
+  "browser": {
+    "channel": "msedge",
+    "version": "156.0.4314.50"
+  },
+  "artifact": {
+    "sha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+    "bytes": 2599124
+  },
+  "offline": {
+    "scheme": "file:",
+    "externalRequestCount": 0,
+    "blockedRequestCount": 0
+  },
+  "workflow": {
+    "psseZipImport": true,
+    "dgsZipImport": true,
+    "fullAcNr": true,
+    "mapFlows": {
+      "finiteBranchP": true,
+      "calculatedFlowArrows": true
+    },
+    "lightningSourceFlowsMissing": true,
+    "lightningCalculatedPqil": true,
+    "lightningDelta": true,
+    "branchScenarioRecalculated": true,
+    "baseScenarioDelta": true,
+    "undo": true,
+    "calculationOptionsReused": true,
+    "baseline": {
+      "method": "NR_POLAR",
+      "initialVoltage": "SOURCE_SAVED",
+      "numericalStatus": "CONVERGED",
+      "publicationStatus": "LIMITED_PROFILE",
+      "classification": "SOLVED_APPROXIMATE",
+      "source": "GA_PSSE_CALCULATED",
+      "elapsedMs": 9832
+    }
+  },
+  "map": {
+    "viewports": [
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1564,
+          "pixelHeight": 753
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 62.36024856567383,
+          "d": 62.36024856567383,
+          "e": 782,
+          "f": 376.5
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1564,
+          "pixelHeight": 753
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 62.36024856567383,
+          "d": 62.36024856567383,
+          "e": 782,
+          "f": 376.5
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1366,
+          "height": 768,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1332,
+          "height": 523
+        },
+        "canvas": {
+          "width": 1330,
+          "height": 521,
+          "pixelWidth": 1330,
+          "pixelHeight": 521
+        },
+        "svg": {
+          "width": 1330,
+          "height": 521
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.000016425198189764753,
+        "canvasTransform": {
+          "a": 43.14699935913086,
+          "d": 43.14699935913086,
+          "e": 665,
+          "f": 260.5
+        },
+        "screenScale": 0.755072463768116,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1.25
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1955,
+          "pixelHeight": 941
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0.25,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 77.95031070709229,
+          "d": 77.95031070709229,
+          "e": 977.5,
+          "f": 470.625
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1366,
+          "height": 768,
+          "dpr": 1.25
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1332,
+          "height": 523
+        },
+        "canvas": {
+          "width": 1330,
+          "height": 521,
+          "pixelWidth": 1663,
+          "pixelHeight": 651
+        },
+        "svg": {
+          "width": 1330,
+          "height": 521
+        },
+        "scaleErrorCssPx": 0.5,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.000016425198189764753,
+        "canvasTransform": {
+          "a": 53.933749198913574,
+          "d": 53.933749198913574,
+          "e": 831.25,
+          "f": 325.625
+        },
+        "screenScale": 0.755072463768116,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 2
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 3128,
+          "pixelHeight": 1506
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 124.72049713134766,
+          "d": 124.72049713134766,
+          "e": 1564,
+          "f": 753
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1366,
+          "height": 768,
+          "dpr": 2
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1332,
+          "height": 523
+        },
+        "canvas": {
+          "width": 1330,
+          "height": 521,
+          "pixelWidth": 2660,
+          "pixelHeight": 1042
+        },
+        "svg": {
+          "width": 1330,
+          "height": 521
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.000016425198189764753,
+        "canvasTransform": {
+          "a": 86.29399871826172,
+          "d": 86.29399871826172,
+          "e": 1330,
+          "f": 521
+        },
+        "screenScale": 0.755072463768116,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1564,
+          "pixelHeight": 753
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 62.36024856567383,
+          "d": 62.36024856567383,
+          "e": 782,
+          "f": 376.5
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1.25
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1955,
+          "pixelHeight": 941
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0.25,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 77.95031070709229,
+          "d": 77.95031070709229,
+          "e": 977.5,
+          "f": 470.625
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 2
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 3128,
+          "pixelHeight": 1506
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 124.72049713134766,
+          "d": 124.72049713134766,
+          "e": 1564,
+          "f": 753
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1366,
+          "height": 768,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1332,
+          "height": 523
+        },
+        "canvas": {
+          "width": 1330,
+          "height": 521,
+          "pixelWidth": 1330,
+          "pixelHeight": 521
+        },
+        "svg": {
+          "width": 1330,
+          "height": 521
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.000016425198189764753,
+        "canvasTransform": {
+          "a": 43.14699935913086,
+          "d": 43.14699935913086,
+          "e": 665,
+          "f": 260.5
+        },
+        "screenScale": 0.755072463768116,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "viewport": {
+          "width": 1600,
+          "height": 1000,
+          "dpr": 1
+        },
+        "toolbar": {
+          "height": 93
+        },
+        "stage": {
+          "width": 1566,
+          "height": 755
+        },
+        "canvas": {
+          "width": 1564,
+          "height": 753,
+          "pixelWidth": 1564,
+          "pixelHeight": 753
+        },
+        "svg": {
+          "width": 1564,
+          "height": 753
+        },
+        "scaleErrorCssPx": 0,
+        "overlayErrorCssPx": 0,
+        "basemapPointAlignmentErrorCssPx": 0.00002922081814947678,
+        "canvasTransform": {
+          "a": 62.36024856567383,
+          "d": 62.36024856567383,
+          "e": 782,
+          "f": 376.5
+        },
+        "screenScale": 1.0913043478260869,
+        "zoom": 1,
+        "pan": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    ],
+    "wheelAnchorDriftCssPx": 0.128,
+    "childDragPan": true,
+    "fullscreen": [
+      {
+        "dpr": 1,
+        "width": 1322,
+        "height": 531.734375,
+        "rootWidth": 1340,
+        "rootHeight": 675,
+        "toolbarHeight": 93,
+        "detailsHeight": 16.265625,
+        "detailsOpen": false,
+        "availableMapHeight": 525.734375,
+        "passed": true
+      },
+      {
+        "dpr": 1.25,
+        "width": 1322,
+        "height": 531.734375,
+        "rootWidth": 1340,
+        "rootHeight": 675,
+        "toolbarHeight": 93,
+        "detailsHeight": 16.265625,
+        "detailsOpen": false,
+        "availableMapHeight": 525.734375,
+        "passed": true
+      },
+      {
+        "dpr": 2,
+        "width": 1322,
+        "height": 531.734375,
+        "rootWidth": 1340,
+        "rootHeight": 675,
+        "toolbarHeight": 93,
+        "detailsHeight": 16.265625,
+        "detailsOpen": false,
+        "availableMapHeight": 525.734375,
+        "passed": true
+      }
+    ],
+    "wheelRoundtrip": {
+      "zoomError": 0,
+      "panError": 0
+    },
+    "fitRoundtrip": true
+  },
+  "errors": [],
+  "privacy": {
+    "privateScreenshots": true,
+    "modelNamesHashesValuesAndCoordinatesOmitted": true,
+    "screenshotDirectory": "local-benchmark-results/psse-offline-browser/uifix3-private"
+  }
+}
