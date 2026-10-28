@@ -128,8 +128,12 @@
 .ga-psse-lightning-tabs .ga-button:disabled{opacity:.45;cursor:not-allowed}
 .ga-psse-lightning-context{margin:0;font-size:11.5px;color:var(--muted)}
 .ga-psse-lightning-table{font-size:11.5px}
-.ga-psse-lightning-toggle{position:absolute;right:14px;bottom:14px;z-index:7;width:48px;height:48px;border-radius:50%;border:1px solid #84c3c9;background:linear-gradient(135deg,#186d85,#0d4058);color:#ffe9a8;font-size:20px;cursor:pointer;box-shadow:0 3px 10px #0007}
+.ga-psse-lightning-toggle{border:1px solid #84c3c9;background:linear-gradient(135deg,#186d85,#0d4058);color:#ffe9a8;font-weight:600;cursor:pointer}
 .ga-psse-lightning-toggle:hover{filter:brightness(1.12)}
+.ga-psse-map .ga-psse-diagram-controls{grid-template-columns:minmax(150px,1.05fr) minmax(126px,.85fr) minmax(318px,2.1fr) minmax(106px,.78fr) minmax(106px,.78fr) minmax(116px,.85fr) minmax(92px,.66fr) minmax(118px,.82fr) minmax(295px,1.55fr)}
+.ga-psse-band-filter{display:flex;gap:7px;align-items:center;flex-wrap:nowrap;white-space:nowrap;min-width:0}
+.ga-psse-band-filter .ga-check{font-size:11.5px;gap:3px;display:inline-flex;align-items:center}
+@media(max-width:1450px){.ga-psse-map .ga-psse-diagram-controls{grid-template-columns:repeat(4,minmax(0,1fr))}.ga-psse-band-filter{flex-wrap:wrap}}
 .ga-psse-attachment-heading{margin:0;font-size:13px}
 .ga-psse-attachment-badge{justify-self:start;width:fit-content;padding:1px 6px;border:1px solid var(--edge);border-radius:5px;font-size:9px;font-weight:650;letter-spacing:.4px}
 .ga-psse-attachment-badge[data-status="VERIFIED_INPUT"]{border-color:var(--accent);color:var(--accent)}

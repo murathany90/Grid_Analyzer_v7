@@ -28,6 +28,8 @@ export interface AppContext {
   psseNetwork?:import('../domain/psse/network').PsseBusBranchNetwork|null;
   psseScenario?:import('../domain/psse/scenario').PsseScenario|null;
   psseCalculation?:import('../domain/psse/results').PsseCalculationResult|null;
+  /** Last converged calculation of the previous (base) scenario; enables an honest Baz/Senaryo/Fark delta view. */
+  psseBaseCalculation?:import('../domain/psse/results').PsseCalculationResult|null;
   /** A worker exception, distinct from a structured BLOCKED / NON_CONVERGED result. */
   psseWorkerError?:{method:'NR_POLAR'|'FDNS_XB'|'LOSSLESS_DC'|'UNKNOWN';phase:string;message:string;workerStack:string|null;sourceSha256:string;modelHash:string;scenarioHash:string}|null;
   psseInventoryKind?:import('../importers/psse/types').PsseKind;
