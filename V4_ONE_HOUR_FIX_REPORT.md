@@ -21,9 +21,12 @@ Dal `fix/psse-v1-real-model-parity`, başlangıç HEAD `0972654` (bağımsız ka
 - Ham JSON 'Kaynak tablo kapsamı' artık katlanır **Gelişmiş / Kaynak Veri** içinde sayfalı önizleme (100 satır/sayfa) + indirme; veri kaybı yok.
 - Envanter tabloları ad-öncelikli (TM adı · YTM · Gerilim · Tip · İşletme durumu), kimlikler tek sönük ikincil kolonda; ek dosyaları paneli Envanter sekmesine taşındı.
 
-## P1 — SLD ve P2 — Adlandırma
+## P1 — SLD ve P2 — Adlandırma (uygulandı ve gerçek modelde doğrulandı)
 
-- SLD TM fit düzeltmesi ve 'NAME (code)' etiketleri (ORTAANADOLU (4), BURSA (702)) bu turda `sld-view.ts`/`diagram-utils.ts` üzerinde uygulandı; 3SKALEJES/ADAPAZarı karşılaştırma ekranları `local-benchmark-results/psse-offline-browser/v4uifix-private/` altında (gerçek model verisi içerdiğinden yalnız özel konumda; teslim ZIP'inde sentetik eşdeğerleri).
+- **SLD fit:** initial viewBox artık çizilen içerik bbox'ı + 48 birim padding, gerçek sahne ölçüsüne göre (zoom=1 = 'TM sahneye sığar'); zoom aralığı 0,5–8; iki geçişli etiket ölçekleme fit'te metni ≥12 CSS px tutar; bara çizgileri non-scaling (7 px sabit); SVG export yeni viewBox ile uyumlu. 3SKALEJES önceki ~200 px çizimden tüm sahneye çıktı: 154 kV bara (mavi) üstte, 11 kV (yeşil) altta, 2W trafo sembolü, EFELER-1/GERMENOK-1 ortogonal fiderleri, G/L sembolleri — okunur etiketlerle.
+- **Gerilim renkleri:** paylaşılan 5-bant eşlemesi (`psseVoltageBand` + ctx.settings DGS paleti).
+- **Adlandırma:** `psseAreaLabel`/`psseOwnerLabel` kaynak SAV sözlüğünden 'ORTAANADOLU (4)', 'BURSA (702)' üretir (isim uydurma yok); SLD YTM/OWNER seçenekleri + harita filtreleri bu etiketleri kullanır, değerler ham kod kalır; canlı doğrulama: seçenek listesi 'TRAKYA (1) · SANAL (10) · KUZEYBATI (2) · BATIANADOLU (3)...'.
+- 3SKALEJES, ADAPAZARI ve SAKARYA karşılaştırma ekranları `local-benchmark-results/psse-offline-browser/v4uifix-private/` altında (gerçek model verisi içerdiğinden yalnız özel konumda; teslim ZIP'inde sentetik eşdeğerleri var).
 - Kesici/ayırıcı zinciri üretilmedi; bus-branch kaynakta olan çizildi.
 
 ## P3 — Elektriksel regresyon
