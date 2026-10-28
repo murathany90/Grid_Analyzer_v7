@@ -2,12 +2,17 @@ import { Inflate } from 'fflate';
 
 const MAX_MODEL=512*1024*1024, MAX_ENTRIES=1000, MAX_DIRECTORY=4*1024*1024;
 export interface ModelEntry {name:string;size:number;compressedSize:number;offset:number;method:number;crc:number}
-export interface ModelArchive {entries:ModelEntry[];extract(entry:ModelEntry):Promise<File>}
+export interface ModelArchive {entries:ModelEntry[];extract(entry:ModelEntry,signal?:AbortSignal):Promise<File>}
 const failure=(message:string)=>new Error(`ZIP okunamadı: ${message}`);
 const crcTable=Uint32Array.from({length:256},(_,n)=>{for(let k=0;k<8;k++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
 const safeName=(name:string)=>!!name&&!/^[\\/]|^[a-z]:|[\u0000-\u001f]/i.test(name)&&!name.replaceAll('\\','/').split('/').some(p=>p==='..');
-/** Read only the bounded directory and the selected entry; never materialize the whole ZIP. */
-export async function inspectModelFile(file:File):Promise<ModelArchive> {
+const checkAbort=(signal?:AbortSignal):void=>{if(signal?.aborted)throw failure('iptal edildi.');};
+/**
+ * Read only the bounded directory and the selected entry; never materialize the whole ZIP.
+ * The optional signal cooperatively cancels the CPU-bound chunk loops at chunk boundaries.
+ */
+export async function inspectModelFile(file:File,signal?:AbortSignal):Promise<ModelArchive> {
+  checkAbort(signal);
   if(file.size>MAX_MODEL)throw Error('Dosya 512 MiB sınırını aşıyor.');
   if(/\.json$/i.test(file.name))return{entries:[{name:file.name,size:file.size,compressedSize:file.size,offset:0,method:0,crc:0}],extract:async()=>file};
   if(!/\.zip$/i.test(file.name))throw Error('JSON veya ZIP dosyası seçin.');
@@ -31,16 +36,17 @@ export async function inspectModelFile(file:File):Promise<ModelArchive> {
     entries.push({name,size,compressedSize,offset,method,crc});
   }
   if(!entries.length)throw failure('JSON dosyası bulunamadı.');
-  return{entries,async extract(entry){
+  return{entries,async extract(entry,signal){
+    checkAbort(signal);
     if(!entries.includes(entry))throw failure('geçersiz dosya seçimi.');
-    const local=new DataView(await file.slice(entry.offset,entry.offset+30).arrayBuffer());
+    const local=new DataView(await file.slice(entry.offset,entry.offset+30).arrayBuffer());checkAbort(signal);
     if(local.byteLength!==30||local.getUint32(0,true)!==0x04034b50||local.getUint16(6,true)&1||local.getUint16(8,true)!==entry.method)throw failure('yerel dosya başlığı bozuk.');
     const start=entry.offset+30+local.getUint16(26,true)+local.getUint16(28,true);
     if(start+entry.compressedSize>directoryOffset)throw failure('dosya içeriği arşiv sınırını aşıyor.');
     let size=0,crc=0xffffffff;const chunks:BlobPart[]=[];
     const accept=(chunk:Uint8Array)=>{size+=chunk.length;if(size>entry.size||size>MAX_MODEL)throw failure('açılmış veri beyan edilen boyutu aşıyor.');for(const byte of chunk)crc=crcTable[(crc^byte)&255]^(crc>>>8);chunks.push(new Blob([chunk as Uint8Array<ArrayBuffer>]));};
     const inflate=entry.method===8?new Inflate(accept):null;
-    try{for(let offset=start;offset<start+entry.compressedSize;offset+=65536){const chunk=new Uint8Array(await file.slice(offset,Math.min(offset+65536,start+entry.compressedSize)).arrayBuffer());if(inflate)inflate.push(chunk,offset+65536>=start+entry.compressedSize);else accept(chunk);}
+    try{for(let offset=start;offset<start+entry.compressedSize;offset+=65536){checkAbort(signal);const chunk=new Uint8Array(await file.slice(offset,Math.min(offset+65536,start+entry.compressedSize)).arrayBuffer());checkAbort(signal);if(inflate)inflate.push(chunk,offset+65536>=start+entry.compressedSize);else accept(chunk);}
       if(size!==entry.size||(crc^0xffffffff)>>>0!==entry.crc)throw failure('boyut veya CRC doğrulaması başarısız.');
       return new File(chunks,entry.name.split(/[\\/]/).pop()!,{type:'application/json'});
     }catch(error){throw failure(error instanceof Error?error.message:'sıkıştırılmış veri bozuk.');}

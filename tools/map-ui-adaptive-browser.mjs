@@ -180,7 +180,8 @@ try{
       const corrupt=Buffer.from(zipA);corrupt[corrupt.length>>1]^=0xff;
       await page.locator('#modelFileInput').setInputFiles({name:'corrupt.zip',mimeType:'application/zip',buffer:corrupt});
       await page.waitForFunction(()=>/Model yüklenemedi/.test(document.querySelector('footer [role=status]')?.textContent||''));
-      check('ZIP CRC failure surfaces a Turkish error and keeps the app alive',errors.length===0);
+      check('ZIP CRC failure surfaces the exact Turkish CRC reason',/CRC doğrulaması başarısız/.test(await page.locator('footer [role=status]').textContent()),(await page.locator('footer [role=status]').textContent()).slice(0,60));
+      check('CRC failure keeps the previous model and its display scope',modelAName===await page.locator('.ga-head-model').textContent()&&await page.locator('.ga-map-view').getAttribute('data-area-scope')==='ALL');
       check('failed load clears the file input for re-picking',await page.locator('#modelFileInput').evaluate(el=>el.value===''));
       // --- multi-JSON ZIP: selection dialog, cancel path, then explicit pick ---
       const modelB=JSON.parse(JSON.stringify(visualRaw));
@@ -240,13 +241,46 @@ try{
       await page.locator('.ga-lightning').getByRole('button',{name:'Kısa Devre',exact:true}).click();
       await page.locator('.ga-lightning-sc-panel').waitFor();
       const scTm=page.locator('select[aria-label="Seçili TM"]');
-      const focusId=await scTm.locator('option').nth(1).getAttribute('value');
-      await scTm.selectOption({index:1});
+      const pickTm=async value=>{const r=await page.evaluate(v=>{const s=document.querySelector('select[aria-label="Seçili TM"]');s.value=v;s.dispatchEvent(new Event('change',{bubbles:true}));return{selValue:s.value,mapSite:document.querySelector('.ga-map-view')?.getAttribute('data-map-site-id'),visible:document.querySelector('#networkCanvas')?.getAttribute('data-visible-sites')};},value);await page.waitForTimeout(250);return{...r,visible:await page.locator('#networkCanvas').getAttribute('data-visible-sites'),mapSite:await page.locator('.ga-map-view').getAttribute('data-map-site-id')};};
+      const focusId=await page.evaluate(()=>{const s=document.querySelector('select[aria-label="Seçili TM"]');return s.options[1]?.value??'';});
+      await pickTm({index:1});
       await page.waitForTimeout(300);
-      check('SC panel TM focus overrides the YTM display scope (no contradiction)',await page.locator('#networkCanvas').getAttribute('data-visible-sites')==='1'&&await page.locator('.ga-map-view').getAttribute('data-map-site-id')===focusId,`site=${focusId} visible=${await page.locator('#networkCanvas').getAttribute('data-visible-sites')}`);
-      await scTm.selectOption('');
+      const focusPick=await pickTm(focusId);
+      check('SC panel TM focus overrides the YTM display scope (no contradiction)',focusPick.visible==='1'&&focusPick.mapSite===focusId,`site=${focusId} mapSite=${focusPick.mapSite} visible=${focusPick.visible}`);
+      await pickTm('');
       await page.waitForTimeout(200);
       check('clearing the SC TM focus restores the YTM-scoped view',await page.locator('#networkCanvas').getAttribute('data-visible-sites')===scopedSites);
+      // Explicit focus semantics: an explicit YTM NONE keeps the empty map — the
+      // focused TM is NOT drawn over the empty overlay, and the overlay says so.
+      // NOTE: the Lightning panel closes on Escape, so menus are toggled via
+      // the open property instead of keyboard in this section.
+      const toggleMenu=(sel,open)=>page.locator(sel).evaluate((el,v)=>{el.parentElement.open=v;},open);
+      await toggleMenu('.ga-map-view .ga-area-menu>summary',true);
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Temizle'}).click();
+      await toggleMenu('.ga-map-view .ga-area-menu>summary',false);
+      await pickTm({index:1});
+      await page.waitForTimeout(300);
+      const nonePick=await pickTm(focusId);
+      check('YTM NONE keeps the empty map: focused TM is not drawn',nonePick.visible==='0'&&nonePick.mapSite===focusId,`mapSite=${nonePick.mapSite} visible=${nonePick.visible}`);
+      const noneEmptyText=await page.locator('.ga-map-empty').textContent();
+      check('empty overlay states the focused TM is hidden by the empty scope',await page.locator('.ga-map-empty').isVisible()&&/Odaklanan TM kapsam boş/.test(noneEmptyText||''),(noneEmptyText||'').slice(-46));
+      await toggleMenu('.ga-map-view .ga-area-menu>summary',true);
+      await page.locator('.ga-map-view .ga-area-menu').getByRole('button',{name:'Tümünü seç'}).click();
+      await toggleMenu('.ga-map-view .ga-area-menu>summary',false);
+      await pickTm('');
+      // Voltage display filter still applies to the focused TM: clearing the
+      // voltage bands hides even the focused TM with the explicit message.
+      await toggleMenu('.ga-map-view .ga-voltage-menu>summary',true);
+      await page.locator('.ga-map-view .ga-voltage-menu').getByRole('button',{name:'Temizle'}).click();
+      await toggleMenu('.ga-map-view .ga-voltage-menu>summary',false);
+      await pickTm({index:1});
+      await page.waitForTimeout(300);
+      const voltPick=await pickTm(focusId);
+      check('voltage display filter still applies to the focused TM',voltPick.visible==='0'&&/gerilim grubu/.test(await page.locator('.ga-map-empty').textContent()||''),`mapSite=${voltPick.mapSite} visible=${voltPick.visible}`);
+      await pickTm('');
+      await toggleMenu('.ga-map-view .ga-voltage-menu>summary',true);
+      await page.locator('.ga-map-view .ga-voltage-menu').getByRole('button',{name:'Tümünü seç'}).click();
+      await toggleMenu('.ga-map-view .ga-voltage-menu>summary',false);
       await page.locator('.ga-lightning').getByRole('button',{name:'Kapat',exact:true}).click().catch(()=>{});
       await page.getByRole('button',{name:'Elektriksel Sonuçlar',exact:true}).click();
       // --- capacity: map choice is display-only, engineering session untouched ---

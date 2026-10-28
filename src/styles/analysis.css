@@ -25,7 +25,7 @@
 .ga-compact-controls select{flex:0 1 170px}.ga-compact-controls select:first-child{flex-basis:220px}.ga-compact-controls select:nth-child(2){flex-basis:200px}
 .ga-compact-controls button[aria-label="Analiz Et"]{background:var(--accent,#116b78);font-weight:700}.ga-compact-status{font-size:13px;line-height:1.5;overflow-wrap:break-word}
 .ga-compact-kpis{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.ga-compact-kpis>div{flex:1 1 110px;background:var(--panel2);border:1px solid var(--edge);border-radius:8px;padding:9px 12px;min-width:0}.ga-compact-kpis small{display:block;color:var(--muted);font-size:12px}.ga-compact-kpis strong{font-size:19px;font-variant-numeric:tabular-nums}
-.ga-compact-filters input{flex:1 1 220px}.ga-compact-filters select{max-width:200px}.ga-compact-table-host{width:100%;min-width:0;container-type:inline-size}
+.ga-compact-filters input{flex:1 1 220px}.ga-compact-filters select{max-width:200px}.ga-compact-table-host{width:100%;min-width:0;container-type:inline-size;overflow-x:auto}
 .ga-compact-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:13px;background:var(--panel)}
 .ga-compact-table col[data-column="name"]{width:29%}.ga-compact-table col[data-column="kv"]{width:7%}.ga-compact-table col[data-column="detail"]{width:7%}.ga-compact-table col[data-column="dc"]{width:12%}.ga-compact-table col[data-column="ac"]{width:15%}.ga-compact-table col[data-column="loading"]{width:13%}.ga-compact-table col[data-column="over"]{width:17%}
 .ga-compact-study[data-family="LF"] col[data-column="p"],.ga-compact-study[data-family="LF"] col[data-column="q"]{width:19%}.ga-compact-study[data-family="LF"] col[data-column="loading"]{width:19%}

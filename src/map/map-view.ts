@@ -69,7 +69,8 @@ export function createMapView(ctx:AppContext):Feature{
     scenarioChip.textContent=(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' · '+(activeResultId(ctx)?ctx.resultView.analysis:'Sonuç yok');
     scenarioChip.disabled=!n;deltaControl.hidden=ctx.settings.value.displayMode!=='delta';deltaMetric.value=ctx.settings.value.deltaMetric;
     empty.hidden=ctx.mapDisplay.voltages.size>0&&ctx.mapDisplay.areaMode!=='NONE';
-    empty.textContent=ctx.mapDisplay.areaMode==='NONE'?'Görüntüleme kapsamında YTM seçili değil · YTM menüsünden "Tümünü seç" ile tüm YTM\'leri geri getirin.':'Haritayı görmek için en az bir gerilim grubu seçin.';
+    const focusNote=ctx.mapDisplay.siteId?' · Odaklanan TM kapsam boş olduğu için gizli; YTM/gerilim kapsamını genişletin.':'';
+    empty.textContent=ctx.mapDisplay.areaMode==='NONE'?'Görüntüleme kapsamında YTM seçili değil · YTM menüsünden "Tümünü seç" ile tüm YTM\'leri geri getirin.'+focusNote:'Haritayı görmek için en az bir gerilim grubu seçin.'+(ctx.mapDisplay.voltages.size===0?focusNote:'');
     calc.textContent=activeResultId(ctx)?'Sonuçlar':ctx.resultView.analysis==='LF'?'LF hesapla':ctx.resultView.analysis==='N1'?'N-1 seç':'SC seç';
     calc.setAttribute('aria-label',calc.textContent);calc.dataset.helpDetail=(ctx.resultStore.role==='base'?'Baz':'Senaryo')+' · '+ctx.resultView.analysis;calc.disabled=refresh.disabled=ctx.busy||!n;
     const settings=ctx.settings.value;legend.hidden=!settings.legend;renderer.render();
