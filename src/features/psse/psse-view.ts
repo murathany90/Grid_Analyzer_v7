@@ -4,7 +4,9 @@ import {element,button,downloadText,format} from '../../ui/components/dom';
 import {kindLabels,queryPsse,equipmentValue,type PsseTab,psseBandFilter,psseSetBandFilter,psseToggleBand} from './catalog';
 import {PSSE_VOLTAGE_BANDS,psseVoltageBandCounts} from './voltage-bands';
 import {psseAreaName,psseNamedCode,psseNameDictionaries} from './ytbs-names';
-export interface PsseViewOptions {getModel:()=>PsseModel|null|undefined;onSelection?:(row:PsseEquipment)=>void;onKind?:(kind:PsseKind)=>void}
+import {normalizePsseBusBranch,type PsseBusBranchNetwork} from '../../domain/psse/network';
+import {createPsseGeographyReport} from './geography-report';
+export interface PsseViewOptions {getModel:()=>PsseModel|null|undefined;getNetwork?:()=>PsseBusBranchNetwork|null|undefined;onSelection?:(row:PsseEquipment)=>void;onKind?:(kind:PsseKind)=>void}
 const display=(value:unknown):string=>value===null||value===undefined?'—':typeof value==='object'?JSON.stringify(value):typeof value==='number'?value!==0&&Math.abs(value)<.00001?value.toExponential(5):value.toLocaleString('tr-TR',{maximumFractionDigits:5,useGrouping:false}):String(value);
 const count=(n:number)=>n.toLocaleString('tr-TR');
 const bytes=(value:number)=>value>=1048576?`${format(value/1048576,1)} MB`:value>=1024?`${format(value/1024,1)} KB`:`${format(value,0)} bayt`;
@@ -149,6 +151,7 @@ export function createPsseView(tab:PsseTab,options:PsseViewOptions){
   const cards=element('div','ga-model-health');for(const key of ['ERROR','WARNING','INFO']){const c=card(key,count(model.findings.filter(row=>row.severity===key).length));c.dataset.severity=key;cards.append(c);}
   const table=element('table','ga-table'),head=element('tr');for(const label of ['Önem','Kod','Kaynak kimliği','Bulgu'])head.append(element('th','',label));const thead=element('thead');thead.append(head);const tbody=element('tbody');for(const finding of findings.slice(page*size,(page+1)*size)){const row=element('tr');for(const value of [finding.severity,finding.code,finding.equipment,finding.message])row.append(element('td','',display(value)));tbody.append(row);}table.append(thead,tbody);const wrap=element('div','ga-table-wrap');wrap.append(table);
   body.replaceChildren(toolbar,cards,element('p','ga-notice',`Kaynak tanısı: ${model.completeness} · Solver uygunluğu Yük Akışı bölümünde yöntem bazında değerlendirilir · ${count(findings.length)} kaynak bulgusu`),findings.length?wrap:element('p','ga-muted','Bu filtrede bulgu yok; bu ifade analiz uygunluğu onayı değildir.'),pager(findings.length,pages,page));
+  body.append(createPsseGeographyReport(model,options.getNetwork?.()??normalizePsseBusBranch(model)));
  }
  function renderEquipment(model:PsseModel){
   const available=psseKinds.filter(key=>model.equipment.some(row=>row.kind===key));if(!available.includes(kind))kind=available[0]??'bus';

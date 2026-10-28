@@ -1,5 +1,15 @@
 # Agent handoff
 
+## V4 UIFIX3 checkpoint (2026-10-28)
+
+- Start `d5ef0711626457479b76478683e3fd30b3001f38`, clean checkout and remote verified; same `fix/psse-v1-real-model-parity` branch only.
+- Unified PSS/E viewport transform; compact two-row map controls; one Sığdır; lower-left legend and floating lower-right lightning; small TM dots/thin links/sparse optional flow animation; map bottom result table removed; coordinate CSVs moved to Model → Quality advanced block.
+- Exact source/station names now primary in map/lightning/analysis. Validated empty-base result cache survives multiple scenario operations. Map auto-recalculation reuses method/source request options. Strict model/method/options comparison blocks invalid deltas. DC missing values stay blank.
+- Typecheck, architecture lint, normal/portable/offline builds passed. New transform/name/comparison/electrical tests passed. Full suite initially 896/898: only expected pre-commit portable-byte and Git-index documentation gates failed; rerun after committing current generated artifact/reports.
+- Real-model Edge interim: ZIP import, NR from SOURCE_SAVED, LIMITED_PROFILE/SOLVED_APPROXIMATE, calculated map values, initial zoom measurement pass. Full browser scenario/undo/DPR/fullscreen and Chrome/DGS runs are still in progress. Do not claim full acceptance from this checkpoint.
+- Browser harness now scopes DGS label-help lookup to `.ga-map-view`: new independent PSS/E YTM label legitimately coexists in the shared route container.
+- All real models and actual grid screenshots remain ignored/private. Package tool `tools/package-psse-uifix3.mjs` uses an explicit public allowlist and requires clean matching remote HEAD.
+- Current reports: V4_UIFIX3_DGS_MAP_PARITY.md, V4_UIFIX3_REAL_MODEL_E2E.md, DGS_REGRESSION_UIFIX3.md. Full remote IREG physics remains outside this UI change; no new SOLVED_FULL claim.
 ## V4-UIFIX session checkpoint (2026-10-28, 60-minute UI tour)
 
 - Same branch; start `0972654` (independent UI acceptance report), final commit **`73dd630`** pushed and remote-verified. DGS sources (`src/map`, `src/features/sld`) untouched; native decoder and AC/FDNS/DC engines untouched; full suite **879/879**, typecheck clean, Chrome AND Edge `file://` smoke PASS (0 external requests) on the shipped artifact `b8def57b…`.

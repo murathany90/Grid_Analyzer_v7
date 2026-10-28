@@ -14,6 +14,9 @@ PSS/E için doğrulanmış sabit kontrol profilleri hazırdır. Sayısal yakıns
 
 **Uygulama SCADA/EMS değildir:** Gerçek zamanlı TEİAŞ kumanda veya telemetri bağlantısı yoktur. Çizilen durumlar model/senaryo projeksiyonlarıdır; hesaplanan MW/MVAr/kV/kA değerleri fiziksel ölçüm veya onaylı işletme sınırı değildir. **LF sayısal yakınsaması, N-1 AC kontrol doğrulaması ve IEC 60909/PF paritesi birbirinden farklı kanıt düzeyleridir.**
 
+
+UIFIX3 harita düzeltmesi: [DGS/PSS/E harita paritesi](V4_UIFIX3_DGS_MAP_PARITY.md), [gerçek model Chrome/Edge kabulü](V4_UIFIX3_REAL_MODEL_E2E.md) ve [DGS regresyonu](DGS_REGRESSION_UIFIX3.md). Güncel raporlar yürütülen testleri ve açık kabul maddelerini ayrı kaydeder.
+
 ## İçindekiler
 
 - [Hızlı başlangıç](#hızlı-başlangıç)
