@@ -6,6 +6,7 @@ import type {PsseEquipment,PsseModel} from '../../importers/psse/types';
 import {effectivePsseNetwork} from '../../analysis/psse/newton';
 import {button,element} from '../../ui/components/dom';
 import {psseVoltageGroup} from './view-model';
+import {psseAreaName,psseOwnerName} from './ytbs-names';
 
 export const SVG_NS='http://www.w3.org/2000/svg';
 export const fmt=(value:number|null|undefined,digits=2)=>value==null||!Number.isFinite(value)?'—':value.toLocaleString('tr-TR',{maximumFractionDigits:digits,useGrouping:false});
@@ -29,6 +30,11 @@ export function fieldText(e:PsseEquipment|undefined|null,key:string){return sour
 export function busArea(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'area');}
 export function busZone(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'zone');}
 export function busOwner(bus:PsseBus,model:PsseModel,index?:PsseEquipmentIndex){return fieldText(busSourceEquipment(bus,model,index),'owner');}
+/** User-visible AREA label from the source SAV name dictionary, raw code kept in parentheses (e.g. 'ORTAANADOLU (4)').
+ *  busArea/busOwner keep returning the raw code so filter equality is unchanged; use these only at label sites. */
+export function psseAreaLabel(model:PsseModel,code:string){const name=psseAreaName(model,code);return name?`${name} (${code})`:code;}
+/** User-visible OWNER label from the source regional-directorate dictionary (e.g. 'BURSA (702)'). */
+export function psseOwnerLabel(model:PsseModel,code:string){const name=psseOwnerName(model,code);return name?`${name} (${code})`:code;}
 export function busVoltage(bus:PsseBus){return Number.isFinite(bus.baseKv)?bus.baseKv:null;}
 export function voltageGroupKey(baseKv:number|null){return psseVoltageGroup(baseKv);}
 export function voltageLabel(baseKv:number|null,digits=0){return baseKv===null||!Number.isFinite(baseKv)?'kV bilinmiyor':`${fmt(baseKv,digits)} kV`;}
