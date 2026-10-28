@@ -1,0 +1,1837 @@
+{
+  "schema": "ga.psse.v5.reference-parity.v1",
+  "date": "2026-10-28",
+  "privacy": "Aggregate metrics only; raw models/results and 20 worst buses are private.",
+  "cases": [
+    {
+      "modelBusCount": 6875,
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "scenario": "base",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 10,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 1,
+            "iterations": 100
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 10
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "maxPMismatchPu": 2.972178402511842e-11,
+        "maxQMismatchPu": 2.2246238550501015e-10,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 306,
+          "limitedGroups": 99,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.04345269480627523
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 2.971663803919e-9,
+            "mean": 3.67861538255226e-12,
+            "p95": 6.565414878423326e-12
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 2.2249221132142338e-8,
+            "mean": 1.2894482843743821e-11,
+            "p95": 2.1792345705762273e-11
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 2.2446795467293135e-8,
+            "mean": 1.4194670737392622e-11,
+            "p95": 2.3632259438679174e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 39638.266676668034,
+          "generationQ": -1729.4204434156459,
+          "loadP": 38736.31570825428,
+          "loadQ": 386.2760182601278,
+          "shuntP": 0,
+          "shuntQ": 7529.260543710167,
+          "branchLossP": 901.9509684192994,
+          "branchLossQ": -9644.957005348146,
+          "netPBalanceMw": -5.547462933463976e-9,
+          "netQBalanceMvar": -3.7794961826875806e-8
+        },
+        "machineOutput": {
+          "knownP": 39638.266676668034,
+          "knownQ": -1729.4204434156468,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -9.094947017729282e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5072,
+          "max": 0.0000015521676695748415,
+          "mean": 5.6600514425334765e-8,
+          "p95": 1.5787507726415891e-7
+        },
+        "angleAlignedDeg": {
+          "count": 5072,
+          "max": 0.000018081963617078145,
+          "mean": 0.0000060821099802670584,
+          "p95": 0.000011080099966420676
+        },
+        "angleOffsetDeg": 0.0000036968353924748953,
+        "generatorQNormalized": {
+          "count": 1568,
+          "max": 0.00003902468634828793,
+          "mean": 0.0000011232796051495629,
+          "p95": 0.00000806276844721262
+        },
+        "branchPNormalized": {
+          "count": 12330,
+          "max": 0.0000022712710217920317,
+          "mean": 8.594146056028143e-8,
+          "p95": 3.24662123141195e-7
+        },
+        "branchQNormalized": {
+          "count": 12330,
+          "max": 0.00005145719861321396,
+          "mean": 0.0000031243707486264074,
+          "p95": 0.000011709437784868104
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6875,
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "scenario": "load2",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 15,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 15
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 3,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 4,
+        "maxPMismatchPu": 3.918827254538739e-7,
+        "maxQMismatchPu": 0.000004823487427974005,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 306,
+          "limitedGroups": 99,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.04339145135422484
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 0.000039188272754842046,
+            "mean": 2.7955377311963772e-8,
+            "p95": 8.074962920545659e-11
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 0.00048234874297392594,
+            "mean": 1.4134576488036387e-7,
+            "p95": 8.267275752871228e-11
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 0.0004831576511386437,
+            "mean": 1.5762710097662542e-7,
+            "p95": 1.7404285425145242e-10
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 40450.25569022648,
+          "generationQ": -1206.010437726444,
+          "loadP": 39511.042022419366,
+          "loadQ": 394.00153862533034,
+          "shuntP": 0,
+          "shuntQ": 7524.3596543234,
+          "branchLossP": 939.213692930718,
+          "branchLossQ": -9124.370922616183,
+          "netPBalanceMw": -0.000025123606974375434,
+          "netQBalanceMvar": -0.0007080589912220603
+        },
+        "machineOutput": {
+          "knownP": 40450.25569022648,
+          "knownQ": -1206.0104377264436,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 4.547473508864641e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5072,
+          "max": 0.0003437125355191306,
+          "mean": 0.0000010792443456352842,
+          "p95": 0.0000036237444834784383
+        },
+        "angleAlignedDeg": {
+          "count": 5072,
+          "max": 0.0009482555976774165,
+          "mean": 0.00003557448705565012,
+          "p95": 0.00009372860915846104
+        },
+        "angleOffsetDeg": -0.00007753104182484094,
+        "generatorQNormalized": {
+          "count": 1568,
+          "max": 0.025626379251480102,
+          "mean": 0.00009138436617811079,
+          "p95": 0.00002077028337277298
+        },
+        "branchPNormalized": {
+          "count": 12330,
+          "max": 0.00024480933497832423,
+          "mean": 0.000009801084076515725,
+          "p95": 0.000039053335786531915
+        },
+        "branchQNormalized": {
+          "count": 12330,
+          "max": 0.02606154502287481,
+          "mean": 0.0000671779460892209,
+          "p95": 0.0000772630647309843
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6875,
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "scenario": "load10",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 24,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 24
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 3,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 8,
+        "maxPMismatchPu": 2.282443123391431e-10,
+        "maxQMismatchPu": 1.1665481913780695e-9,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 306,
+          "limitedGroups": 109,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.0430920229332008
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 2.2824366396889673e-8,
+            "mean": 1.570937241509697e-11,
+            "p95": 1.2164491636212915e-11
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 1.1665475696531757e-7,
+            "mean": 3.239971625818425e-11,
+            "p95": 1.9684254226604025e-11
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 1.1886666489835061e-7,
+            "mean": 4.084650463740465e-11,
+            "p95": 2.922503399810972e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 43899.55190799903,
+          "generationQ": 3063.481054289628,
+          "loadP": 42609.947279079715,
+          "loadQ": 424.90362008614056,
+          "shuntP": 0,
+          "shuntQ": 7483.902602421558,
+          "branchLossP": 1289.6046289314454,
+          "branchLossQ": -4845.325168090706,
+          "netPBalanceMw": -1.2127202353440225e-8,
+          "netQBalanceMvar": -1.273647285415791e-7
+        },
+        "machineOutput": {
+          "knownP": 43899.55190799903,
+          "knownQ": 3063.481054289626,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -1.8189894035458565e-12
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5072,
+          "max": 0.0038351405873617212,
+          "mean": 0.000014404993756383813,
+          "p95": 0.00006342318368006354
+        },
+        "angleAlignedDeg": {
+          "count": 5072,
+          "max": 0.012819157226772404,
+          "mean": 0.0003017003417627316,
+          "p95": 0.0008617256733032264
+        },
+        "angleOffsetDeg": -0.0010000898500948097,
+        "generatorQNormalized": {
+          "count": 1568,
+          "max": 0.2860521048307419,
+          "mean": 0.0009808513801772272,
+          "p95": 0.0006286884409195777
+        },
+        "branchPNormalized": {
+          "count": 12330,
+          "max": 0.0033161617253311794,
+          "mean": 0.000024101708036612574,
+          "p95": 0.00007327843938265133
+        },
+        "branchQNormalized": {
+          "count": 12330,
+          "max": 0.29054840994776676,
+          "mean": 0.0008648746994006092,
+          "p95": 0.0025449662822444987
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6875,
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "scenario": "lineout",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 17,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 1,
+            "iterations": 100
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 17
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 3,
+        "maxPMismatchPu": 1.6210494758773996e-11,
+        "maxQMismatchPu": 1.9958232078088065e-11,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 306,
+          "limitedGroups": 98,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.04345271549108842
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 1.86870785512383e-9,
+            "mean": 2.7162474657548447e-12,
+            "p95": 4.646949491871055e-12
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 1.432454155292362e-9,
+            "mean": 5.1590764645580636e-12,
+            "p95": 1.1651568598836093e-11
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 2.2953609782644308e-9,
+            "mean": 6.253931426619768e-12,
+            "p95": 1.4675185608422932e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 39639.12040951877,
+          "generationQ": -1491.7521896847745,
+          "loadP": 38736.31570825428,
+          "loadQ": 386.2760182601278,
+          "shuntP": 0,
+          "shuntQ": 7529.30971735345,
+          "branchLossP": 902.8047012626309,
+          "branchLossQ": -9407.337925294838,
+          "netPBalanceMw": 1.8583250493975356e-9,
+          "netQBalanceMvar": -3.5142875276505947e-9
+        },
+        "machineOutput": {
+          "knownP": 39639.12040951877,
+          "knownQ": -1491.752189684774,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 4.547473508864641e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6164,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6164,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5072,
+          "max": 0.000005690743687863121,
+          "mean": 5.968128870896688e-8,
+          "p95": 1.6156119783051395e-7
+        },
+        "angleAlignedDeg": {
+          "count": 5072,
+          "max": 0.000023371088900603354,
+          "mean": 0.000006087819602994702,
+          "p95": 0.000011119915939161729
+        },
+        "angleOffsetDeg": 0.0000038108248645585263,
+        "generatorQNormalized": {
+          "count": 1568,
+          "max": 0.00010245015081178366,
+          "mean": 0.0000013741144249939715,
+          "p95": 0.000008406333572505476
+        },
+        "branchPNormalized": {
+          "count": 12328,
+          "max": 0.0000022605772544537215,
+          "mean": 8.747050970516875e-8,
+          "p95": 3.2945265884265493e-7
+        },
+        "branchQNormalized": {
+          "count": 12328,
+          "max": 0.00018414454084902943,
+          "mean": 0.0000033144211577742368,
+          "p95": 0.000012169959325190882
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6875,
+      "sourceSha256": "8cc8ccfeca14001c392d2bebf578caafe61589c431f071f64db235a81dbbe60b",
+      "scenario": "undo",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 10,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 1,
+            "iterations": 100
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 10
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "maxPMismatchPu": 2.972178402511842e-11,
+        "maxQMismatchPu": 2.2246238550501015e-10,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 306,
+          "limitedGroups": 99,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.04345269480627523
+        }
+      },
+      "undoRestoresBase": true,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5072,
+            "max": 2.971663803919e-9,
+            "mean": 3.67861538255226e-12,
+            "p95": 6.565414878423326e-12
+          },
+          "qMvar": {
+            "count": 5072,
+            "max": 2.2249221132142338e-8,
+            "mean": 1.2894482843743821e-11,
+            "p95": 2.1792345705762273e-11
+          },
+          "complexMva": {
+            "count": 5072,
+            "max": 2.2446795467293135e-8,
+            "mean": 1.4194670737392622e-11,
+            "p95": 2.3632259438679174e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 39638.266676668034,
+          "generationQ": -1729.4204434156459,
+          "loadP": 38736.31570825428,
+          "loadQ": 386.2760182601278,
+          "shuntP": 0,
+          "shuntQ": 7529.260543710167,
+          "branchLossP": 901.9509684192994,
+          "branchLossQ": -9644.957005348146,
+          "netPBalanceMw": -5.547462933463976e-9,
+          "netQBalanceMvar": -3.7794961826875806e-8
+        },
+        "machineOutput": {
+          "knownP": 39638.266676668034,
+          "knownQ": -1729.4204434156468,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -9.094947017729282e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6165,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5072,
+          "max": 0.0000015521676695748415,
+          "mean": 5.6600514425334765e-8,
+          "p95": 1.5787507726415891e-7
+        },
+        "angleAlignedDeg": {
+          "count": 5072,
+          "max": 0.000018081963617078145,
+          "mean": 0.0000060821099802670584,
+          "p95": 0.000011080099966420676
+        },
+        "angleOffsetDeg": 0.0000036968353924748953,
+        "generatorQNormalized": {
+          "count": 1568,
+          "max": 0.00003902468634828793,
+          "mean": 0.0000011232796051495629,
+          "p95": 0.00000806276844721262
+        },
+        "branchPNormalized": {
+          "count": 12330,
+          "max": 0.0000022712710217920317,
+          "mean": 8.594146056028143e-8,
+          "p95": 3.24662123141195e-7
+        },
+        "branchQNormalized": {
+          "count": 12330,
+          "max": 0.00005145719861321396,
+          "mean": 0.0000031243707486264074,
+          "p95": 0.000011709437784868104
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6851,
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "scenario": "base",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 2,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 2
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "maxPMismatchPu": 1.8319001170235004e-11,
+        "maxQMismatchPu": 3.3474623073459497e-10,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 348,
+          "limitedGroups": 135,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.030430900830685115
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 1.7061638768467446e-9,
+            "mean": 3.6360295086362474e-12,
+            "p95": 5.8193450058752205e-12
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 3.347462396163792e-8,
+            "mean": 1.6991439860190755e-11,
+            "p95": 2.170974511273016e-11
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 3.351521429167659e-8,
+            "mean": 1.840085590433873e-11,
+            "p95": 2.3023232073012034e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 43650.524098907525,
+          "generationQ": 2013.3771641978508,
+          "loadP": 42749.638097142546,
+          "loadQ": 786.6329036456591,
+          "shuntP": 0,
+          "shuntQ": 10710.385770062896,
+          "branchLossP": 900.8860017639255,
+          "branchLossQ": -9483.64150944986,
+          "netPBalanceMw": 1.0530811778153293e-9,
+          "netQBalanceMvar": -6.084337655920535e-8
+        },
+        "machineOutput": {
+          "knownP": 43650.524098907525,
+          "knownQ": 2013.3771641978503,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -4.547473508864641e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5029,
+          "max": 0.0000021095555603058312,
+          "mean": 6.153386287254853e-8,
+          "p95": 1.6826665171901613e-7
+        },
+        "angleAlignedDeg": {
+          "count": 5029,
+          "max": 0.000019439251559560944,
+          "mean": 0.000005390158148568449,
+          "p95": 0.000011398773267501383
+        },
+        "angleOffsetDeg": 0.000002867726948352356,
+        "generatorQNormalized": {
+          "count": 1900,
+          "max": 0.0000950406718733962,
+          "mean": 9.10649230282583e-7,
+          "p95": 0.000005885549852724381
+        },
+        "branchPNormalized": {
+          "count": 12244,
+          "max": 0.000002775762847142192,
+          "mean": 9.015030175941637e-8,
+          "p95": 3.501403348593612e-7
+        },
+        "branchQNormalized": {
+          "count": 12244,
+          "max": 0.00017318698600577999,
+          "mean": 0.000003207057044733761,
+          "p95": 0.000011525529935685341
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6851,
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "scenario": "load2",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 16,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 16
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 3,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 3,
+        "maxPMismatchPu": 0.0000012683296479742978,
+        "maxQMismatchPu": 0.000008789816364429548,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 348,
+          "limitedGroups": 137,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.030129628593286162
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 0.00012683296478144257,
+            "mean": 5.26493063540962e-8,
+            "p95": 1.022776530135161e-9
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 0.0008789816364469516,
+            "mean": 1.8183436334585232e-7,
+            "p95": 2.615960781326976e-10
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 0.0008880851975830989,
+            "mean": 2.0899067189100822e-7,
+            "p95": 1.4609792624190352e-9
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 44533.520180774154,
+          "generationQ": 2438.244436224131,
+          "loadP": 43604.63085908539,
+          "loadQ": 802.3655617185723,
+          "shuntP": 0,
+          "shuntQ": 10688.815739480366,
+          "branchLossP": 928.88932548517,
+          "branchLossQ": -9052.935965816996,
+          "netPBalanceMw": -0.0000037964036891935393,
+          "netQBalanceMvar": -0.0008991578106360976
+        },
+        "machineOutput": {
+          "knownP": 44533.520180774154,
+          "knownQ": 2438.2444362241313,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 4.547473508864641e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5029,
+          "max": 0.001427013739777716,
+          "mean": 0.000010393183665131974,
+          "p95": 0.00004825092248594689
+        },
+        "angleAlignedDeg": {
+          "count": 5029,
+          "max": 0.006539327992300059,
+          "mean": 0.00014537548551535318,
+          "p95": 0.00041424726407512935
+        },
+        "angleOffsetDeg": -0.00023474851820992626,
+        "generatorQNormalized": {
+          "count": 1900,
+          "max": 0.11181753203272819,
+          "mean": 0.00038437468627565505,
+          "p95": 0.00030515885037516843
+        },
+        "branchPNormalized": {
+          "count": 12244,
+          "max": 0.0012579989911491007,
+          "mean": 0.0000179067658036118,
+          "p95": 0.00005256945863059137
+        },
+        "branchQNormalized": {
+          "count": 12244,
+          "max": 0.11187348291693082,
+          "mean": 0.000535324149157158,
+          "p95": 0.0018997427550853986
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6851,
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "scenario": "load10",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 22,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 22
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_NOT_CONVERGED",
+            "solved": 3,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 6,
+        "maxPMismatchPu": 5.590469198679671e-10,
+        "maxQMismatchPu": 6.6477161553279984e-9,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 348,
+          "limitedGroups": 149,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.04255981887797611
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 5.5904692430885916e-8,
+            "mean": 4.874470920841494e-11,
+            "p95": 2.788169695122633e-11
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 6.647716119800862e-7,
+            "mean": 1.8295026307635195e-10,
+            "p95": 2.8426150322502508e-11
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 6.671181535008578e-7,
+            "mean": 2.0957469564542596e-10,
+            "p95": 5.813707910184686e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 48288.815374284684,
+          "generationQ": 6537.679589609549,
+          "loadP": 47024.6019068568,
+          "loadQ": 865.296194010225,
+          "shuntP": 0,
+          "shuntQ": 10565.306109896546,
+          "branchLossP": 1264.213467444463,
+          "branchLossQ": -4892.922713412589,
+          "netPBalanceMw": -1.657713255553972e-8,
+          "netQBalanceMvar": -8.846336640999652e-7
+        },
+        "machineOutput": {
+          "knownP": 48288.815374284684,
+          "knownQ": 6537.679589609555,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 5.4569682106375694e-12
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5029,
+          "max": 0.01195814361609071,
+          "mean": 0.0000823712613965493,
+          "p95": 0.00034637768906381006
+        },
+        "angleAlignedDeg": {
+          "count": 5029,
+          "max": 0.046074376984392984,
+          "mean": 0.0030927179962585375,
+          "p95": 0.006560280840744781
+        },
+        "angleOffsetDeg": -0.009292264230339242,
+        "generatorQNormalized": {
+          "count": 1900,
+          "max": 0.43509499356150627,
+          "mean": 0.0024700672714266497,
+          "p95": 0.002430597562472875
+        },
+        "branchPNormalized": {
+          "count": 12244,
+          "max": 0.021833546313104905,
+          "mean": 0.00010066577771786628,
+          "p95": 0.0003748033760381908
+        },
+        "branchQNormalized": {
+          "count": 12244,
+          "max": 0.4350950546563306,
+          "mean": 0.0032730179765688497,
+          "p95": 0.014038136958500931
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": false
+      }
+    },
+    {
+      "modelBusCount": 6851,
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "scenario": "lineout",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 21,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 21
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 21
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 4,
+        "maxPMismatchPu": 1.753725902106457e-11,
+        "maxQMismatchPu": 7.035397264765209e-11,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 348,
+          "limitedGroups": 134,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.030432580413278787
+        }
+      },
+      "undoRestoresBase": null,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 1.7535821683622999e-9,
+            "mean": 3.259333006630776e-12,
+            "p95": 4.376943252282217e-12
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 7.035397153742906e-9,
+            "mean": 9.504220608051482e-12,
+            "p95": 1.2105871860512707e-11
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 7.139317431222944e-9,
+            "mean": 1.0656676190678606e-11,
+            "p95": 1.4631131532362e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 43652.197227235476,
+          "generationQ": 2258.322676932717,
+          "loadP": 42749.638097142546,
+          "loadQ": 786.6329036456591,
+          "shuntP": 0,
+          "shuntQ": 10709.71986266617,
+          "branchLossP": 902.5591300945752,
+          "branchLossQ": -9238.030089360669,
+          "netPBalanceMw": -1.6451622286695056e-9,
+          "netQBalanceMvar": -1.844273356255144e-8
+        },
+        "machineOutput": {
+          "knownP": 43652.197227235476,
+          "knownQ": 2258.3226769327207,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": 3.637978807091713e-12
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6121,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6121,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5029,
+          "max": 0.001766052555662534,
+          "mean": 0.000004810160092125647,
+          "p95": 0.000011111041397551991
+        },
+        "angleAlignedDeg": {
+          "count": 5029,
+          "max": 0.0026851337996731672,
+          "mean": 0.00006936074119784506,
+          "p95": 0.0001927748397747564
+        },
+        "angleOffsetDeg": -0.0000013395017504080897,
+        "generatorQNormalized": {
+          "count": 1900,
+          "max": 0.093675646930933,
+          "mean": 0.00013143990454333575,
+          "p95": 0.000012118874672051305
+        },
+        "branchPNormalized": {
+          "count": 12242,
+          "max": 0.0015650571194708363,
+          "mean": 0.000005635562009625401,
+          "p95": 0.000013553350321515722
+        },
+        "branchQNormalized": {
+          "count": 12242,
+          "max": 0.09367564842107123,
+          "mean": 0.00020404249444017116,
+          "p95": 0.00014777415656492822
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    },
+    {
+      "modelBusCount": 6851,
+      "sourceSha256": "b57af8d4990a61d530db72276b3e89016d134bf670008da0c28c93b78df20cbf",
+      "scenario": "undo",
+      "reference": {
+        "status": "REFERENCE_CONVERGED",
+        "solved": 0,
+        "iterations": 2,
+        "options": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "toleranceMva": 0.001,
+        "attempts": [
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 2
+          },
+          {
+            "options": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            "status": "REFERENCE_CONVERGED",
+            "solved": 0,
+            "iterations": 2
+          }
+        ]
+      },
+      "ga": {
+        "status": "CONVERGED",
+        "classification": "SOLVED_APPROXIMATE",
+        "iterations": 1,
+        "maxPMismatchPu": 1.8319001170235004e-11,
+        "maxQMismatchPu": 3.3474623073459497e-10,
+        "voltageControls": {
+          "formulation": "AUGMENTED_NEWTON_IREG_RMPCT",
+          "groups": 348,
+          "limitedGroups": 135,
+          "droopGroups": 0,
+          "maxUnconstrainedVoltageErrorPu": 0,
+          "maxVoltageErrorPu": 0.030430900830685115
+        }
+      },
+      "undoRestoresBase": true,
+      "physical": {
+        "physicalBusKcl": {
+          "pMw": {
+            "count": 5029,
+            "max": 1.7061638768467446e-9,
+            "mean": 3.6360295086362474e-12,
+            "p95": 5.8193450058752205e-12
+          },
+          "qMvar": {
+            "count": 5029,
+            "max": 3.347462396163792e-8,
+            "mean": 1.6991439860190755e-11,
+            "p95": 2.170974511273016e-11
+          },
+          "complexMva": {
+            "count": 5029,
+            "max": 3.351521429167659e-8,
+            "mean": 1.840085590433873e-11,
+            "p95": 2.3023232073012034e-11
+          }
+        },
+        "internalStarKcl": {
+          "pMw": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "qMvar": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          },
+          "complexMva": {
+            "count": 0,
+            "max": null,
+            "mean": null,
+            "p95": null
+          }
+        },
+        "unavailableActiveBranches": 0,
+        "totals": {
+          "generationP": 43650.524098907525,
+          "generationQ": 2013.3771641978508,
+          "loadP": 42749.638097142546,
+          "loadQ": 786.6329036456591,
+          "shuntP": 0,
+          "shuntQ": 10710.385770062896,
+          "branchLossP": 900.8860017639255,
+          "branchLossQ": -9483.64150944986,
+          "netPBalanceMw": 1.0530811778153293e-9,
+          "netQBalanceMvar": -6.084337655920535e-8
+        },
+        "machineOutput": {
+          "knownP": 43650.524098907525,
+          "knownQ": 2013.3771641978503,
+          "unavailableActiveP": 0,
+          "unavailableActiveQ": 0,
+          "completePAllocationResidualMw": 0,
+          "completeQAllocationResidualMvar": -4.547473508864641e-13
+        },
+        "branchLossReconstruction": {
+          "pMw": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          },
+          "qMvar": {
+            "count": 6122,
+            "max": 0,
+            "mean": 0,
+            "p95": 0
+          }
+        }
+      },
+      "parity": {
+        "vmRelative": {
+          "count": 5029,
+          "max": 0.0000021095555603058312,
+          "mean": 6.153386287254853e-8,
+          "p95": 1.6826665171901613e-7
+        },
+        "angleAlignedDeg": {
+          "count": 5029,
+          "max": 0.000019439251559560944,
+          "mean": 0.000005390158148568449,
+          "p95": 0.000011398773267501383
+        },
+        "angleOffsetDeg": 0.000002867726948352356,
+        "generatorQNormalized": {
+          "count": 1900,
+          "max": 0.0000950406718733962,
+          "mean": 9.10649230282583e-7,
+          "p95": 0.000005885549852724381
+        },
+        "branchPNormalized": {
+          "count": 12244,
+          "max": 0.000002775762847142192,
+          "mean": 9.015030175941637e-8,
+          "p95": 3.501403348593612e-7
+        },
+        "branchQNormalized": {
+          "count": 12244,
+          "max": 0.00017318698600577999,
+          "mean": 0.000003207057044733761,
+          "p95": 0.000011525529935685341
+        },
+        "missingBus": 0,
+        "missingGenerator": 0,
+        "missingBranch": 0,
+        "thresholdsPass": true
+      }
+    }
+  ]
+}

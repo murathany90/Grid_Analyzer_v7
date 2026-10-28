@@ -1,3 +1,9 @@
+## V5 electrical checkpoint (2026-10-28)
+
+- Added opt-in augmented Newton IREG/RMPCT and radial PCC Q(V) equations. Machine/plant Q bounds use an active set; legacy default profile remains available. Engine identity advanced to GA_PSSE_ENGINE_4, control/algorithm revisions distinguish the new equations.
+- Focused intermediate gate: TypeScript PASS; 5 control/result-group tests PASS, including remote setpoint, plant and machine sharing, Q saturation, disabled limits, receiving-end Q(V), scenario and exact undo. Licensed tiny FNSL comparisons agree; both real SAV base cases converge independently.
+- Final full/browser gate and packaging remain pending. Results deliberately remain SOLVED_APPROXIMATE while source-control/reference gaps are investigated. In particular, the secondary +10% scenario previously had 1.404% normalized branch-Q P95, above the 1% target; vendor non-divergent and standard profiles have different convergence outcomes and are recorded separately.
+- Private reference outputs stay under private-re/ac-v5-reference; public evidence contains aggregate counts/error statistics only.
 ## V5 checkpoint (2026-10-28)
 
 - Continuing branch fix/psse-v1-real-model-parity from c06446764b9cc49863b9b26ba1454607fd362377. No reset, branch creation or merge.
@@ -109,4 +115,5 @@
 - Final native browser acceptance passes in both Chrome and Edge on the same extracted HTML hash: exact SAV/RAW/SAV-ZIP inventories and hashes, real DC LIMITED_PROFILE/null Vm, cancellation/stale-result isolation, synthetic JSON/CSV identity, reference match and foreign-source rejection. Sanitized reports are `evidence/psse-ac-dc/native-browser/{chrome,msedge}.json`; actual-model screenshots remain ignored. Heap measurements are main-frame-only snapshots, not worker totals or peak process memory.
 - Gate E closure for the verified fixed profiles is recorded in architecture §17; unfinished master requirements and both strict DC DIFFERENCES remain explicit. Final packaging records push and CI evidence only when branch/head match the packaged checkout. The resulting revision and actual remote CI/transport outcome belong in `git/DELIVERY_METADATA.json`; no private source model or raw reference dump is included.
 - Remote CI run `40470302942` reached all unit tests and exposed the old README-only root-document policy after the required reports were committed (827 pass, 22 licensed-fixture skips, one documentation failure). The repository check now strictly lists README plus the seven user-requested delivery reports; link and private-file checks are preserved. Its focused regression passes, and README links the current feature/profile reports. No runtime/HTML or electrical equations changed for this correction. Remote licensed-fixture skips are expected; the local full run exercised all 850 tests without skips.
+
 

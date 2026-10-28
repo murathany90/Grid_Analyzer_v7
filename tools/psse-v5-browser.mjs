@@ -100,6 +100,7 @@ try{
   const options=panel.locator('details.ga-psse-analysis-options');
   if(!await options.evaluate(node=>node.open))await options.locator('summary').click();
   await panel.getByLabel('AC ilk gerilim').selectOption('SOURCE_SAVED');
+  const remoteControl=panel.getByLabel('Uzak bara gerilim kontrolü (IREG/RMPCT)');assert.equal(await remoteControl.isChecked(),false,'remote regulation is opt-in');await method.selectOption('FDNS_XB');assert.equal(await remoteControl.isDisabled(),true,'remote regulation is unavailable for FDNS');await method.selectOption('LOSSLESS_DC');assert.equal(await remoteControl.isDisabled(),true,'remote regulation is unavailable for DC');await method.selectOption('NR_POLAR');assert.equal(await remoteControl.isEnabled(),true,'remote regulation is available for NR');await remoteControl.check();
   const baselineStarted=Date.now();
   await panel.getByRole('button',{name:'Hesapla',exact:true}).click();
   await page.waitForFunction(()=>{
@@ -110,13 +111,14 @@ try{
     return method==='NR_POLAR'&&['CONVERGED','LIMITED_PROFILE'].includes(status)&&['SOLVED_FULL','SOLVED_APPROXIMATE'].includes(classification);
   },undefined,{timeout:240000});
   report.workflow.fullAcNr=true;
-  const firstRequest=(await page.evaluate(()=>window.__psseWorkerRequests.filter(item=>item.method==='NR_POLAR'))).at(-1);
-  assert.equal(firstRequest?.options?.initialVoltagePolicy,'SOURCE_SAVED','the first AC NR worker request uses saved source voltages');
+  const baselineRequests=await page.evaluate(()=>window.__psseWorkerRequests.filter(item=>item.method==='NR_POLAR')),baselineNrRequestCount=baselineRequests.length,firstRequest=baselineRequests.at(-1);
+  assert.equal(firstRequest?.options?.initialVoltagePolicy,'SOURCE_SAVED','the first AC NR worker request uses saved source voltages');assert.equal(firstRequest?.options?.remoteRegulation,true,'the real NR request enables IREG/RMPCT control');
   const baselineCards=await panel.locator('.ga-card').evaluateAll(cards=>Object.fromEntries(cards.map(card=>[card.querySelector('span')?.textContent??'',card.querySelector('strong')?.textContent??''])));
   const sourceCard=panel.locator('.ga-card').filter({hasText:'Kaynak'});
   assert.equal(await sourceCard.locator('strong').textContent(),'GA hesaplandı','result identifies an application calculation');
   assert.equal(await sourceCard.getAttribute('title'),'GA_PSSE_CALCULATED','the exact result source is present in provenance');
-  report.workflow.baseline={method:'NR_POLAR',initialVoltage:'SOURCE_SAVED',numericalStatus:'CONVERGED',publicationStatus:baselineCards.Durum??'LIMITED_PROFILE',classification:baselineCards['Çözüm sınıfı']??'SOLVED_APPROXIMATE',source:'GA_PSSE_CALCULATED',elapsedMs:Date.now()-baselineStarted};
+  report.workflow.baseline={method:'NR_POLAR',initialVoltage:'SOURCE_SAVED',remoteRegulation:true,numericalStatus:'CONVERGED',publicationStatus:baselineCards.Durum??'LIMITED_PROFILE',classification:baselineCards['Çözüm sınıfı']??'SOLVED_APPROXIMATE',source:'GA_PSSE_CALCULATED',elapsedMs:Date.now()-baselineStarted};
+  await remoteControl.uncheck();assert.equal(await panel.locator('.ga-card-grid').isVisible(),false,'changing the NR control invalidates the displayed calculation');await remoteControl.check();assert.equal(await panel.locator('.ga-card-grid').isVisible(),true,'restoring the matching control restores the calculation');
   await panel.screenshot({path:path.join(out,'psse-full-ac-1600x1000.png')});
 
   await go('Harita');
@@ -230,8 +232,8 @@ try{
   await outage.click();
   await page.waitForFunction(()=>!document.querySelector('.ga-busy:not([hidden])')&&document.querySelector('.ga-psse-map-stage')?.textContent?.includes('(1 işlem)'),undefined,{timeout:240000});
   const afterScenarioRequests=await page.evaluate(()=>window.__psseWorkerRequests.filter(item=>item.method==='NR_POLAR'));
-  assert.ok(afterScenarioRequests.length>=2,'the branch operation triggers another NR worker request');
-  assert.deepEqual(afterScenarioRequests[1].options,firstRequest.options,'scenario NR reuses the baseline options');
+  assert.ok(afterScenarioRequests.length>baselineNrRequestCount,'the branch operation triggers another NR worker request');
+  assert.deepEqual(afterScenarioRequests.at(-1).options,firstRequest.options,'scenario NR reuses the baseline options');
   report.workflow.branchScenarioRecalculated=true;
   await go('Analizler');
   await page.waitForFunction(()=>{
@@ -283,8 +285,8 @@ try{
   await finalUndo.click();
   await page.waitForFunction(()=>document.querySelector('.ga-psse-map-stage')?.textContent?.includes('(0 işlem)')&&!document.querySelector('.ga-busy:not([hidden])'),undefined,{timeout:240000});
   const afterUndoRequests=await page.evaluate(()=>window.__psseWorkerRequests.filter(item=>item.method==='NR_POLAR'));
-  assert.ok(afterUndoRequests.length>=3,'undo triggers a third NR worker request');
-  assert.deepEqual(afterUndoRequests[2].options,firstRequest.options,'undo NR reuses the baseline options');
+  assert.ok(afterUndoRequests.length>afterScenarioRequests.length,'undo triggers another NR worker request');
+  assert.deepEqual(afterUndoRequests.at(-1).options,firstRequest.options,'undo NR reuses the baseline options');
   report.workflow.calculationOptionsReused=true;
   report.workflow.undo=true;
   await map.locator('button[title="Türkiye altlığını sığdır"]').click();
