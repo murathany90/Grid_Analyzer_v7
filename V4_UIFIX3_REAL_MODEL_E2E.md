@@ -34,3 +34,5 @@ Fullscreen passed at DPR 1, 1.25 and 2 in both browsers with the compact toolbar
 ## DGS comparison and privacy
 
 The matching local DGS model ZIP imported successfully in both browsers. Model and map screenshots were captured at 1600×1000 and 1366×768 for private review only. The tracked aggregate contains only workflow classifications and layout/alignment measurements: [browser E2E aggregate](evidence/psse-uifix3/browser-e2e-aggregate.json).
+
+Final delivery checks: Chrome/Edge smoke on the ZIP-extracted HTML passed with the same SHA-256. Independent PNG-header checks confirm actual 1600×1000 and 1366×768 private captures in both browsers; see evidence/psse-uifix3/screenshot-dimensions.json. No real screenshots are packaged.

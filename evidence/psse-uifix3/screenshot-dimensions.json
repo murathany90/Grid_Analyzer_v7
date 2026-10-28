@@ -1,0 +1,47 @@
+{
+  "schema": "ga.psse.uifix3.screenshot-dimensions.v1",
+  "status": "PASS",
+  "privateScreenshots": true,
+  "rows": [
+    {
+      "channel": "chrome",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "width": 1600,
+      "height": 1000,
+      "pngWidth": 1600,
+      "pngHeight": 1000,
+      "errors": []
+    },
+    {
+      "channel": "chrome",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "width": 1366,
+      "height": 768,
+      "pngWidth": 1366,
+      "pngHeight": 768,
+      "errors": []
+    },
+    {
+      "channel": "msedge",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "width": 1600,
+      "height": 1000,
+      "pngWidth": 1600,
+      "pngHeight": 1000,
+      "errors": []
+    },
+    {
+      "channel": "msedge",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "width": 1366,
+      "height": 768,
+      "pngWidth": 1366,
+      "pngHeight": 768,
+      "errors": []
+    }
+  ]
+}

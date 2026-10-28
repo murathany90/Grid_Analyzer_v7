@@ -1,0 +1,33 @@
+{
+  "schema": "ga.psse.uifix3.extracted-smoke.v1",
+  "status": "PASS",
+  "fileName": "GridAnalyzer_v7.html",
+  "tests": [
+    {
+      "channel": "chrome",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "htmlBytes": 2599124,
+      "solves": {
+        "NR_POLAR": 93,
+        "FDNS_XB": 74,
+        "LOSSLESS_DC": 57
+      },
+      "externalRequests": 0,
+      "errors": []
+    },
+    {
+      "channel": "msedge",
+      "status": "PASS",
+      "htmlSha256": "205cee951ffca1003809e71f831824a5c0dc09365f8112cf5d214ac1f6c9c2fe",
+      "htmlBytes": 2599124,
+      "solves": {
+        "NR_POLAR": 83,
+        "FDNS_XB": 84,
+        "LOSSLESS_DC": 72
+      },
+      "externalRequests": 0,
+      "errors": []
+    }
+  ]
+}

@@ -295,11 +295,11 @@ try{
   }
   report.map.fullscreen=fullscreenResults;
   await canvasMetrics(1,1366,768);
-  await page.screenshot({path:path.join(out,'psse-map-1366x768.png')});
+  await page.setViewportSize({width:1366,height:768});await page.waitForTimeout(150);await page.screenshot({path:path.join(out,'psse-map-1366x768.png'),scale:'css'});
   await canvasMetrics(1,1600,1000);
 
   // The matching local DGS ZIP is a user-owned model. Capture only local screenshots; report no model fingerprint or data values.
-  await uploadZip(dgsZip,'DGS MODU','.json');
+  await page.setViewportSize({width:1600,height:1000});await uploadZip(dgsZip,'DGS MODU','.json');
   report.workflow.dgsZipImport=true;
   await page.screenshot({path:path.join(out,'dgs-model-1600x1000.png')});
   await go('Harita');
