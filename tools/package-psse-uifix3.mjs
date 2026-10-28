@@ -22,8 +22,18 @@ file('dist-psse/THIRD_PARTY_LICENSES.txt','THIRD_PARTY_LICENSES.txt');
 for(const name of ['V4_UIFIX3_DGS_MAP_PARITY.md','V4_UIFIX3_REAL_MODEL_E2E.md','DGS_REGRESSION_UIFIX3.md','AGENT_HANDOFF.md'])file(name);
 const evidence=path.join(root,'evidence/psse-uifix3');
 if(fs.existsSync(evidence))for(const name of fs.readdirSync(evidence).sort())if(/^[a-z0-9_-]+\.(json|log)$/i.test(name))file('evidence/psse-uifix3/'+name,'test-logs/'+name);
+const htmlSha256=sha(entries['GridAnalyzer_v7.html']),browserChecks={};
+for(const channel of ['chrome','msedge']){
+ const bytes=entries[`test-logs/browser-e2e-${channel}.json`];
+ if(!bytes)throw Error('Missing real-model browser evidence: '+channel);
+ const report=JSON.parse(new TextDecoder().decode(bytes));
+ if(report.artifact?.sha256!==htmlSha256)throw Error('Browser evidence is for different offline bytes: '+channel);
+ browserChecks[channel]={status:report.status,version:report.browser?.version,artifactMatches:true};
+}
+const protectedSourceChanges=git('diff','--name-only','d5ef0711626457479b76478683e3fd30b3001f38','--','src/map','src/features/sld','src/analysis','src/importers/psse');
+if(protectedSourceChanges)throw Error('DGS/solver/native decoder sources changed; review package scope before delivery.');
 // Browser harness outputs contain true grid coordinates/screens. Only sanitized public JSON/logs above are allowed.
-const metadata={schema:'ga.psse.uifix3.delivery.v1',createdAt:new Date().toISOString(),branch,sourceCommit:head,verifiedRemoteHead:remoteHead,htmlSha256:sha(entries['GridAnalyzer_v7.html']),htmlBytes:entries['GridAnalyzer_v7.html'].length,realModelScreenshots:'Private local evidence only; excluded from Git and this archive.',solverScope:'Existing NR/FDNS/DC engines; remote IREG remains incomplete; no new SOLVED_FULL claim.'};
+const metadata={schema:'ga.psse.uifix3.delivery.v1',createdAt:new Date().toISOString(),branch,sourceCommit:head,verifiedRemoteHead:remoteHead,htmlSha256,htmlBytes:entries['GridAnalyzer_v7.html'].length,acceptance:Object.values(browserChecks).every(check=>check.status==='PASS')?'BROWSER_ACCEPTANCE_PASS':'BROWSER_ACCEPTANCE_PARTIAL',browserChecks,protectedSourcesUnchanged:true,realModelScreenshots:'Private local evidence only; excluded from Git and this archive.',solverScope:'Existing NR/FDNS/DC engines; remote IREG remains incomplete; no new SOLVED_FULL claim.'};
 add('DELIVERY_METADATA.json',strToU8(JSON.stringify(metadata,null,2)+'\n'));
 add('README.txt',strToU8(`Grid Analyzer V4 UIFIX3\n\nOpen GridAnalyzer_v7.html in Chrome or Edge. No server, internet, Python or PSS/E installation is required. Import your own SAV/RAW/RAWX/ZIP or DGS JSON/ZIP.\n\nBranch: ${branch}\nSource commit / verified remote HEAD: ${head}\nOffline HTML SHA-256: ${metadata.htmlSha256}\n\nReports distinguish executed checks from remaining acceptance items. Numerical convergence and full physical coverage are separate. Private models, Siemens runtime and real grid screenshots are excluded.\n`));
 add('SHA256SUMS.txt',strToU8(Object.entries(entries).map(([name,data])=>`${sha(data)}  ${name}`).sort().join('\n')+'\n'));

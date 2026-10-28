@@ -222,6 +222,12 @@
 .ga-psse-map .ga-psse-diagram-controls{gap:7px;padding:8px;border-radius:9px}
 .ga-psse-map-toolbar-row{gap:8px;align-items:end}
 .ga-psse-map .ga-psse-diagram-control>span{font-size:11px}
+.ga-psse-map-toolbar-row .ga-psse-diagram-control{display:flex;align-items:center;height:34px;gap:6px;flex:1 1 105px}
+.ga-psse-map-toolbar-row .ga-psse-diagram-control>span{white-space:nowrap;flex:none}
+.ga-psse-map-toolbar-row .ga-psse-diagram-control>select,.ga-psse-map-toolbar-row .ga-psse-diagram-control>input{flex:1;min-width:0;width:0}
+.ga-psse-map-toolbar-row .ga-psse-diagram-control:has(.ga-psse-band-filter){flex:2.4 1 310px}
+.ga-psse-map-toolbar-row .ga-psse-band-filter{flex:1;gap:6px}
+.ga-psse-map-toolbar-row .ga-psse-diagram-control:has(select[aria-label="Hat yerleşimi"]),.ga-psse-map-toolbar-row .ga-psse-diagram-control:has(select[aria-label="LF görünümü"]){flex-basis:135px}
 .ga-psse-map .ga-psse-diagram-control input,.ga-psse-map .ga-psse-diagram-control select,.ga-psse-map-toolbar-row>.ga-button{height:34px;font-size:12px;padding:5px 8px}
 .ga-psse-map-toolbar-row>.ga-check{height:34px;font-size:12px;align-items:center;flex:none}
 .ga-psse-map .ga-psse-band-filter{height:34px;flex-wrap:nowrap;font-size:12px}
