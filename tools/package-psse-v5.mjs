@@ -27,7 +27,7 @@ for(const channel of ['chrome','msedge']){
 }
 const protectedChanges=git('diff','--name-only','c06446764b9cc49863b9b26ba1454607fd362377','--','src/map','src/features/sld','src/analysis/power-flow','src/importers/psse');
 if(protectedChanges)throw Error('Protected DGS/native importer sources changed');
-const validation=JSON.parse(new TextDecoder().decode(entries['evidence/psse-v5/validation.json']));if(validation.status!=='PASS')throw Error('Final implementation validation is incomplete');
+const validation=JSON.parse(new TextDecoder().decode(entries['evidence/psse-v5/validation.json']));if(validation.status!=='PASS'||validation.artifact?.sha256!==htmlSha256||validation.unitRegression?.failed!==0||validation.unitRegression?.passed!==validation.unitRegression?.tests)throw Error('Final implementation validation is incomplete or for different bytes');
 const parity=JSON.parse(new TextDecoder().decode(entries['evidence/psse-v5/reference-parity.json']));
 const passed=parity.cases.filter(c=>c.parity?.thresholdsPass).length;
 const metadata={schema:'ga.psse.v5.delivery.v1',createdAt:new Date().toISOString(),branch,sourceCommit:head,verifiedRemoteHead:remoteHead,htmlSha256,htmlBytes:entries['index.html'].length,browserChecks,validationStatus:validation.status,electricalAcceptance:passed===parity.cases.length?'THRESHOLDS_PASS_WITH_DOCUMENTED_CONTROL_LIMITATIONS':'PARTIAL',referenceCases:parity.cases.length,referenceThresholdPasses:passed,classificationPolicy:'SOLVED_APPROXIMATE while full source/control validation remains incomplete',protectedSourcesUnchanged:true,privateInputsAndGridScreenshotsIncluded:false};
