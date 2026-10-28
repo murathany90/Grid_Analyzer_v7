@@ -54,7 +54,9 @@ window.ready=true;
     for(const width of desktopWidths([1366,1440,1600,1920,768,390])){
       await page.setViewportSize({width,height:width===1366?768:width===1920?1080:width===390?844:900});
       for(const label of ['Yük Akışı Analizi','Kısıt Analizi (N-1)','Kısa Devre Analizi']){
-        await closeAnalysisDialogs(page);await workspace.getByRole('button',{name:label,exact:true}).click();await openAnalysisTools(page);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' '+width);
+        await closeAnalysisDialogs(page);await workspace.getByRole('button',{name:label,exact:true}).click();await openAnalysisTools(page);const overflowNow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
+        if(overflowNow){const dump=await page.evaluate(()=>[...document.querySelectorAll('body *')].map(e=>{const r=e.getBoundingClientRect();return{tag:e.tagName,cls:String(e.className).slice(0,60),right:Math.round(r.right),w:Math.round(r.width),sw:e.scrollWidth};}).filter(x=>x.right>innerWidth+1&&x.w>0).slice(0,14));console.log('WIDE@'+width+' '+label+' '+JSON.stringify(dump));}
+        assert.equal(overflowNow,false,label+' '+width);
         const statuses=await workspace.locator('.ga-analysis-layout:visible .ga-study-verdict strong').allTextContents();assert.ok(statuses.every(s=>!/_/.test(s)),statuses.join());
         if(label==='Kısa Devre Analizi')assert.equal(await sc.getByLabel('Ortak sonuç metriği',{exact:true}).inputValue(),'ikssKa');
       }

@@ -52,7 +52,7 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
   classPanel.append(element('h3', '', 'DGS sınıf sayıları'));
   const classList = element('div', 'ga-class-counts');
   classPanel.append(classList);
-  let loadGeneration=0,abortEntrySelection:(()=>void)|null=null;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;choose.disabled=false;input.value='';abortEntrySelection?.();abortEntrySelection=null;render();});drop.append(cancelLoad);message.hidden=true;
+  let loadGeneration=0,abortEntrySelection:(()=>void)|null=null,loadAbort:AbortController|null=null;const cancelLoad=button('Model yüklemesini iptal et',()=>{loadGeneration++;ctx.cancel();loadAbort?.abort();loadingNow=false;loading.textContent='Model yüklemesi iptal edildi.';input.disabled=false;choose.disabled=false;input.value='';abortEntrySelection?.();abortEntrySelection=null;render();});drop.append(cancelLoad);message.hidden=true;
   const hero=element('div','ga-model-hero'),identityPanel=element('section','ga-model-identity');hero.append(drop,identityPanel);
   if(options.unified)root.append(heading,hero,message,summary,capabilityPanel,classPanel);else root.append(heading,drop,message,summary,capabilityPanel,warningsPanel,classPanel);
 
@@ -76,18 +76,20 @@ export function createModelView(ctx: AppContext, options:{unified?:boolean}={}):
     input.disabled = true;
     choose.disabled = true;
     loading.textContent = `Yükleniyor · ${selectedFiles[0].name}`;
+    const abort=new AbortController();loadAbort=abort;
     try {
-      const archive=await inspectModelFile(selectedFiles[0]);
+      const archive=await inspectModelFile(selectedFiles[0],abort.signal);
       const entry=archive.entries.length===1?archive.entries[0]:await selectEntry(archive.entries);
       if(!entry||generation!==loadGeneration)return;loading.textContent=`${entry.name} · Açılmış boyut ${format(entry.size/1024**2,1)} MiB`;
-      const file=await archive.extract(entry);if(generation!==loadGeneration)return;await ctx.loadFiles([file]);
+      const file=await archive.extract(entry,abort.signal);if(generation!==loadGeneration)return;await ctx.loadFiles([file]);
     } catch (error) {
-      ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
+      if(!abort.signal.aborted)ctx.setMessage(`Model yüklenemedi: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       // Superseded generations are cleaned up by their own cancel path; the
       // newest run owns the shared input state. Resetting here anyway would
       // clobber a newer in-flight load.
       if(generation!==loadGeneration)return;
+      loadAbort=null;
       loadingNow = false;
       input.disabled = false;
       choose.disabled = false;

@@ -137,10 +137,13 @@ export class CanvasMapRenderer implements MapRenderer {
     const site=this.ctx.mapDisplay.siteId,sites=modelPresentationIndex(n).siteById,volts=this.ctx.mapDisplay.voltages,inAreaScope=scopeAreaFilter(this.ctx.mapDisplay),visibleKey=mapScopeKey(this.ctx.mapDisplay)+'|'+this.showSites;
     if(this.visibleNetwork!==n||this.visibleKey!==visibleKey){this.visibleNetwork=n;this.visibleKey=visibleKey;
     // An explicit TM focus (map TM scope, e.g. from the Lightning SC panel)
-    // overrides the YTM/voltage display scope for that TM and its lines, so a
-    // focused TM outside the active YTM scope never disappears.
-    this.visibleLines=site?n.lines.filter(l=>l.siteIds.includes(site)):n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&l.siteIds.some(id=>inAreaScope(sites.get(id)?.areaId??'')));
-    this.visibleSites=this.showSites?(site?n.sites.filter(s=>s.id===site&&s.lat!=null&&s.lon!=null):n.sites.filter(s=>s.lat!=null&&s.lon!=null&&inAreaScope(s.areaId)&&s.voltages.some(v=>voltageMatches(v,volts)))):[];}
+    // overrides the YTM AREA scope for that TM and its lines — but only while
+    // the display scope itself is non-empty: an explicit YTM NONE or an empty
+    // voltage selection keeps the empty map (no ghost TM over the overlay),
+    // and the voltage display filter still applies to the focused TM.
+    const focus=site&&this.ctx.mapDisplay.areaMode!=='NONE'&&volts.size>0?site:'';
+    this.visibleLines=focus?n.lines.filter(l=>l.siteIds.includes(focus)&&voltageMatches(l.vnKv,volts)):n.lines.filter(l=>voltageMatches(l.vnKv,volts)&&l.siteIds.some(id=>inAreaScope(sites.get(id)?.areaId??'')));
+    this.visibleSites=this.showSites?(focus?n.sites.filter(s=>s.id===focus&&s.lat!=null&&s.lon!=null&&s.voltages.some(v=>voltageMatches(v,volts))):n.sites.filter(s=>s.lat!=null&&s.lon!=null&&inAreaScope(s.areaId)&&s.voltages.some(v=>voltageMatches(v,volts)))):[];}
     this.canvas.dataset.visibleLines=String(this.visibleLines.length);this.canvas.dataset.visibleSites=String(this.visibleSites.length);
     const hitKey=this.screenKey+'|'+mapScopeKey(this.ctx.mapDisplay)+'|'+[...volts].sort().join('|');if(hitKey!==this.hitGridKey||this.hitGridNetwork!==n){this.hitGrid=new ScreenHitGrid(this.visibleLines,this.paths,this.width,this.height);this.hitGridKey=hitKey;this.hitGridNetwork=n;}
     const result=this.ctx.benchmarkMap?.analysis==='LF'&&this.ctx.benchmarkMap.source==='GA'?this.ctx.resultStore.get(this.ctx.resultStore.role==='base'?'base':'scenario','powerFlow'):settings.displayMode==='delta'?this.ctx.resultStore.get('scenario'):this.ctx.resultStore.active,baseline=this.ctx.resultStore.getSnapshot(this.ctx.resultStore.comparisonScenarioId,this.ctx.resultStore.analysisType),scenarioResult=this.ctx.resultStore.get('scenario'),comparable=this.ctx.resultStore.comparable(),mapSeason=this.ctx.mapDisplay.capacitySeason==='inherit'?undefined:this.ctx.mapDisplay.capacitySeason as CapacitySeason,lfKey=[...volts].sort().join(',')+'|'+capacitySession(n.modelHash).revision+'|'+(mapSeason??'inherit')+'|'+comparable,lfRefs=[n,result,baseline,scenarioResult];
