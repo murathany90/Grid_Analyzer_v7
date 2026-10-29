@@ -579,6 +579,7 @@ export const initializers = [[14, ctx => {
     deltaV: 0.05,
     layoutMode: `standard`,
     flowDefault: true,
+    flowMotionPolicy: `system`,
     clearOnBlank: true,
     legend: true,
     displayMode: `nominal`,
@@ -623,6 +624,7 @@ export const initializers = [[14, ctx => {
         deltaMetric: [`p`, `q`, `v`, `loading`],
         basemapStyle: [`dark`, `plain`, `provinces`, `none`],
         flowSpeed: [`slow`, `normal`, `fast`],
+        flowMotionPolicy: [`system`, `allow`],
         theme: [`dark`, `light`]
       };
       for (let e3 of Object.keys(r2)) r2[e3].includes(n2[e3]) || Object.assign(n2, {

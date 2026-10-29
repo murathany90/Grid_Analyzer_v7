@@ -9,10 +9,13 @@ export class ScenarioStore {
   }
   get current(){return this.make(this.network,this.items.get(this.selected).operations);}
   get item(){return this.items.get(this.selected);}
+  name(value){if(typeof value!=='string'||!value.trim()||value.trim().length>80)throw Error('SCENARIO_NAME_INVALID');return value.trim();}
   create(name='Senaryo',operations=this.item.operations){
-    this.make(this.network,operations);const id='s'+ ++this.serial,ops=structuredClone(operations);
+    name=this.name(name);this.make(this.network,operations);const id='s'+ ++this.serial,ops=structuredClone(operations);
     this.items.set(id,{id,name,operations:ops,history:[structuredClone(ops)],cursor:0});this.selected=id;return id;
   }
+  rename(id,name){if(id==='base')throw Error('SCENARIO_BASE_IMMUTABLE');if(!this.items.has(id))throw Error('SCENARIO_UNKNOWN');this.items.get(id).name=this.name(name);}
+  remove(id=this.selected){if(id==='base')throw Error('SCENARIO_BASE_IMMUTABLE');if(!this.items.has(id))throw Error('SCENARIO_UNKNOWN');this.items.delete(id);if(this.selected===id)this.selected='base';}
   select(id){if(!this.items.has(id))throw Error('SCENARIO_UNKNOWN');this.selected=id;return this.current;}
   replace(operations){
     const next=this.make(this.network,operations);

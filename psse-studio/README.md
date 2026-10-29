@@ -42,3 +42,5 @@ NR Load tüm 2.520 gerçek kaynak kimliğini kapsar; Excel NR'de eksik olan 400 
 Canvas P/Q animasyonu GA hız/yoğunluk kurallarını ve hareket azaltma tercihini kullanır. Ayrık devreler aynı TM uçlarına bağlanır; tek hover yöneticisi ve çok baralı TM özeti bulunur. Panel metrikleri kolonları değiştirir, sıralama bağımsızdır. XML/ZIP işlemleri offline worker'dadır. Aynı 36 sayfalı örnekte dışa aktarma 20,2 → 8,9 sn, en uzun ana thread işi 6,9 → 0,50 sn ölçüldü; açılmış 41 ZIP parçası birebir eşleşti.
 
 GA Web entegrasyonu: [GA_PSSE_INTEGRATION.md](GA_PSSE_INTEGRATION.md).
+
+Sistem hareket azaltma açıkken Akış kapalı gösterilir; Ölçüm veya Ayarlar içindeki açık uygulama izniyle etkinleştirilebilir. Kaynak/görünümde geçerli P/Q yoksa ok üretilmez. Sonuç satırları fiziksel kimlikle haritayı odaklar; boş tıklama/Escape yalnız seçimi temizler. ⚡ Senaryolar bölümünde yeni/kopya/adlandır/sil, undo/redo ve kaydet/yükle bulunur; baz korunur. 768–1920 px hedefli son kontrol: `node tests/final-ui.mjs`.

@@ -33,3 +33,5 @@ Map filters supply the same admitted bus/branch IDs to selection and results. TM
 GA map parity: identical two-row control order, nominal palette/widths, loading thresholds, compact tooltip, settings and dense lightning table. PSS/E-specific differences: straight station-to-station geometry, SAV/GA source selector, no DGS-only N-1/SC engines. Green Newton controls are implemented GA policies, not proof of native PSS/E numerical equivalence. Tap and shunt automatic adjustment currently share one outer-loop policy and are labelled accordingly.
 
 Host acceptance must additionally exercise DGS→PSS/E→DGS with independent storage and identical restored DGS model/scenario/result hashes. Local dual-mount/CSS tests and selected existing DGS regressions pass; actual integration into the GA app shell is a later change.
+
+Motion permission is PSS/E-owned: system reduced motion disables animation by default, while an explicit app opt-in can permit it. Blank click/Escape share selection cleanup; result rows focus source IDs without changing filters. Scenario CRUD and history reuse the same store in the analysis workspace and lightning panel; base operations remain immutable.

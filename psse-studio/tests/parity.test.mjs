@@ -3,6 +3,15 @@ import {flowArrows} from '../src/modules/psse/map/flow-layer.js';
 import {stationState} from '../src/modules/psse/map/station-state.js';
 import {metricChoices,resultColumns,sortRows,groupLoading} from '../src/modules/psse/ui/result-columns.js';
 import {loadingAtTerminals} from '../src/modules/psse/calculations/rating.js';
+import {motionPolicy} from '../src/modules/psse/map/motion-policy.js';
+import {ScenarioStore} from '../src/modules/psse/scenarios/store.js';
+test('system reduced motion defaults off; explicit app permission and data gates remain independent',()=>{
+  const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,false);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',layer:'saved'}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
+});
+test('scenario CRUD preserves the base, independent copies and round-trip history',()=>{
+  const network={modelHash:'n'},make=(n,operations=[])=>({networkHash:n.modelHash,operations:structuredClone(operations),hash:JSON.stringify(operations)}),book=new ScenarioStore(network,make,'source');
+  const original=book.create('Original',[]);book.apply({equipmentId:'line:1',action:'STATUS',value:0});const copy=book.create('Copy');book.apply({equipmentId:'load:1',action:'LOAD_SCALE',value:.9});assert.equal(book.items.get(original).operations.length,1);assert.equal(book.item.operations.length,2);book.undo();book.redo();book.rename(copy,'Renamed');const restored=new ScenarioStore(network,make,'source');restored.restore(book.serialize());assert.equal(restored.item.name,'Renamed');assert.equal(restored.item.operations.length,2);restored.remove(copy);assert.equal(restored.selected,'base');for(const action of [()=>book.rename('base','changed'),()=>book.remove('base'),()=>book.create(' ')])assert.throws(action);assert.equal(book.items.get('base').operations.length,0);
+});
 const line={id:'line:a',a:{x:0,y:0},b:{x:300,y:0},status:1,kv:400,pFrom:100,pTo:-99,qFrom:10,qTo:5,loading:50};
 test('current-expressed MVA RATE uses nominal terminal kV and current, independently of voltage magnitude',()=>{
   const network={buses:[{baseKv:400,source:true},{baseKv:154,source:true}]},branch={from:0,to:1,status:1,ratingBasis:'CURRENT_EXPRESSED_AS_MVA',ratingsFromSource:[100,200,0],ratingsToSource:[100,200,0]},row={pFromMw:110,qFromMvar:0,pToMw:-90,qToMvar:0,iFromA:100000/(Math.sqrt(3)*400),iToA:100000/(Math.sqrt(3)*154)};

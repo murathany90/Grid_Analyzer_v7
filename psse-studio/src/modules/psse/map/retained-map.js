@@ -1,3 +1,4 @@
+import {motionPolicy} from './motion-policy.js';
 import {createFlowLayer} from './flow-layer.js';
 import {createMapTooltip} from './tooltip.js';
 import {stationState,stationBusGroups} from './station-state.js';
@@ -175,10 +176,7 @@ ctx.py = function py(e2) {
       }, r3.append(i3, ctx.document.createTextNode(e3)), r3;
     },
     V2 = B2(`Ak\u0131\u015F`, I2, e3 => {
-      I2 = e3;e2.settings.update({flowDefault:e3});
-      r2 = e3 && !n2;
-      k2.checked = r2;
-      rt2();
+      e2.settings.update({flowDefault:e3});
     }),
     H2 = B2(`TM`, L2, e3 => {
       L2 = e3;
@@ -192,6 +190,7 @@ ctx.py = function py(e2) {
   G2.addEventListener(`pointerdown`, e3 => e3.stopPropagation()), G2.classList.add(`ga-psse-lightning-toggle`), G2.dataset.psseLightningToggle = ``, G2.setAttribute(`aria-label`, `Elektriksel sonu\xE7lar paneli`);
   let K2 = ctx.Q(`select`);
   K2.setAttribute(`aria-label`, `LF g\xF6r\xFCn\xFCm\xFC`), K2.append(new Option(`Baz`, `base`), new Option(`Senaryo`, `scenario`), new Option(`Fark`, `delta`));
+  K2.value=e2.scenarios?.selected&&e2.scenarios.selected!=='base'?'scenario':'base';
   let q2 = ctx.Q(`select`);
   q2.setAttribute(`aria-label`, `Harita metri\u011Fi`), q2.append(new Option(`Nominal gerilim`, `nominal`), new Option(`Bara Gerilimi (kV)`, `vm`), new Option(`Bara Va (\xB0)`, `va`), new Option(`Bara gerilim ihlali`, `violation`), new Option(`Aktif g\xFC\xE7 P (MW)`, `p`), new Option(`Reaktif g\xFC\xE7 Q (Mvar)`, `q`), new Option(`Y\xFCkleme (%)`, `loading`));
   let ee2 = ctx.Q(`select`);
@@ -209,6 +208,7 @@ ctx.py = function py(e2) {
   let se2 = ctx.Q(`details`, `ga-map-menu ga-map-options`),
     ce2 = ctx.Q(`div`, `ga-map-menu-body`);
   ce2.append(A2, F2, ctx.$(`Harita Ayarlar\u0131`, () => e2.setView(`settings`))), se2.append(ctx.Q(`summary`, ``, `\xD6l\xE7\xFCm`), ce2);
+  const motionPermission=ctx.Q('input'),motionLabel=ctx.Q('label','ga-check'),flowReason=ctx.Q('small','ga-flow-reason');motionPermission.type='checkbox';motionPermission.setAttribute('aria-label','Bu uygulamada hareket azaltmaya rağmen animasyona izin ver');motionLabel.append(motionPermission,ctx.document.createTextNode('Bu uygulamada hareket azaltmaya rağmen animasyona izin ver'));motionPermission.onchange=()=>e2.settings.update({flowMotionPolicy:motionPermission.checked?'allow':'system',...(motionPermission.checked?{flowDefault:true}:{})});ce2.prepend(motionLabel);V2.append(flowReason);
   let le2 = ctx.$(`Baz \xB7 Sonu\xE7 yok`, () => he2.open(`SCENARIOS`), `Senaryolar\u0131 a\xE7`);
   le2.classList.add(`ga-map-scenario-chip`), le2.dataset.psseLightningToggle = ``;
   let ue2 = ctx.$(`Sonu\xE7lar`, () => he2.open(`LF`), `Elektriksel sonu\xE7lar\u0131 a\xE7`);
@@ -226,18 +226,20 @@ ctx.py = function py(e2) {
   l2.append(te2,ne2);
   let me2 = ctx.Q(`details`, `ga-psse-map-details`);
   me2.append(ctx.Q(`summary`, ``, `Teknik ayr\u0131nt\u0131lar`), c2, u2, f2, p2), h2.append(g2, _2, m2, G2), d2.append(h2, v2), me2.remove(), s2.append(l2, d2);
-  let he2 = ctx.Jv(e2);
+  let he2 = ctx.Jv(e2,{onSelect:focusEquipment,onScenarioChange:()=>{K2.value=e2.scenarios.selected==='base'?'base':'scenario';O2.value='calculated';lt2();}});
   h2.append(he2.element);
   const openResults=he2.open;he2.open=tab=>{he2.setScope({layer:Ee2,role:K2.value});openResults(tab);};
-  const tooltip=createMapTooltip(h2,node=>({title:node.dataset.v12Title,lines:[node.dataset.v12Sub,...(node.dataset.v12Rows??'').split(';').filter(Boolean).map(row=>row.split('|').join(' · '))].filter(Boolean).slice(0,4)}));
+  const tooltip=createMapTooltip(h2,node=>({title:node.dataset.v12Title,lines:[node.dataset.v12Sub].filter(Boolean),columns:(node.dataset.v12Cols??'').split('|').filter(Boolean),rows:(node.dataset.v12Rows??'').split(';').filter(Boolean).map(row=>row.split('|'))}));
   let selectedStation=null;
   function highlightSelection(){
+    const glyphScale=Math.max(.01,We2().k);
     for(const node of _2.querySelectorAll('.is-focus'))node.classList.remove('is-focus');
+    for(const station of _2.querySelectorAll('.ga-psse-geo-station')){const circle=station.querySelector('circle');if(circle){circle.setAttribute('r',String((station.dataset.isub===String(selectedStation)?Math.max(5.5,e2.settings.value.siteSize):Math.max(3.2,e2.settings.value.siteSize))/glyphScale));circle.setAttribute('stroke','#9bb9c2');}}
     for(const node of _2.querySelectorAll('[data-branch-id],[data-isub],[data-bus-id]'))if(node.classList.contains('ga-psse-geo-link')&&node.dataset.branchId===Se2||node.dataset.isub===String(selectedStation)||node.dataset.busId===xe2)node.classList.add('is-focus');
   }
   const ge2=createMapSelection(e2,{
     context:()=>({workspace:Y2,layer:Ee2,role:K2.value,stationBuses:id=>stationBusGroups(Y2.network,De2.associations).get(String(id))??[],allows:source=>allowedEquipment(source)}),
-    onSelect:selection=>{Se2=selection.branchId??null;xe2=selection.busId??null;selectedStation=selection.stationId??null;highlightSelection();},
+    onSelect:selection=>{Se2=selection.branchId??null;xe2=selection.busId??null;selectedStation=selection.stationId??null;highlightSelection();he2.setSelection(selection.equipmentId??null);},
     onActivate:()=>{K2.value='scenario';O2.value='calculated';lt2();},
     onResults:options=>he2.focus({...options,layer:Ee2,role:K2.value}),
     onSld:station=>{e2.setView('sld');ctx.window.requestAnimationFrame(()=>{const select=ctx.document.querySelector('.ga-psse-sld select[aria-label="Trafo merkezi"]');if(select&&station!=null&&[...select.options].some(o=>o.value===String(station))){select.value=String(station);select.dispatchEvent(new Event('change'));}});}
@@ -494,6 +496,13 @@ ctx.py = function py(e2) {
     let a3 = ctx.kg(r3.longitude, r3.latitude),
       o3 = ctx.kg(i3.longitude, i3.latitude);
     we2 = -(a3[0] + o3[0]) / 2 * He2(), Te2 = -(a3[1] + o3[1]) / 2 * He2(), xe2 = null, Se2 = t3.id, be2 = `map`;
+  }
+  function focusEquipment(id){
+    if(!Y2)return;const source=ke2.get(id);if(!source){e2.setMessage('Kaynak ekipman kimliği bulunamadı.');return;}if(!allowedEquipment(source)){e2.setMessage('Ekipman YTM / gerilim kapsamı dışında.');return;}
+    const net=ze2(),branches=net.branches.filter(b=>b.sourceEquipmentId===id),bus=source.kind==='bus'?net.buses.find(b=>b.sourceEquipmentId===id):null,indices=bus?[net.buses.indexOf(bus)]:[...new Set(branches.flatMap(b=>[b.from,b.to]).filter(i=>net.buses[i]?.source))],stations=source.kind==='substation'?De2.stations.filter(st=>st.sourceEquipmentId===id):indices.map(i=>Ae2.get(net.buses[i].connectionKey));
+    if(!stations.length||stations.some(st=>!st||!Number.isFinite(st.longitude)||!Number.isFinite(st.latitude))){e2.setMessage('Kaynak TM koordinatı eksik; harita odağı değiştirilmedi.');return;}
+    const points=stations.map(st=>ctx.kg(st.longitude,st.latitude)),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;Ce2=Math.max(3,Math.min(10,ctx.ny*.65/(Math.max(.05,Math.max(...xs)-Math.min(...xs))*ctx.iy),ctx.ry*.65/(Math.max(.05,Math.max(...ys)-Math.min(...ys))*ctx.iy)));we2=-cx*ctx.iy*Ce2;Te2=-cy*ctx.iy*Ce2;be2='map';
+    const sameStation=stations.every(st=>st.isub===stations[0].isub);if(h2.clientWidth<1280)he2.close();ge2.open(source,source.kind==='line'?Fe2(branches[0]):source.name,{normalizedBranch:branches[0],normalizedBus:bus,stationId:stations[0].isub,highlightStation:sameStation});ct2();e2.setMessage('Harita · '+source.name);
   }
   function Re2() {
     return ctx.sy.filter(e3 => !x2.get(e3.id).checked);
@@ -822,8 +831,10 @@ ctx.py = function py(e2) {
     let a3 = q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : $e2(n3);
     return Ee2 === `delta` ? Je2(i3 ? q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(r3, n3) : null) : q2.value === `loading` ? ctx.Cg(a3, e2.settings.value) : Qe2(a3, v9MetricScale());
   }
-  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&Ee2==='calculated'&&I2&&k2.checked&&e2.settings.value.flowDefault!==false,reduced:n2,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
-  function rt2(){flowLayer.refresh();}
+  let flowAvailable=false;
+  const policy=()=>motionPolicy({requested:e2.settings.value.flowDefault!==false,reduced:n2,permission:e2.settings.value.flowMotionPolicy,layer:Ee2,available:flowAvailable,mode:q2.value==='q'?'q':'p',zoom:Ce2});
+  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&policy().enabled,reduced:false,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
+  function rt2(){const state=policy();I2=state.enabled;k2.checked=state.enabled;k2.disabled=false;V2.querySelector('input').checked=state.enabled;V2.querySelector('input').disabled=false;V2.title=state.reason||'Geçerli P/Q ile hareketli akış';flowReason.textContent=state.reason;flowReason.hidden=!state.reason;motionPermission.checked=e2.settings.value.flowMotionPolicy==='allow';flowLayer.refresh();}
   function it2(t3) {
     if (h2.hidden = be2 !== `map`, v2.hidden = be2 !== `topology`, Ge2(), _2.replaceChildren(), v11SvgBasis = {
       zoom: Ce2,
@@ -945,9 +956,9 @@ ctx.py = function py(e2) {
         }),
         k4 = ctx.sv(`title`);
       k4.textContent = `${Fe2(t4)} \xB7 ${t4.id} \xB7 ${t4.status === 1 ? `serviste` : `devre d\u0131\u015F\u0131`} \xB7 P=${ctx.ov(v3?.pFromMw)} MW / Q=${ctx.ov(v3?.qFromMvar)} Mvar / y\xFCk=${ctx.ov(x4, 1)}%${y3 ? ` \xB7 \u0394P=${ctx.ov(ctx.zv(C4?.pFromMw, v3?.pFromMw))} MW \xB7 \u0394Q=${ctx.ov(ctx.zv(C4?.qFromMvar, v3?.qFromMvar))} Mvar \xB7 \u0394y\xFCk=${ctx.ov(ctx.zv(C4?.loadingFromPct, v3?.loadingFromPct) ?? ctx.zv(C4?.loadingToPct, v3?.loadingToPct), 1)}%` : ``}`, O4.dataset.v12Title = Fe2(t4);
-      O4.dataset.v12Sub = `${t4.status===1?"Serviste":"Devre dışı"} · ${Ee2==="saved"?"Kaynak SAV":f3?`GA · ${f3.method} · ${f3.physicsCoverage}`:"NOT_RUN"}`;
+      O4.dataset.v12Sub = `Kaynak: ${baseStatuses.get(t4.id)===1?"Serviste":"Devre dışı"} · ${K2.value==='base'?'Baz':'Senaryo'}: ${t4.status===1?"Serviste":"Devre dışı"} · ${Ee2==="saved"?"Kaynak SAV":f3?`GA · ${f3.method} · ${f3.physicsCoverage}`:"NOT_RUN"}`;
       O4.dataset.v12Cols = "TM / U\xE7|P (MW)|Q (MVAr)|Y\xFCk (%)";
-      O4.dataset.v12Rows = `A \xB7 ${ctx.Lv(Y2.model, Y2.base).station(r4) ?? ctx.Lv(Y2.model, Y2.base).bus(r4)}|${ctx.ov(v3?.pFromMw, 1)}|${ctx.ov(v3?.qFromMvar, 1)}|${ctx.ov(x4, 1)};B \xB7 ${ctx.Lv(Y2.model, Y2.base).station(i4) ?? ctx.Lv(Y2.model, Y2.base).bus(i4)}|${ctx.ov(v3?.pToMw, 1)}|${ctx.ov(v3?.qToMvar, 1)}|${ctx.ov(x4, 1)}`;
+      O4.dataset.v12Rows = `A \xB7 ${ctx.Lv(Y2.model, Y2.base).station(r4) ?? ctx.Lv(Y2.model, Y2.base).bus(r4)}|${ctx.ov(v3?.pFromMw, 1)}|${ctx.ov(v3?.qFromMvar, 1)}|${ctx.ov(v3?.loadingFromPct, 1)};B \xB7 ${ctx.Lv(Y2.model, Y2.base).station(i4) ?? ctx.Lv(Y2.model, Y2.base).bus(i4)}|${ctx.ov(v3?.pToMw, 1)}|${ctx.ov(v3?.qToMvar, 1)}|${ctx.ov(v3?.loadingToPct, 1)}`;
       O4.addEventListener(`click`, () => Ne2(t4, v3)), O4.addEventListener(`keydown`, e3 => {
         (e3.key === `Enter` || e3.key === ` `) && (e3.preventDefault(), O4.dispatchEvent(new MouseEvent(`click`, {
           bubbles: true
@@ -994,7 +1005,7 @@ ctx.py = function py(e2) {
             class: `ga-psse-geo-link ${n5.branch.status === 0 ? `is-out` : ``}`
           }),
           d4 = ctx.sv(`title`);
-        d4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${e3} \xB7 kaynak sarg\u0131 ${n5.branch.windingId} \xB7 ${n5.station.name} \u2192 \u015Fematik ortak ba\u011Flant\u0131 \xB7 ortak ba\u011Flant\u0131 noktas\u0131 yaln\u0131z yerle\u015Fim i\xE7indir, TM koordinat\u0131 de\u011Fildir \xB7 P ${ctx.ov(l5?.pFromMw)} MW \xB7 Q ${ctx.ov(l5?.qFromMvar)} Mvar \xB7 y\xFCk ${ctx.ov(l5?.loadingFromPct, 1)}%`, u5.append(d4), u5.addEventListener(`click`, () => ge2.open(c4, Fe2(n5.branch), {
+        u5.dataset.branchId=n5.branch.id;u5.dataset.branchKind=n5.branch.kind;u5.dataset.v12Title=(c4?.name??e3)+' · Sargı '+n5.branch.windingId;u5.dataset.v12Sub=(n5.branch.status===1?'Serviste':'Devre dışı')+' · '+(f3?.physicsCoverage??'NOT_RUN');u5.dataset.v12Cols='Uç|P (MW)|Q (Mvar)|Yük (%)';u5.dataset.v12Rows=n5.station.name+'|'+ctx.ov(l5?.pFromMw)+'|'+ctx.ov(l5?.qFromMvar)+'|'+ctx.ov(l5?.loadingFromPct)+';Yıldız|'+ctx.ov(l5?.pToMw)+'|'+ctx.ov(l5?.qToMvar)+'|'+ctx.ov(l5?.loadingToPct);d4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${e3} \xB7 kaynak sarg\u0131 ${n5.branch.windingId} \xB7 ${n5.station.name} \u2192 \u015Fematik ortak ba\u011Flant\u0131 \xB7 ortak ba\u011Flant\u0131 noktas\u0131 yaln\u0131z yerle\u015Fim i\xE7indir, TM koordinat\u0131 de\u011Fildir \xB7 P ${ctx.ov(l5?.pFromMw)} MW \xB7 Q ${ctx.ov(l5?.qFromMvar)} Mvar \xB7 y\xFCk ${ctx.ov(l5?.loadingFromPct, 1)}%`, u5.setAttribute("aria-label",u5.dataset.v12Title), u5.addEventListener(`click`, () => ge2.open(c4, Fe2(n5.branch), {
           normalizedBranch: n5.branch,
           calculated: l5 ?? null,
           scenarioHash: Y2.scenario.hash
@@ -1006,9 +1017,10 @@ ctx.py = function py(e2) {
       });
       ctx.ah(l4, `transformer3w`, i4, a4, `#d0b56e`);
       let u4 = ctx.sv(`title`);
-      u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`, l4.append(u4), T3.append(l4);
+      u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`;l4.dataset.v12Title=c4?.name??e3;l4.dataset.branchId=r4[0].leg.branch.id;l4.dataset.v12Sub='3 sargı · '+(f3?.physicsCoverage??'NOT_RUN');l4.dataset.v12Cols='Sargı / TM|P (MW)|Q (Mvar)|Yük (%)';l4.dataset.v12Rows=r4.map(v=>{const row=p3.get(v.leg.branch.id);return v.leg.station.name+'|'+ctx.ov(row?.pFromMw)+'|'+ctx.ov(row?.qFromMvar)+'|'+ctx.ov(row?.loadingFromPct);}).join(';');l4.addEventListener('click',()=>ge2.open(c4,c4?.name??e3,{normalizedBranch:r4[0].leg.branch}));T3.append(l4);
     }
     _2.append(T3);
+    flowAvailable=C3.some(b=>{const r=p3.get(b.id);return b.status===1&&[400,154].includes(n3.buses[b.from]?.baseKv)&&(q2.value==='q'?[r?.qFromMvar,r?.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1):Number.isFinite(r?.pFromMw)&&Number.isFinite(r?.pToMw)&&r.pFromMw*r.pToMw<0&&Math.abs(r.pFromMw)>=.15);});
     flowLayer.setLines(C3.map(branch=>{const row=p3.get(branch.id),segment=drawnSegments.get(branch.id);return segment?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:n3.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0)}:null;}).filter(Boolean));
     let k3 = ctx.sv(`g`, {
       class: `ga-psse-geo-stations`
@@ -1316,7 +1328,7 @@ ctx.py = function py(e2) {
     be2 === `map` ? (h2.append(m2), it2(a3), v2.replaceChildren()) : (h2.hidden = true, v2.hidden = false, at2(a3));
     he2.setFilterScope({busIds:a3,branchIds:new Set(t3.branches.filter(b=>(b.kind==='line'?a3.has(b.from)&&a3.has(b.to):a3.has(b.from)||a3.has(b.to))&&v13IncidentYtm(b,t3)).map(b=>b.id))});he2.render();ge2.render();tooltip.hide();lastContextKey=contextKey();
   }
-  Ee2 = `saved`, O2.value = `saved`;
+  Ee2 = K2.value==='scenario'?'calculated':'saved';O2.value=Ee2;
   J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";ct2();};
   let lt2 = () => {
     Ee2 = O2.value === `saved` ? `saved` : K2.value === `delta` ? `delta` : `calculated`, Ee2 === `delta` && !qe2() && Y2 && e2.setMessage(ctx.Rv(Y2, e2.psseBaseCalculation).reason ?? `Uyumlu baz ve senaryo hesaplar\u0131 gerekir.`), ct2();
@@ -1336,7 +1348,7 @@ ctx.py = function py(e2) {
     v9FitScope(), ct2();
   };
   k2.onchange = () => {
-    r2 = k2.checked && !n2;I2=k2.checked;V2.querySelector("input").checked=I2;e2.settings.update({flowDefault:I2});rt2();
+    e2.settings.update({flowDefault:k2.checked});rt2();
   }, y2.addEventListener(`input`, () => {
     Ie2();
     let e3 = ctx.lv(y2.value),
@@ -1358,12 +1370,12 @@ ctx.py = function py(e2) {
     ct2();
   };
   let ut2 = () => {
-    n2 = t2?.matches ?? false, k2.disabled = n2, n2 && (r2 = false);V2.querySelector("input").disabled=n2;V2.title=n2?"Hareket azaltma açık":"";rt2();
+    n2 = t2?.matches ?? false;rt2();
   };
   t2?.addEventListener(`change`, ut2), ut2();
-  let lastContextKey = "";
-  const contextKey=()=>JSON.stringify([e2.psseNetwork?.modelHash,e2.psseScenario?.hash,e2.psseCalculation?.id,e2.psseBaseCalculation?.id,e2.settings.value,h2.clientWidth,h2.clientHeight]);
-  function renderCached(){ge2.render();const key=contextKey();if(key===lastContextKey&&Y2?.model===e2.psseInspection){rt2();return;}ct2();lastContextKey=contextKey();}
+  let lastContextKey = "",lastBookId=e2.scenarios?.selected;
+  const contextKey=()=>JSON.stringify([e2.psseNetwork?.modelHash,e2.scenarios?.selected,e2.psseScenario?.hash,e2.psseCalculation?.id,e2.psseBaseCalculation?.id,e2.settings.value,h2.clientWidth,h2.clientHeight]);
+  function renderCached(){if(lastBookId!==e2.scenarios?.selected){lastBookId=e2.scenarios?.selected;K2.value=lastBookId==='base'?'base':'scenario';Ee2='calculated';O2.value='calculated';}ge2.render();const key=contextKey();if(key===lastContextKey&&Y2?.model===e2.psseInspection){he2.render();if(K2.value==='scenario')le2.textContent=(e2.scenarios?.item.name??'Senaryo')+' · '+(Y2.calculation?'LF':'—');rt2();return;}ct2();lastContextKey=contextKey();}
   let v12MapQueued = false,
     dt2 = e2.subscribe(() => {
       if (e2.view !== `map` || v12MapQueued) return;
@@ -1422,7 +1434,7 @@ ctx.py = function py(e2) {
   }, {
     capture: true,
     signal: ft2.signal
-  }), h2.addEventListener(`wheel`, e3 => {
+  }), h2.addEventListener('click',event=>{const target=event.target;if(!(target instanceof Element)||target.closest('.ga-psse-geo-link,.ga-psse-geo-station,.ga-psse-geo-bus,.ga-psse-geo-threew,.ga-map-selection,.ga-psse-lightning,.ga-psse-diagram-legend,button,input,select,summary,details'))return;if(target===h2||target===g2||_2.contains(target))ge2.close();},{signal:ft2.signal}),ctx.document.addEventListener('keydown',event=>{if(e2.view==='map'&&event.key==='Escape')ge2.close();},{signal:ft2.signal}), h2.addEventListener(`wheel`, e3 => {
     if (be2 !== `map` || !Y2 || !(e3.target === g2 || _2.contains(e3.target))) return;
     e3.preventDefault();
     let t3 = Math.max(0.65, Math.min(64, Ce2 * (e3.deltaY < 0 ? 1.12 : 1 / 1.12)));

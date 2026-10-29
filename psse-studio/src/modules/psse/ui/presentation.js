@@ -51,6 +51,7 @@ ctx.uv = function uv(e2) {
       network: e3,
       model: n2,
       scenario: r2,
+      scenarioId: e2.scenarios?.selected ?? 'base',
       calculation: ctx.Wo(i2, {
         sourceSha256: n2.source.sha256,
         network: t2,
@@ -361,7 +362,7 @@ ctx.Rv = function Rv(e2, t2) {
       scenario: n2
     }) ? r2 : null,
     a2 = e2.calculation,
-    o2 = e2.scenario.operations.length > 0 && a2 && a2.status === `CONVERGED` && a2.physicsCoverage !== `BLOCKED` && ctx.Wo(a2, {
+    o2 = (e2.scenario.operations.length > 0 || e2.scenarioId && e2.scenarioId !== 'base') && a2 && a2.status === `CONVERGED` && a2.physicsCoverage !== `BLOCKED` && ctx.Wo(a2, {
       sourceSha256: e2.model.source.sha256,
       network: e2.base,
       effectiveNetwork: e2.network,

@@ -1,3 +1,4 @@
+import {createScenarioWorkspace} from './scenario-workspace.js';
 import {metricChoices,resultColumns,sortRows,groupLoading} from './result-columns.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
@@ -8,12 +9,13 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     a2 = ctx.Q(`small`),
     o2 = ctx.Q(`div`, `ga-psse-lightning-body`);
   n2.hidden = !t2.embedded, t2.embedded && n2.classList.add(`is-embedded`), n2.setAttribute(`aria-label`, `PSS/E elektriksel sonu\xE7lar`);
+  const scenarioUI=createScenarioWorkspace(e2,{actionPrefix:'panel-',onActivate:t2.onScenarioChange});scenarioUI.element.hidden=true;o2.append(scenarioUI.element);
   let s2 = `LF`,
     c2 = `source`,
     l2 = `lines`,
     u2 = 0,
     d2 = false,
-    filterScope=null,filterRevision=0,
+    filterScope=null,filterRevision=0,selectedEquipmentId=null,
     f2 = () => {
       n2.hidden = true;
     },
@@ -169,7 +171,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     O2=[['Alan','Değer'],['Katman',c2],['Yüklenme paydası',ratingLabel],['Kaynak SHA-256',workspace.model.source.sha256],['Fizik kapsamı',result?.physicsCoverage??(source?'SOURCE_SAVED':'NOT_RUN')]];
     a2.textContent=source?'Kaynak':diff?'Senaryo − Baz':c2==='scenario'?'Senaryo':'Baz';_2.textContent=source?'SAV kayıtlı durum':diff?'Senaryo − Baz · uyumlu hesaplar':result?result.method+' · '+ctx.Vo(result)+' · '+result.physicsCoverage:'NOT_RUN';g2.textContent='';
     const head=ctx.Q('thead'),heading=ctx.Q('tr');for(const column of columns){const th=ctx.Q('th'),button=ctx.$(column.label+(column.secondary?' / Q':'')+(v10Sort.key===column.key?v10Sort.desc?' ↓':' ↑':' ↕'),()=>{v10Sort={key:column.key,desc:v10Sort.key===column.key?!v10Sort.desc:false};u2=0;ie2();});button.className='ga-v10-sort';button.dataset.sortKey=column.key;th.setAttribute('aria-sort',v10Sort.key===column.key?v10Sort.desc?'descending':'ascending':'none');th.append(button);if(column.unit)th.append(ctx.Q('small','',column.unit+(column.secondary?' · MVAr':'')));heading.append(th);}head.append(heading);
-    const body=ctx.Q('tbody');for(const item of K2(items)){const tr=ctx.Q('tr');tr.dataset.equipmentId=item.id;for(const column of columns){const td=ctx.Q('td');td.dataset.column=column.key;td.dataset.value=String(item[column.key]??'');td.textContent=typeof item[column.key]==='string'?item[column.key]:fmt(item[column.key]);if(column.secondary)td.append(ctx.Q('small','',fmt(item[column.secondary])));if(column.key==='name'&&(item.detail||l2==='buses'))td.append(ctx.Q('small','',l2==='buses'?item.station:item.detail));if(column.key==='loading')td.title=ratingLabel+' · '+(item.loading==null?'RATE / geçerli sonuç yok':result?.physicsCoverage??'Senaryo − Baz');tr.append(td);}body.append(tr);}if(!body.children.length){const td=ctx.Q('td','ga-empty','Bu kapsamda kayıt yok.');td.colSpan=columns.length;const tr=ctx.Q('tr');tr.append(td);body.append(tr);}C2.dataset.v12Kind=l2;C2.replaceChildren(head,body);k2.disabled=A2.disabled=!items.length;
+    const body=ctx.Q('tbody');for(const item of K2(items)){const tr=ctx.Q('tr');tr.dataset.equipmentId=item.id;tr.classList.toggle('is-selected',item.id===selectedEquipmentId);if(t2.onSelect){tr.tabIndex=0;tr.title='Haritada odakla · '+item.id;tr.onclick=()=>t2.onSelect(item.id);tr.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();t2.onSelect(item.id);}};}for(const column of columns){const td=ctx.Q('td');td.dataset.column=column.key;td.dataset.value=String(item[column.key]??'');td.textContent=typeof item[column.key]==='string'?item[column.key]:fmt(item[column.key]);if(column.secondary)td.append(ctx.Q('small','',fmt(item[column.secondary])));if(column.key==='name'&&(item.detail||l2==='buses'))td.append(ctx.Q('small','',l2==='buses'?item.station:item.detail));if(column.key==='loading')td.title=ratingLabel+' · '+(item.loading==null?'RATE / geçerli sonuç yok':result?.physicsCoverage??'Senaryo − Baz');tr.append(td);}body.append(tr);}if(!body.children.length){const td=ctx.Q('td','ga-empty','Bu kapsamda kayıt yok.');td.colSpan=columns.length;const tr=ctx.Q('tr');tr.append(td);body.append(tr);}C2.dataset.v12Kind=l2;C2.replaceChildren(head,body);k2.disabled=A2.disabled=!items.length;
   }
   function q2(e3, t3) {
     if ([`lines`, `transformers`, `buses`].includes(l2)) {
@@ -238,7 +240,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
         i4 = e4(r3),
         a3 = e4(t3.base),
         o4 = e4(t3.scenario);
-      g3 = p3.generators.map(e5 => {
+      g3 = p3.generators.filter(g=>!filterScope||filterScope.busIds.has(g.bus)).map(e5 => {
         let s4 = t4 => {
             let n4 = t4.get(e5.id);
             return n4?.sourceEquipmentId === e5.sourceEquipmentId ? n4 : null;
@@ -442,6 +444,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
       a2.textContent = ``, g2.textContent = `PSS/E modeli bekleniyor.`, _2.textContent = ``, C2.replaceChildren(), w2.hidden = true, z2.hidden = true;
       return;
     }
+    scenarioUI.element.hidden=s2!=='SCENARIOS';S2.hidden=s2==='SCENARIOS';v10Metric.closest('label').hidden=l2==='generators';v2.classList.toggle('is-generator',l2==='generators');if(s2==='SCENARIOS'){scenarioUI.render();P2.hidden=false;v2.hidden=true;w2.hidden=true;g2.textContent='';_2.textContent=e2.scenarios.item.name+' · '+e2.scenarios.item.operations.length+' işlem';a2.textContent='Senaryo';return;}
     w2.hidden = false, z2.hidden = false;
     let r3 = ctx.Rv(t3, e2.psseBaseCalculation),
       i3 = {
@@ -473,6 +476,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     };
   return t2.embedded || (ctx.document.addEventListener(`keydown`, se2), ctx.document.addEventListener(`pointerdown`, ce2)), {
     element: n2,
+    setSelection:id=>{selectedEquipmentId=id;for(const row of C2.querySelectorAll('tr[data-equipment-id]'))row.classList.toggle('is-selected',row.dataset.equipmentId===id);},
     setFilterScope:scope=>{filterScope=scope;filterRevision++;},
     setScope:({layer,role})=>{c2=layer==='saved'?'source':role;d2=true;u2=0;},
     focus:({kind,query,layer,role})=>{if(layer){c2=layer==='saved'?'source':role;d2=true;}l2=kind;b2.value=kind;x2.value=query??'';u2=0;ae2('LF');},
@@ -481,7 +485,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     close: f2,
     toggle: oe2,
     dispose: () => {
-      ctx.document.removeEventListener(`keydown`, se2), ctx.document.removeEventListener(`pointerdown`, ce2);
+      scenarioUI.dispose();ctx.document.removeEventListener(`keydown`, se2), ctx.document.removeEventListener(`pointerdown`, ce2);
     }
   };
 };
