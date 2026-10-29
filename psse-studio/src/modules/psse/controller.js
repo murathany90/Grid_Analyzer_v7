@@ -13,6 +13,7 @@ export class PsseController {
   set psseBaseCalculation(value){this._baseCalculation=value;}
   constructor(engine,host={}){
     this.engine=engine;this.host=host;this.psseSource=new engine.fo();this.psseCalculationWorker=new engine._o();this.settings=new engine.no();
+    this.settings.value.siteSize=Math.max(3.2,Number(this.settings.value.siteSize)||3.2);
     this.settings.value.rateIndex=Number(engine.window.localStorage.getItem('rate-index')??0);
     const update=this.settings.update.bind(this.settings);this.settings.update=(patch,...rest)=>{update(patch,...rest);if('rateIndex'in patch){this.settings.value.rateIndex=Math.max(0,Math.min(11,Math.trunc(Number(patch.rateIndex)||0)));engine.window.localStorage.setItem('rate-index',String(this.settings.value.rateIndex));}this.notify();};
     Object.defineProperty(engine.window,'__GA_PSSE_RATE_INDEX__',{configurable:true,get:()=>this.settings.value.rateIndex,set:value=>this.settings.update({rateIndex:value})});

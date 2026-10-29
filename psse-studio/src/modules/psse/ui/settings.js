@@ -13,7 +13,7 @@ export function createSettings(controller) {
   for(const [name,label]of [['color400','400 kV'],['color220','220 kV'],['color154','154 kV'],['color66','66 kV'],['colorLow','Alçak gerilim'],['colorOut','Devre dışı']])field(name,label,null,'color');
   for(const [name,label]of [['width400','400 kV hat kalınlığı'],['widthMid','Orta gerilim hat kalınlığı'],['widthOther','Diğer hat kalınlığı']])field(name,label,null,'number',.3,8,.1);
   field('flowSpeed','Akış hızı',[['slow','Yavaş'],['normal','Normal'],['fast','Hızlı']]);field('flowDensity','Akış yoğunluğu',null,'number',1,12,1);
-  field('siteSize','TM simge boyutu',null,'number',1,10,.1);field('basemapOpacity','Altlık saydamlığı',null,'number',0,1,.05);
+  field('siteSize','TM simge boyutu',null,'number',3.2,10,.1);field('basemapOpacity','Altlık saydamlığı',null,'number',0,1,.05);
   field('qBase400Mvar','400 kV Q baz (Mvar)',null,'number',1,10000,1);field('qBase154Mvar','154 kV Q baz (Mvar)',null,'number',1,10000,1);
   const threshold=document.createElement('fieldset');threshold.innerHTML='<legend>Yüklenme eşikleri (%)</legend>';grid.append(threshold);const thresholds=[];
   for(let i=0;i<6;i++){const input=document.createElement('input');input.type='number';input.min=0;input.max=300;input.setAttribute('aria-label','Yüklenme eşiği '+(i+1));input.onchange=()=>{const values=thresholds.map(x=>Number(x.value));if(values.every(v=>Number.isFinite(v)&&v>=0&&v<=300))controller.settings.update({thresholds:values.sort((a,b)=>a-b)});else render();};threshold.append(input);thresholds.push(input);}

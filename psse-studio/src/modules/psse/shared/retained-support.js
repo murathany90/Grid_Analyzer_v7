@@ -542,7 +542,7 @@ export const initializers = [[14, ctx => {
     basemapOpacity: 0.7,
     precision: 1,
     pageSize: 20,
-    siteSize: 2.5,
+    siteSize: 3.2,
     routeDetail: true,
     riskWarningPercent: 80,
     color400: `#e6534e`,

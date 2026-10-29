@@ -47,7 +47,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
   b2.setAttribute(`aria-label`, `Sonu\xE7 tablosu`), b2.append(new Option(`Hatlar`, `lines`), new Option(`Trafolar`, `transformers`), new Option(`Baralar`, `buses`)), b2.append(new Option(`Jenerat\xF6rler`, `generators`)), x2.type = `search`, x2.placeholder = `Ekipman / TM ad\u0131 ara`, x2.setAttribute(`aria-label`, `Elektriksel sonu\xE7larda ekipman veya TM ad\u0131 ara`), y2.onchange = () => {
     c2 = y2.value, d2 = true, u2 = 0, ie2();
   }, b2.onchange = () => {
-    l2 = b2.value, u2 = 0, ie2();
+    l2 = b2.value, x2.value='', u2 = 0, ie2();
   }, x2.oninput = () => {
     u2 = 0, ie2();
   }, v2.append(y2, b2, x2);
@@ -105,7 +105,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     }, `Sonraki sonu\xE7 sayfas\u0131`);
   w2.append(j2, M2, N2,k2,A2,ctx.$('Hesapla',()=>e2.runPsseCalculation('NR_POLAR')),ctx.$('Analizler',()=>e2.setView('analysis')));
   // Same control order and footer placement as the GA main lightning panel.
-  v2.replaceChildren(ctx.ly('Ekipman',b2),ctx.ly('Görünüm',y2),ctx.ly('Metrikler',v10Metric),x2,T2);
+  v2.replaceChildren(ctx.ly('Ekipman',b2),ctx.ly('Görünüm',y2),ctx.ly('Metrikler',v10Metric),x2);w2.append(T2);
   let P2 = ctx.Q(`div`, `ga-psse-lightning-tools`),
     F2 = ctx.Q(`select`);
   F2.setAttribute(`aria-label`, `Senaryo hesap y\xF6ntemi`), F2.append(new Option(`Newton\u2013Raphson`, `NR_POLAR`), new Option(`FDNS`, `FDNS_XB`), new Option(`DC`, `LOSSLESS_DC`)), F2.value = `NR_POLAR`;
@@ -276,7 +276,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     D2 = [labels, ...modelRows.map(row => keys.map(key => row[key]))];
     O2 = [["Alan", "De\u011Fer"], ["Katman", c2], ["Y\xFCklenme paydas\u0131", ratingLabel], ["Kaynak SHA-256", workspace.model.source.sha256], ["Fizik kapsam\u0131", result?.physicsCoverage ?? "SOURCE_SAVED"]];
     a2.textContent = c2 === "source" ? "Kaynak" : c2 === "delta" ? "Senaryo \u2212 Baz" : c2 === "scenario" ? "Senaryo" : "Baz";
-    _2.textContent = source ? "Kaynak kayd\u0131 \xB7 Ak\u0131\u015F verisi yok" : "GA \xB7 " + (result?.method ?? "") + " \xB7 " + (result?.physicsCoverage ?? "");
+    _2.textContent = source ? "Kaynak kayd\u0131 \xB7 Ak\u0131\u015F verisi yok" : result ? "GA \xB7 " + result.method + " \xB7 " + result.physicsCoverage : `${c2==="scenario"?"Senaryo":"Baz"} \xB7 NOT_RUN`;
     const tablehead = ctx.Q("thead"),
       heading = ctx.Q("tr");
     for (let idx = 0; idx < keys.length; idx++) {
@@ -592,15 +592,15 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     let r3 = ctx.Rv(t3, e2.psseBaseCalculation),
       i3 = {
         source: true,
-        base: !!r3.base,
-        scenario: !!r3.scenario,
+        base: true,
+        scenario: true,
         delta: r3.ready
       };
     for (let e3 of y2.options) e3.disabled = !i3[e3.value], e3.title = e3.value === `delta` && !r3.ready ? r3.reason ?? `` : ``;
-    d2 || (c2 = i3.scenario ? `scenario` : i3.base ? `base` : `source`), i3[c2] || (c2 = `source`), y2.value = c2;
+    d2 || (c2 = e2.scenarios?.selected!=='base'?`scenario`:r3.base?`base`:`source`), i3[c2] || (c2 = `source`), y2.value = c2;
     let o3 = t3.lastCalculation;
-    if (!I2 && o3 && (F2.value = o3.method), L2.disabled = e2.busy, R2.disabled = e2.busy || !t3.scenario.operations.length, F2.disabled = e2.busy, g2.textContent = e2.busy ? `Hesaplan\u0131yor\u2026` : e2.psseWorkerError ? `Hesap hatas\u0131: ${e2.psseWorkerError.message}` : o3 && !t3.calculation ? `Son hesap ${o3.status} \xB7 ${o3.classification}. Bu hesap g\xFCncel sonu\xE7 katman\u0131nda kullan\u0131lamaz.` : c2 === `delta` ? `Uyumlu baz ve senaryo hesab\u0131.` : c2 === `source` ? `Kaynak kayd\u0131 g\xF6steriliyor.` : `G\xFCncel hesap sonucu g\xF6steriliyor.`, U2(t3, r3), s2 === `LF`) {
-      let e3 = JSON.stringify([t3.scenario.hash, c2, l2, T2.value, x2.value, E2.value, u2, v10Sort.key, v10Sort.desc, v10Rate.value]);
+    if (!I2 && o3 && (F2.value = o3.method), L2.disabled = e2.busy, R2.disabled = e2.busy || !t3.scenario.operations.length, F2.disabled = e2.busy, g2.textContent = e2.busy ? `Hesaplan\u0131yor\u2026` : e2.psseWorkerError ? `Hesap hatas\u0131: ${e2.psseWorkerError.message}` : o3 && !t3.calculation ? `Son hesap ${o3.status} \xB7 ${o3.classification}. Bu hesap g\xFCncel sonu\xE7 katman\u0131nda kullan\u0131lamaz.` : c2 === `delta` ? `Uyumlu baz ve senaryo hesab\u0131.` : c2 === `source` ? `Kaynak kayd\u0131 g\xF6steriliyor.` : !V2(r3)?`${c2==="scenario"?"Senaryo":"Baz"} \xB7 NOT_RUN`:`G\xFCncel hesap sonucu g\xF6steriliyor.`, U2(t3, r3), s2 === `LF`) {
+      let e3 = JSON.stringify([t3.scenario.hash, c2, l2, T2.value, x2.value, E2.value, u2, v10Sort.key, v10Sort.desc, ctx.window.__GA_PSSE_RATE_INDEX__??0]);
       (e3 !== J2 || t3.model !== re2 || r3.scenario !== te2 || r3.base !== ne2) && (q2(t3, r3), J2 = e3, re2 = t3.model, te2 = r3.scenario, ne2 = r3.base);
     } else J2 = ``, ee2(t3, r3);
   }
@@ -619,6 +619,8 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     };
   return t2.embedded || (ctx.document.addEventListener(`keydown`, se2), ctx.document.addEventListener(`pointerdown`, ce2)), {
     element: n2,
+    setScope:({layer,role})=>{c2=layer==='saved'?'source':role;d2=true;u2=0;},
+    focus:({kind,query,layer,role})=>{if(layer){c2=layer==='saved'?'source':role;d2=true;}l2=kind;b2.value=kind;x2.value=query??'';u2=0;ae2('LF');},
     render: ie2,
     open: ae2,
     close: f2,

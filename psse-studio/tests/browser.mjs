@@ -43,7 +43,7 @@ for(const [name,executablePath]of [['Chrome','C:/Program Files/Google/Chrome/App
       await page.locator('.ga-v12-tooltip').waitFor({state:'visible'});await page.screenshot({path:`evidence/${name}-${width}x${height}-map.png`});
       await page.getByRole('button',{name:'Elektriksel sonuçlar paneli',exact:true}).click();const panel=page.locator('.ga-psse-lightning');await panel.waitFor({state:'visible'});
       t=performance.now();await panel.getByLabel('Sonuç tablosu',{exact:true}).selectOption('transformers');await pause(page);timings.panel=performance.now()-t;
-      assert(await panel.evaluate(e=>e.clientWidth<=800&&e.querySelector('.ga-psse-lightning-table-wrap').scrollWidth<=e.clientWidth),'Panel horizontal overflow');const headers=await panel.locator('th').allTextContents();assert(headers[0].includes('TM'));assert(headers.some(h=>h.includes('YG/AG')));assert(headers.some(h=>h.includes('YG P')));assert(await panel.locator('tbody tr').count()<=100);
+      assert(await panel.evaluate(e=>e.clientWidth<=640&&e.querySelector('.ga-psse-lightning-table-wrap').scrollWidth<=e.clientWidth),'Panel horizontal overflow');const headers=await panel.locator('th').allTextContents();assert(headers[0].includes('TM'));assert(headers.some(h=>h.includes('YG/AG')));assert(headers.some(h=>h.includes('YG P')));assert(await panel.locator('tbody tr').count()<=100);
       await panel.getByLabel('Sonuç tablosu',{exact:true}).selectOption('buses');await panel.locator('th button').first().click();
       if(width===1366){
         await fs.mkdir('evidence/downloads',{recursive:true});

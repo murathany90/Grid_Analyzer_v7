@@ -26,6 +26,8 @@ Parser and solver run as separate Blob workers bundled offline. Responses requir
 
 RATE changes presentation only. Missing rating and missing DC Q remain null. The single scoped stylesheet does not change host `html/body`; standalone reset is emitted only into portable HTML. Map navigation retains SVG nodes. RAF updates arrow transforms, not the whole map. Unmount cancels workers/jobs/listeners/timers/RAF and removes retained DOM.
 
+Selection is a PSS/E-owned corner card with shared actions for lines and stations; it does not open a raw-data modal. The lightning panel is 640 px wide. Full XLSX export preserves native column contracts and styles with DEFLATE; source, scenario, result, RATE and reference changes invalidate an in-progress export. CSV uses round-trip numeric precision. Identity caches belong to one model/network and never cross mounts.
+
 GA map parity: identical two-row control order, nominal palette/widths, loading thresholds, compact tooltip, settings and dense lightning table. PSS/E-specific differences: straight station-to-station geometry, SAV/GA source selector, no DGS-only N-1/SC engines. Green Newton controls are implemented GA policies, not proof of native PSS/E numerical equivalence. Tap and shunt automatic adjustment currently share one outer-loop policy and are labelled accordingly.
 
 Host acceptance must additionally exercise DGS→PSS/E→DGS with independent storage and identical restored DGS model/scenario/result hashes. Local dual-mount/CSS tests and selected existing DGS regressions pass; actual integration into the GA app shell is a later change.

@@ -1,3 +1,4 @@
+import {createMapSelection} from './selection-card.js';
 import {expandIncidentAcScope} from './filter-scope.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
@@ -227,6 +228,7 @@ ctx.py = function py(e2) {
   me2.append(ctx.Q(`summary`, ``, `Teknik ayr\u0131nt\u0131lar`), c2, u2, f2, p2), h2.append(g2, _2, m2, G2), d2.append(h2, v2), me2.remove(), s2.append(l2, d2);
   let he2 = ctx.Jv(e2);
   h2.append(he2.element);
+  const openResults=he2.open;he2.open=tab=>{he2.setScope({layer:Ee2,role:K2.value});openResults(tab);};
   const v12Tooltip = ctx.Q("div", "ga-v12-tooltip");
   v12Tooltip.hidden = true;
   h2.append(v12Tooltip);
@@ -272,24 +274,19 @@ ctx.py = function py(e2) {
     v12Tooltip.style.left = Math.max(8, Math.min(rect.width - w3 - 8, ev2.clientX - rect.left + 12)) + "px";
     v12Tooltip.style.top = Math.max(8, Math.min(rect.height - ht3 - 8, ev2.clientY - rect.top + 16)) + "px";
   });
-  let ge2 = ctx.Mv(s2),
-    _e2 = new ctx.jg(),
-    ve2 = null,
-    ye2 = ctx.$(``, () => {
-      if (!ve2 || !Y2) return;
-      let t3 = ve2.sourceEquipmentId,
-        n3 = ve2.status === 1,
-        r3 = Y2.scenario,
-        i3 = r3.operations.filter(e3 => e3.action !== `STATUS` || e3.equipmentId !== t3),
-        a3 = i3.length !== r3.operations.length,
-        o3 = a3 ? i3 : [...i3, {
-          action: `STATUS`,
-          equipmentId: t3,
-          value: !n3
-        }];
-      e2.setPsseScenario(o3), e2.setMessage(`Senaryo: ${a3 ? `i\u015Flem geri al\u0131nd\u0131` : n3 ? `hat a\xE7\u0131ld\u0131` : `hat kapat\u0131ld\u0131`} \xB7 NR yeniden hesaplan\u0131yor`), ge2.dialog.close(), e2.runPsseCalculation(`NR_POLAR`), ct2();
-    });
-  ye2.hidden = true, ye2.classList.add(`ga-psse-dialog-scenario`), ge2.dialog.append(ye2);
+  let selectedStation=null;
+  function highlightSelection(){
+    for(const node of _2.querySelectorAll('.is-focus'))node.classList.remove('is-focus');
+    for(const node of _2.querySelectorAll('[data-branch-id],[data-isub],[data-bus-id]'))if(node.classList.contains('ga-psse-geo-link')&&node.dataset.branchId===Se2||node.dataset.isub===String(selectedStation)||node.dataset.busId===xe2)node.classList.add('is-focus');
+  }
+  const ge2=createMapSelection(e2,{
+    context:()=>({workspace:Y2,layer:Ee2,role:K2.value}),
+    onSelect:selection=>{Se2=selection.branchId??null;xe2=selection.busId??null;selectedStation=selection.stationId??null;highlightSelection();},
+    onActivate:()=>{K2.value='scenario';O2.value='calculated';lt2();},
+    onResults:options=>he2.focus({...options,layer:Ee2,role:K2.value}),
+    onSld:station=>{e2.setView('sld');ctx.window.requestAnimationFrame(()=>{const select=ctx.document.querySelector('.ga-psse-sld select[aria-label="Trafo merkezi"]');if(select&&station!=null&&[...select.options].some(o=>o.value===String(station))){select.value=String(station);select.dispatchEvent(new Event('change'));}});}
+  });h2.append(ge2.element);
+  let _e2=new ctx.jg();
   let v10Settings = null;
   function v10MapSettings() {
     if (v10Settings?.open) return;
@@ -486,17 +483,7 @@ ctx.py = function py(e2) {
   function je2(e3) {
     return e3 ? ke2.get(e3) ?? null : null;
   }
-  let Me2 = ge2.open;
-  ge2.open = (...e3) => {
-    ve2 = null, ye2.hidden = true, Me2(...e3);
-  };
-  function Ne2(e3, t3) {
-    ge2.open(je2(e3.sourceEquipmentId), Fe2(e3), {
-      normalizedBranch: e3,
-      calculated: t3 ?? null,
-      scenarioHash: Y2.scenario.hash
-    }), ve2 = e3.kind === `three-winding-leg` ? null : e3, ye2.hidden = ve2 === null, ye2.textContent = Y2.scenario.operations.some(t4 => t4.action === `STATUS` && t4.equipmentId === e3.sourceEquipmentId) ? `Senaryo i\u015Flemini geri al` : `Senaryoda ${e3.status === 1 ? `a\xE7` : `kapat`}`;
-  }
+  function Ne2(branch,row){ge2.open(je2(branch.sourceEquipmentId),Fe2(branch),{normalizedBranch:branch,stationId:Ae2.get(Y2.network.buses[branch.from].connectionKey)?.isub});}
   function Pe2() {
     if (!Y2) return;
     Y2.model !== Oe2 && (Oe2 = Y2.model, ke2 = new Map(Oe2.equipment.map(e4 => [e4.id, e4])), De2 = ctx.Zs(Oe2, Y2.base), Ae2 = new Map(De2.associations.map(e4 => {
@@ -831,12 +818,15 @@ ctx.py = function py(e2) {
   function et2(e3, t3) {
     return q2.value === `loading` ? ctx.zv(e3?.loadingFromPct, t3?.loadingFromPct) ?? ctx.zv(e3?.loadingToPct, t3?.loadingToPct) : ctx.zv($e2(e3), $e2(t3));
   }
+  let statusBase=null,baseStatuses=new Map();
   function v12LineStyle(branch, metric, load, flow, delta) {
     const opt = e2.settings.value,
       kv2 = Y2.base.buses[branch.from]?.baseKv ?? Y2.base.buses[branch.to]?.baseKv ?? 0;
     const band = ctx.cy(kv2);
     const nominal = ctx.fy(kv2, e2);
     const baseWidth = kv2 >= 300 ? opt.width400 : kv2 > 36 ? opt.widthMid : opt.widthOther;
+    if(statusBase!==Y2.base){statusBase=Y2.base;baseStatuses=new Map(Y2.base.branches.map(b=>[b.id,b.status]));}
+    if(K2.value!=='base'&&baseStatuses.get(branch.id)!==branch.status)return {color:branch.status===1?opt.colorScenarioOn:opt.colorScenarioOff,width:Math.max(baseWidth,2.5),opacity:.9,dash:branch.status===1?'none':'8 5'};
     if (branch.status !== 1) return {
       color: opt.colorOut,
       width: baseWidth,
@@ -939,7 +929,7 @@ ctx.py = function py(e2) {
         if (site) v10Stations.add(site.isub);
       }
     }
-    const v12MapSettings = e2.settings.value;
+    const v12MapSettings = e2.settings.value,glyphScale=Math.max(.01,We2().k||1);
     let i3 = /* @__PURE__ */new Map();
     for (let e3 of De2.associations) (i3.get(e3.stationIsub) ?? (i3.set(e3.stationIsub, []), i3.get(e3.stationIsub))).push(e3);
     let a3 = new Set(i3.keys()),
@@ -1132,7 +1122,7 @@ ctx.py = function py(e2) {
             c5 = Math.atan2(v3 * direction, _3 * direction) * 180 / Math.PI,
             f5 = 1 / We2().k,
             p4 = ctx.sv(`polygon`, {
-              points: `${6*f5},0 ${-5*f5},${-3.5*f5} ${-3*f5},0 ${-5*f5},${3.5*f5}`,
+              points: `${7*f5},0 ${-6*f5},${-4*f5} ${-4*f5},0 ${-6*f5},${4*f5}`,
               fill: q2.value === `q` ? `#a7efff` : `#ffe2a2`,
               stroke: `#12364a`,
               "stroke-width": `.30`,
@@ -1162,7 +1152,7 @@ ctx.py = function py(e2) {
         u4 = r3.get(o3.isub) ?? [],
         d4 = l3.get(o3.isub) ?? null,
         f4 = ctx.fy(d4, e2),
-        p4 = u4.some(e3 => n3.buses[e3].id === xe2),
+        p4 = String(o3.isub)===String(selectedStation)||u4.some(e3 => n3.buses[e3].id === xe2),
         h3 = ctx.sv(`g`, {
           class: `ga-psse-geo-station ${p4 ? `is-focus` : ``}`,
           "data-isub": o3.isub,
@@ -1177,8 +1167,8 @@ ctx.py = function py(e2) {
         _3 = ctx.sv(`circle`, {
           cx: String(s4),
           cy: String(c4),
-          r: p4 ? `4.8` : `2.3`,
-          fill: f4,
+          r: String((p4?Math.max(5.5,v12MapSettings.siteSize):Math.max(3.2,v12MapSettings.siteSize))/glyphScale),
+          fill: `#b9e1e4`,
           stroke: p4 ? `#fff` : `#9bb9c2`,
           "stroke-width": p4 ? `1.5` : `.6`
         }),
@@ -1216,7 +1206,7 @@ ctx.py = function py(e2) {
         let v4 = ctx.sv(`circle`, {
             cx: String(s4 + (t5 % 5 - 2) * 4),
             cy: String(c4 + 5 + Math.floor(t5 / 5) * 4),
-            r: `2.2`,
+            r: String(2.6/glyphScale),
             fill: _4,
             stroke: `#102033`,
             "stroke-width": `.5`,
@@ -1233,7 +1223,7 @@ ctx.py = function py(e2) {
         v4.dataset.v12Rows = `${ctx.ov(i4.baseKv, 1)}|${d5 != null && i4.baseKv ? ctx.ov(d5 * i4.baseKv, 1) : "\u2014"}|${ctx.ov(f5, 1)}`;
         let S5 = e3 => {
           e3.stopPropagation(), ge2.open(je2(i4.sourceEquipmentId), `Bara \xB7 ${ctx.Lv(Y2.model, Y2.base).bus(i4)}`, {
-            normalizedBus: i4,
+            stationId:o3.isub,normalizedBus: i4,
             calculated: l4 ?? null,
             scenarioHash: Y2.scenario.hash
           });
@@ -1248,7 +1238,7 @@ ctx.py = function py(e2) {
           y: String(c4 - 8),
           class: `ga-psse-geo-label`
         });
-        e3.textContent = o3.name, h3.append(e3);
+        e3.style.fontSize=String(12/glyphScale)+"px";e3.textContent = o3.name, h3.append(e3);
       }
       let C4 = ctx.sv(`title`);
       C4.textContent = `${g3 && b4 !== null ? `\u0130lk ili\u015Fkili bara \u0394Vm ${(b4 >= 0 ? `+` : ``) + b4.toFixed(4)} pu \xB7 ` : ``}TM ${o3.name} \xB7 isub=${o3.isub} \xB7 ${u4.length} filtredeki fiziksel bara \xB7 ${Ee2 === `saved` ? `SOURCE_SAVED` : `GA_PSSE_CALCULATED`} Vm=${ctx.ov(S4, 4)} pu \xB7 taban gerilim rengi=${ctx.bv(d4)} \xB7 kaynak latitude/longitude \xB7 ${(i3.get(o3.isub) ?? []).some(e3 => e3.method === `EXPLICIT_SOURCE_REFERENCE`) ? `a\xE7\u0131k kaynak isub ili\u015Fkisi` : `tekil tam kaynak-ad\u0131 e\u015Fle\u015Fmesi`}`, h3.dataset.v12Cols = "Nominal (kV)|Gerilim (kV)|A\xE7\u0131 (\xB0)";
@@ -1260,7 +1250,7 @@ ctx.py = function py(e2) {
       let w4 = () => {
         let e3 = je2(o3.sourceEquipmentId);
         ge2.open(e3, `Kaynak TM \xB7 ${o3.name}`, {
-          sourceCoordinates: {
+          stationId:o3.isub,normalizedBus:primary,sourceCoordinates: {
             latitude: o3.latitude,
             longitude: o3.longitude,
             provenance: `PsseModel source substation latitude/longitude`
@@ -1427,7 +1417,7 @@ ctx.py = function py(e2) {
       Ee2 = "calculated";
       O2.value = "calculated";
     }
-    Pe2(), Y2.model !== Oe2 && (Oe2 = Y2.model, ke2 = new Map(Y2.model.equipment.map(e3 => [e3.id, e3])), De2 = ctx.Zs(Oe2, Y2.base), Ae2 = (()=>{const stations=new Map(De2.stations.map(station=>[station.isub,station]));return new Map(De2.associations.map(association=>[association.connectionKey,stations.get(association.stationIsub)]));})());
+    ge2.render();Pe2(), Y2.model !== Oe2 && (Oe2 = Y2.model, ke2 = new Map(Y2.model.equipment.map(e3 => [e3.id, e3])), De2 = ctx.Zs(Oe2, Y2.base), Ae2 = (()=>{const stations=new Map(De2.stations.map(station=>[station.isub,station]));return new Map(De2.associations.map(association=>[association.connectionKey,stations.get(association.stationIsub)]));})());
     let t3 = Y2.network,
       n3 = Y2.model,
       r3 = Re2(),
@@ -1437,7 +1427,7 @@ ctx.py = function py(e2) {
       s3 = t3.buses.filter(e3 => e3.source && ctx.xv(e3.baseKv)).length,
       c3 = t3.buses.filter(e3 => e3.source && e3.baseKv === null).length,
       l3 = xe2 ? t3.buses.find(e3 => e3.id === xe2) : null;
-    f2.replaceChildren(ctx.Q(`span`, `ga-psse-status-item`, `TM ${De2.counts.sourceStations} \xB7 koordinat ${De2.counts.validCoordinateStations}`), ctx.Q(`span`, `ga-psse-status-item`, `e\u015Fle\u015Fen ${De2.associations.length}/${o3} \xB7 e\u015Fle\u015Fmeyen ${De2.counts.unmatchedBuses}`), ctx.Q(`span`, `ga-psse-status-item`, `filtre ${a3.size} \xB7 gerilim ${ctx.sy.length - r3.length}/${ctx.sy.length} band (${s3} \u226436 kV) \xB7 kV bilinmeyen ${c3}`), ctx.Q(`span`, `ga-psse-status-item`, be2 === `map` ? `Co\u011Frafi harita` : `Topoloji`)), j2.classList.toggle(`is-active`, be2 === `map`), M2.classList.toggle(`is-active`, be2 === `topology`), le2.textContent = `${Y2.scenario.operations.length ? `Senaryo` : `Baz`} \xB7 ${ctx.Rv(Y2, e2.psseBaseCalculation)[Y2.scenario.operations.length ? `scenario` : `base`] ? `Ge\xE7erli LF` : `Sonu\xE7 yok`}`, de2.disabled = e2.busy, Xe2(), q2.selectedOptions[0]?.disabled && (q2.value = `nominal`), Ze2();
+    f2.replaceChildren(ctx.Q(`span`, `ga-psse-status-item`, `TM ${De2.counts.sourceStations} \xB7 koordinat ${De2.counts.validCoordinateStations}`), ctx.Q(`span`, `ga-psse-status-item`, `e\u015Fle\u015Fen ${De2.associations.length}/${o3} \xB7 e\u015Fle\u015Fmeyen ${De2.counts.unmatchedBuses}`), ctx.Q(`span`, `ga-psse-status-item`, `filtre ${a3.size} \xB7 gerilim ${ctx.sy.length - r3.length}/${ctx.sy.length} band (${s3} \u226436 kV) \xB7 kV bilinmeyen ${c3}`), ctx.Q(`span`, `ga-psse-status-item`, be2 === `map` ? `Co\u011Frafi harita` : `Topoloji`)), j2.classList.toggle(`is-active`, be2 === `map`), M2.classList.toggle(`is-active`, be2 === `topology`), le2.textContent = `${Ee2==='saved'?'Baz · SAV':K2.value==='base'?'Baz':K2.value==='delta'?'Fark':e2.scenarios?.item.name??'Senaryo'} · ${ctx.Rv(Y2,e2.psseBaseCalculation)[K2.value==='base'?'base':'scenario']?'LF':'—'}`;le2.title=`${e2.scenarios?.item.name??'Baz'} · ${Y2.scenario.operations.length} işlem`, de2.disabled = e2.busy, Xe2(), q2.selectedOptions[0]?.disabled && (q2.value = `nominal`), Ze2();
     let u3 = l3 && !Ae2.has(l3.connectionKey);
     if (p2.textContent = `Model SHA-256 ${De2.sourceSha256.slice(0, 12)} \xB7 senaryo ${Y2.scenario.hash.slice(0, 12)} (${Y2.scenario.operations.length} i\u015Flem). Koordinat ili\u015Fkileri: ${De2.counts.explicitReferences} a\xE7\u0131k isub + ${De2.counts.exactNameAliases} tekil tam-ad e\u015Fle\u015Fmesi; ${De2.counts.ambiguousBuses} belirsiz, ${De2.counts.unmatchedBuses} e\u015Fle\u015Fmeyen bara; ${De2.counts.unreferencedStations} ge\xE7erli koordinatl\u0131 TM ili\u015Fkisiz. ${i3 ? `T\xFCm gerilim bantlar\u0131 se\xE7ili (bilinmeyen kV ${c3} bara dahil).` : r3.some(e3 => e3.id === `blow`) ? `\u226436 kV band\u0131 gizli (${s3} bara); kV bilinmeyen ${c3} bara ayr\u0131 kal\u0131r.` : `${r3.length} gerilim band\u0131 gizli.`}  ${u3 ? `Se\xE7ili bara ${ctx.fv(l3, n3, ke2)} i\xE7in kaynak TM koordinat\u0131 yok; Topoloji g\xF6r\xFCn\xFCm\xFCne ge\xE7in.` : ctx.Ev(Y2)}.`, p2.title = p2.textContent, u3) {
       let e3 = ctx.$(`Topolojide a\xE7`, () => {
@@ -1446,6 +1436,7 @@ ctx.py = function py(e2) {
       p2.append(ctx.document.createTextNode(` `), e3);
     }
     be2 === `map` ? (h2.append(m2), it2(a3), v2.replaceChildren()) : (h2.hidden = true, v2.hidden = false, at2(a3));
+    lastContextKey=contextKey();
   }
   Ee2 = `saved`, O2.value = `saved`;
   J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";ct2();};
@@ -1472,7 +1463,7 @@ ctx.py = function py(e2) {
     Ie2();
     let e3 = ctx.lv(y2.value),
       t3 = Y2?.network.buses.filter(t4 => [t4.id, t4.connectionKey, t4.externalNumber].some(t5 => ctx.lv(t5) === e3)) ?? [];
-    t3.length === 1 && Ke2(t3[0]), ct2();
+    if(t3.length === 1){Ke2(t3[0]);ct2();}
   }), y2.addEventListener(`keydown`, e3 => {
     e3.key === `Enter` && (e3.preventDefault(), fe2.click());
   }), b2.onchange = () => {
@@ -1494,7 +1485,7 @@ ctx.py = function py(e2) {
   t2?.addEventListener(`change`, ut2), ut2();
   let lastContextKey = "";
   const contextKey=()=>JSON.stringify([e2.psseNetwork?.modelHash,e2.psseScenario?.hash,e2.psseCalculation?.id,e2.psseBaseCalculation?.id,e2.settings.value,h2.clientWidth,h2.clientHeight]);
-  function renderCached(){const key=contextKey();if(key===lastContextKey){rt2();return;}ct2();lastContextKey=contextKey();}
+  function renderCached(){ge2.render();const key=contextKey();if(key===lastContextKey&&Y2?.model===e2.psseInspection){rt2();return;}ct2();lastContextKey=contextKey();}
   let v12MapQueued = false,
     dt2 = e2.subscribe(() => {
       if (e2.view !== `map` || v12MapQueued) return;
@@ -1536,9 +1527,11 @@ ctx.py = function py(e2) {
   }, {
     signal: ft2.signal
   }), h2.addEventListener(`pointerup`, () => {
-    mt2 = !!pt2?.moved, pt2 = null, ctx.window.clearTimeout(ht2), ht2 = ctx.window.setTimeout(() => {
+    if(!pt2)return;
+    mt2 = !!pt2.moved;pt2 = null;if(!mt2)return;
+    ctx.window.clearTimeout(ht2), ht2 = ctx.window.setTimeout(() => {
       mt2 = false;
-      if (Y2 && be2 === `map`) ct2();
+      if (Y2 && be2 === `map` && e2.view==='map') ct2();
     }, 140);
   }, {
     signal: ft2.signal
@@ -1627,7 +1620,7 @@ ctx.py = function py(e2) {
     element: s2,
     render: renderCached,
     dispose: () => {
-      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), t2?.removeEventListener(`change`, ut2), he2.dispose(), v10Tip.remove(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), a2 && ctx.window.cancelAnimationFrame(a2), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
+      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), t2?.removeEventListener(`change`, ut2), he2.dispose(), v10Tip.remove(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), a2 && ctx.window.cancelAnimationFrame(a2), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
     }
   };
 };

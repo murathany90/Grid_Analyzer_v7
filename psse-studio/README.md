@@ -29,10 +29,14 @@ Gerçek model testleri yerel `control1/` örneklerini kullanır. Native Excel ya
 
 RATE yalnız Ayarlar'dadır; harita, tooltip, SLD ve dışa aktarma aynı paydaları kullanır. Hesap seçeneği değişince eski sonuç temizlenir. Native MVA tahmin eşiği GA pu toleransına dönüştürülmez. Desteksiz kontroller ve Gauss/Robust Solve pasiftir.
 
+Harita seçimi GA biçimindeki köşe kartında açılır; seçilen hat/TM vurgulanır. Sonuç paneli 640 px genişliğindedir. Tap ve switched shunt otomatiği tek ortak kontrolle yönetilir. XLSX tüm sekme, kolon ve stilleri koruyarak DEFLATE kullanır; CSV sayıları ekran yuvarlaması olmadan aktarır. İsteğe bağlı mevcut workbook sıkıştırması: `node scripts/repack-xlsx.mjs input.xlsx output.xlsx` (ayrı çıktı, açılmış ZIP parçaları birebir doğrulanır).
+
 ## Doğrulanan kapsam ve sınırlar
 
 Gerçek örnek: 6.851 bara, 2.403 AC hat, 3.703 trafo, 1.618 TM. Anahtarlama elemanları coğrafi hat listesine girmez. Model A→B→A, senaryo izolasyonu, RATE, CSV/XLSX ve çift mount/unmount testleri bulunur. Büyük modelde küçük NR artığı tam AC kanıtı değildir; fizik kapsamına göre APPROXIMATE/BLOCKED/PARTIAL korunur. N-1 ve kısa devre motoru yoktur.
 
 Native Excel'de toplam satırları ve NR-Load içinde 328 geçersiz bara/yük kimliği vardır; bunlar çalışma verisine kopyalanmaz. Rating sıfırken yüzde, native kontrol limit sentinel'leri ve doğrulanmamış enumlar boş kalır. SAV sürüm kapsamı gerçek PSS/E 36.5 örneğiyle doğrulanmıştır. Üç sargılı trafo sentetik kaynak topolojisiyle test edilir; gerçek örnekte tüm trafolar 2W'dir.
+
+NR Load tüm 2.520 gerçek kaynak kimliğini kapsar; Excel NR'de eksik olan 400 servis dışı/type-4 bara yükü de korunur. 34 doluluk farkının 32'si sıfır RATE yüzdeleri, ikisi native `-2` kontrol kodlarıdır; bunlar fiziksel değer gibi doldurulmaz. Hedefli yeni testler: `node --test tests/data-export-v2.test.mjs`; Chrome/Edge akışları: `node tests/ui-v2.mjs`. Excel oracle ve özel referans paketinin yerel dosyaları bu testler için gereklidir.
 
 GA Web entegrasyonu: [GA_PSSE_INTEGRATION.md](GA_PSSE_INTEGRATION.md).
