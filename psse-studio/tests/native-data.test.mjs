@@ -15,7 +15,7 @@ test('17 ND + 11 NR unchanged contracts and saved/GA isolation',()=>{
     if(reference)assert.deepEqual(cfg.columns,reference[(section==='nr'?'NR-':'')+cfg.name].headers.slice(0,cfg.columns.length));
   }
   studio.nativeResultSource='ga';assert.equal(studio.liveDataset(studio.corpus.nr[0],'nr').rows.length,0);studio.nativeResultSource='saved';
-  const cfg=studio.corpus.nr.find(t=>t.name==='Load');assert.equal(studio.liveDataset(cfg,'nr').rows.length,2120);
+  const cfg=studio.corpus.nr.find(t=>t.name==='Load');assert.equal(studio.liveDataset(cfg,'nr').rows.length,2520);
 });
 test('native dictionary counts, owned generation and measured interchange agree with valid Excel rows',{skip:!reference},()=>{
   for(const name of ['Owner','Area','Zone']){
@@ -59,5 +59,5 @@ test('all effective options are validated and hashed; unsupported native MVA thr
 });
 test('short 28-table column fill comparison uses the workbook only as a test oracle',{skip:!reference},async()=>{
   const rows=[];for(const[section,tables]of [['nd',studio.corpus.nd],['nr',studio.corpus.nr]])for(const cfg of tables){const data=studio.liveDataset(cfg,section),ref=reference[(section==='nr'?'NR-':'')+cfg.name],present=v=>v!==null&&v!==undefined&&v!=='';rows.push({table:section.toUpperCase()+' '+cfg.name,columns:cfg.columns.length,rows:data.rows.length,nativeRows:ref.rows.length,filledColumns:cfg.columns.filter((_,i)=>data.rows.some(r=>present(r[i]))).length,nativeFilledColumns:cfg.columns.filter((_,i)=>ref.rows.some(r=>present(r[i]))).length,unavailableColumns:cfg.columns.filter((_,i)=>!data.rows.some(r=>present(r[i]))&&ref.rows.some(r=>present(r[i])))});}
-  assert.equal(rows.length,28);await fs.mkdir('tests/results',{recursive:true});await fs.writeFile('tests/results/native-columns.json',JSON.stringify({tables:rows,exceptions:['Native sheets include total rows; NR-Load contains 328 invalid bus/load identities.','Unrated percentages, native control sentinels and unknown enum codes remain null.','Native AC-Line NR includes switching devices; the geographic map only displays real AC lines.']},null,2));
+  assert.equal(rows.length,28);await fs.mkdir('tests/results',{recursive:true});await fs.writeFile('tests/results/native-columns.json',JSON.stringify({tables:rows,exceptions:['NR-Load includes all 2520 valid source IDs (400 disconnected loads retained); 328 corrupt unmatched reference rows are excluded.','The 34 native fill differences are classified as 32 undefined rating percentages and 2 nonphysical control sentinels; no fabricated values.','Native AC-Line NR includes switching devices; the geographic map only displays real AC lines.']},null,2));
 });

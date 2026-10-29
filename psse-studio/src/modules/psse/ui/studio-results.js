@@ -79,7 +79,7 @@ export function define(ctx) {
           ctx.notice("\xD6nce GA Full AC NR \xE7\xF6z\xFCm\xFCn\xFC \xE7al\u0131\u015Ft\u0131r\u0131n; son ba\u015Far\u0131l\u0131 ayarlar olmadan paket olu\u015Fturulmaz.");
           return;
         }
-        const content = ctx.zipStored([["PSSE_LOCAL_JOB.json", JSON.stringify(manifest, null, 2)], ["PSS_E_LOCAL_REFERENCE_RUNNER_V7.py", ctx.textBundle(ctx.RUNNER_B64)], ["PSS_E_TEK_TIKLA_CALISTIR.bat", ctx.textBundle(ctx.BAT_B64)], ["README.txt", "1) Bu ZIP dosyasini SAV ile ayni klasore cikarin.\r\n2) PSS_E_TEK_TIKLA_CALISTIR.bat cift tiklayin.\r\n3) Python 3.14 x64 ve lisansli PSS/E 36.5 PSSPY314 gereklidir.\r\n4) GA_PSSE_REFERENCE_V1.json dosyasini HTML > GA Sonuclari > Referans iceri aktar.\r\n5) Kaynak SHA-256 ve kontrol ayarlari uyusmazsa hesap durdurulur."]]);
+        const content = ctx.zipBundle([["PSSE_LOCAL_JOB.json", JSON.stringify(manifest, null, 2)], ["PSS_E_LOCAL_REFERENCE_RUNNER_V7.py", ctx.textBundle(ctx.RUNNER_B64)], ["PSS_E_TEK_TIKLA_CALISTIR.bat", ctx.textBundle(ctx.BAT_B64)], ["README.txt", "1) Bu ZIP dosyasini SAV ile ayni klasore cikarin.\r\n2) PSS_E_TEK_TIKLA_CALISTIR.bat cift tiklayin.\r\n3) Python 3.14 x64 ve lisansli PSS/E 36.5 PSSPY314 gereklidir.\r\n4) GA_PSSE_REFERENCE_V1.json dosyasini HTML > GA Sonuclari > Referans iceri aktar.\r\n5) Kaynak SHA-256 ve kontrol ayarlari uyusmazsa hesap durdurulur."]]);
         ctx.download("PSS_E_YEREL_TEK_TIK_PAKETI.zip", content, "application/zip");
         ctx.notice("Son ba\u015Far\u0131l\u0131 GA Full AC ayarlar\u0131yla PSS/E yerel paket indirildi. SAV ile ayn\u0131 klas\xF6re \xE7\u0131kar\u0131n.");
       } catch (e) {

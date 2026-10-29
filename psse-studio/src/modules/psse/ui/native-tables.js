@@ -1,18 +1,20 @@
+import {loadResultRecords,loadResultValues,nativeRatingColumn,nativeColumnAvailability} from '../model/native-results.js';
 // Native column contract adapter. Excel is an oracle for tests, never a runtime data source.
 const key=value=>String(value??'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const present=value=>value!==null&&value!==undefined&&value!=='';
 const number=value=>typeof value==='number'&&Number.isFinite(value)?value:null;
 const cache=new WeakMap();
 export function nativeIndex(model,network){
-  let index=cache.get(model);if(index?.network===network)return index;
+  let byNetwork=cache.get(model);if(!byNetwork){byNetwork=new WeakMap();cache.set(model,byNetwork);}let index=byNetwork.get(network);if(index)return index;
   const arrays=model.binaryArrays??{},eq=new Map(model.equipment.map(e=>[e.id,e])),buses=new Map(model.equipment.filter(e=>e.kind==='bus').map(e=>[Number(e.fields.ibus),e]));
   const values=name=>arrays[name]?.values??[];
-  const at=(name,i,component)=>{const a=arrays[name];if(!a||i==null||i<0)return null;let v=a.type==='CHAR'?a.values.join('').charAt(i):a.values[i];if(component!=null)v=v?.[component];return v==null||v===''?null:v;};
-  const text=(name,i,width)=>values(name).join('').slice(i*width,(i+1)*width).replace(/\0/g,'').trim();
+  const packed=new Map(),characters=name=>{if(!packed.has(name))packed.set(name,values(name).join(''));return packed.get(name);};
+  const at=(name,i,component)=>{const a=arrays[name];if(!a||i==null||i<0)return null;let v=a.type==='CHAR'?characters(name).charAt(i):a.values[i];if(component!=null)v=v?.[component];return v==null||v===''?null:v;};
+  const text=(name,i,width)=>characters(name).slice(i*width,(i+1)*width).replace(/\0/g,'').trim();
   const dictionaries=Object.fromEntries([['area','Numare','Arnam'],['zone','Numzon','Zoname'],['owner','Numown','Owname']].map(([kind,nums,names])=>[kind,new Map(values(nums).map((id,i)=>[Number(id),{id:Number(id),name:text(names,i,12),index:i}]))]));
   const busPosition=new Map(network.buses.map((b,i)=>[b,i])),fixedShunts=new Map();
   for(const s of network.shunts)if(s.selection==='FIXED'&&s.status===1){if(!fixedShunts.has(s.bus))fixedShunts.set(s.bus,[]);fixedShunts.get(s.bus).push(s);}
-  index={model,network,eq,buses,arrays,values,at,text,dictionaries,busPosition,fixedShunts,flows:null,groups:new Map()};cache.set(model,index);return index;
+  index={model,network,eq,buses,arrays,values,at,text,dictionaries,busPosition,fixedShunts,flows:null,groups:new Map()};byNetwork.set(network,index);return index;
 }
 function sourceBus(index,e){return e.kind==='bus'?e:index.buses.get(Number(e.fields?.ibus));}
 function winding(e){return e.fields?.windings?.[0]??{};}
@@ -171,7 +173,7 @@ export function installNativeTables(ctx){
     if(cfg.name==='BUS')records=network.buses.filter(b=>b.source).map(bus=>({kind:'bus',bus,e:index.eq.get(bus.sourceEquipmentId)}));
     if(cfg.name==='AC Line'||cfg.name==='2 Winding')records=network.branches.filter(b=>cfg.name==='AC Line'?b.kind==='line':b.kind==='transformer'||b.kind==='three-winding-leg').map(branch=>({kind:'branch',branch,e:index.eq.get(branch.sourceEquipmentId)}));
     if(cfg.name==='Machine')records=network.generators.map(gen=>({kind:'gen',gen,e:index.eq.get(gen.sourceEquipmentId)}));
-    if(cfg.name==='Load')records=network.loads.filter(load=>network.buses[load.bus].type!==4).map(load=>({kind:'load',load,e:index.eq.get(load.sourceEquipmentId)}));
+    if(cfg.name==='Load')records=loadResultRecords(network,index.eq);
     if(cfg.name==='Fixed Shunt')records=network.shunts.filter(s=>s.selection==='FIXED').map(shunt=>({kind:'shunt',shunt,e:index.eq.get(shunt.sourceEquipmentId)}));
     if(cfg.name==='Plant'||cfg.name==='Limit Plant'){const map=new Map();for(const g of network.generators){if(!map.has(g.bus))map.set(g.bus,[]);map.get(g.bus).push(g);}records=[...map].map(([i,gs])=>({kind:'plant',bus:network.buses[i],units:gs,e:index.eq.get(gs[0].sourceEquipmentId)}));}
     const rows=records.map(rec=>headers.map((h,columnIndex)=>{
@@ -189,14 +191,13 @@ export function installNativeTables(ctx){
         const br=rec.branch,r=flows.get(br.id),a=network.buses[br.from],to=network.buses[br.to],meter=Number(meteredNumber(index,f)??a.externalNumber),nonmeter=meter===Number(a.externalNumber)?to:a;
         const fields={frombusnumber:a.externalNumber,tobusnumber:to.externalNumber,frombusname:index.eq.get(a.sourceEquipmentId)?.name,tobusname:index.eq.get(to.sourceEquipmentId)?.name,id:f.ckt??null,name:e.name,inservice:br.status,meteredbusnumber:meter,meteredbusname:index.buses.get(meter)?.name,nonmeteredbusnumber:nonmeter.externalNumber,nonmeteredbusname:index.eq.get(nonmeter.sourceEquipmentId)?.name,activemw:r?.pFromMw,reactivemvar:r?.qFromMvar,activelossesmw:r?.pLossMw,reactivelossesmvar:saved?r?.seriesQLossMvar:r?.qLossMvar,ampscurrent:r?.iFromA,pucurrent:r?.iFromA!=null&&a.baseKv>0?r.iFromA/(network.baseMva*1000/(Math.sqrt(3)*a.baseKv)):null};if(k in fields)return fields[k]??null;
         if(k==='frombusflowmva')return number(r?.pFromMw)!=null&&number(r?.qFromMvar)!=null?Math.hypot(r.pFromMw,r.qFromMvar):null;if(k==='frombusmaxflowmva')return number(r?.pFromMw)!=null&&number(r?.pToMw)!=null?Math.max(Math.hypot(r.pFromMw,r.qFromMvar),Math.hypot(r.pToMw,r.qToMvar)):null;
-        const slot=/^(KIS|YAZ|FIDER|KORUMA|ISLETM|DINAMI|RATE(\d+))\s*(Max\s*)?(%\s*)?\(I as MVA\)$/i.exec(String(h).trim());if(slot){const id=slot[2]?Number(slot[2])-1:['KIS','YAZ','FIDER','KORUMA','ISLETM','DINAMI'].indexOf(slot[1].toUpperCase()),rate=br.ratingsFromSource?.[id],amp=number(r?.iFromA),actual=amp!=null&&a.baseKv>0?amp*Math.sqrt(3)*a.baseKv/1000:null;if(!slot[4])return rate??null;return rate>0&&actual!=null?100*actual/rate:null;}
+        const slot=nativeRatingColumn(h);if(slot){const rate=br.ratingsFromSource?.[slot.index];if(!slot.percentage)return rate??null;if(!(rate>0))return null;const current=(amp,bus)=>number(amp)!=null&&bus.baseKv>0?Math.abs(amp)*Math.sqrt(3)*bus.baseKv/1000:null,aValue=current(r?.iFromA,a),bValue=current(r?.iToA,to),actual=slot.maximum?aValue!=null&&bValue!=null?Math.max(aValue,bValue):null:aValue;return actual!=null?100*actual/rate:null;}
       }
       if(rec.kind==='gen'){
         const r=saved?rec.gen:gens.get(rec.gen.id);if(k==='pgenmw')return r?.pMw??null;if(k==='qgenmvar')return r?.qMvar??null;if(k==='inservice')return rec.gen.status;
       }
       if(rec.kind==='load'){
-        const l=rec.load,v=vb.vm,totalP=l.pMw+l.ipMw*(v??0)+l.ypMw*(v??0)**2,totalQ=l.qMvar+l.iqMvar*(v??0)+l.yqMvar*(v??0)**2;
-        const values={actualmva:v!=null?Math.hypot(l.pMw,l.qMvar):null,nominalmva:Math.hypot(l.pMw,l.qMvar),constantcurrentactualmva:v!=null?Math.hypot(l.ipMw,l.iqMvar)*v:null,constantcurrentnominalmva:Math.hypot(l.ipMw,l.iqMvar),constantadmittanceactualmva:v!=null?Math.hypot(l.ypMw,l.yqMvar)*v*v:null,constantadmittancenominalmva:Math.hypot(l.ypMw,l.yqMvar),totalinserviceactualmva:v!=null?Math.hypot(totalP,totalQ):null,totalinservicenominalmva:Math.hypot(l.pMw+l.ipMw+l.ypMw,l.qMvar+l.iqMvar+l.yqMvar),type:nativeField(index,e,'Load Type'),inservice:l.status};if(k in values)return values[k];
+        const values={...loadResultValues(rec.load,vb.vm),type:nativeField(index,e,'Load Type')};if(k in values)return values[k];
       }
       if(rec.kind==='shunt'){if(k==='inserviceactualmvar')return vb.vm!=null&&rec.shunt.status===1?-rec.shunt.bMvar*vb.vm**2:rec.shunt.status===0?0:null;if(k==='inservicenominalmvar')return rec.shunt.status===1?-rec.shunt.bMvar:0;}
       if(rec.kind==='plant'){
@@ -209,6 +210,6 @@ export function installNativeTables(ctx){
       }
       return nativeField(index,e,h,previousField);
     }));
-    return {headers,rows,source,note:saved?'SAV kayıtlı durum; akışlar kayıtlı gerilim/admitans ve Zflow kaynağından türetilir.':''};
+    return {headers,rows,source,availability:nativeColumnAvailability(headers,records,rows),note:cfg.name==='Load'?`${network.loads.length} kaynak yükü; servis dışı kayıtlar dahil.`:saved?'SAV kayıtlı durum; akışlar kayıtlı gerilim/admitans ve Zflow kaynağından türetilir.':''};
   };
 }

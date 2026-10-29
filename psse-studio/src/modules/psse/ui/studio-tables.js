@@ -1,5 +1,11 @@
+import {comparisonCsv} from '../../../shared/export/csv.js';
 // Migrated V12 studio. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
+const sourceIndices=new WeakMap();
+ctx.sourceIndex=()=>{
+  const model=ctx.sources();if(!model)return {equipment:new Map(),stations:new Map()};
+  let index=sourceIndices.get(model);if(!index){index={equipment:new Map(model.equipment.map(e=>[e.id,e])),stations:new Map(model.equipment.filter(e=>e.kind==='substation').map(e=>[Number(e.fields?.isub??e.fields?.isubst??e.fields?.number??e.fields?.id),e]))};sourceIndices.set(model,index);}return index;
+};
 ctx.displayCell = function displayCell(value, field = "") {
   if (value === null || value === void 0 || value === "") return "";
   const key = String(field).toLocaleLowerCase("en-US");
@@ -546,7 +552,7 @@ ctx.renderTable = function renderTable() {
     const filled = visible.some(r => r[i] !== "" && r[i] !== null && r[i] !== void 0);
     if (!filled) {
       c.classList.add("unmapped-column");
-      c.title = "Bu model/hesap s\u0131n\u0131f\u0131ndan bu kolona do\u011Frulanm\u0131\u015F veri e\u015Flenemedi.";
+      c.title = selection.availability?.[i]?.message ?? "Bu model/hesap s\u0131n\u0131f\u0131ndan bu kolona do\u011Frulanm\u0131\u015F veri e\u015Flenemedi.";
     }
     th.append(c);
   });
@@ -619,7 +625,7 @@ ctx.otherSiteName = function otherSiteName(num) {
   if (!bus) return "";
   const sb = bus.fields?.isub || bus.fields?.substation || bus.fields?.isubstat;
   if (!sb) return "";
-  const site = ctx.sources()?.equipment?.find(x => x.kind === "substation" && String(x.fields?.isub ?? x.fields?.id ?? x.id) === String(sb));
+  const site = ctx.sourceIndex().stations.get(Number(sb));
   return site?.name || "";
 };
 ctx.makeOtherRows = function makeOtherRows(kind, text) {
@@ -904,7 +910,7 @@ ctx.refBranchLookup = function refBranchLookup(branch, net) {
   if (!ctx.reference) return null;
   const a = Number(net.buses[branch.from]?.externalNumber),
     b = Number(net.buses[branch.to]?.externalNumber);
-  const sourceEq = ctx.sources()?.equipment?.find(e => e.id === branch.sourceEquipmentId);
+  const sourceEq = ctx.sourceIndex().equipment.get(branch.sourceEquipmentId);
   const candidates = [sourceEq?.fields?.ckt, sourceEq?.fields?.id, branch.circuitId, branch.ckt, branch.kind === "three-winding-leg" ? "1" : null, branch.windingId, "1"].filter(x => x !== null && x !== void 0).map(x => String(x).trim());
   for (const id of new Set(candidates)) {
     const direct = ctx.reference.branchIndex?.get(a + "|" + b + "|" + id);
@@ -1113,7 +1119,7 @@ ctx.stationName = function stationName(no) {
   const eq = ctx.busAt(no),
     f = eq?.fields || {},
     sid = Number(f.isub ?? f.isubst ?? f.substation ?? f.substationNumber);
-  const sub = Number.isFinite(sid) ? ctx.sources()?.equipment?.find(e => e.kind === "substation" && Number(e.fields?.isub ?? e.fields?.isubst ?? e.fields?.number) === sid) : null;
+  const sub = ctx.sourceIndex().stations.get(sid);
   return sub?.name || eq?.fields?.substationName || "\u2014";
 };
 ctx.busName = function busName(no) {
@@ -1121,7 +1127,9 @@ ctx.busName = function busName(no) {
   return e?.name || "\u2014";
 };
 ctx.refForBus = function refForBus(no) {
-  return (ctx.reference?.buses || []).find(b => Number(b.busNumber) === Number(no)) || null;
+  if(!ctx.reference)return null;
+  ctx.reference.busIndex??=new Map((ctx.reference.buses||[]).map(b=>[Number(b.busNumber),b]));
+  return ctx.reference.busIndex.get(Number(no))||null;
 };
 ctx.branchTerminal = function branchTerminal(br, record, isHv) {
   const net = ctx.ga.psseNetwork,
@@ -1184,7 +1192,7 @@ ctx.labelBus = function labelBus(b) {
 };
 ctx.gaRows = function gaRows(kind) {
   const r = ctx.result(),
-    net = ctx.ga.psseNetwork,
+    net = ctx.ga.psseNetwork&&ctx.ga.psseScenario?ctx.ga.engine.fs(ctx.ga.psseNetwork,ctx.ga.psseScenario):ctx.ga.psseNetwork,
     model = ctx.sources();
   if (!r || !net || !model) return {
     headers: [],
@@ -1334,27 +1342,7 @@ ctx.swingSummary = function swingSummary(kind) {
   };
   return `BUS ${no} \xB7 ${src?.name || "\u2014"} \xB7 ${ctx.fmtStat(Number(bus.baseKv), "kV", 1)} | Pg ${ctx.fmtStat(sum("pMw"), "MW")} \xB7 Qg ${ctx.fmtStat(sum("qMvar"), "MVAr")} | Pmax ${ctx.fmtStat(limitSum("pt", "pMaxMw"), "MW")} / Pmin ${ctx.fmtStat(limitSum("pb", "pMinMw"), "MW")} \xB7 Qmax ${ctx.fmtStat(limitSum("qt", "qMaxMvar"), "MVAr")} / Qmin ${ctx.fmtStat(limitSum("qb", "qMinMvar"), "MVAr")}`;
 };
-ctx.csvForExcel = function csvForExcel(headers, rows) {
-  const number = (v, col) => {
-    if (typeof v !== "number" || !Number.isFinite(v)) return null;
-    const n = /Δ|θ|\%/i.test(col) ? 3 : /\bpu\b/i.test(col) ? 3 : 1;
-    return v.toLocaleString("tr-TR", {
-      useGrouping: false,
-      minimumFractionDigits: n,
-      maximumFractionDigits: n
-    });
-  };
-  const cell = (v, i) => {
-    const col = String(headers[i] || "");
-    if (v == null || v === "") return '""';
-    const num = number(v, col);
-    if (num != null) return '"' + num + '"';
-    let text = String(v);
-    if (/^[=+@\t\r]/.test(text) || /^(?:\d{1,2}[-/]\d{1,2}|\d{4}[-/]\d{1,2})[-/]\d{1,4}$/.test(text)) text = "	" + text;
-    return '"' + text.replace(/"/g, '""') + '"';
-  };
-  return "\uFEFFsep=;\r\n" + [headers, ...rows].map((row, idx) => row.map((v, i) => idx === 0 ? '"' + String(v).replace(/"/g, '""') + '"' : cell(v, i)).join(";")).join("\r\n");
-};
+ctx.csvForExcel = comparisonCsv;
 ctx.gaFilterRow = function gaFilterRow(kind) {
   const host = ctx.h("div", "gares-filters"),
     sel = ctx.h("select"),

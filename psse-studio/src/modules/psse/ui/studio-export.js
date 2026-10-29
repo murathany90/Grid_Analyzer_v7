@@ -1,3 +1,5 @@
+import {equipmentKindLabel} from '../model/equipment-kind.js';
+import {zipParts} from '../../../shared/export/archive.js';
 // Migrated V12 studio. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
 ctx.parseReferenceFile = function parseReferenceFile(file) {
@@ -19,6 +21,7 @@ ctx.parseReferenceFile = function parseReferenceFile(file) {
     if (duplicates.length) throw Error("PSS/E y\xF6nl\xFC dal anahtarlar\u0131 tekrarl\u0131: " + duplicates.length + " kay\u0131t, ilk " + duplicates[0]);
     ctx.reference = data;
     ctx.reference.branchIndex = index;
+    ctx.reference.busIndex = new Map(data.buses.map(b=>[Number(b.busNumber),b]));
     ctx.reference.referenceCoverage = {
       indexedBranches: index.size,
       directedPairs: data.branches.length / 2
@@ -88,25 +91,7 @@ ctx.crc32 = function crc32(bytes) {
   for (const b of bytes) crc = ctx.crcTable[(crc ^ b) & 255] ^ crc >>> 8;
   return (crc ^ 4294967295) >>> 0;
 };
-ctx.zipStored = function zipStored(files) {
-  const parts = [],
-    central = [];
-  let offset = 0;
-  for (const [name, content] of files) {
-    const nameBytes = ctx.enc.encode(name),
-      bytes = typeof content === "string" ? ctx.enc.encode(content) : content,
-      crc = ctx.crc32(bytes),
-      local = new Uint8Array([...ctx.u32(67324752), ...ctx.u16(20), ...ctx.u16(2048), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u32(crc), ...ctx.u32(bytes.length), ...ctx.u32(bytes.length), ...ctx.u16(nameBytes.length), ...ctx.u16(0), ...nameBytes]);
-    parts.push(local, bytes);
-    const c = new Uint8Array([...ctx.u32(33639248), ...ctx.u16(20), ...ctx.u16(20), ...ctx.u16(2048), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u32(crc), ...ctx.u32(bytes.length), ...ctx.u32(bytes.length), ...ctx.u16(nameBytes.length), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u32(0), ...ctx.u32(offset), ...nameBytes]);
-    central.push(c);
-    offset += local.length + bytes.length;
-  }
-  const end = new Uint8Array([...ctx.u32(101010256), ...ctx.u16(0), ...ctx.u16(0), ...ctx.u16(files.length), ...ctx.u16(files.length), ...ctx.u32(central.reduce((s, b) => s + b.length, 0)), ...ctx.u32(offset), ...ctx.u16(0)]);
-  return new Blob([...parts, ...central, end], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  });
-};
+ctx.zipBundle = function zipBundle(files,options={}) {return new Blob([zipParts(files,options)],{type:'application/zip'});};
 ctx.excelCol = function excelCol(n) {
   let a = "";
   for (n++; n; n = Math.floor((n - 1) / 26)) a = String.fromCharCode(65 + (n - 1) % 26) + a;
@@ -139,7 +124,7 @@ ctx.sheetXml = function sheetXml(columns, rows) {
   out.push('<autoFilter ref="A1:', ctx.excelCol(columns.length - 1), String(rows.length + 1), '"/></worksheet>');
   return out.join("");
 };
-ctx.makeWorkbook = function makeWorkbook(sheets) {
+ctx.makeWorkbook = function makeWorkbook(sheets,options={}) {
   const files = [];
   const types = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'];
   const tabs = [];
@@ -156,29 +141,30 @@ ctx.makeWorkbook = function makeWorkbook(sheets) {
   rel.push(`<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`);
   types.push("</Types>");
   files.push(["[Content_Types].xml", types.join("")], ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'], ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${tabs.join("")}</sheets></workbook>`], ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel.join("")}</Relationships>`], ["xl/styles.xml", '<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="10"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF17324B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><numFmts count="3"><numFmt numFmtId="164" formatCode="0.0"/><numFmt numFmtId="165" formatCode="0.000"/><numFmt numFmtId="166" formatCode="0.00"/></numFmts><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><dxfs count="2"><dxf><font><color rgb="FFFFFFFF"/></font><fill><patternFill patternType="solid"><fgColor rgb="FF9A2639"/></patternFill></fill></dxf><dxf><font><color rgb="FF633F00"/></font><fill><patternFill patternType="solid"><fgColor rgb="FFFFE2AA"/></patternFill></fill></dxf></dxfs></styleSheet>']);
-  return ctx.zipStored(files);
+  return new Blob([zipParts(files,options)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 };
-ctx.exportXlsx = function exportXlsx() {
+ctx.exportXlsx = async function exportXlsx() {
   if (!ctx.live()) {
     ctx.notice("Excel d\u0131\u015Fa aktarmak i\xE7in SAV/RAW/ZIP modeli y\xFCkleyin.");
     return;
   }
+  if(ctx.exportingXlsx)return;
+  ctx.exportingXlsx=true;
+  const button=ctx.$$('#export-xlsx');if(button)button.disabled=true;
+  const snapshot={model:ctx.sources(),network:ctx.ga.psseNetwork,scenario:ctx.ga.psseScenario,result:ctx.result(),rate:ctx.ga.settings?.value?.rateIndex,reference:ctx.reference,nativeResultSource:ctx.nativeResultSource},started=performance.now();
+  const check=()=>{if(ctx.sources()!==snapshot.model||ctx.ga.psseNetwork!==snapshot.network||ctx.ga.psseScenario!==snapshot.scenario||ctx.result()!==snapshot.result||ctx.ga.settings?.value?.rateIndex!==snapshot.rate||ctx.reference!==snapshot.reference||ctx.nativeResultSource!==snapshot.nativeResultSource)throw Error('Model / senaryo / sonuç kaynağı değişti; Excel yeniden oluşturulmalı.');};
+  try{
   ctx.notice("Network Data ve GA Network Results XLSX olu\u015Fturuluyor...");
   const r = ctx.result(),
     model = ctx.sources();
   const summary = [["Alan", "De\u011Fer"], [["Model", model.source.name], ["Kaynak SHA-256", model.source.sha256], ["Format", model.source.format], ["Revizyon", model.source.revision], ["Sistem baz\u0131 MVA", model.case.baseMva], ["Bara say\u0131s\u0131", model.equipment.filter(e => e.kind === "bus").length], ["Y\xF6ntem", r?.method ?? "NOT_RUN"], ["Durum", r?.status ?? "NOT_RUN"], ["Fizik kapsam\u0131", r?.physicsCoverage ?? "NOT_RUN"], ["\u0394P pu", r?.maxPMismatchPu ?? null], ["\u0394Q pu", r?.maxQMismatchPu ?? null], ["Not", "PSS/E referans de\u011Feri de\u011Fildir; yaln\u0131z y\xFCklenen model ve GA hesab\u0131d\u0131r."]]];
   const sheets = [["00-\xD6zet", summary[0], summary[1]]];
-  const prev = ctx.main,
-    pi = ctx.tabIndex;
   for (const group of ["nd", "nr"]) for (let i = 0; i < ctx.corpus[group].length; i++) {
-    ctx.main = group;
-    ctx.tabIndex = i;
+    await new Promise(resolve=>ctx.window.setTimeout(resolve,0));check();
     const cfg = ctx.corpus[group][i];
-    const set = ctx.selectData();
+    const set = ctx.liveDataset(cfg,group);
     sheets.push([`${String(i + 1).padStart(2, "0")}-${group.toUpperCase()}-${cfg.name}`, set.headers, set.rows]);
   }
-  ctx.main = prev;
-  ctx.tabIndex = pi;
   const attachmentRows = (ctx.ga.psseAttachments?.items ?? []).map(item => [item.archiveName, item.format, item.byteLength, item.sha256]);
   sheets.push(["Network Others", ["Dosya", "Tip", "Bayt", "SHA-256"], attachmentRows]);
   if (r) {
@@ -190,7 +176,7 @@ ctx.exportXlsx = function exportXlsx() {
       const b = byId.get(x.id),
         from = net.buses[b?.from],
         to = net.buses[b?.to];
-      return [b?.kind === "line" ? "Hat" : "Trafo", eq.get(x.sourceEquipmentId)?.name || x.id, x.sourceEquipmentId, from?.externalNumber, to?.externalNumber, from?.baseKv, x.pFromMw, x.qFromMvar, x.pToMw, x.qToMvar, ...(() => {
+      return [equipmentKindLabel(eq.get(x.sourceEquipmentId)), eq.get(x.sourceEquipmentId)?.name || x.id, x.sourceEquipmentId, from?.externalNumber, to?.externalNumber, from?.baseKv, x.pFromMw, x.qFromMvar, x.pToMw, x.qToMvar, ...(() => {
         const m = b ? ctx.refBranchLookup(b, net) : null,
           z = m?.row,
           rev = m?.reversed;
@@ -208,8 +194,10 @@ ctx.exportXlsx = function exportXlsx() {
     sheets.push(["GA-PSSE-KPI", ["Kaynak", "\xD6l\xE7\xFCt", "De\u011Fer"], [...cards.ga.map(([a, b]) => ["GA", a, b]), ...cards.pe.map(([a, b]) => ["PSSE", a, b])]]);
   }
   const blob = ctx.makeWorkbook(sheets);
+  check();ctx.lastXlsxExport={durationMs:performance.now()-started,bytes:blob.size,sheets:sheets.length};
   ctx.download(`PSSE_${model.source.name.replace(/\.(sav|raw|rawx)$/i, "")}_GA_Cozumu.xlsx`, blob);
   ctx.notice(`Excel olu\u015Fturuldu: ${sheets.length} sekme \xB7 ${Math.round(blob.size / 1024 / 1024)} MiB \xB7 yaln\u0131z y\xFCkl\xFC model.`);
+  }catch(error){ctx.notice(error.message);}finally{ctx.exportingXlsx=false;if(button)button.disabled=false;}
 };
 }
 export const initializers = [

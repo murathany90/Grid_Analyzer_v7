@@ -198,7 +198,7 @@
     {
       "table": "NR Load",
       "columns": 18,
-      "rows": 2120,
+      "rows": 2520,
       "nativeRows": 2448,
       "filledColumns": 18,
       "nativeFilledColumns": 18,
@@ -290,8 +290,8 @@
     }
   ],
   "exceptions": [
-    "Native sheets include total rows; NR-Load contains 328 invalid bus/load identities.",
-    "Unrated percentages, native control sentinels and unknown enum codes remain null.",
+    "NR-Load includes all 2520 valid source IDs (400 disconnected loads retained); 328 corrupt unmatched reference rows are excluded.",
+    "The 34 native fill differences are classified as 32 undefined rating percentages and 2 nonphysical control sentinels; no fabricated values.",
     "Native AC-Line NR includes switching devices; the geographic map only displays real AC lines."
   ]
 }
