@@ -1,3 +1,4 @@
+import {metricChoices,resultColumns,sortRows,groupLoading} from './result-columns.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
 ctx.Jv = function Jv(e2, t2 = {}) {
@@ -12,6 +13,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     l2 = `lines`,
     u2 = 0,
     d2 = false,
+    filterScope=null,filterRevision=0,
     f2 = () => {
       n2.hidden = true;
     },
@@ -47,33 +49,15 @@ ctx.Jv = function Jv(e2, t2 = {}) {
   b2.setAttribute(`aria-label`, `Sonu\xE7 tablosu`), b2.append(new Option(`Hatlar`, `lines`), new Option(`Trafolar`, `transformers`), new Option(`Baralar`, `buses`)), b2.append(new Option(`Jenerat\xF6rler`, `generators`)), x2.type = `search`, x2.placeholder = `Ekipman / TM ad\u0131 ara`, x2.setAttribute(`aria-label`, `Elektriksel sonu\xE7larda ekipman veya TM ad\u0131 ara`), y2.onchange = () => {
     c2 = y2.value, d2 = true, u2 = 0, ie2();
   }, b2.onchange = () => {
-    l2 = b2.value, x2.value='', u2 = 0, ie2();
+    l2 = b2.value;v10Sort={key:'name',desc:false};x2.value='';u2=0;ie2();
   }, x2.oninput = () => {
     u2 = 0, ie2();
   }, v2.append(y2, b2, x2);
-  const v10Metric = ctx.Q("select"),
-    v10Rate = ctx.Q("select");
+  const v10Metric = ctx.Q("select");
   v10Metric.setAttribute("aria-label", "Metrik");
-  for (const [key, label] of [["name", "Ad"], ["p", "P (MW)"], ["q", "Q (MVAr)"], ["loss", "Kay\u0131p P (MW)"], ["loading", "Y\xFCkleme (%)"]]) v10Metric.append(new Option(label, key));
-  v10Rate.setAttribute("aria-label", "Y\xFCkleme paydas\u0131");
-  for (let idx = 0; idx < 12; idx++) {
-    const label = idx < 3 ? `RATE ${["A", "B", "C"][idx]}` : `RATE ${idx + 1}`;
-    v10Rate.append(new Option(label, String(idx)));
-  }
-  v10Metric.onchange = () => {
-    v10Sort = {
-      key: v10Metric.value,
-      desc: v10Metric.value !== "name"
-    };
-    u2 = 0;
-    ie2();
-  };
-  v10Rate.onchange = () => {
-    ctx.window.__GA_PSSE_RATE_INDEX__ = Number(v10Rate.value);
-    u2 = 0;
-    ie2();
-    ctx.document.dispatchEvent(new Event("ga-psse-v10-rate-change"));
-  };
+  let metricKind='',metricMode='pq-loading';
+  function syncMetric(){const category=l2==='buses'?'buses':'branches';if(category!==metricKind){metricKind=category;metricMode=category==='buses'?'voltage-angle':'pq-loading';v10Metric.replaceChildren(...metricChoices(l2).map(([v,t])=>new Option(t,v)));v10Metric.value=metricMode;}}
+  v10Metric.onchange=()=>{metricMode=v10Metric.value;u2=0;ie2();};
   v2.append(v10Metric);
   S2.append(C2);
   let T2 = ctx.Q(`select`);
@@ -153,169 +137,39 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     let t3 = Math.max(1, Math.ceil(e3.length / ctx.Gv));
     return u2 = Math.max(0, Math.min(u2, t3 - 1)), j2.disabled = u2 === 0, N2.disabled = u2 === t3 - 1, M2.textContent = `${e3.length.toLocaleString(`tr-TR`)} sonu\xE7 \xB7 ${u2 + 1}/${t3}`, e3.slice(u2 * ctx.Gv, (u2 + 1) * ctx.Gv);
   }
+  let rowCache=null;
   let v10Sort = {
     key: "name",
     desc: false
   };
-  function v10LF(workspace, comparison) {
-    const source = c2 === "source",
-      diff = c2 === "delta",
-      result = c2 === "base" ? comparison.base : c2 === "scenario" ? comparison.scenario : null;
-    const baseRows = new Map(comparison.base?.branchResults?.map(r3 => [r3.id, r3]) ?? []),
-      scenarioRows = new Map(comparison.scenario?.branchResults?.map(r3 => [r3.id, r3]) ?? []),
-      rows = new Map(result?.branchResults?.map(r3 => [r3.id, r3]) ?? []);
-    const names = ctx.Lv(workspace.model, workspace.base),
-      network = source || c2 === "base" ? workspace.base : workspace.network,
-      rawById = new Map(workspace.model.equipment.map(eq => [eq.id, eq]));
-    const search = ctx.lv(x2.value),
-      rateIndex = ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0,
-      ratingLabel = rateIndex < 3 ? ["RATE A", "RATE B", "RATE C"][rateIndex] : `RATE ${rateIndex + 1}`;
-    const num = ctx.v10SafeNumber,
-      fmt = value => value === null ? "\u2014" : value.toLocaleString("tr-TR", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 2
-      }),
-      modelRows = [];
-    const branchValue = branch => {
-      const r3 = result ? rows.get(branch.id) : null,
-        base = baseRows.get(branch.id),
-        scenario = scenarioRows.get(branch.id);
-      const valid = entry => entry && entry.sourceEquipmentId === branch.sourceEquipmentId && entry.terminalFrom === branch.terminalFrom && entry.terminalTo === branch.terminalTo ? entry : null;
-      const a3 = valid(r3),
-        b3 = valid(base),
-        s3 = valid(scenario),
-        select = prop => source ? null : diff ? num(s3?.[prop]) !== null && num(b3?.[prop]) !== null ? s3[prop] - b3[prop] : null : num(a3?.[prop]);
-      const loss = source ? null : diff ? ctx.v10Loss(s3) !== null && ctx.v10Loss(b3) !== null ? ctx.v10Loss(s3) - ctx.v10Loss(b3) : null : ctx.v10Loss(a3);
-      const load = source ? null : diff ? ctx.v10RatePct(branch, s3, rateIndex) !== null && ctx.v10RatePct(branch, b3, rateIndex) !== null ? ctx.v10RatePct(branch, s3, rateIndex) - ctx.v10RatePct(branch, b3, rateIndex) : null : ctx.v10RatePct(branch, a3, rateIndex);
-      return {
-        p: select("pFromMw"),
-        q: select("qFromMvar"),
-        pTo: select("pToMw"),
-        loss,
-        loading: load
-      };
-    };
-    if (l2 === "lines" || l2 === "transformers") {
-      const grouped = l2 === "lines" ? network.branches.filter(br2 => br2.kind === "line" && String(br2.sourceEquipmentId).startsWith("line:")).map(br2 => [br2]) : ctx.Bv(network.branches, "transformers", T2.value);
-      for (let group of grouped) {
-        const threeWinding = l2 === 'transformers' && group.length === 3;
-        if(threeWinding) group=[...group].sort((a,b)=>(network.buses[b.from]?.baseKv??0)-(network.buses[a.from]?.baseKv??0));
-        const br2 = group[0],
-          from = network.buses[br2.from],
-          to2 = network.buses[br2.to];
-        const values = group.map(br3 => branchValue(br3));
-        const pick = key => {
-          const available = values.map(v3 => v3[key]).filter(v3 => v3 !== null);
-          return available.length ? key === "loading" ? Math.max(...available) : available[0] : null;
-        };
-        const flip = l2 === "transformers" && from && to2 && (from.baseKv ?? 0) < (to2.baseKv ?? 0),
-          fromBus = from,
-          raw = rawById.get(br2.sourceEquipmentId),
-          sourceTrafoName = String(raw?.fields?.name ?? raw?.name ?? "").trim(),
-          trafoName = sourceTrafoName || "Ads\u0131z trafo",
-          stationName = (fromBus ? names.station(fromBus) || names.bus(fromBus) : "\u2014").replace(/\s*\d+(?:[.,]\d+)?\s*kV.*$/i, "").trim(),
-          ratio = threeWinding ? group.map(br=>network.buses[br.from]?.baseKv??'?').join('/') : from?.baseKv != null && to2?.baseKv != null ? `${Math.max(from.baseKv,to2.baseKv).toLocaleString("tr-TR", {
-            maximumFractionDigits: 1
-          })}/${Math.min(from.baseKv,to2.baseKv).toLocaleString("tr-TR", {
-            maximumFractionDigits: 1
-          })}` : "\u2014";
-        const name = l2 === "transformers" ? trafoName : names.branch(br2),
-          item = {
-            name,
-            station: stationName || "\u2014",
-            ratio,
-            p: threeWinding ? values[0].p : flip ? pick("pTo") : pick("p"),
-            q: threeWinding ? values.slice(1).every(v=>v.p!==null)?values.slice(1).reduce((sum,v)=>sum+v.p,0):null : l2 === "transformers" ? flip ? pick("p") : pick("pTo") : pick("q"),
-            loss: threeWinding ? values.every(v=>v.loss!==null)?values.reduce((sum,v)=>sum+v.loss,0):null : pick("loss"),
-            loading: pick("loading"),
-            technical: group.map(br3 => names.branchTitle(br3)).join(" | "),
-            status: group.every(br=>br.status===1)?'Serviste':group.some(br=>br.status===1)?'Kısmi servis':'Devre dışı'
-          };
-        if (search && !ctx.lv(item.name + " " + item.station + " " + item.ratio + " " + item.technical).includes(search)) continue;
-        modelRows.push(item);
+  function v10LF(workspace,comparison){
+    syncMetric();
+    const source=c2==='source',diff=c2==='delta',result=c2==='base'?comparison.base:c2==='scenario'?comparison.scenario:null;
+    const baseRows=new Map(comparison.base?.branchResults.map(r=>[r.id,r])??[]),scenarioRows=new Map(comparison.scenario?.branchResults.map(r=>[r.id,r])??[]),rows=new Map(result?.branchResults.map(r=>[r.id,r])??[]);
+    const names=ctx.Lv(workspace.model,workspace.base),network=source||c2==='base'?workspace.base:workspace.network,raw=new Map(workspace.model.equipment.map(e=>[e.id,e])),search=ctx.lv(x2.value),rateIndex=ctx.window.__GA_PSSE_RATE_INDEX__??0,ratingLabel=rateIndex<3?['RATE A','RATE B','RATE C'][rateIndex]:'RATE '+(rateIndex+1);
+    const stamp=JSON.stringify([c2,l2,T2.value,search,rateIndex,filterRevision]),cached=rowCache?.network===network&&rowCache?.result===result&&rowCache?.base===comparison.base&&rowCache?.scenario===comparison.scenario&&rowCache?.stamp===stamp,items=cached?rowCache.items:[];
+    const num=ctx.v10SafeNumber,fmt=value=>num(value)==null?'—':value.toLocaleString('tr-TR',{maximumFractionDigits:2,minimumFractionDigits:1}),admitBus=i=>!filterScope||filterScope.busIds.has(i),admitBranch=b=>!filterScope||filterScope.branchIds.has(b.id);
+    const valid=(b,row)=>row?.sourceEquipmentId===b.sourceEquipmentId&&row.terminalFrom===b.terminalFrom&&row.terminalTo===b.terminalTo?row:null;
+    const value=(b,key)=>{if(source)return null;const a=valid(b,diff?scenarioRows.get(b.id):rows.get(b.id)),base=valid(b,baseRows.get(b.id));return diff?num(a?.[key])!=null&&num(base?.[key])!=null?a[key]-base[key]:null:num(a?.[key]);};
+    const load=(b,row)=>ctx.v10RatePct(b,valid(b,row),rateIndex);
+    if(!cached){if(l2==='lines'||l2==='transformers'){
+      const groups=l2==='lines'?network.branches.filter(b=>b.kind==='line'&&String(b.sourceEquipmentId).startsWith('line:')).map(b=>[b]):ctx.Bv(network.branches,'transformers',T2.value);
+      for(let group of groups){if(!group.some(admitBranch))continue;const trafo=l2==='transformers',three=group.length===3;if(three)group=[...group].sort((a,b)=>(network.buses[b.from]?.baseKv??0)-(network.buses[a.from]?.baseKv??0));
+        const b=group[0],from=network.buses[b.from],to=network.buses[b.to],flip=trafo&&!three&&from.baseKv<to.baseKv,eq=raw.get(b.sourceEquipmentId),pSide=flip?'To':'From',tSide=flip?'From':'To',sum=key=>{const values=group.map(b=>value(b,key));return values.every(v=>v!=null)?values.reduce((a,b)=>a+b,0):null;},ag=key=>{const values=group.slice(1).map(b=>value(b,key));return values.every(v=>v!=null)?values.reduce((a,b)=>a+b,0):null;};
+        const item={id:b.sourceEquipmentId,name:trafo?eq?.name??b.id:names.branch(b),station:(names.station(from)||names.bus(from)).replace(/\s*\d+(?:[.,]\d+)?\s*kV.*$/i,''),ratio:three?group.map(b=>network.buses[b.from].baseKv).join('/'):[Math.max(from.baseKv,to.baseKv),Math.min(from.baseKv,to.baseKv)].join('/'),p:value(b,'p'+pSide+'Mw'),q:value(b,'q'+pSide+'Mvar'),pTo:three?ag('pFromMw'):value(b,'p'+tSide+'Mw'),qTo:three?ag('qFromMvar'):value(b,'q'+tSide+'Mvar'),loss:sum('pLossMw'),lossQ:sum('qLossMvar'),loading:source?null:groupLoading(group,diff?scenarioRows:rows,baseRows,load,diff),status:group.every(b=>b.status===1)?'Serviste':group.some(b=>b.status===1)?'Kısmi servis':'Devre dışı',detail:trafo?'':names.station(from)+' ↔ '+names.station(to),technical:group.map(b=>names.branchTitle(b)).join(' | ')};
+        if(!search||ctx.lv([item.id,item.name,item.station,item.ratio,item.technical].join(' ')).includes(search))items.push(item);
       }
-    } else if (l2 === "buses") {
-      const actual = new Map(result?.busResults?.map(r3 => [r3.connectionKey, r3]) ?? []),
-        base = new Map(comparison.base?.busResults?.map(r3 => [r3.connectionKey, r3]) ?? []),
-        scenario = new Map(comparison.scenario?.busResults?.map(r3 => [r3.connectionKey, r3]) ?? []);
-      for (const bus of network.buses.filter(b3 => b3.source)) {
-        const a3 = actual.get(bus.connectionKey),
-          b3 = base.get(bus.connectionKey),
-          s3 = scenario.get(bus.connectionKey);
-        const value = key => source ? key === "vmPu" ? ctx.Sv(bus, workspace.model) : key === "vaDeg" ? ctx.Cv(bus, workspace.model) : null : diff ? num(s3?.[key]) !== null && num(b3?.[key]) !== null ? s3[key] - b3[key] : null : num(a3?.[key]);
-        const voltage = value("vmPu"),
-          item = {
-            name: names.bus(bus) + " \xB7 " + (names.station(bus) ?? ""),
-            p: voltage === null || bus.baseKv === null ? null : voltage * bus.baseKv,
-            q: value("vaDeg"),
-            loss: null,
-            loading: bus.baseKv,
-            status: bus.status === 1 ? "Serviste" : "Devre d\u0131\u015F\u0131",
-            technical: names.busTitle(bus)
-          };
-        if (search && !ctx.lv(item.name + " " + item.technical).includes(search)) continue;
-        modelRows.push(item);
-      }
+    }else{
+      const current=new Map(result?.busResults.map(r=>[r.connectionKey,r])??[]),base=new Map(comparison.base?.busResults.map(r=>[r.connectionKey,r])??[]),scenario=new Map(comparison.scenario?.busResults.map(r=>[r.connectionKey,r])??[]);
+      for(const [i,b]of network.buses.entries()){if(!b.source||!admitBus(i))continue;const validRow=r=>r?.id===b.id&&r.sourceEquipmentId===b.sourceEquipmentId?r:null,a=validRow(current.get(b.connectionKey)),before=validRow(base.get(b.connectionKey)),after=validRow(scenario.get(b.connectionKey)),v=key=>source?key==='vmPu'?ctx.Sv(b,workspace.model):ctx.Cv(b,workspace.model):diff?num(after?.[key])!=null&&num(before?.[key])!=null?after[key]-before[key]:null:num(a?.[key]);const vm=v('vmPu'),item={id:b.sourceEquipmentId,name:names.bus(b),station:names.station(b),vKv:vm!=null&&b.baseKv!=null?vm*b.baseKv:null,angle:v('vaDeg'),status:b.status===1?'Serviste':'Devre dışı',technical:names.busTitle(b)};if(!search||ctx.lv(item.id+' '+item.name+' '+item.station+' '+item.technical).includes(search))items.push(item);}
     }
-    const labels = l2 === "buses" ? ["Bara / TM", "Gerilim (kV)", "A\u00e7\u0131 (\u00b0)", "Durum"] : l2 === "transformers" ? ["TM", "Trafo ad\u0131", "YG/AG (kV)", "YG P (MW)", "AG P (MW)", "Kay\u0131p P (MW)", "Y\xFCk %", "Durum"] : ["Hat \u0130smi", "P (MW)", "Q (MVAr)", "Kay\u0131p P (MW)", "Y\xFCk %", "Durum"];
-    const keys = l2 === "buses" ? ["name", "p", "q", "status"] : l2 === "transformers" ? ["station", "name", "ratio", "p", "q", "loss", "loading", "status"] : ["name", "p", "q", "loss", "loading", "status"];
-    const sort = v10Sort;
-    modelRows.sort((a3, b3) => {
-      const x3 = a3[sort.key],
-        y3 = b3[sort.key];
-      const nullX = x3 === null || x3 === void 0,
-        nullY = y3 === null || y3 === void 0;
-      if (nullX !== nullY) return nullX ? 1 : -1;
-      let order = typeof x3 === "number" && typeof y3 === "number" ? x3 - y3 : String(x3 ?? "").localeCompare(String(y3 ?? ""), "tr", {
-        numeric: true
-      });
-      return (sort.desc ? -1 : 1) * order || a3.name.localeCompare(b3.name, "tr", {
-        numeric: true
-      });
-    });
-    D2 = [labels, ...modelRows.map(row => keys.map(key => row[key]))];
-    O2 = [["Alan", "De\u011Fer"], ["Katman", c2], ["Y\xFCklenme paydas\u0131", ratingLabel], ["Kaynak SHA-256", workspace.model.source.sha256], ["Fizik kapsam\u0131", result?.physicsCoverage ?? "SOURCE_SAVED"]];
-    a2.textContent = c2 === "source" ? "Kaynak" : c2 === "delta" ? "Senaryo \u2212 Baz" : c2 === "scenario" ? "Senaryo" : "Baz";
-    _2.textContent = source ? "Kaynak kayd\u0131 \xB7 Ak\u0131\u015F verisi yok" : result ? "GA \xB7 " + result.method + " \xB7 " + result.physicsCoverage : `${c2==="scenario"?"Senaryo":"Baz"} \xB7 NOT_RUN`;
-    const tablehead = ctx.Q("thead"),
-      heading = ctx.Q("tr");
-    for (let idx = 0; idx < keys.length; idx++) {
-      const key = keys[idx],
-        button = ctx.$(`${labels[idx]} ${sort.key === key ? sort.desc ? "\u2193" : "\u2191" : "\u2195"}`, () => {
-          sort.desc = sort.key === key ? !sort.desc : key !== "name";
-          sort.key = key;
-          if (key !== "status") v10Metric.value = key;
-          u2 = 0;
-          ie2();
-        });
-      button.classList.add("ga-v10-sort");
-      const th2 = ctx.Q("th");
-      th2.append(button);
-      heading.append(th2);
-    }
-    tablehead.append(heading);
-    const tb = ctx.Q("tbody");
-    for (const item of K2(modelRows)) {
-      const tr2 = ctx.Q("tr");
-      tr2.title = item.technical;
-      for (const key of keys) {
-        const td2 = ctx.Q("td");
-        td2.textContent = ["name", "station", "ratio", "status"].includes(key) ? item[key] : fmt(item[key]);
-        if (key === "name" || key === "station") td2.className = "ga-v10-entity-cell";
-        tr2.append(td2);
-      }
-      tb.append(tr2);
-    }
-    if (!tb.children.length) {
-      const tr2 = ctx.Q("tr"),
-        td2 = ctx.Q("td", "ga-empty", "Bu filtre i\xE7in kaynakta uygun kay\u0131t yok.");
-      td2.colSpan = keys.length;
-      tr2.append(td2);
-      tb.append(tr2);
-    }
-    C2.dataset.v12Kind = l2;
-    C2.replaceChildren(tablehead, tb);
-    k2.disabled = A2.disabled = !modelRows.length;
+    rowCache={network,result,base:comparison.base,scenario:comparison.scenario,stamp,items};}
+    const columns=resultColumns(l2,metricMode),visibleKeys=new Set(columns.flatMap(c=>[c.key,c.secondary].filter(Boolean)));if(!visibleKeys.has(v10Sort.key))v10Sort={key:'name',desc:false};sortRows(items,v10Sort);
+    const exportColumns=columns.flatMap(c=>[c,...(c.secondary?[{key:c.secondary,label:c.key==='pTo'?'AG Q':c.key==='loss'?'Kayıp Q':'Q',unit:'MVAr'}]:[])]);D2=[exportColumns.map(c=>c.label+(c.unit?' ('+c.unit+')':'')),...items.map(row=>exportColumns.map(c=>row[c.key]??null))];
+    O2=[['Alan','Değer'],['Katman',c2],['Yüklenme paydası',ratingLabel],['Kaynak SHA-256',workspace.model.source.sha256],['Fizik kapsamı',result?.physicsCoverage??(source?'SOURCE_SAVED':'NOT_RUN')]];
+    a2.textContent=source?'Kaynak':diff?'Senaryo − Baz':c2==='scenario'?'Senaryo':'Baz';_2.textContent=source?'SAV kayıtlı durum':diff?'Senaryo − Baz · uyumlu hesaplar':result?result.method+' · '+ctx.Vo(result)+' · '+result.physicsCoverage:'NOT_RUN';g2.textContent='';
+    const head=ctx.Q('thead'),heading=ctx.Q('tr');for(const column of columns){const th=ctx.Q('th'),button=ctx.$(column.label+(column.secondary?' / Q':'')+(v10Sort.key===column.key?v10Sort.desc?' ↓':' ↑':' ↕'),()=>{v10Sort={key:column.key,desc:v10Sort.key===column.key?!v10Sort.desc:false};u2=0;ie2();});button.className='ga-v10-sort';button.dataset.sortKey=column.key;th.setAttribute('aria-sort',v10Sort.key===column.key?v10Sort.desc?'descending':'ascending':'none');th.append(button);if(column.unit)th.append(ctx.Q('small','',column.unit+(column.secondary?' · MVAr':'')));heading.append(th);}head.append(heading);
+    const body=ctx.Q('tbody');for(const item of K2(items)){const tr=ctx.Q('tr');tr.dataset.equipmentId=item.id;for(const column of columns){const td=ctx.Q('td');td.dataset.column=column.key;td.dataset.value=String(item[column.key]??'');td.textContent=typeof item[column.key]==='string'?item[column.key]:fmt(item[column.key]);if(column.secondary)td.append(ctx.Q('small','',fmt(item[column.secondary])));if(column.key==='name'&&(item.detail||l2==='buses'))td.append(ctx.Q('small','',l2==='buses'?item.station:item.detail));if(column.key==='loading')td.title=ratingLabel+' · '+(item.loading==null?'RATE / geçerli sonuç yok':result?.physicsCoverage??'Senaryo − Baz');tr.append(td);}body.append(tr);}if(!body.children.length){const td=ctx.Q('td','ga-empty','Bu kapsamda kayıt yok.');td.colSpan=columns.length;const tr=ctx.Q('tr');tr.append(td);body.append(tr);}C2.dataset.v12Kind=l2;C2.replaceChildren(head,body);k2.disabled=A2.disabled=!items.length;
   }
   function q2(e3, t3) {
     if ([`lines`, `transformers`, `buses`].includes(l2)) {
@@ -600,7 +454,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     d2 || (c2 = e2.scenarios?.selected!=='base'?`scenario`:r3.base?`base`:`source`), i3[c2] || (c2 = `source`), y2.value = c2;
     let o3 = t3.lastCalculation;
     if (!I2 && o3 && (F2.value = o3.method), L2.disabled = e2.busy, R2.disabled = e2.busy || !t3.scenario.operations.length, F2.disabled = e2.busy, g2.textContent = e2.busy ? `Hesaplan\u0131yor\u2026` : e2.psseWorkerError ? `Hesap hatas\u0131: ${e2.psseWorkerError.message}` : o3 && !t3.calculation ? `Son hesap ${o3.status} \xB7 ${o3.classification}. Bu hesap g\xFCncel sonu\xE7 katman\u0131nda kullan\u0131lamaz.` : c2 === `delta` ? `Uyumlu baz ve senaryo hesab\u0131.` : c2 === `source` ? `Kaynak kayd\u0131 g\xF6steriliyor.` : !V2(r3)?`${c2==="scenario"?"Senaryo":"Baz"} \xB7 NOT_RUN`:`G\xFCncel hesap sonucu g\xF6steriliyor.`, U2(t3, r3), s2 === `LF`) {
-      let e3 = JSON.stringify([t3.scenario.hash, c2, l2, T2.value, x2.value, E2.value, u2, v10Sort.key, v10Sort.desc, ctx.window.__GA_PSSE_RATE_INDEX__??0]);
+      let e3 = JSON.stringify([t3.scenario.hash, c2, l2, T2.value, x2.value, E2.value, u2, metricMode,filterRevision, v10Sort.key, v10Sort.desc, ctx.window.__GA_PSSE_RATE_INDEX__??0]);
       (e3 !== J2 || t3.model !== re2 || r3.scenario !== te2 || r3.base !== ne2) && (q2(t3, r3), J2 = e3, re2 = t3.model, te2 = r3.scenario, ne2 = r3.base);
     } else J2 = ``, ee2(t3, r3);
   }
@@ -619,6 +473,7 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     };
   return t2.embedded || (ctx.document.addEventListener(`keydown`, se2), ctx.document.addEventListener(`pointerdown`, ce2)), {
     element: n2,
+    setFilterScope:scope=>{filterScope=scope;filterRevision++;},
     setScope:({layer,role})=>{c2=layer==='saved'?'source':role;d2=true;u2=0;},
     focus:({kind,query,layer,role})=>{if(layer){c2=layer==='saved'?'source':role;d2=true;}l2=kind;b2.value=kind;x2.value=query??'';u2=0;ae2('LF');},
     render: ie2,

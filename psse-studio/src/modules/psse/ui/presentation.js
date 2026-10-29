@@ -1,3 +1,4 @@
+import {loadingAtTerminals} from '../calculations/rating.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
 ctx.nv = function nv(e2) {
@@ -192,28 +193,8 @@ ctx.jv = function jv(e2, t2, n2, r2, i2) {
   }
   return o2;
 };
-ctx.v10RatePct = function v10RatePct(branch, row, ratingIndex = 0) {
-  if (!branch || !row || branch.status !== 1) return null;
-  const n2 = x2 => typeof x2 === "number" && Number.isFinite(x2) ? x2 : null;
-  const basis = String(branch.ratingBasis ?? "MVA").toUpperCase();
-  const measure = side => {
-    const ratings = side === "from" ? branch.ratingsFromSource : branch.ratingsToSource;
-    const rate = n2(ratings?.[ratingIndex]);
-    if (rate === null || rate <= 0) return null;
-    let actual = null;
-    if (basis.includes("AMP") || basis === "A") actual = n2(side === "from" ? row.iFromA : row.iToA);else if (basis.includes("MVA") || basis === "S") {
-      const p2 = n2(side === "from" ? row.pFromMw : row.pToMw),
-        q2 = n2(side === "from" ? row.qFromMvar : row.qToMvar);
-      if (p2 !== null && q2 !== null) actual = Math.hypot(p2, q2);
-    }
-    return actual === null ? null : 100 * Math.abs(actual) / rate;
-  };
-  const pair = [measure("from"), measure("to")].filter(v2 => v2 !== null);
-  return pair.length ? Math.max(...pair) : null;
-};
-ctx.v10SafeNumber = function v10SafeNumber(value) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-};
+ctx.v10RatePct = function v10RatePct(branch,row,index=0,network=ctx.window.__GA_BRIDGE__?.psseNetwork){const pair=loadingAtTerminals(branch,row,index,network);const values=[pair.from,pair.to].filter(v=>typeof v==='number'&&Number.isFinite(v));return values.length?Math.max(...values):null;};
+ctx.v10SafeNumber = value => typeof value==='number'&&Number.isFinite(value)?value:null;
 ctx.v10Loss = function v10Loss(row) {
   if (!row) return null;
   const a2 = ctx.v10SafeNumber(row.pLossMw);

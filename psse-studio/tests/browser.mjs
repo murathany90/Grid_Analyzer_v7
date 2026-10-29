@@ -1,3 +1,4 @@
+import {assertCanvasMoves} from './flow-pixels.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -39,8 +40,8 @@ for(const [name,executablePath]of [['Chrome','C:/Program Files/Google/Chrome/App
       assert.notEqual(await stage.getAttribute('data-zoom'),before,'Wheel zoom');
       await page.mouse.move(box.x+box.width*.7,box.y+box.height*.5);await page.mouse.down();await page.mouse.move(box.x+box.width*.7+35,box.y+box.height*.5+20,{steps:5});await page.mouse.up();await page.waitForTimeout(120);
       await page.getByRole('button',{name:'Sığdır',exact:true}).first().click();await pause(page);
-      const link=page.locator('.ga-psse-geo-link').first();await link.dispatchEvent('pointerover');
-      await page.locator('.ga-v12-tooltip').waitFor({state:'visible'});await page.screenshot({path:`evidence/${name}-${width}x${height}-map.png`});
+      const link=page.locator('.ga-psse-geo-link').first();await link.dispatchEvent('pointermove',{clientX:box.x+box.width*.5,clientY:box.y+box.height*.5});
+      await page.locator('.ga-map-hover').waitFor({state:'visible'});await page.screenshot({path:`evidence/${name}-${width}x${height}-map.png`});
       await page.getByRole('button',{name:'Elektriksel sonuçlar paneli',exact:true}).click();const panel=page.locator('.ga-psse-lightning');await panel.waitFor({state:'visible'});
       t=performance.now();await panel.getByLabel('Sonuç tablosu',{exact:true}).selectOption('transformers');await pause(page);timings.panel=performance.now()-t;
       assert(await panel.evaluate(e=>e.clientWidth<=640&&e.querySelector('.ga-psse-lightning-table-wrap').scrollWidth<=e.clientWidth),'Panel horizontal overflow');const headers=await panel.locator('th').allTextContents();assert(headers[0].includes('TM'));assert(headers.some(h=>h.includes('YG/AG')));assert(headers.some(h=>h.includes('YG P')));assert(await panel.locator('tbody tr').count()<=100);
@@ -67,7 +68,7 @@ for(const [name,executablePath]of [['Chrome','C:/Program Files/Google/Chrome/App
     results.push({browser:name,nr});await page.screenshot({path:`evidence/${name}-solve.png`});
     await page.locator('[data-dc]').click();await page.waitForFunction(()=>!psseStudio.controller.busy&&!!psseStudio.controller.psseCalculation,null,{timeout:60000});
     assert.equal(await page.evaluate(()=>psseStudio.getState().resultStatus),'APPROXIMATE');
-    await page.locator('[data-route=map]').click();await pause(page);const arrows=page.locator('.ga-psse-geo-flow-arrow');assert(await arrows.count()>0,'Real flow arrows');const points=await arrows.first().getAttribute('points');assert(points.split(' ').length===4);const transform=await arrows.first().getAttribute('transform');await page.waitForTimeout(120);assert.notEqual(await arrows.first().getAttribute('transform'),transform);await page.screenshot({path:`evidence/${name}-flow.png`});
+    await page.locator('[data-route=map]').click();await pause(page);await assertCanvasMoves(page);await page.screenshot({path:`evidence/${name}-flow.png`});
     await page.locator('[data-route=analysis]').click();
     const base=await page.evaluate(()=>({id:psseStudio.controller.psseCalculation.id,hash:psseStudio.controller.psseScenario.hash,branch:psseStudio.controller.psseNetwork.branches.find(b=>b.kind==='line'&&b.status===1).sourceEquipmentId}));
     await page.locator('.psse-scenario-workspace summary').click();await page.getByLabel('Senaryo ekipmanı',{exact:true}).selectOption(base.branch);await page.getByLabel('Senaryo işlemi',{exact:true}).selectOption('STATUS');await page.getByLabel('Senaryo değeri',{exact:true}).fill('0');await page.locator('[data-action=apply]').click();await pause(page);

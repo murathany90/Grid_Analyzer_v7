@@ -19,6 +19,8 @@ export class PsseController {
     Object.defineProperty(engine.window,'__GA_PSSE_RATE_INDEX__',{configurable:true,get:()=>this.settings.value.rateIndex,set:value=>this.settings.update({rateIndex:value})});
     const apply=engine.fs;let cachedNetwork,cachedScenario,cached;
     engine.fs=(network,scenario)=>{if(cachedNetwork!==network||cachedScenario!==scenario){cachedNetwork=network;cachedScenario=scenario;cached=scenario.operations.length?deepFreeze(apply(network,scenario)):network;}return cached;};
+    // Frozen networks cannot change topology; each scenario overlay has its own identity.
+    const topology=engine.Bo,topologyHashes=new WeakMap();engine.Bo=network=>{if(!Object.isFrozen(network))return topology(network);let hash=topologyHashes.get(network);if(!hash){hash=topology(network);topologyHashes.set(network,hash);}return hash;};
   }
   subscribe(fn){this.listeners.add(fn);return ()=>this.listeners.delete(fn);}
   notify(){for(const fn of this.listeners)fn();this.host.onStateChange?.(this.snapshot());}

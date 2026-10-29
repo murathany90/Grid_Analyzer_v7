@@ -1,3 +1,6 @@
+import {createFlowLayer} from './flow-layer.js';
+import {createMapTooltip} from './tooltip.js';
+import {stationState,stationBusGroups} from './station-state.js';
 import {createMapSelection} from './selection-card.js';
 import {expandIncidentAcScope} from './filter-scope.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
@@ -160,7 +163,7 @@ ctx.py = function py(e2) {
     }),
     F2 = ctx.$(`PNG`, () => void st2(), `G\xF6r\xFCnen haritay\u0131 PNG olarak indir`);
   N2.setAttribute(`aria-label`, `S\u0131\u011Fd\u0131r`);
-  let I2 = true,
+  let I2 = e2.settings.value.flowDefault!==false,
     L2 = true,
     R2 = false,
     z2 = false,
@@ -172,13 +175,10 @@ ctx.py = function py(e2) {
       }, r3.append(i3, ctx.document.createTextNode(e3)), r3;
     },
     V2 = B2(`Ak\u0131\u015F`, I2, e3 => {
-      I2 = e3;
+      I2 = e3;e2.settings.update({flowDefault:e3});
       r2 = e3 && !n2;
       k2.checked = r2;
-      if (r2) rt2();else if (a2) {
-        ctx.window.cancelAnimationFrame(a2);
-        a2 = 0;
-      }
+      rt2();
     }),
     H2 = B2(`TM`, L2, e3 => {
       L2 = e3;
@@ -193,7 +193,7 @@ ctx.py = function py(e2) {
   let K2 = ctx.Q(`select`);
   K2.setAttribute(`aria-label`, `LF g\xF6r\xFCn\xFCm\xFC`), K2.append(new Option(`Baz`, `base`), new Option(`Senaryo`, `scenario`), new Option(`Fark`, `delta`));
   let q2 = ctx.Q(`select`);
-  q2.setAttribute(`aria-label`, `Harita metri\u011Fi`), q2.append(new Option(`Nominal gerilim`, `nominal`), new Option(`Bara Gerilimi (kV)`, `vm`), new Option(`Bara Va (\xB0)`, `va`), new Option(`Bara gerilim ihlali`, `violation`), new Option(`Aktif g\xFC\xE7 P (MW)`, `p`), new Option(`Reaktif g\xFC\xE7 Q (Mvar)`, `q`), new Option(`Ak\u0131m I (A)`, `current`), new Option(`Aktif kay\u0131p (MW)`, `loss`), new Option(`Y\xFCkleme (%)`, `loading`));
+  q2.setAttribute(`aria-label`, `Harita metri\u011Fi`), q2.append(new Option(`Nominal gerilim`, `nominal`), new Option(`Bara Gerilimi (kV)`, `vm`), new Option(`Bara Va (\xB0)`, `va`), new Option(`Bara gerilim ihlali`, `violation`), new Option(`Aktif g\xFC\xE7 P (MW)`, `p`), new Option(`Reaktif g\xFC\xE7 Q (Mvar)`, `q`), new Option(`Y\xFCkleme (%)`, `loading`));
   let ee2 = ctx.Q(`select`);
   ee2.setAttribute(`aria-label`, `Hat yerle\u015Fimi`), ee2.append(new Option(`Standart`, `standard`), new Option(`Ayr\u0131k hatlar`, `separated`));ee2.value='separated';
   let J2 = ctx.Q(`select`);
@@ -229,58 +229,14 @@ ctx.py = function py(e2) {
   let he2 = ctx.Jv(e2);
   h2.append(he2.element);
   const openResults=he2.open;he2.open=tab=>{he2.setScope({layer:Ee2,role:K2.value});openResults(tab);};
-  const v12Tooltip = ctx.Q("div", "ga-v12-tooltip");
-  v12Tooltip.hidden = true;
-  h2.append(v12Tooltip);
-  let v12HoverTarget = null;
-  function v12ShowTip(node) {
-    if (!node || !node.dataset.v12Title) {
-      v12Tooltip.hidden = true;
-      v12HoverTarget = null;
-      return;
-    }
-    if (v12HoverTarget === node) return;
-    v12HoverTarget = node;
-    v12Tooltip.replaceChildren(ctx.Q("strong", "", node.dataset.v12Title), ctx.Q("small", "", node.dataset.v12Sub ?? ""));
-    const headers = (node.dataset.v12Cols ?? "").split("|"),
-      rows = (node.dataset.v12Rows ?? "").split(";").map(v3 => v3.split("|"));
-    if (headers[0]) {
-      const table = ctx.Q("table", "ga-v12-tip-table"),
-        tr2 = ctx.Q("tr");
-      for (const head of headers) tr2.append(ctx.Q("th", "", head));
-      table.append(tr2);
-      for (const arr of rows) {
-        let tr3 = ctx.Q("tr");
-        for (const x3 of arr) tr3.append(ctx.Q("td", "", x3));
-        table.append(tr3);
-      }
-      v12Tooltip.append(table);
-    }
-    v12Tooltip.hidden = false;
-  }
-  _2.addEventListener("pointerover", ev2 => {
-    const item = ev2.target instanceof Element ? ev2.target.closest("[data-v12-title]") : null;
-    v12ShowTip(item);
-  });
-  _2.addEventListener("pointerout", ev2 => {
-    const el2 = ev2.relatedTarget;
-    if (!(el2 instanceof Element && el2.closest("[data-v12-title]") === v12HoverTarget)) v12ShowTip(null);
-  });
-  _2.addEventListener("pointermove", ev2 => {
-    if (v12Tooltip.hidden) return;
-    const rect = h2.getBoundingClientRect(),
-      w3 = v12Tooltip.offsetWidth || 270,
-      ht3 = v12Tooltip.offsetHeight || 100;
-    v12Tooltip.style.left = Math.max(8, Math.min(rect.width - w3 - 8, ev2.clientX - rect.left + 12)) + "px";
-    v12Tooltip.style.top = Math.max(8, Math.min(rect.height - ht3 - 8, ev2.clientY - rect.top + 16)) + "px";
-  });
+  const tooltip=createMapTooltip(h2,node=>({title:node.dataset.v12Title,lines:[node.dataset.v12Sub,...(node.dataset.v12Rows??'').split(';').filter(Boolean).map(row=>row.split('|').join(' · '))].filter(Boolean).slice(0,4)}));
   let selectedStation=null;
   function highlightSelection(){
     for(const node of _2.querySelectorAll('.is-focus'))node.classList.remove('is-focus');
     for(const node of _2.querySelectorAll('[data-branch-id],[data-isub],[data-bus-id]'))if(node.classList.contains('ga-psse-geo-link')&&node.dataset.branchId===Se2||node.dataset.isub===String(selectedStation)||node.dataset.busId===xe2)node.classList.add('is-focus');
   }
   const ge2=createMapSelection(e2,{
-    context:()=>({workspace:Y2,layer:Ee2,role:K2.value}),
+    context:()=>({workspace:Y2,layer:Ee2,role:K2.value,stationBuses:id=>stationBusGroups(Y2.network,De2.associations).get(String(id))??[],allows:source=>allowedEquipment(source)}),
     onSelect:selection=>{Se2=selection.branchId??null;xe2=selection.busId??null;selectedStation=selection.stationId??null;highlightSelection();},
     onActivate:()=>{K2.value='scenario';O2.value='calculated';lt2();},
     onResults:options=>he2.focus({...options,layer:Ee2,role:K2.value}),
@@ -572,6 +528,7 @@ ctx.py = function py(e2) {
     }
     return o3;
   }
+  function allowedEquipment(source){if(!Y2)return false;const net=ze2(),scope=Be2();return source.kind==='substation'?De2.associations.some(a=>String(a.stationIsub)===String(source.fields.isub)&&net.buses.some((b,i)=>b.connectionKey===a.connectionKey&&scope.has(i))):source.kind==='bus'?net.buses.some((b,i)=>b.sourceEquipmentId===source.id&&scope.has(i)):net.branches.some(b=>b.sourceEquipmentId===source.id&&(b.kind==='line'?scope.has(b.from)&&scope.has(b.to):scope.has(b.from)||scope.has(b.to))&&v13IncidentYtm(b,net));}
   function v9FitScope() {
     if (!Y2 || !De2) {
       Ce2 = 1;
@@ -778,13 +735,10 @@ ctx.py = function py(e2) {
         loss: `Hat / trafo aktif kayb\u0131 (MW)`,
         loading: `Hat / trafo y\xFCkleme (%)`
       }[t3] ?? t3),
-      i3 = [`vm`, `va`, `violation`].includes(t3) ? `Bara noktalar\u0131 renklendirilir; TM koordinat\u0131nda g\xF6rsel ayr\u0131mla g\xF6sterilir, hatlar n\xF6tr. ` : `Hat ve trafo ba\u011Flant\u0131lar\u0131 renklendirilir; TM noktalar\u0131 nominal gerilim renginde. `,
-      a3 = e2.settings.value,
-      o3 = i3 + (t3 === `violation` ? `k\u0131rm\u0131z\u0131: kaynak s\u0131n\u0131r\u0131 d\u0131\u015F\u0131nda \xB7 ye\u015Fil: s\u0131n\u0131rlar i\xE7inde \xB7 gri: s\u0131n\u0131r veya de\u011Fer yok` : n3 ? `Ayarlar paleti: azal\u0131\u015F \xB7 n\xF6tr \xB7 art\u0131\u015F; gri: veri yok` : t3 === `vm` ? `${a3.voltageMin} \xB7 ${a3.voltageNeutral} \xB7 ${a3.voltageMax} pu \xB7 gri: veri yok` : t3 === `loading` ? `${(ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) < 3 ? "RATE " + ["A", "B", "C"][ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0] : "RATE " + (ctx.window.__GA_PSSE_RATE_INDEX__ + 1)} \xB7 E\u015Fikler: ${a3.thresholds.join(` / `)} % \xB7 gri: veri yok` : `Ayarlar paleti: negatif \xB7 n\xF6tr \xB7 pozitif; gri: veri yok`);
-    m2.append(ot2(r3, `${Ee2 === `saved` ? `Kaynak SAV` : Ee2 === `delta` ? `Senaryo \u2212 Baz / g\xFCncel \xE7ift hesap` : `GA hesap / ge\xE7erli kimlik`} \xB7 ${[`current`, `loss`].includes(t3) ? `P95 \xF6l\xE7ek \xB1${v9MetricScale().toLocaleString(`tr-TR`, {
-      maximumFractionDigits: 2
-    })} ${t3 === `current` ? `A` : `MW`} \xB7 ` : ``}${o3}`, n3 ? `delta` : t3 === `vm` ? `voltage` : t3 === `loading` ? `loading` : t3 === `violation` ? `violation` : `delta`));
+      settings=e2.settings.value,description=t3==='violation'?'İhlal · sınır içinde · veri yok':t3==='vm'?`${settings.voltageMin} / ${settings.voltageNeutral} / ${settings.voltageMax} pu`:t3==='loading'?`RATE ${(ctx.window.__GA_PSSE_RATE_INDEX__??0)+1} · ${settings.thresholds.join(' / ')} %`:t3==='q'?'Negatif Q · nötr · pozitif Q':t3==='va'?'Negatif açı · nötr · pozitif açı':'Negatif P · nötr · pozitif P';
+    m2.append(ot2(r3,description,n3?'delta':t3==='vm'?'voltage':t3==='loading'?'loading':t3==='violation'?'violation':'delta'));
   }
+
   let v9ScaleCache = {
     result: null,
     metric: null,
@@ -820,6 +774,7 @@ ctx.py = function py(e2) {
   }
   let statusBase=null,baseStatuses=new Map();
   function v12LineStyle(branch, metric, load, flow, delta) {
+    flow=typeof flow==='number'&&Number.isFinite(flow)?flow:null;
     const opt = e2.settings.value,
       kv2 = Y2.base.buses[branch.from]?.baseKv ?? Y2.base.buses[branch.to]?.baseKv ?? 0;
     const band = ctx.cy(kv2);
@@ -836,7 +791,7 @@ ctx.py = function py(e2) {
     let color = nominal,
       width = baseWidth,
       opacity = 0.9;
-    if (metric === "loading") color = ctx.Cg(load, opt);else if (metric === "q") {
+    if (["vm","va","violation"].includes(metric)){color="#526879";opacity=.6;}else if (metric === "loading") color = ctx.Cg(load, opt);else if (metric === "q") {
       const mag = flow === null ? null : Math.abs(flow),
         qbase = kv2 >= 300 ? opt.qBase400Mvar : opt.qBase154Mvar,
         rate = mag === null ? null : 100 * mag / qbase;
@@ -867,39 +822,8 @@ ctx.py = function py(e2) {
     let a3 = q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : $e2(n3);
     return Ee2 === `delta` ? Je2(i3 ? q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(r3, n3) : null) : q2.value === `loading` ? ctx.Cg(a3, e2.settings.value) : Qe2(a3, v9MetricScale());
   }
-  let v12LastFlowFrame = 0;
-  function nt2(t3) {
-    if (!r2 || !I2 || !o2.length || ctx.document.hidden || e2.view !== `map` || e2.modelMode !== `PSSE` || be2 !== `map` || Ee2 !== `calculated` || n2) {
-      a2 = 0;
-      return;
-    }
-    if (t3 - v12LastFlowFrame < 32) {
-      a2 = ctx.window.requestAnimationFrame(nt2);
-      return;
-    }
-    v12LastFlowFrame = t3;
-    const speed = {
-      slow: 9e3,
-      normal: 6e3,
-      fast: 3500
-    }[e2.settings.value.flowSpeed] ?? 6e3;
-    i2 = t3 % speed / speed;
-    const frameScale=We2().k;
-    for (let e3 of o2) {
-      let t4 = Number(e3.dataset.bx),
-        n3 = Number(e3.dataset.by),
-        r3 = Number(e3.dataset.ux),
-        a3 = Number(e3.dataset.uy),
-        o3 = Number(e3.dataset.rot),
-        s3 = Number(e3.dataset.span),
-        c3 = (((t3*.036*({slow:.72,normal:1,fast:1.35}[e2.settings.value.flowSpeed]??1)*(.52+Math.min(120,Number(e3.dataset.loading))/120*1.15)/(s3*frameScale)+(Number(e3.dataset.phase)||0))%1)-.5)*s3;
-      e3.setAttribute(`transform`, `translate(${t4 + r3 * c3} ${n3 + a3 * c3}) rotate(${o3})`);
-    }
-    a2 = ctx.window.requestAnimationFrame(nt2);
-  }
-  function rt2() {
-    r2 && I2 && o2.length && !n2 && !a2 && e2.view === `map` && e2.modelMode === `PSSE` && be2 === `map` && Ee2 === `calculated` && (a2 = ctx.window.requestAnimationFrame(nt2));
-  }
+  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&Ee2==='calculated'&&I2&&k2.checked&&e2.settings.value.flowDefault!==false,reduced:n2,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
+  function rt2(){flowLayer.refresh();}
   function it2(t3) {
     if (h2.hidden = be2 !== `map`, v2.hidden = be2 !== `topology`, Ge2(), _2.replaceChildren(), v11SvgBasis = {
       zoom: Ce2,
@@ -991,7 +915,7 @@ ctx.py = function py(e2) {
         s4 = Ue2(a4),
         c4 = Ue2(o3),
         l4 = S3.get([a4.isub, o3.isub].sort().join(`|`)),
-        u4 = (l4.indexOf(t4) - (l4.length - 1) / 2) * (ee2.value === `separated` ? 4.2 : 0.7),
+        u4 = (l4.indexOf(t4) - (l4.length - 1) / 2) * (ee2.value === `separated` ? 5/glyphScale : 0),
         d4 = c4.x - s4.x,
         f4 = c4.y - s4.y,
         m4 = Math.hypot(d4, f4) || 1,
@@ -1002,15 +926,12 @@ ctx.py = function py(e2) {
         C4 = b3.get(t4.id),
         w4 = q2.value === `p` ? v3?.pFromMw : q2.value === `q` ? v3?.qFromMvar : q2.value === `current` ? v3?.iFromA ?? v3?.iToA : q2.value === `loss` ? ctx.v10Loss(v3) : q2.value === `loading` ? x4 : null;
       q2.value === `p` ? C4?.pFromMw : q2.value === `q` ? C4?.qFromMvar : q2.value === `current` ? C4?.iFromA ?? C4?.iToA : q2.value === `loss` ? C4?.pLossMw : q2.value === `loading` && (C4?.loadingFromPct ?? C4?.loadingToPct);
-      drawnSegments.set(t4.id,{from:{x:s4.x+h3,y:s4.y+_3},to:{x:c4.x+h3,y:c4.y+_3}});
+      const route=[s4,{x:s4.x+d4*.2+h3,y:s4.y+f4*.2+_3},{x:c4.x-d4*.2+h3,y:c4.y-f4*.2+_3},c4];drawnSegments.set(t4.id,{from:s4,to:c4,points:route});
       let E4 = y3 ? q2.value === `loading` ? ctx.v10RatePct(t4, v3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t4, C4, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t4, v3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t4, C4, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(C4, v3) : null,
         style = v12LineStyle(t4, g3 ? "delta" : q2.value, x4, w4, E4),
         D3 = style.color,
-        O4 = ctx.sv(`line`, {
-          x1: String(s4.x + h3),
-          y1: String(s4.y + _3),
-          x2: String(c4.x + h3),
-          y2: String(c4.y + _3),
+        O4 = ctx.sv(`path`, {
+          d:route.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' '),fill:'none',
           stroke: D3,
           "stroke-width": String(style.width),
           opacity: String(style.opacity),
@@ -1024,7 +945,7 @@ ctx.py = function py(e2) {
         }),
         k4 = ctx.sv(`title`);
       k4.textContent = `${Fe2(t4)} \xB7 ${t4.id} \xB7 ${t4.status === 1 ? `serviste` : `devre d\u0131\u015F\u0131`} \xB7 P=${ctx.ov(v3?.pFromMw)} MW / Q=${ctx.ov(v3?.qFromMvar)} Mvar / y\xFCk=${ctx.ov(x4, 1)}%${y3 ? ` \xB7 \u0394P=${ctx.ov(ctx.zv(C4?.pFromMw, v3?.pFromMw))} MW \xB7 \u0394Q=${ctx.ov(ctx.zv(C4?.qFromMvar, v3?.qFromMvar))} Mvar \xB7 \u0394y\xFCk=${ctx.ov(ctx.zv(C4?.loadingFromPct, v3?.loadingFromPct) ?? ctx.zv(C4?.loadingToPct, v3?.loadingToPct), 1)}%` : ``}`, O4.dataset.v12Title = Fe2(t4);
-      O4.dataset.v12Sub = `${t4.status === 1 ? "Serviste" : "Devre d\u0131\u015F\u0131"} \xB7 ${Ee2 === "saved" ? "Kaynak kay\u0131t" : `GA \xB7 ${f4?.method ?? "Sonu\xE7 yok"}`}`;
+      O4.dataset.v12Sub = `${t4.status===1?"Serviste":"Devre dışı"} · ${Ee2==="saved"?"Kaynak SAV":f3?`GA · ${f3.method} · ${f3.physicsCoverage}`:"NOT_RUN"}`;
       O4.dataset.v12Cols = "TM / U\xE7|P (MW)|Q (MVAr)|Y\xFCk (%)";
       O4.dataset.v12Rows = `A \xB7 ${ctx.Lv(Y2.model, Y2.base).station(r4) ?? ctx.Lv(Y2.model, Y2.base).bus(r4)}|${ctx.ov(v3?.pFromMw, 1)}|${ctx.ov(v3?.qFromMvar, 1)}|${ctx.ov(x4, 1)};B \xB7 ${ctx.Lv(Y2.model, Y2.base).station(i4) ?? ctx.Lv(Y2.model, Y2.base).bus(i4)}|${ctx.ov(v3?.pToMw, 1)}|${ctx.ov(v3?.qToMvar, 1)}|${ctx.ov(x4, 1)}`;
       O4.addEventListener(`click`, () => Ne2(t4, v3)), O4.addEventListener(`keydown`, e3 => {
@@ -1087,59 +1008,8 @@ ctx.py = function py(e2) {
       let u4 = ctx.sv(`title`);
       u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`, l4.append(u4), T3.append(l4);
     }
-    if (f3 && Ee2 === `calculated` && I2) {
-      let flowGroup = ctx.sv(`g`, {
-        class: `ga-psse-geo-flow`,
-        "aria-label": `${q2.value === `q` ? `Mvar` : `MW`} y\xF6n oklar\u0131; y\xF6n hesap ak\u0131\u015F\u0131ndan gelir`
-      });
-      for (let [t4, r4] of C3.entries()) {
-        if (r4.status !== 1 || t4 % Math.max(1, Math.ceil(C3.length / Math.max(180, 900 * e2.settings.value.flowDensity / 4)))) continue;
-        let i4 = p3.get(r4.id),
-          a4 = q2.value === `q` ? i4?.qFromMvar : i4?.pFromMw;
-        if (a4 == null || !Number.isFinite(a4) || Math.abs(a4) <= 1e-6) continue;
-        let s4 = n3.buses[r4.from],
-          c4 = n3.buses[r4.to],
-          l4 = Ae2.get(s4.connectionKey),
-          u4 = Ae2.get(c4.connectionKey);
-        if (!l4 || !u4 || l4.isub === u4.isub) continue;
-        const segment=drawnSegments.get(r4.id);if(!segment)continue;
-        let d4 = segment.from,
-          f4 = segment.to,
-          m4 = f4.x - d4.x,
-          h3 = f4.y - d4.y,
-          g4 = Math.hypot(m4, h3);
-        if (g4 * We2().k < 34) continue;
-        let _3 = m4 / g4,
-          v3 = h3 / g4,
-          y4 = a4 < 0 ? -1 : 1,
-          b4 = i4?.loadingFromPct ?? i4?.loadingToPct;
-        if(q2.value!==`q`&&!(Number.isFinite(i4?.pToMw)&&i4.pFromMw*i4.pToMw<0))continue;
-        for (let t5 = 0; t5 < (q2.value===`q`?2:Math.min(3,Math.max(1,Math.floor(g4*We2().k/180)))); t5++) {
-          const terminal=q2.value===`q`?(t5===0?i4.qFromMvar:i4.qToMvar):i4.pFromMw;if(!Number.isFinite(terminal)||Math.abs(terminal)<1e-6)continue;const direction=(terminal<0?-1:1)*(q2.value===`q`&&t5===1?-1:1);
-          let n4 = q2.value===`q`?(t5===0?.2:.8):.5,
-            i5 = d4.x + m4 * n4,
-            s5 = d4.y + h3 * n4,
-            c5 = Math.atan2(v3 * direction, _3 * direction) * 180 / Math.PI,
-            f5 = 1 / We2().k,
-            p4 = ctx.sv(`polygon`, {
-              points: `${7*f5},0 ${-6*f5},${-4*f5} ${-4*f5},0 ${-6*f5},${4*f5}`,
-              fill: q2.value === `q` ? `#a7efff` : `#ffe2a2`,
-              stroke: `#12364a`,
-              "stroke-width": `.30`,
-              transform: `translate(${i5} ${s5}) rotate(${c5})`,
-              class: `ga-psse-geo-flow-arrow`,
-              "data-branch-id": r4.id
-            });
-          p4.dataset.bx = String(i5), p4.dataset.by = String(s5), p4.dataset.ux = String(_3 * direction), p4.dataset.uy = String(v3 * direction), p4.dataset.rot = String(c5), p4.dataset.span = String(g4 * (q2.value===`q`?.24:.84));p4.dataset.phase=String((t4*.618+t5*.3)%1);p4.dataset.loading=String(b4??30);
-          let x4 = ctx.sv(`title`);
-          x4.textContent = `${l4.name} \u2192 ${u4.name} \xB7 ${ctx.ov(a4, 1)} ${q2.value === `q` ? `Mvar` : `MW`} ${y4 > 0 ? `(1\u21922)` : `(2\u21921)`} \xB7 y\xFCk ${ctx.ov(b4, 1)}%`, p4.append(x4), flowGroup.append(p4), o2.push(p4);
-        }
-      }
-      _2.append(flowGroup);
-    }
     _2.append(T3);
-    const arrowsTop = _2.querySelector(`.ga-psse-geo-flow`);
-    if (arrowsTop) _2.append(arrowsTop);
+    flowLayer.setLines(C3.map(branch=>{const row=p3.get(branch.id),segment=drawnSegments.get(branch.id);return segment?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:n3.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0)}:null;}).filter(Boolean));
     let k3 = ctx.sv(`g`, {
       class: `ga-psse-geo-stations`
     });
@@ -1186,7 +1056,7 @@ ctx.py = function py(e2) {
           t5 = u4.length ? x3.get(n3.buses[u4[0]].connectionKey)?.vmPu : null;
         e3 !== null && t5 !== null && e3 !== void 0 && t5 !== void 0 && (b4 = e3 - t5);
       }
-      if ([`vm`, `va`, `violation`].includes(q2.value)) for (let [t5, r4] of u4.entries()) {
+      if (Ce2>=1.7&&[`vm`, `va`, `violation`].includes(q2.value)) for (let [t5, r4] of u4.entries()) {
         let i4 = n3.buses[r4],
           a5 = ctx.Sv(i4, Y2.model, ke2),
           o4 = ctx.Cv(i4, Y2.model, ke2),
@@ -1242,11 +1112,18 @@ ctx.py = function py(e2) {
       }
       let C4 = ctx.sv(`title`);
       C4.textContent = `${g3 && b4 !== null ? `\u0130lk ili\u015Fkili bara \u0394Vm ${(b4 >= 0 ? `+` : ``) + b4.toFixed(4)} pu \xB7 ` : ``}TM ${o3.name} \xB7 isub=${o3.isub} \xB7 ${u4.length} filtredeki fiziksel bara \xB7 ${Ee2 === `saved` ? `SOURCE_SAVED` : `GA_PSSE_CALCULATED`} Vm=${ctx.ov(S4, 4)} pu \xB7 taban gerilim rengi=${ctx.bv(d4)} \xB7 kaynak latitude/longitude \xB7 ${(i3.get(o3.isub) ?? []).some(e3 => e3.method === `EXPLICIT_SOURCE_REFERENCE`) ? `a\xE7\u0131k kaynak isub ili\u015Fkisi` : `tekil tam kaynak-ad\u0131 e\u015Fle\u015Fmesi`}`, h3.dataset.v12Cols = "Nominal (kV)|Gerilim (kV)|A\xE7\u0131 (\xB0)";
+      const allBusIds=stationBusGroups(n3,De2.associations).get(String(o3.isub))??[],aggregate=stationState(n3,allBusIds,{result:f3,baseResult:Ee2==='delta'&&d3.ready?d3.base:null,saved:Ee2==='saved',sourceById:ke2}),sourceAggregate=stationState(Y2.base,allBusIds,{saved:true,sourceById:ke2});
+      if(['vm','va','violation'].includes(q2.value)){
+        const readings=aggregate.measurements.filter(r=>Number.isFinite(q2.value==='va'?r.va:r.vm)),worst=[...readings].sort((a,b)=>q2.value==='va'?Math.abs(b.va)-Math.abs(a.va):Math.abs(b.vm-(y3?0:1))-Math.abs(a.vm-(y3?0:1)))[0];
+        const violation=readings.some(r=>Number.isFinite(r.low)&&Number.isFinite(r.high)&&(r.vm<r.low||r.vm>r.high)),allLimits=readings.length===aggregate.active&&readings.every(r=>Number.isFinite(r.low)&&Number.isFinite(r.high));
+        const color=aggregate.service==='OUT_OF_SERVICE'?e2.settings.value.colorOut:!worst?e2.settings.value.colorNoResult:q2.value==='violation'?violation?'#e25f66':allLimits?'#50b98b':e2.settings.value.colorNoResult:q2.value==='vm'?(y3?Je2(worst.vm):ctx.bg(worst.vm,e2.settings.value)):Qe2(worst.va,30);_3.setAttribute('fill',color);
+      }
+      h3.dataset.stationService=aggregate.service;h3.dataset.stationCoverage=aggregate.coverage;h3.dataset.v12Sub=`Kaynak: ${sourceAggregate.active}/${sourceAggregate.count} bara · ${K2.value==='base'?'Baz':'Senaryo'}: ${aggregate.status} (${aggregate.active}/${aggregate.count})`;
+      h3.dataset.v12Cols='Gerilimler (kV)|V aralığı (kV)|Sonuç';h3.dataset.v12Rows=`${aggregate.kv.join('/')}|${aggregate.voltages.length?Math.min(...aggregate.voltages).toFixed(1)+' – '+Math.max(...aggregate.voltages).toFixed(1):'—'}|${aggregate.numeric}/${aggregate.active} bara`;
       const primary = u4.map(idx => n3.buses[idx]).filter(bus => bus.baseKv > 0).sort((a5, b5) => b5.baseKv - a5.baseKv)[0];
       const calcBus = primary ? m3.get(primary.connectionKey) : null;
       const vm2 = primary ? Ee2 === "saved" ? ctx.Sv(primary, Y2.model, ke2) : calcBus?.vmPu : null;
       const angle = primary ? Ee2 === "saved" ? ctx.Cv(primary, Y2.model, ke2) : calcBus?.vaDeg : null;
-      h3.dataset.v12Rows = `${ctx.ov(primary?.baseKv, 1)}|${vm2 != null && primary?.baseKv ? ctx.ov(vm2 * primary.baseKv, 1) : "\u2014"}|${ctx.ov(angle, 1)}`;
       let w4 = () => {
         let e3 = je2(o3.sourceEquipmentId);
         ge2.open(e3, `Kaynak TM \xB7 ${o3.name}`, {
@@ -1263,6 +1140,7 @@ ctx.py = function py(e2) {
         (e3.key === `Enter` || e3.key === ` `) && (e3.preventDefault(), w4());
       }), k3.append(h3);
     }
+    for(const nativeTitle of k3.querySelectorAll('[data-v12-title] title'))nativeTitle.remove();
     return k3.style.display = L2 ? `` : `none`, _2.append(k3), rt2(), [...C3, ...E3];
   }
   function at2(t3) {
@@ -1436,7 +1314,7 @@ ctx.py = function py(e2) {
       p2.append(ctx.document.createTextNode(` `), e3);
     }
     be2 === `map` ? (h2.append(m2), it2(a3), v2.replaceChildren()) : (h2.hidden = true, v2.hidden = false, at2(a3));
-    lastContextKey=contextKey();
+    he2.setFilterScope({busIds:a3,branchIds:new Set(t3.branches.filter(b=>(b.kind==='line'?a3.has(b.from)&&a3.has(b.to):a3.has(b.from)||a3.has(b.to))&&v13IncidentYtm(b,t3)).map(b=>b.id))});he2.render();ge2.render();tooltip.hide();lastContextKey=contextKey();
   }
   Ee2 = `saved`, O2.value = `saved`;
   J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";ct2();};
@@ -1458,7 +1336,7 @@ ctx.py = function py(e2) {
     v9FitScope(), ct2();
   };
   k2.onchange = () => {
-    r2 = k2.checked && !n2, r2 ? rt2() : a2 &&= (ctx.window.cancelAnimationFrame(a2), 0);
+    r2 = k2.checked && !n2;I2=k2.checked;V2.querySelector("input").checked=I2;e2.settings.update({flowDefault:I2});rt2();
   }, y2.addEventListener(`input`, () => {
     Ie2();
     let e3 = ctx.lv(y2.value),
@@ -1480,7 +1358,7 @@ ctx.py = function py(e2) {
     ct2();
   };
   let ut2 = () => {
-    n2 = t2?.matches ?? false, k2.disabled = n2, n2 && (k2.checked = false, r2 = false, a2 && ctx.window.cancelAnimationFrame(a2), a2 = 0);
+    n2 = t2?.matches ?? false, k2.disabled = n2, n2 && (r2 = false);V2.querySelector("input").disabled=n2;V2.title=n2?"Hareket azaltma açık":"";rt2();
   };
   t2?.addEventListener(`change`, ut2), ut2();
   let lastContextKey = "";
@@ -1566,37 +1444,6 @@ ctx.py = function py(e2) {
     passive: false,
     signal: ft2.signal
   });
-  const v10Tip = ctx.Q("div", "ga-v10-map-tooltip");
-  v10Tip.hidden = true;
-  ctx.document.body.append(v10Tip);
-  const tipMove = ev2 => {
-    if (pt2?.moved) {
-      v10Tip.hidden = true;
-      return;
-    }
-    const el2 = ev2.target instanceof Element ? ev2.target.closest(".ga-psse-geo-link,.ga-psse-geo-station") : null;
-    if (!el2 || !h2.contains(el2) || be2 !== "map") {
-      v10Tip.hidden = true;
-      return;
-    }
-    const txt = el2.querySelector("title")?.textContent || el2.getAttribute("aria-label") || el2.getAttribute("data-v10-tip") || "Ekipman";
-    if (v10Tip.dataset.text !== txt) {
-      v10Tip.replaceChildren();
-      let parts = txt.split(" \xB7 ");
-      v10Tip.append(ctx.Q("strong", "", parts.shift() || "Ekipman"));
-      for (const part of parts.slice(0, 7)) v10Tip.append(ctx.Q("span", "", part));
-      v10Tip.dataset.text = txt;
-    }
-    v10Tip.hidden = false;
-    v10Tip.style.left = Math.min(innerWidth - 320, ev2.clientX + 16) + "px";
-    v10Tip.style.top = Math.min(innerHeight - 140, ev2.clientY + 16) + "px";
-  };
-  h2.addEventListener("pointermove", tipMove, {
-    signal: ft2.signal
-  });
-  h2.addEventListener("pointerleave", () => v10Tip.hidden = true, {
-    signal: ft2.signal
-  });
   ctx.document.addEventListener("ga-psse-v10-rate-change", () => {
     ct2();
     he2.render();
@@ -1620,7 +1467,7 @@ ctx.py = function py(e2) {
     element: s2,
     render: renderCached,
     dispose: () => {
-      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), t2?.removeEventListener(`change`, ut2), he2.dispose(), v10Tip.remove(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), a2 && ctx.window.cancelAnimationFrame(a2), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
+      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), t2?.removeEventListener(`change`, ut2), he2.dispose(), tooltip.dispose(), flowLayer.dispose(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), a2 && ctx.window.cancelAnimationFrame(a2), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
     }
   };
 };
