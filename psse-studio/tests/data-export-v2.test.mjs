@@ -23,7 +23,7 @@ test('native NR Load unmatched rows are rejected by identity; 400 disconnected s
 });
 test('34 native fill differences have explicit source reasons, not invented percentages',{skip:!reference},()=>{
   const native=reference;let rated=0,sentinel=0;
-  for(const name of ['AC Line','2 Winding']){const cfg=studio.corpus.nr.find(t=>t.name===name),data=studio.liveDataset(cfg,'nr'),ref=native['NR-'+name];for(let i=0;i<cfg.columns.length;i++)if(!data.rows.some(r=>r[i]!=null&&r[i]!=='')&&ref.rows.some(r=>r[i]!=null&&r[i]!=='')){const reason=data.availability[i]?.code;assert(reason,cfg.columns[i]);if(reason==='ZERO_RATE')rated++;if(reason==='NATIVE_CONTROL_SENTINEL')sentinel++;}}
+  for(const name of ['AC Line','2 Winding']){const cfg=studio.corpus.nr.find(t=>t.name===name),data=studio.liveDataset(cfg,'nr'),ref=native['NR-'+name];let count=0;for(let i=0;i<cfg.columns.length;i++)if(!data.rows.some(r=>r[i]!=null&&r[i]!=='')&&ref.rows.some(r=>r[i]!=null&&r[i]!=='')){count++;const reason=data.availability[i]?.code;assert(reason,cfg.columns[i]);if(reason==='ZERO_RATE')rated++;if(reason==='NATIVE_CONTROL_SENTINEL'){sentinel++;assert(ref.rows.every(r=>r[i]===-2));}}assert.equal(count,name==='AC Line'?14:20);}
   assert.equal(rated,32);assert.equal(sentinel,2);
 });
 test('CSV round-trips P/Q and small deltas without display rounding',()=>{

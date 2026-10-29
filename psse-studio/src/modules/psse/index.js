@@ -50,5 +50,5 @@ export function mount(container,host={}) {
   const setView=controller.setView.bind(controller);controller.setView=view=>{setView(view);if(routes.some(([r])=>r===view)&&route!==view)navigate(view);};
   navigate('model');
   return {version:'13.0.0',mode:'PSSE',controller,navigate,loadFiles:files=>controller.loadFiles(files),calculate:(method,options)=>controller.runPsseCalculation(method,options),getState:()=>controller.snapshot(),getMetrics:()=>structuredClone(controller.metrics),
-    unmount(){if(disposed)return;disposed=true;unsubscribe();for(const feature of features.values())feature.dispose?.();features.clear();scenario.dispose();studio.reference=studio.corpus=studio.ga=null;studio.currentRows=[];studio.otherCache.clear();main.replaceChildren();old.replaceChildren();controller.dispose();platform.dispose();root.replaceChildren();root.remove();}};
+    unmount(){if(disposed)return;disposed=true;studio.xlsxJob?.cancel();unsubscribe();for(const feature of features.values())feature.dispose?.();features.clear();scenario.dispose();studio.reference=studio.corpus=studio.ga=null;studio.currentRows=[];studio.otherCache.clear();main.replaceChildren();old.replaceChildren();controller.dispose();platform.dispose();root.replaceChildren();root.remove();}};
 }

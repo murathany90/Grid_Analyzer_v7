@@ -14,7 +14,7 @@ export function nativeIndex(model,network){
   const dictionaries=Object.fromEntries([['area','Numare','Arnam'],['zone','Numzon','Zoname'],['owner','Numown','Owname']].map(([kind,nums,names])=>[kind,new Map(values(nums).map((id,i)=>[Number(id),{id:Number(id),name:text(names,i,12),index:i}]))]));
   const busPosition=new Map(network.buses.map((b,i)=>[b,i])),fixedShunts=new Map();
   for(const s of network.shunts)if(s.selection==='FIXED'&&s.status===1){if(!fixedShunts.has(s.bus))fixedShunts.set(s.bus,[]);fixedShunts.get(s.bus).push(s);}
-  index={model,network,eq,buses,arrays,values,at,text,dictionaries,busPosition,fixedShunts,flows:null,groups:new Map()};byNetwork.set(network,index);return index;
+  index={model,network,eq,buses,arrays,values,at,text,dictionaries,busPosition,fixedShunts,networkBuses:new Map(network.buses.filter(b=>b.sourceEquipmentId).map(b=>[b.sourceEquipmentId,b])),flows:null,groups:new Map()};byNetwork.set(network,index);return index;
 }
 function sourceBus(index,e){return e.kind==='bus'?e:index.buses.get(Number(e.fields?.ibus));}
 function winding(e){return e.fields?.windings?.[0]??{};}
@@ -26,6 +26,7 @@ function meteredNumber(index,f){
 function meteredFlag(index,f){const bus=meteredNumber(index,f);if(bus!=null)return Number(Number(bus)===Number(f.ibus));const input=f.met??f.nmetr;return input===1?1:input===2?0:null;}
 // Packed SAV I/O words use five octal digits; normalized network values stay on system base.
 function transformerField(index,e,k){
+  const cache=index.transformerFields??(index.transformerFields=new WeakMap());let prepared=cache.get(e);if(!prepared){
   const f=e.fields,w=winding(e),i=Number(f.savIndex)-1,word=w.packedSourceCodes;
   const code=shift=>Number.isInteger(word)?word>>shift&7:null;
   const cw=code(0)??f.cw,cz=code(3)??f.cz,cm=code(6)??f.cm;
@@ -33,8 +34,11 @@ function transformerField(index,e,k){
   const windingBase=number(w.mvaBase),factor=cz===2&&windingBase!=null?windingBase/index.network.baseMva:1;
   const ratio=(side,raw)=>{const r=side===1?w.ratioPu??f.windv1:w.secondaryRatioPu??f.windv2,b=side===1?from:to,n=side===1?w.nominalKv??f.nomv1:w.secondaryNominalKv??f.nomv2;if(r==null)return null;return !raw||cw===1?r:cw===2&&b?.baskv>0?r*b.baskv:cw===3&&b?.baskv>0&&n>0?r*b.baskv/n:null;};
   const enums={windingiocode:{1:'Turns ratio (pu)',2:'Winding voltage (kV)',3:'Ratio (pu of nominal)'},impedanceiocode:{1:'Zpu (system base)',2:'Zpu (winding base)',3:'Load loss & Z magnitude'},admittanceiocode:{1:'Admittance (pu)',2:'No load loss & exc. I'}};
-  if(enums[k])return enums[k][k==='windingiocode'?cw:k==='impedanceiocode'?cz:cm]??null;
   const fields={magnetizinggpuorwatts:cm===2&&number(f.mag1)!=null?f.mag1*index.network.baseMva*1e6*(w.nominalKv>0&&from?.baskv>0?(w.nominalKv/from.baskv)**2:1):f.mag1,magnetizingbpu:cm===2&&number(f.mag1)!=null&&number(f.mag2)!=null&&w.mvaBase>0?Math.hypot(f.mag1,f.mag2)*index.network.baseMva/w.mvaBase:f.mag2,winding1side:1,winding1number:f.ibus,winding2number:f.jbus,winding1name:index.buses.get(Number(f.ibus))?.name,winding2name:index.buses.get(Number(f.jbus))?.name,controlledbusname:index.buses.get(Number(w.controlledBus))?.name,wnd1tapratiopu:ratio(1,false),wnd2tapratiopu:ratio(2,false),wnd1tapratiopucw:ratio(1,true),wnd2tapratiopucw:ratio(2,true),wnd1ratiopuorkv:ratio(1,true),wnd2ratiopuorkv:ratio(2,true),wnd1basemva:w.mvaBase,windingmvabase:w.mvaBase,tapsteppu:w.tapPositions>1?(w.sourceRmax-w.sourceRmin)/(w.tapPositions-1):null,specifiedrpuorwatts:number(f.r1_2)!=null?f.r1_2*factor:null,specifiedxpu:number(f.x1_2)!=null?f.x1_2*factor:null,rtablecorrectedpuorwatts:number(f.r1_2)!=null?f.r1_2*factor:null,xtablecorrectedpu:number(f.x1_2)!=null?f.x1_2*factor:null};
+    prepared={f,w,i,code,cw,cz,cm,factor,enums,fields};cache.set(e,prepared);
+  }
+  const {f,w,i,code,cw,cz,cm,factor,enums,fields}=prepared;
+  if(enums[k])return enums[k][k==='windingiocode'?cw:k==='impedanceiocode'?cz:cm]??null;
   if(k in fields)return fields[k]??null;
   // These vector/connection codes are verified against matching I/J/CKT native records.
   if(k==='vectorgroup')return f.vectorGroup??({1:'YNyn0',3:'YNd1',19:'Dyn1',35:'Dd0',51:'YNa0'}[w.vectorGroupCode]??null);
@@ -155,7 +159,7 @@ export function installNativeTables(ctx){
   ctx.liveDataset=(cfg,section)=>{
     const model=ctx.sources(),base=ctx.ga.psseNetwork,headers=cfg.columns,saved=ctx.nativeResultSource!=='ga',result=saved?null:ctx.result(),network=section==='nd'||saved?base:ctx.ga.engine?.fs(base,ctx.ga.psseScenario)??base,index=nativeIndex(model,network);
     if(section==='nd'){
-      const data=previousDataset(cfg,section);if(cfg.name==='Swith. Dev. Ratings')data.rows.length=Math.min(data.rows.length,index.values('Swdrate').length/12);
+      const data=['Plant','Area','Owner','Zone'].includes(cfg.name)?{headers,rows:[],source:'NATIVE_SAV',note:''}:previousDataset(cfg,section);if(cfg.name==='Swith. Dev. Ratings')data.rows.length=Math.min(data.rows.length,index.values('Swdrate').length/12);
       if(['Machine','AC Line','2 Winding'].includes(cfg.name)){const kind=cfg.name==='Machine'?'generator':cfg.name==='AC Line'?'line':'transformer',items=model.equipment.filter(e=>e.kind===kind);for(let row=0;row<items.length;row++)for(let slot=1;slot<=4;slot++){if(!items[row].fields.owners?.[slot-1]){const column=headers.findIndex(h=>key(h)==='fraction'+slot);if(column>=0)data.rows[row][column]=1;}}}
       if(['Area','Owner','Zone'].includes(cfg.name)){const kind=cfg.name.toLowerCase();data.rows=[...index.dictionaries[kind].values()].map(d=>headers.map(h=>{const k=key(h);if(k===kind+'num')return d.id;if(k===kind+'name')return d.name;if(cfg.name==='Area'){const i=d.index;return k==='areaswingbus'?index.at('Iswing',i):k==='desiredinterchangemw'?index.at('Desint',i)*network.baseMva:k==='tolerancemw'?index.at('Destol',i)*network.baseMva:null;}return null;}));}
       if(cfg.name==='Plant'){
@@ -178,7 +182,7 @@ export function installNativeTables(ctx){
     if(cfg.name==='Plant'||cfg.name==='Limit Plant'){const map=new Map();for(const g of network.generators){if(!map.has(g.bus))map.set(g.bus,[]);map.get(g.bus).push(g);}records=[...map].map(([i,gs])=>({kind:'plant',bus:network.buses[i],units:gs,e:index.eq.get(gs[0].sourceEquipmentId)}));}
     const rows=records.map(rec=>headers.map((h,columnIndex)=>{
       const k=key(h),{e}=rec,f=e.fields,b=rec.bus??network.buses[rec.gen?.bus??rec.load?.bus??rec.shunt?.bus??rec.branch?.from],vb=voltageData(index,b,busResults.get(b.connectionKey),saved),base=b.baseKv;
-      if(rec.kind==='plant'&&cfg.name==='Limit Plant'&&columnIndex>7&&['busnumber','basekv','voltagepu'].includes(k)){const remote=index.buses.get(Number(f.ireg)),rb=remote?network.buses.find(b=>b.sourceEquipmentId===remote.id):b;return k==='busnumber'?f.ireg??null:k==='basekv'?remote?.fields.baskv??null:rb?voltageData(index,rb,busResults.get(rb.connectionKey),saved).vm:null;}
+      if(rec.kind==='plant'&&cfg.name==='Limit Plant'&&columnIndex>7&&['busnumber','basekv','voltagepu'].includes(k)){const remote=index.buses.get(Number(f.ireg)),rb=remote?index.networkBuses.get(remote.id):b;return k==='busnumber'?f.ireg??null:k==='basekv'?remote?.fields.baskv??null:rb?voltageData(index,rb,busResults.get(rb.connectionKey),saved).vm:null;}
       if(k==='busnumber')return b.externalNumber;if(k==='busname')return index.eq.get(b.sourceEquipmentId)?.name??null;
       if(['voltagepu','voltagekv','anglerad','angledeg','basekv'].includes(k))return k==='basekv'?base:k==='voltagepu'?vb.vm:k==='voltagekv'?vb.vm!=null&&base!=null?vb.vm*base:null:k==='anglerad'?vb.angle!=null?vb.angle*Math.PI/180:null:vb.angle;
       if(rec.kind==='bus'){
@@ -201,7 +205,7 @@ export function installNativeTables(ctx){
       }
       if(rec.kind==='shunt'){if(k==='inserviceactualmvar')return vb.vm!=null&&rec.shunt.status===1?-rec.shunt.bMvar*vb.vm**2:rec.shunt.status===0?0:null;if(k==='inservicenominalmvar')return rec.shunt.status===1?-rec.shunt.bMvar:0;}
       if(rec.kind==='plant'){
-        const remote=index.buses.get(Number(f.ireg)),remoteBus=remote?network.buses.find(b=>b.sourceEquipmentId===remote.id):b,remoteV=remoteBus?voltageData(index,remoteBus,busResults.get(remoteBus.connectionKey),saved):null;
+        const remote=index.buses.get(Number(f.ireg)),remoteBus=remote?index.networkBuses.get(remote.id):b,remoteV=remoteBus?voltageData(index,remoteBus,busResults.get(remoteBus.connectionKey),saved):null;
         if(k==='remotebusnumber')return f.ireg??null;if(k==='remotebusname')return remote?.name??null;if(k==='remotebusbasekv')return remote?.fields.baskv??null;if(k==='remotebusvoltagepu')return remoteV?.vm??null;if(k==='remotebusvoltagekv')return remoteV?.vm!=null?remoteV.vm*remote.fields.baskv:null;if(k==='remotebusschedvoltagepu'||k==='voltageschedulepu')return f.vs??null;if(k==='remotebusschedvoltagekv')return f.vs!=null&&remote?f.vs*remote.fields.baskv:null;
         if(cfg.name==='Limit Plant'){if(k==='swingtype')return vb.f.ide===3?'SYST':null;if(k==='busnumber'&&columnIndex>7)return f.ireg??null;if(k==='name')return columnIndex>7?remote?.name??null:index.eq.get(b.sourceEquipmentId)?.name??null;if(k==='basekv'&&columnIndex>7)return remote?.fields.baskv??null;if(k==='voltagepu')return remoteV?.vm??null;if(k==='zonenumber')return vb.f.zone??null;if(k==='areanumber')return vb.f.area??null;}
         if(k==='mismatchmwkv'||k==='mismatchmvarkv'){const balance=busBalances(index,result,saved)[index.busPosition.get(b)];return balance.valid?(k==='mismatchmwkv'?balance.p:balance.q):null;}

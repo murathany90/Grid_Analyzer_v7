@@ -1,7 +1,7 @@
 import {comparisonCsv} from '../../../shared/export/csv.js';
 // Migrated V12 studio. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
-const sourceIndices=new WeakMap();
+const sourceIndices=new WeakMap(),fieldKeys=new WeakMap();
 ctx.sourceIndex=()=>{
   const model=ctx.sources();if(!model)return {equipment:new Map(),stations:new Map()};
   let index=sourceIndices.get(model);if(!index){index={equipment:new Map(model.equipment.map(e=>[e.id,e])),stations:new Map(model.equipment.filter(e=>e.kind==='substation').map(e=>[Number(e.fields?.isub??e.fields?.isubst??e.fields?.number??e.fields?.id),e]))};sourceIndices.set(model,index);}return index;
@@ -128,10 +128,7 @@ ctx.selectData = function selectData() {
   };
   return ctx.liveDataset(cfg, ctx.main);
 };
-ctx.tableField = function tableField(e, label) {
-  const field = e.fields || {},
-    key = label.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const aliases = {
+const tableAliases = {
     "busnumber": ["ibus", "frombus", "number"],
     "busname": ["name"],
     "substationnumber": ["isub"],
@@ -168,6 +165,10 @@ ctx.tableField = function tableField(e, label) {
     "impedance": ["xpu"],
     "chargingbpu": ["bpu"]
   };
+ctx.tableField = function tableField(e, label) {
+  const field = e.fields || {},
+    key = label.toLowerCase().replace(/[^a-z0-9]/g, "");
+
   if (Object.hasOwn(field, label)) return field[label];
   if (key === "id") return field.machid ?? field.loadid ?? field.shntid ?? field.ckt ?? field.id ?? "";
   if (key === "name") return e.name ?? field.name ?? field.ad ?? "";
@@ -314,8 +315,8 @@ ctx.tableField = function tableField(e, label) {
   }
   if (canonical === "metered bus number") return field.meteredBus ?? "";
   if (canonical === "bypass") return field.bp ?? "";
-  for (const name of aliases[key] || []) if (Object.hasOwn(field, name)) return field[name];
-  for (const name of Object.keys(field)) if (name.toLowerCase().replace(/[^a-z0-9]/g, "") === key) return field[name];
+  for (const name of tableAliases[key] || []) if (Object.hasOwn(field, name)) return field[name];
+  let normalized=fieldKeys.get(field);if(!normalized){normalized=new Map();for(const name of Object.keys(field)){const k=name.toLowerCase().replace(/[^a-z0-9]/g,'');if(!normalized.has(k))normalized.set(k,name);}fieldKeys.set(field,normalized);}if(normalized.has(key))return field[normalized.get(key)];
   if (key === "frombusname" || key === "tobusname") {
     const b = field[key === "frombusname" ? "ibus" : "jbus"];
     return ctx.busAt(b)?.name ?? b ?? "";

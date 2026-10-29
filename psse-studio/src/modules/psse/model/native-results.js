@@ -25,7 +25,7 @@ export function nativeColumnAvailability(headers,records,rows){
     if(rows.some(row=>row[i]!=null&&row[i]!==''))return null;
     const rate=nativeRatingColumn(label);
     if(rate?.percentage&&records.length&&records.every(r=>!(r.branch?.ratingsFromSource?.[rate.index]>0)))return {code:'ZERO_RATE',message:'RATE sıfır/yok; yüzde tanımsız.'};
-    if(/^Winding 1 (Ratio|Angle) limit$/i.test(label))return {code:'NATIVE_CONTROL_SENTINEL',message:'Native -2 kontrol kodu fiziksel limit değildir.'};
+    if(/^Winding 1 (Ratio|Angle) limit$/i.test(label))return {code:'NATIVE_CONTROL_SENTINEL',message:'Native Excel: -2; SAV alanına güvenilir eşleme yok.'};
     return null;
   });
 }

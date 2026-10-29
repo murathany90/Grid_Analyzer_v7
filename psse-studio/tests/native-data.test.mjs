@@ -10,6 +10,7 @@ const index=nativeIndex(model,network),key=s=>String(s).toLowerCase().replace(/[
 const reference=await fs.readFile(process.env.PSSE_REFERENCE_JSON??'.local/native-excel.json','utf8').then(JSON.parse).catch(()=>null);
 test('17 ND + 11 NR unchanged contracts and saved/GA isolation',()=>{
   assert.equal(studio.corpus.nd.length,17);assert.equal(studio.corpus.nr.length,11);
+  assert.equal([...studio.corpus.nd,...studio.corpus.nr].reduce((sum,t)=>sum+t.columns.length,0),689);
   for(const [section,tables]of [['nd',studio.corpus.nd],['nr',studio.corpus.nr]])for(const cfg of tables){
     const data=studio.liveDataset(cfg,section);assert.deepEqual(data.headers,cfg.columns);assert(data.rows.length>0,cfg.name);assert(data.rows.every(r=>r.length===cfg.columns.length));
     if(reference)assert.deepEqual(cfg.columns,reference[(section==='nr'?'NR-':'')+cfg.name].headers.slice(0,cfg.columns.length));
