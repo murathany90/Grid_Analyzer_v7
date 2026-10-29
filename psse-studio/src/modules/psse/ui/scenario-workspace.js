@@ -6,7 +6,13 @@ export function createScenarioWorkspace(controller,{actionPrefix='',onActivate}=
   const name=document.createElement('input');name.type='text';name.maxLength=80;name.placeholder='Senaryo adı';name.setAttribute('aria-label','Senaryo adı');select.after(name);
   const create=document.createElement('button'),rename=document.createElement('button'),remove=document.createElement('button');create.textContent='Yeni';rename.textContent='Adlandır';remove.textContent='Sil';create.dataset.action='create';rename.dataset.action='rename';remove.dataset.action='delete';name.after(create);el.querySelector('[data-action=copy]').after(rename,remove);
   for(const button of el.querySelectorAll('[data-action]'))button.dataset.action=actionPrefix+button.dataset.action;
-  const actionButton=key=>el.querySelector(`[data-action="${actionPrefix+key}"]`);let lastSelected,lastName;
+  const actionButton=key=>el.querySelector(`[data-action="${actionPrefix+key}"]`);let lastSelected,lastName,lastScenarioId;
+  const toolbar=el.querySelector('.psse-scenario-toolbar'),journal=el.querySelector('details'),mode=document.createElement('select'),advanced=document.createElement('details'),manage=document.createElement('div');
+  mode.setAttribute('aria-label','Baz / Senaryo');mode.append(new Option('Baz','base'),new Option('Senaryo','scenario'));
+  advanced.className='psse-scenario-advanced';manage.className='psse-scenario-toolbar';const summary=document.createElement('summary');summary.textContent='Senaryoları yönet';advanced.append(summary,manage);
+  for(const node of [select,name,create,actionButton('copy'),rename,remove,actionButton('redo'),actionButton('save'),actionButton('load'),file])manage.append(node);
+  toolbar.prepend(mode);actionButton('undo').textContent='Geri Al';actionButton('reset').textContent='Senaryoyu Sıfırla';journal.querySelector('summary').textContent='Manevra Günlüğü';el.append(advanced);
+  mode.onchange=()=>{const book=controller.scenarios;if(!book)return;if(mode.value==='base')controller.selectScenario('base');else{const existing=book.items.has(lastScenarioId)?lastScenarioId:[...book.items.keys()].find(id=>id!=='base');if(existing)controller.selectScenario(existing);else{book.create('Senaryo',[]);controller.syncScenario();}}onActivate?.();};
   let lastNetwork,lastHash,equipmentKey='';
   const search=document.createElement('input');search.type='search';search.placeholder='Ekipman adı / TM / kimlik';search.setAttribute('aria-label','Senaryo ekipmanı ara');equipment.before(search);
   function populateEquipment(){
@@ -37,7 +43,7 @@ export function createScenarioWorkspace(controller,{actionPrefix='',onActivate}=
   file.onchange=async()=>{try{controller.scenarios.restore(await file.files[0].text());controller.syncScenario();onActivate?.();}catch(error){controller.setMessage(error.message);}file.value='';};
   function render(){
     const book=controller.scenarios,network=controller.psseNetwork;el.hidden=!book;if(!book)return;
-    select.replaceChildren(...[...book.items.values()].map(item=>new Option(item.name,item.id)));select.value=book.selected;
+    select.replaceChildren(...[...book.items.values()].map(item=>new Option(item.name,item.id)));select.value=book.selected;mode.value=book.selected==='base'?'base':'scenario';if(book.selected!=='base')lastScenarioId=book.selected;
     if(lastSelected!==book.selected||lastName!==book.item.name){name.value=book.item.name;lastSelected=book.selected;lastName=book.item.name;}
     actionButton('undo').disabled=book.selected==='base'||book.item.cursor===0;actionButton('redo').disabled=book.selected==='base'||book.item.cursor>=book.item.history.length-1;actionButton('rename').disabled=actionButton('delete').disabled=actionButton('reset').disabled=book.selected==='base';
     state.textContent=`${book.item.operations.length} etkilenen işlem · ${resultStatus(controller.psseCalculation)}`;state.title=`Model ${network.modelHash}\nSenaryo ${controller.psseScenario.hash}\nHesap ${controller.psseCalculation?.id??'NOT_RUN'}`;

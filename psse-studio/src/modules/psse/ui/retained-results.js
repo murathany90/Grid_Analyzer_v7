@@ -472,12 +472,12 @@ ctx.Jv = function Jv(e2, t2 = {}) {
     },
     ce2 = e3 => {
       let t3 = e3.target;
-      !n2.hidden && t3 instanceof Element && !n2.contains(t3) && !t3.closest(`[data-psse-lightning-toggle]`) && f2();
+      !n2.hidden && t3 instanceof Element && !n2.contains(t3) && !t3.closest(`[data-psse-lightning-toggle],.ga-map-toolbar`) && f2();
     };
   return t2.embedded || (ctx.document.addEventListener(`keydown`, se2), ctx.document.addEventListener(`pointerdown`, ce2)), {
     element: n2,
     setSelection:id=>{selectedEquipmentId=id;for(const row of C2.querySelectorAll('tr[data-equipment-id]'))row.classList.toggle('is-selected',row.dataset.equipmentId===id);},
-    setFilterScope:scope=>{filterScope=scope;filterRevision++;},
+    setFilterScope:scope=>{const same=(a,b)=>a?.size===b?.size&&[...a].every(id=>b.has(id));if(filterScope&&same(filterScope.busIds,scope.busIds)&&same(filterScope.branchIds,scope.branchIds))return;filterScope=scope;filterRevision++;u2=0;},
     setScope:({layer,role})=>{c2=layer==='saved'?'source':role;d2=true;u2=0;},
     focus:({kind,query,layer,role})=>{if(layer){c2=layer==='saved'?'source':role;d2=true;}l2=kind;b2.value=kind;x2.value=query??'';u2=0;ae2('LF');},
     render: ie2,

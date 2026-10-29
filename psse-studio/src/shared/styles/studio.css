@@ -153,5 +153,6 @@ html{margin:0;background:#091322}.psse-module{--bg:#0a1423;--panel:#152335;--pan
 @media(max-width:850px){.psse-module #v8-mode{display:none}.psse-module #v8-head{gap:7px;padding:6px 9px}.psse-module .ga-psse-lightning{width:min(600px,calc(100% - 16px))}.psse-module .ga-map-selection{width:min(405px,calc(100% - 16px))}.psse-module .ga-map-tools-row>.ga-psse-diagram-control{max-width:none;flex:1 1 170px}.psse-module .ga-map-search{flex-basis:155px}.psse-module .ga-flow-reason{max-width:90px}}
 
 .ga-psse-geo-bus.is-focus{stroke:#ffe2a2;stroke-width:2.5px;filter:drop-shadow(0 0 2px #ffdb72)}
+.psse-module .psse-scenario-advanced{min-width:0;font-size:11px}.psse-module .psse-scenario-advanced>.psse-scenario-toolbar{padding:5px 0;flex-wrap:wrap}.psse-module .psse-scenario-toolbar>.psse-scenario-state{min-width:0;white-space:normal}.psse-module .psse-scenario-toolbar>select[aria-label="Baz / Senaryo"]{width:100px;min-width:0}
 
 .psse-operation-list .is-future{opacity:.5}

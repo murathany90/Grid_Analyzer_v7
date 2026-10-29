@@ -1,12 +1,28 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {flowArrows} from '../src/modules/psse/map/flow-layer.js';
-import {stationState} from '../src/modules/psse/map/station-state.js';
+import {stationState,stationRepresentative} from '../src/modules/psse/map/station-state.js';
+import {parallelPath} from '../src/modules/psse/map/parallel-path.js';
 import {metricChoices,resultColumns,sortRows,groupLoading} from '../src/modules/psse/ui/result-columns.js';
 import {loadingAtTerminals} from '../src/modules/psse/calculations/rating.js';
-import {motionPolicy} from '../src/modules/psse/map/motion-policy.js';
+import {motionPolicy,flowSource} from '../src/modules/psse/map/motion-policy.js';
 import {ScenarioStore} from '../src/modules/psse/scenarios/store.js';
 test('Flow checkbox alone controls animation regardless of system reduced motion',()=>{
   const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,true);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',layer:'saved'}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
+});
+test('Flow admits a validated GA source without starting a calculation or inventing saved flows',()=>{
+  assert.equal(flowSource('saved',true,null),'saved');assert.equal(flowSource('saved',false,{branchResults:[line]}),'saved');
+  assert.equal(flowSource('saved',true,{branchResults:[{pFromMw:10,pToMw:-9}]}),'calculated');
+  assert.equal(flowSource('saved',true,{branchResults:[{qToMvar:-2}]}),'calculated');assert.equal(flowSource('delta',true,{branchResults:[{qToMvar:2}]}),'delta');
+});
+test('parallel schematic paths keep terminals and canonical separation for reversed circuits at every scale',()=>{
+  const a={x:0,y:0},b={x:300,y:0};for(const scale of [1,3]){
+    const first=parallelPath(a,b,{index:0,count:2,scale}),second=parallelPath(b,a,{index:1,count:2,forward:false,scale});
+    assert(first.length>4);assert.deepEqual(first[0],a);assert.deepEqual(second[0],b);assert.deepEqual(first.at(-1),b);assert.equal((second[2].y-first[2].y)*scale,5);
+  }assert.deepEqual(parallelPath(a,b,{count:2,separated:false}),[a,b]);
+});
+test('TM highest nominal tooltip and metric representatives are deterministic and keep missing data empty',()=>{
+  const buses=[{id:'hv',baseKv:400,status:0},{id:'a',baseKv:154,status:1},{id:'b',baseKv:154,status:1}],measurements=[{...buses[1],vm:1.03,va:-40,low:.9,high:1.1},{...buses[2],vm:.85,va:20,low:.9,high:1.1}],state={buses,measurements};
+  assert.equal(stationRepresentative(state).id,'hv');assert.equal(stationRepresentative(state).vm,undefined);assert.equal(stationRepresentative(state,'violation').id,'b');assert.equal(stationRepresentative(state,'vm').id,'a');assert.equal(stationRepresentative(state,'va').id,'a');assert.equal(stationRepresentative({...state,measurements:[]},'vm'),null);
 });
 test('scenario CRUD preserves the base, independent copies and round-trip history',()=>{
   const network={modelHash:'n'},make=(n,operations=[])=>({networkHash:n.modelHash,operations:structuredClone(operations),hash:JSON.stringify(operations)}),book=new ScenarioStore(network,make,'source');

@@ -1,7 +1,8 @@
-import {motionPolicy} from './motion-policy.js';
+import {motionPolicy,flowSource} from './motion-policy.js';
+import {parallelPath} from './parallel-path.js';
 import {createFlowLayer} from './flow-layer.js';
 import {createMapTooltip} from './tooltip.js';
-import {stationState,stationBusGroups} from './station-state.js';
+import {stationState,stationBusGroups,stationRepresentative} from './station-state.js';
 import {createMapSelection} from './selection-card.js';
 import {expandIncidentAcScope} from './filter-scope.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
@@ -224,7 +225,7 @@ ctx.py = function py(e2) {
   function highlightSelection(){
     const glyphScale=Math.max(.01,We2().k);
     for(const node of _2.querySelectorAll('.is-focus'))node.classList.remove('is-focus');
-    for(const station of _2.querySelectorAll('.ga-psse-geo-station')){const circle=station.querySelector('circle');if(circle){circle.setAttribute('r',String((station.dataset.isub===String(selectedStation)?Math.max(5.5,e2.settings.value.siteSize):Math.max(3.2,e2.settings.value.siteSize))/glyphScale));circle.setAttribute('stroke','#9bb9c2');}}
+    for(const station of _2.querySelectorAll('.ga-psse-geo-station')){const circle=station.querySelector('circle');if(circle){circle.setAttribute('r',String((station.dataset.isub===String(selectedStation)?Math.max(6,e2.settings.value.siteSize):Math.max(['vm','va','violation'].includes(q2.value)?4.5:3.2,e2.settings.value.siteSize))/glyphScale));circle.setAttribute('stroke','#9bb9c2');}}
     for(const node of _2.querySelectorAll('[data-branch-id],[data-isub],[data-bus-id]'))if(node.classList.contains('ga-psse-geo-link')&&node.dataset.branchId===Se2||node.dataset.isub===String(selectedStation)||node.dataset.busId===xe2)node.classList.add('is-focus');
   }
   const ge2=createMapSelection(e2,{
@@ -415,7 +416,6 @@ ctx.py = function py(e2) {
     if (rateSelect) rateSelect.value = String(ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0);
     v10Settings.showModal();
   }
-  let v11SourceManual = false;
   let be2 = `map`,
     xe2 = null,
     Se2 = null,
@@ -601,6 +601,13 @@ ctx.py = function py(e2) {
       k: ctx.$v(Ve2()).screenScale(e3)
     };
   }
+  let renderedGeometry=[],renderedFlows=[],geometryScale=0;
+  function refreshGeometry(scale){
+    if(!renderedGeometry.length||Math.abs(scale-geometryScale)<1e-8)return;
+    geometryScale=scale;
+    for(const item of renderedGeometry){item.flow.path=parallelPath(item.from,item.to,{...item.options,scale});item.element.setAttribute('d',item.flow.path.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' '));}
+    flowLayer.setLines(renderedFlows);
+  }
   let v11SvgBasis = null,
     v11SettleTimer = 0;
   function Ge2() {
@@ -617,6 +624,7 @@ ctx.py = function py(e2) {
       const tx = ctx.ny / 2 + we2 - ratio * (ctx.ny / 2 + v11SvgBasis.panX),
         ty2 = ctx.ry / 2 + Te2 - ratio * (ctx.ry / 2 + v11SvgBasis.panY);
       for (const group of _2.children) if (group.tagName.toLowerCase() === "g") group.setAttribute("transform", `matrix(${ratio} 0 0 ${ratio} ${tx} ${ty2})`);
+      refreshGeometry(n3*ratio);
     }
     _e2.render(g2, t3.width, t3.height, ctx.iy * n3 * Ce2, we2 * n3, Te2 * n3, Ce2, e2.settings.value), Object.assign(h2.dataset, {
       zoom: String(Ce2),
@@ -734,7 +742,7 @@ ctx.py = function py(e2) {
         loss: `Hat / trafo aktif kayb\u0131 (MW)`,
         loading: `Hat / trafo y\xFCkleme (%)`
       }[t3] ?? t3),
-      settings=e2.settings.value,description=t3==='violation'?'İhlal · sınır içinde · veri yok':t3==='vm'?`${settings.voltageMin} / ${settings.voltageNeutral} / ${settings.voltageMax} pu`:t3==='loading'?`RATE ${(ctx.window.__GA_PSSE_RATE_INDEX__??0)+1} · ${settings.thresholds.join(' / ')} %`:t3==='q'?'Negatif Q · nötr · pozitif Q':t3==='va'?'Negatif açı · nötr · pozitif açı':'Negatif P · nötr · pozitif P';
+      settings=e2.settings.value,description=t3==='violation'?'İhlal · sınır içinde · veri yok':t3==='vm'?`${[settings.voltageMin,settings.voltageNeutral,settings.voltageMax].map(v=>ctx.ov(v*100,1)).join(' / ')} % Vn`:t3==='loading'?`RATE ${(ctx.window.__GA_PSSE_RATE_INDEX__??0)+1} · ${settings.thresholds.map(v=>ctx.ov(v,1)).join(' / ')} %`:t3==='q'?'Negatif Q · nötr · pozitif Q':t3==='va'?'Negatif açı · nötr · pozitif açı':'Negatif P · nötr · pozitif P';
     m2.append(ot2(r3,description,n3?'delta':t3==='vm'?'voltage':t3==='loading'?'loading':t3==='violation'?'violation':'delta'));
   }
 
@@ -827,6 +835,7 @@ ctx.py = function py(e2) {
   function rt2(){I2=e2.settings.value.flowDefault!==false;V2.querySelector('input').checked=I2;V2.querySelector('input').disabled=false;V2.removeAttribute('title');flowLayer.refresh();}
 
   function it2(t3) {
+    renderedGeometry=[];renderedFlows=[];geometryScale=0;
     if (h2.hidden = be2 !== `map`, v2.hidden = be2 !== `topology`, Ge2(), _2.replaceChildren(), v11SvgBasis = {
       zoom: Ce2,
       panX: we2,
@@ -917,18 +926,12 @@ ctx.py = function py(e2) {
         s4 = Ue2(a4),
         c4 = Ue2(o3),
         l4 = S3.get([a4.isub, o3.isub].sort().join(`|`)),
-        u4 = (l4.indexOf(t4) - (l4.length - 1) / 2) * (ee2.value === `separated` ? 5/glyphScale : 0),
-        d4 = c4.x - s4.x,
-        f4 = c4.y - s4.y,
-        m4 = Math.hypot(d4, f4) || 1,
-        h3 = -f4 / m4 * u4,
-        _3 = d4 / m4 * u4,
         v3 = p3.get(t4.id),
         x4 = ctx.v10RatePct(t4, v3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0),
         C4 = b3.get(t4.id),
         w4 = q2.value === `p` ? v3?.pFromMw : q2.value === `q` ? v3?.qFromMvar : q2.value === `current` ? v3?.iFromA ?? v3?.iToA : q2.value === `loss` ? ctx.v10Loss(v3) : q2.value === `loading` ? x4 : null;
       q2.value === `p` ? C4?.pFromMw : q2.value === `q` ? C4?.qFromMvar : q2.value === `current` ? C4?.iFromA ?? C4?.iToA : q2.value === `loss` ? C4?.pLossMw : q2.value === `loading` && (C4?.loadingFromPct ?? C4?.loadingToPct);
-      const route=[s4,{x:s4.x+d4*.2+h3,y:s4.y+f4*.2+_3},{x:c4.x-d4*.2+h3,y:c4.y-f4*.2+_3},c4];drawnSegments.set(t4.id,{from:s4,to:c4,points:route});
+      const pathOptions={index:l4.indexOf(t4),count:l4.length,separated:ee2.value==='separated',forward:String(a4.isub)<String(o3.isub)},route=parallelPath(s4,c4,{...pathOptions,scale:glyphScale});drawnSegments.set(t4.id,{from:s4,to:c4,points:route,options:pathOptions});
       let E4 = y3 ? q2.value === `loading` ? ctx.v10RatePct(t4, v3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t4, C4, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t4, v3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t4, C4, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(C4, v3) : null,
         style = v12LineStyle(t4, g3 ? "delta" : q2.value, x4, w4, E4),
         D3 = style.color,
@@ -954,7 +957,7 @@ ctx.py = function py(e2) {
         (e3.key === `Enter` || e3.key === ` `) && (e3.preventDefault(), O4.dispatchEvent(new MouseEvent(`click`, {
           bubbles: true
         })));
-      }), T3.append(O4);
+      }), T3.append(O4);renderedGeometry.push({element:O4,from:s4,to:c4,options:pathOptions,id:t4.id});
     }
     let E3 = [],
       O3 = /* @__PURE__ */new Map();
@@ -996,7 +999,7 @@ ctx.py = function py(e2) {
             class: `ga-psse-geo-link ${n5.branch.status === 0 ? `is-out` : ``}`
           }),
           d4 = ctx.sv(`title`);
-        u5.dataset.branchId=n5.branch.id;u5.dataset.branchKind=n5.branch.kind;u5.dataset.v12Title=(c4?.name??e3)+' · Sargı '+n5.branch.windingId;u5.dataset.v12Sub=(n5.branch.status===1?'Serviste':'Devre dışı')+' · '+(f3?.physicsCoverage??'NOT_RUN');u5.dataset.v12Cols='Uç|P (MW)|Q (Mvar)|Yük (%)';u5.dataset.v12Rows=n5.station.name+'|'+ctx.ov(l5?.pFromMw)+'|'+ctx.ov(l5?.qFromMvar)+'|'+ctx.ov(l5?.loadingFromPct)+';Yıldız|'+ctx.ov(l5?.pToMw)+'|'+ctx.ov(l5?.qToMvar)+'|'+ctx.ov(l5?.loadingToPct);d4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${e3} \xB7 kaynak sarg\u0131 ${n5.branch.windingId} \xB7 ${n5.station.name} \u2192 \u015Fematik ortak ba\u011Flant\u0131 \xB7 ortak ba\u011Flant\u0131 noktas\u0131 yaln\u0131z yerle\u015Fim i\xE7indir, TM koordinat\u0131 de\u011Fildir \xB7 P ${ctx.ov(l5?.pFromMw)} MW \xB7 Q ${ctx.ov(l5?.qFromMvar)} Mvar \xB7 y\xFCk ${ctx.ov(l5?.loadingFromPct, 1)}%`, u5.setAttribute("aria-label",u5.dataset.v12Title), u5.addEventListener(`click`, () => ge2.open(c4, Fe2(n5.branch), {
+        u5.dataset.branchId=n5.branch.id;u5.dataset.branchKind=n5.branch.kind;u5.dataset.v12Title=(c4?.name??e3)+' · Sargı '+n5.branch.windingId;u5.dataset.v12Sub=(n5.branch.status===1?'Serviste':'Devre dışı')+' · '+(f3?.physicsCoverage??'NOT_RUN');u5.dataset.v12Cols='Uç|P (MW)|Q (Mvar)|Yük (%)';u5.dataset.v12Rows=n5.station.name+'|'+ctx.ov(l5?.pFromMw,1)+'|'+ctx.ov(l5?.qFromMvar,1)+'|'+ctx.ov(l5?.loadingFromPct,1)+';Yıldız|'+ctx.ov(l5?.pToMw,1)+'|'+ctx.ov(l5?.qToMvar,1)+'|'+ctx.ov(l5?.loadingToPct,1);d4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${e3} \xB7 kaynak sarg\u0131 ${n5.branch.windingId} \xB7 ${n5.station.name} \u2192 \u015Fematik ortak ba\u011Flant\u0131 \xB7 ortak ba\u011Flant\u0131 noktas\u0131 yaln\u0131z yerle\u015Fim i\xE7indir, TM koordinat\u0131 de\u011Fildir \xB7 P ${ctx.ov(l5?.pFromMw,1)} MW \xB7 Q ${ctx.ov(l5?.qFromMvar,1)} Mvar \xB7 y\xFCk ${ctx.ov(l5?.loadingFromPct, 1)}%`, u5.setAttribute("aria-label",u5.dataset.v12Title), u5.addEventListener(`click`, () => ge2.open(c4, Fe2(n5.branch), {
           normalizedBranch: n5.branch,
           calculated: l5 ?? null,
           scenarioHash: Y2.scenario.hash
@@ -1008,11 +1011,12 @@ ctx.py = function py(e2) {
       });
       ctx.ah(l4, `transformer3w`, i4, a4, `#d0b56e`);
       let u4 = ctx.sv(`title`);
-      u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`;l4.dataset.v12Title=c4?.name??e3;l4.dataset.branchId=r4[0].leg.branch.id;l4.dataset.v12Sub='3 sargı · '+(f3?.physicsCoverage??'NOT_RUN');l4.dataset.v12Cols='Sargı / TM|P (MW)|Q (Mvar)|Yük (%)';l4.dataset.v12Rows=r4.map(v=>{const row=p3.get(v.leg.branch.id);return v.leg.station.name+'|'+ctx.ov(row?.pFromMw)+'|'+ctx.ov(row?.qFromMvar)+'|'+ctx.ov(row?.loadingFromPct);}).join(';');l4.addEventListener('click',()=>ge2.open(c4,c4?.name??e3,{normalizedBranch:r4[0].leg.branch}));T3.append(l4);
+      u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`;l4.dataset.v12Title=c4?.name??e3;l4.dataset.branchId=r4[0].leg.branch.id;l4.dataset.v12Sub='3 sargı · '+(f3?.physicsCoverage??'NOT_RUN');l4.dataset.v12Cols='Sargı / TM|P (MW)|Q (Mvar)|Yük (%)';l4.dataset.v12Rows=r4.map(v=>{const row=p3.get(v.leg.branch.id);return v.leg.station.name+'|'+ctx.ov(row?.pFromMw,1)+'|'+ctx.ov(row?.qFromMvar,1)+'|'+ctx.ov(row?.loadingFromPct,1);}).join(';');l4.addEventListener('click',()=>ge2.open(c4,c4?.name??e3,{normalizedBranch:r4[0].leg.branch}));T3.append(l4);
     }
     _2.append(T3);
     flowAvailable=C3.some(b=>{const r=p3.get(b.id);return b.status===1&&[400,154].includes(n3.buses[b.from]?.baseKv)&&(q2.value==='q'?[r?.qFromMvar,r?.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1):Number.isFinite(r?.pFromMw)&&Number.isFinite(r?.pToMw)&&r.pFromMw*r.pToMw<0&&Math.abs(r.pFromMw)>=.15);});
-    flowLayer.setLines(C3.map(branch=>{const row=p3.get(branch.id),segment=drawnSegments.get(branch.id);return segment?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:n3.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0)}:null;}).filter(Boolean));
+    renderedFlows=C3.map(branch=>{const row=p3.get(branch.id),segment=drawnSegments.get(branch.id);return segment?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:n3.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0)}:null;}).filter(Boolean);
+    const flowById=new Map(renderedFlows.map(flow=>[flow.id,flow]));for(const item of renderedGeometry)item.flow=flowById.get(item.id);geometryScale=glyphScale;flowLayer.setLines(renderedFlows);
     let k3 = ctx.sv(`g`, {
       class: `ga-psse-geo-stations`
     });
@@ -1052,58 +1056,17 @@ ctx.py = function py(e2) {
           fill: `#102033`
         });
       h3.append(_3, v3);
-      let b4 = null,
-        S4 = u4.map(e3 => Ee2 === `calculated` ? m3.get(n3.buses[e3].connectionKey)?.vmPu : Ee2 === `delta` ? m3.get(n3.buses[e3].connectionKey)?.vmPu ?? null : ctx.Sv(n3.buses[e3], Y2.model, ke2) ?? null).filter(e3 => typeof e3 == `number` && Number.isFinite(e3)).sort((e3, t5) => Math.abs(t5 - 1) - Math.abs(e3 - 1))[0] ?? null;
-      if (y3) {
-        let e3 = u4.length ? m3.get(n3.buses[u4[0]].connectionKey)?.vmPu : null,
-          t5 = u4.length ? x3.get(n3.buses[u4[0]].connectionKey)?.vmPu : null;
-        e3 !== null && t5 !== null && e3 !== void 0 && t5 !== void 0 && (b4 = e3 - t5);
-      }
-      if (Ce2>=1.7&&[`vm`, `va`, `violation`].includes(q2.value)) for (let [t5, r4] of u4.entries()) {
-        let i4 = n3.buses[r4],
-          a5 = ctx.Sv(i4, Y2.model, ke2),
-          o4 = ctx.Cv(i4, Y2.model, ke2),
-          l4 = m3.get(i4.connectionKey),
-          u5 = x3.get(i4.connectionKey),
-          d5 = Ee2 === `saved` ? a5 : l4?.vmPu,
-          f5 = Ee2 === `saved` ? o4 : l4?.vaDeg,
-          p5 = q2.value === `va` ? g3 ? y3 ? ctx.zv(u5?.vaDeg, f5) : null : f5 : g3 ? y3 ? ctx.zv(u5?.vmPu, d5) : null : d5,
-          _4 = q2.value === `va` ? Qe2(p5, 30) : g3 ? Je2(p5) : ctx.bg(p5 ?? void 0, e2.settings.value);
-        if (q2.value === `violation`) {
-          let e3 = ke2.get(i4.sourceEquipmentId ?? ``)?.fields,
-            t6 = e4 => e4 != null && e4 !== `` && Number.isFinite(Number(e4)) && Number(e4) > 0 ? Number(e4) : null,
-            n4 = t6(e3?.nvlo),
-            r5 = t6(e3?.nvhi);
-          _4 = d5 == null || !Number.isFinite(d5) || n4 === null || r5 === null ? `#758698` : d5 < n4 || d5 > r5 ? `#e25f66` : `#50b98b`;
-        }
-        let v4 = ctx.sv(`circle`, {
-            cx: String(s4 + (t5 % 5 - 2) * 4),
-            cy: String(c4 + 5 + Math.floor(t5 / 5) * 4),
-            r: String(2.6/glyphScale),
-            fill: _4,
-            stroke: `#102033`,
-            "stroke-width": `.5`,
-            "data-bus-id": i4.id,
-            class: `ga-psse-geo-bus`,
-            tabindex: `0`,
-            role: `button`,
-            "aria-label": `Bara ${ctx.Lv(Y2.model, Y2.base).bus(i4)}`
-          }),
-          b5 = ctx.sv(`title`);
-        b5.textContent = `${ctx.Lv(Y2.model, Y2.base).busTitle(i4)} \xB7 ${q2.value}: ${ctx.ov(p5, 4)} \xB7 bara noktas\u0131 kaynak TM koordinat\u0131nda g\xF6rsel ayr\u0131mla g\xF6sterilir`, v4.dataset.v12Title = ctx.Lv(Y2.model, Y2.base).bus(i4);
-        v4.dataset.v12Sub = "Bara \xB7 " + (i4.status === 1 ? "Serviste" : "Devre d\u0131\u015F\u0131");
-        v4.dataset.v12Cols = "Nominal (kV)|Gerilim (kV)|A\xE7\u0131 (\xB0)";
-        v4.dataset.v12Rows = `${ctx.ov(i4.baseKv, 1)}|${d5 != null && i4.baseKv ? ctx.ov(d5 * i4.baseKv, 1) : "\u2014"}|${ctx.ov(f5, 1)}`;
-        let S5 = e3 => {
-          e3.stopPropagation(), ge2.open(je2(i4.sourceEquipmentId), `Bara \xB7 ${ctx.Lv(Y2.model, Y2.base).bus(i4)}`, {
-            stationId:o3.isub,normalizedBus: i4,
-            calculated: l4 ?? null,
-            scenarioHash: Y2.scenario.hash
-          });
-        };
-        v4.addEventListener(`click`, S5), v4.addEventListener(`keydown`, e3 => {
-          (e3.key === `Enter` || e3.key === ` `) && (e3.preventDefault(), S5(e3));
-        }), h3.append(v4);
+      const allBusIds=stationBusGroups(n3,De2.associations).get(String(o3.isub))??[],
+        aggregate=stationState(n3,allBusIds,{result:f3,baseResult:y3?d3.base:null,saved:Ee2==='saved',sourceById:ke2}),
+        sourceAggregate=stationState(Y2.base,allBusIds,{saved:true,sourceById:ke2}),
+        visible=stationState(n3,u4,{result:f3,baseResult:y3?d3.base:null,saved:Ee2==='saved',sourceById:ke2}),
+        representative=stationRepresentative(visible,q2.value,{delta:y3});
+      if(['vm','va','violation'].includes(q2.value)){
+        const color=aggregate.service==='OUT_OF_SERVICE'?v12MapSettings.colorOut:!representative?v12MapSettings.colorNoResult:
+          q2.value==='violation'?(representative.vm<representative.low||representative.vm>representative.high?'#e25f66':'#50b98b'):
+          q2.value==='vm'?(y3?Je2(representative.vm):ctx.bg(representative.vm,v12MapSettings)):Qe2(representative.va,30);
+        _3.setAttribute('fill',color);_3.setAttribute('r',String(Math.max(p4?6:4.5,v12MapSettings.siteSize)/glyphScale));
+        if(representative){h3.dataset.metricBusId=representative.id;h3.dataset.metricValue=String(q2.value==='va'?representative.va:representative.vm);}
       }
       if (R2 && (t4 % Math.max(1, Math.ceil(3 / Ce2)) === 0 || p4)) {
         let e3 = ctx.sv(`text`, {
@@ -1113,20 +1076,12 @@ ctx.py = function py(e2) {
         });
         e3.style.fontSize=String(12/glyphScale)+"px";e3.textContent = o3.name, h3.append(e3);
       }
-      let C4 = ctx.sv(`title`);
-      C4.textContent = `${g3 && b4 !== null ? `\u0130lk ili\u015Fkili bara \u0394Vm ${(b4 >= 0 ? `+` : ``) + b4.toFixed(4)} pu \xB7 ` : ``}TM ${o3.name} \xB7 isub=${o3.isub} \xB7 ${u4.length} filtredeki fiziksel bara \xB7 ${Ee2 === `saved` ? `SOURCE_SAVED` : `GA_PSSE_CALCULATED`} Vm=${ctx.ov(S4, 4)} pu \xB7 taban gerilim rengi=${ctx.bv(d4)} \xB7 kaynak latitude/longitude \xB7 ${(i3.get(o3.isub) ?? []).some(e3 => e3.method === `EXPLICIT_SOURCE_REFERENCE`) ? `a\xE7\u0131k kaynak isub ili\u015Fkisi` : `tekil tam kaynak-ad\u0131 e\u015Fle\u015Fmesi`}`, h3.dataset.v12Cols = "Nominal (kV)|Gerilim (kV)|A\xE7\u0131 (\xB0)";
-      const allBusIds=stationBusGroups(n3,De2.associations).get(String(o3.isub))??[],aggregate=stationState(n3,allBusIds,{result:f3,baseResult:Ee2==='delta'&&d3.ready?d3.base:null,saved:Ee2==='saved',sourceById:ke2}),sourceAggregate=stationState(Y2.base,allBusIds,{saved:true,sourceById:ke2});
-      if(['vm','va','violation'].includes(q2.value)){
-        const readings=aggregate.measurements.filter(r=>Number.isFinite(q2.value==='va'?r.va:r.vm)),worst=[...readings].sort((a,b)=>q2.value==='va'?Math.abs(b.va)-Math.abs(a.va):Math.abs(b.vm-(y3?0:1))-Math.abs(a.vm-(y3?0:1)))[0];
-        const violation=readings.some(r=>Number.isFinite(r.low)&&Number.isFinite(r.high)&&(r.vm<r.low||r.vm>r.high)),allLimits=readings.length===aggregate.active&&readings.every(r=>Number.isFinite(r.low)&&Number.isFinite(r.high));
-        const color=aggregate.service==='OUT_OF_SERVICE'?e2.settings.value.colorOut:!worst?e2.settings.value.colorNoResult:q2.value==='violation'?violation?'#e25f66':allLimits?'#50b98b':e2.settings.value.colorNoResult:q2.value==='vm'?(y3?Je2(worst.vm):ctx.bg(worst.vm,e2.settings.value)):Qe2(worst.va,30);_3.setAttribute('fill',color);
-      }
-      h3.dataset.stationService=aggregate.service;h3.dataset.stationCoverage=aggregate.coverage;h3.dataset.v12Sub=`Kaynak: ${sourceAggregate.active}/${sourceAggregate.count} bara · ${K2.value==='base'?'Baz':'Senaryo'}: ${aggregate.status} (${aggregate.active}/${aggregate.count})`;
-      h3.dataset.v12Cols='Gerilimler (kV)|V aralığı (kV)|Sonuç';h3.dataset.v12Rows=`${aggregate.kv.join('/')}|${aggregate.voltages.length?Math.min(...aggregate.voltages).toFixed(1)+' – '+Math.max(...aggregate.voltages).toFixed(1):'—'}|${aggregate.numeric}/${aggregate.active} bara`;
-      const primary = u4.map(idx => n3.buses[idx]).filter(bus => bus.baseKv > 0).sort((a5, b5) => b5.baseKv - a5.baseKv)[0];
-      const calcBus = primary ? m3.get(primary.connectionKey) : null;
-      const vm2 = primary ? Ee2 === "saved" ? ctx.Sv(primary, Y2.model, ke2) : calcBus?.vmPu : null;
-      const angle = primary ? Ee2 === "saved" ? ctx.Cv(primary, Y2.model, ke2) : calcBus?.vaDeg : null;
+      h3.dataset.stationService=aggregate.service;h3.dataset.stationCoverage=aggregate.coverage;
+      h3.dataset.v12Sub=`Kaynak: ${sourceAggregate.active}/${sourceAggregate.count} bara · ${K2.value==='base'?'Baz':'Senaryo'}: ${aggregate.status} (${aggregate.active}/${aggregate.count})`;
+      const highest=stationRepresentative(aggregate),primary=highest?n3.buses[allBusIds.find(i=>n3.buses[i].id===highest.id)]:null;
+      h3.dataset.tooltipBusId=highest?.id??'';
+      h3.dataset.v12Cols='Nominal (kV)|Gerilim (kV)|Açı (°)';
+      h3.dataset.v12Rows=`${ctx.ov(highest?.baseKv,1)}|${Number.isFinite(highest?.vm)&&highest.baseKv>0?ctx.ov(highest.vm*highest.baseKv,1):'—'}|${ctx.ov(highest?.va,1)}`;
       let w4 = () => {
         let e3 = je2(o3.sourceEquipmentId);
         ge2.open(e3, `Kaynak TM \xB7 ${o3.name}`, {
@@ -1231,7 +1186,7 @@ ctx.py = function py(e2) {
         });
       v3.textContent = `${ctx.Lv(Y2.model, Y2.base).bus(t4)} \xB7 ${ctx.bv(t4.baseKv)}${(p3.get(e3) ?? 0) > 0 ? ` \xB7 E${p3.get(e3)}` : ``}`;
       let y3 = ctx.sv(`title`);
-      y3.textContent = `${t4.id} \xB7 ${ctx.fv(t4, Y2.model, ke2)} \xB7 ${ctx.bv(t4.baseKv)} \xB7 ${Ee2 === `calculated` ? `GA_PSSE_CALCULATED Vm=${ctx.ov(o4?.vmPu, 4)} pu \xB7 Va=${ctx.ov(o4?.vaDeg, 2)}\xB0` : `${ctx.Tv(Y2)} Vm=${ctx.ov(u4, 4)} pu \xB7 Va=${ctx.ov(ctx.Cv(t4, Y2.model, ke2), 2)}\xB0`}`, g3.append(_3, v3, y3);
+      y3.textContent = `${t4.id} \xB7 ${ctx.fv(t4, Y2.model, ke2)} \xB7 ${ctx.bv(t4.baseKv)} \xB7 ${Ee2 === `calculated` ? `GA_PSSE_CALCULATED Vm=${ctx.ov(o4?.vmPu, 1)} pu \xB7 Va=${ctx.ov(o4?.vaDeg, 1)}\xB0` : `${ctx.Tv(Y2)} Vm=${ctx.ov(u4, 1)} pu \xB7 Va=${ctx.ov(ctx.Cv(t4, Y2.model, ke2), 2)}\xB0`}`, g3.append(_3, v3, y3);
       let b3 = () => {
         xe2 = t4.id;
         let e4 = je2(t4.sourceEquipmentId);
@@ -1292,12 +1247,8 @@ ctx.py = function py(e2) {
       p2.textContent = e2.psseNetwork && e2.psseScenario && e2.psseScenario.networkHash !== e2.psseNetwork.modelHash ? `PSS/E senaryosu ba\u015Fka bir modelin a\u011F\u0131na ba\u011Fl\u0131. Ge\xE7erli modeli a\xE7\u0131n veya senaryoyu yenileyin.` : `PSS/E modeli ve senaryosu bekleniyor.`, f2.replaceChildren(), m2.replaceChildren(), _2.replaceChildren(), v2.replaceChildren();
       return;
     }
-    if (Y2.model !== Oe2) v11SourceManual = false;
-    const admitted = ctx.Rv(Y2, e2.psseBaseCalculation).base;
-    if (!v11SourceManual && Ee2 === "saved" && admitted?.status === "CONVERGED" && admitted.branchResults?.some(row => Number.isFinite(row.pFromMw))) {
-      Ee2 = "calculated";
-      O2.value = "calculated";
-    }
+    const pair=ctx.Rv(Y2,e2.psseBaseCalculation),admitted=K2.value==='base'?pair.base:pair.scenario;
+    Ee2=flowSource(Ee2,e2.settings.value.flowDefault!==false,admitted);O2.value=Ee2==='delta'?'calculated':Ee2;
     ge2.render();Pe2(), Y2.model !== Oe2 && (Oe2 = Y2.model, ke2 = new Map(Y2.model.equipment.map(e3 => [e3.id, e3])), De2 = ctx.Zs(Oe2, Y2.base), Ae2 = (()=>{const stations=new Map(De2.stations.map(station=>[station.isub,station]));return new Map(De2.associations.map(association=>[association.connectionKey,stations.get(association.stationIsub)]));})());
     let t3 = Y2.network,
       n3 = Y2.model,
@@ -1319,13 +1270,12 @@ ctx.py = function py(e2) {
     be2 === `map` ? (h2.append(m2), it2(a3), v2.replaceChildren()) : (h2.hidden = true, v2.hidden = false, at2(a3));
     he2.setFilterScope({busIds:a3,branchIds:new Set(t3.branches.filter(b=>(b.kind==='line'?a3.has(b.from)&&a3.has(b.to):a3.has(b.from)||a3.has(b.to))&&v13IncidentYtm(b,t3)).map(b=>b.id))});he2.render();ge2.render();tooltip.hide();lastContextKey=contextKey();
   }
-  Ee2 = K2.value==='scenario'?'calculated':'saved';O2.value=Ee2;
+  Ee2 = 'calculated';O2.value=Ee2;
   J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";ct2();};
   let lt2 = () => {
     Ee2 = O2.value === `saved` ? `saved` : K2.value === `delta` ? `delta` : `calculated`, Ee2 === `delta` && !qe2() && Y2 && e2.setMessage(ctx.Rv(Y2, e2.psseBaseCalculation).reason ?? `Uyumlu baz ve senaryo hesaplar\u0131 gerekir.`), ct2();
   };
   O2.onchange = () => {
-    v11SourceManual = true;
     lt2();
   }, K2.onchange = () => {
     K2.value !== `base` && (O2.value = `calculated`), lt2();
@@ -1419,7 +1369,7 @@ ctx.py = function py(e2) {
   }, {
     capture: true,
     signal: ft2.signal
-  }), h2.addEventListener('click',event=>{const target=event.target;if(!(target instanceof Element)||target.closest('.ga-psse-geo-link,.ga-psse-geo-station,.ga-psse-geo-bus,.ga-psse-geo-threew,.ga-map-selection,.ga-psse-lightning,.ga-psse-diagram-legend,button,input,select,summary,details'))return;if(target===h2||target===g2||_2.contains(target))ge2.close();},{signal:ft2.signal}),ctx.document.addEventListener('keydown',event=>{if(e2.view==='map'&&event.key==='Escape')ge2.close();},{signal:ft2.signal}), h2.addEventListener(`wheel`, e3 => {
+  }), h2.addEventListener('click',event=>{const target=event.target;if(!(target instanceof Element)||target.closest('.ga-psse-geo-link,.ga-psse-geo-station,.ga-psse-geo-bus,.ga-psse-geo-threew,.ga-map-selection,.ga-psse-lightning,.ga-psse-diagram-legend,button,input,select,summary,details'))return;if(target===h2||target===g2||_2.contains(target)){ge2.close();for(const menu of s2.querySelectorAll('.ga-map-menu[open]'))menu.open=false;}},{signal:ft2.signal}),ctx.document.addEventListener('keydown',event=>{if(e2.view==='map'&&event.key==='Escape')ge2.close();},{signal:ft2.signal}), h2.addEventListener(`wheel`, e3 => {
     if (be2 !== `map` || !Y2 || !(e3.target === g2 || _2.contains(e3.target))) return;
     e3.preventDefault();
     let t3 = Math.max(0.65, Math.min(64, Ce2 * (e3.deltaY < 0 ? 1.12 : 1 / 1.12)));
