@@ -1,0 +1,297 @@
+{
+  "tables": [
+    {
+      "table": "ND Bus",
+      "columns": 18,
+      "rows": 6851,
+      "nativeRows": 6851,
+      "filledColumns": 16,
+      "nativeFilledColumns": 16,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Plant",
+      "columns": 16,
+      "rows": 2178,
+      "nativeRows": 2178,
+      "filledColumns": 16,
+      "nativeFilledColumns": 16,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Machine",
+      "columns": 48,
+      "rows": 2920,
+      "nativeRows": 2921,
+      "filledColumns": 46,
+      "nativeFilledColumns": 46,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Load",
+      "columns": 31,
+      "rows": 2520,
+      "nativeRows": 2521,
+      "filledColumns": 29,
+      "nativeFilledColumns": 29,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Fixed Shunt",
+      "columns": 16,
+      "rows": 139,
+      "nativeRows": 140,
+      "filledColumns": 14,
+      "nativeFilledColumns": 14,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND AC Line",
+      "columns": 50,
+      "rows": 2403,
+      "nativeRows": 2404,
+      "filledColumns": 46,
+      "nativeFilledColumns": 46,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND 2 Winding",
+      "columns": 79,
+      "rows": 3703,
+      "nativeRows": 3704,
+      "filledColumns": 72,
+      "nativeFilledColumns": 72,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND System Swith. Dev.",
+      "columns": 28,
+      "rows": 2563,
+      "nativeRows": 2564,
+      "filledColumns": 24,
+      "nativeFilledColumns": 24,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Substation",
+      "columns": 6,
+      "rows": 1618,
+      "nativeRows": 1618,
+      "filledColumns": 5,
+      "nativeFilledColumns": 5,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Branch Rating Name",
+      "columns": 3,
+      "rows": 12,
+      "nativeRows": 12,
+      "filledColumns": 3,
+      "nativeFilledColumns": 3,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Swith. Dev. Rating Name",
+      "columns": 5,
+      "rows": 12,
+      "nativeRows": 12,
+      "filledColumns": 5,
+      "nativeFilledColumns": 5,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Swith. Dev. Ratings",
+      "columns": 14,
+      "rows": 29,
+      "nativeRows": 29,
+      "filledColumns": 14,
+      "nativeFilledColumns": 14,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Area",
+      "columns": 5,
+      "rows": 10,
+      "nativeRows": 10,
+      "filledColumns": 5,
+      "nativeFilledColumns": 5,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Owner",
+      "columns": 2,
+      "rows": 77,
+      "nativeRows": 77,
+      "filledColumns": 2,
+      "nativeFilledColumns": 2,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Zone",
+      "columns": 2,
+      "rows": 5,
+      "nativeRows": 5,
+      "filledColumns": 2,
+      "nativeFilledColumns": 2,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Voltage Droop",
+      "columns": 10,
+      "rows": 236,
+      "nativeRows": 237,
+      "filledColumns": 10,
+      "nativeFilledColumns": 10,
+      "unavailableColumns": []
+    },
+    {
+      "table": "ND Load Type",
+      "columns": 2,
+      "rows": 2,
+      "nativeRows": 2,
+      "filledColumns": 1,
+      "nativeFilledColumns": 1,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR BUS",
+      "columns": 27,
+      "rows": 6851,
+      "nativeRows": 6851,
+      "filledColumns": 27,
+      "nativeFilledColumns": 27,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR AC Line",
+      "columns": 63,
+      "rows": 4966,
+      "nativeRows": 4966,
+      "filledColumns": 49,
+      "nativeFilledColumns": 63,
+      "unavailableColumns": [
+        "KORUMA % (I as MVA)",
+        "RATE7 % (I as MVA)",
+        "RATE8 % (I as MVA)",
+        "RATE9 % (I as MVA)",
+        "RATE10 % (I as MVA)",
+        "RATE11 % (I as MVA)",
+        "RATE12 % (I as MVA)",
+        "KORUMA Max % (I as MVA)",
+        "RATE7 Max % (I as MVA)",
+        "RATE8 Max % (I as MVA)",
+        "RATE9 Max % (I as MVA)",
+        "RATE10 Max % (I as MVA)",
+        "RATE11 Max % (I as MVA)",
+        "RATE12 Max % (I as MVA)"
+      ]
+    },
+    {
+      "table": "NR Machine",
+      "columns": 31,
+      "rows": 2920,
+      "nativeRows": 2920,
+      "filledColumns": 31,
+      "nativeFilledColumns": 31,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Load",
+      "columns": 18,
+      "rows": 2120,
+      "nativeRows": 2448,
+      "filledColumns": 18,
+      "nativeFilledColumns": 18,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Fixed Shunt",
+      "columns": 6,
+      "rows": 139,
+      "nativeRows": 139,
+      "filledColumns": 6,
+      "nativeFilledColumns": 6,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR 2 Winding",
+      "columns": 91,
+      "rows": 3703,
+      "nativeRows": 3703,
+      "filledColumns": 70,
+      "nativeFilledColumns": 90,
+      "unavailableColumns": [
+        "Winding 1 Ratio limit",
+        "Winding 1 Angle limit",
+        "KORUMA % (I as MVA)",
+        "ISLETM % (I as MVA)",
+        "DINAMI % (I as MVA)",
+        "RATE7 % (I as MVA)",
+        "RATE8 % (I as MVA)",
+        "RATE9 % (I as MVA)",
+        "RATE10 % (I as MVA)",
+        "RATE11 % (I as MVA)",
+        "RATE12 % (I as MVA)",
+        "KORUMA Max % (I as MVA)",
+        "ISLETM Max % (I as MVA)",
+        "DINAMI Max % (I as MVA)",
+        "RATE7 Max % (I as MVA)",
+        "RATE8 Max % (I as MVA)",
+        "RATE9 Max % (I as MVA)",
+        "RATE10 Max % (I as MVA)",
+        "RATE11 Max % (I as MVA)",
+        "RATE12 Max % (I as MVA)"
+      ]
+    },
+    {
+      "table": "NR Plant",
+      "columns": 30,
+      "rows": 2178,
+      "nativeRows": 2178,
+      "filledColumns": 30,
+      "nativeFilledColumns": 30,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Limit Plant",
+      "columns": 20,
+      "rows": 2178,
+      "nativeRows": 2178,
+      "filledColumns": 20,
+      "nativeFilledColumns": 19,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Zone",
+      "columns": 20,
+      "rows": 5,
+      "nativeRows": 5,
+      "filledColumns": 20,
+      "nativeFilledColumns": 20,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Owner",
+      "columns": 24,
+      "rows": 70,
+      "nativeRows": 70,
+      "filledColumns": 24,
+      "nativeFilledColumns": 24,
+      "unavailableColumns": []
+    },
+    {
+      "table": "NR Area",
+      "columns": 24,
+      "rows": 10,
+      "nativeRows": 10,
+      "filledColumns": 23,
+      "nativeFilledColumns": 23,
+      "unavailableColumns": []
+    }
+  ],
+  "exceptions": [
+    "Native sheets include total rows; NR-Load contains 328 invalid bus/load identities.",
+    "Unrated percentages, native control sentinels and unknown enum codes remain null.",
+    "Native AC-Line NR includes switching devices; the geographic map only displays real AC lines."
+  ]
+}
