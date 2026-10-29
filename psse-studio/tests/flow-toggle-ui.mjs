@@ -1,0 +1,14 @@
+import {chromium} from 'playwright';import assert from 'node:assert/strict';import {pathToFileURL} from 'node:url';import fs from 'node:fs/promises';import {assertCanvasMoves} from './flow-pixels.mjs';
+const target=process.env.PSSE_PORTABLE??process.cwd()+'/dist/Grid_Analyzer_PSSE_Portable.html',results=[];
+for(const channel of ['chrome','msedge']){
+ const browser=await chromium.launch({channel,headless:true}),page=await browser.newPage({viewport:{width:1600,height:900},offline:true,reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try{
+  await page.goto(pathToFileURL(target).href);await page.locator('#pse-file').setInputFiles(channel==='chrome'?'control1/20261014_1200_SN3_TR0.sav':'control1/20261014_1200_SN3_TR0(psse_sav+digerdosyalar).zip');await page.waitForFunction(()=>psseStudio.controller.psseNetwork&&!psseStudio.controller.busy);await page.locator('[data-route=analysis]').click();await page.getByLabel('Ignore',{exact:true}).check();await page.locator('[data-solve]').click();await page.waitForFunction(()=>!psseStudio.controller.busy&&psseStudio.controller.psseCalculation,null,{timeout:60000});await page.locator('[data-route=map]').click();
+  const flow=page.getByLabel('Akış',{exact:true}),canvas=page.locator('.ga-psse-flow-canvas');assert.equal(await page.locator('[aria-label="Bu uygulamada hareket azaltmaya rağmen animasyona izin ver"]').count(),0);assert.equal(await page.locator('.ga-flow-reason').count(),0);
+  for(const reducedMotion of ['reduce','no-preference']){
+   await page.emulateMedia({reducedMotion});await flow.check();assert(!await flow.isDisabled());await assertCanvasMoves(page);await page.screenshot({path:`evidence/flow-${channel}-${reducedMotion}-on.png`});await flow.uncheck();await page.waitForFunction(()=>document.querySelector('.ga-psse-flow-canvas').dataset.arrowCount==='0');assert.equal(await canvas.evaluate(e=>e.getContext('2d').getImageData(0,0,e.width,e.height).data.some((v,i)=>i%4===3&&v>0)),false);await flow.check();await assertCanvasMoves(page);
+  }
+  const stage=await page.locator('.ga-psse-geo-stage').boundingBox();await page.mouse.move(stage.x+stage.width/2,stage.y+stage.height*.6);for(let i=0;i<10;i++)await page.mouse.wheel(0,-100);await page.waitForFunction(()=>Number(document.querySelector('.ga-psse-geo-stage').dataset.zoom)>2.9);await page.getByLabel('Harita metriği',{exact:true}).selectOption('q');await assertCanvasMoves(page);await flow.uncheck();await page.waitForFunction(()=>document.querySelector('.ga-psse-flow-canvas').dataset.arrowCount==='0');assert.equal(errors.length,0,errors.join('\n'));results.push({channel,reduce:'MOVING',normal:'MOVING',off:'EMPTY',qZoom3:'MOVING',errors:0});console.log('PASS',channel,'Flow tick: on/moving, off/empty; reduce + normal; P and Q');
+ }finally{await browser.close();}
+}
+await fs.writeFile('evidence/flow-toggle-ui.json',JSON.stringify(results,null,2));

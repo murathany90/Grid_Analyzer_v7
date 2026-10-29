@@ -34,4 +34,4 @@ GA map parity: identical two-row control order, nominal palette/widths, loading 
 
 Host acceptance must additionally exercise DGS→PSS/E→DGS with independent storage and identical restored DGS model/scenario/result hashes. Local dual-mount/CSS tests and selected existing DGS regressions pass; actual integration into the GA app shell is a later change.
 
-Motion permission is PSS/E-owned: system reduced motion disables animation by default, while an explicit app opt-in can permit it. Blank click/Escape share selection cleanup; result rows focus source IDs without changing filters. Scenario CRUD and history reuse the same store in the analysis workspace and lightning panel; base operations remain immutable.
+Flow animation is controlled solely by the Flow checkbox, independently of system reduced motion; no extra permission UI is used. Blank click/Escape share selection cleanup; result rows focus source IDs without changing filters. Scenario CRUD and history reuse the same store in the analysis workspace and lightning panel; base operations remain immutable.

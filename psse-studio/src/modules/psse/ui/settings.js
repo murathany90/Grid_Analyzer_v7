@@ -12,7 +12,6 @@ export function createSettings(controller) {
   field('palette','Yüklenme paleti',[['voltage','GA özel renkler'],['green','Yeşil']]);
   for(const [name,label]of [['color400','400 kV'],['color220','220 kV'],['color154','154 kV'],['color66','66 kV'],['colorLow','Alçak gerilim'],['colorOut','Devre dışı']])field(name,label,null,'color');
   for(const [name,label]of [['width400','400 kV hat kalınlığı'],['widthMid','Orta gerilim hat kalınlığı'],['widthOther','Diğer hat kalınlığı']])field(name,label,null,'number',.3,8,.1);
-  field('flowMotionPolicy','Hareket azaltma tercihi',[['system','Sistem tercihini koru'],['allow','Bu uygulamada animasyona izin ver']]);
   field('flowSpeed','Akış hızı',[['slow','Yavaş'],['normal','Normal'],['fast','Hızlı']]);field('flowDensity','Akış yoğunluğu',null,'number',1,12,1);
   field('siteSize','TM simge boyutu',null,'number',3.2,10,.1);field('basemapOpacity','Altlık saydamlığı',null,'number',0,1,.05);
   field('qBase400Mvar','400 kV Q baz (Mvar)',null,'number',1,10000,1);field('qBase154Mvar','154 kV Q baz (Mvar)',null,'number',1,10000,1);

@@ -5,8 +5,8 @@ import {metricChoices,resultColumns,sortRows,groupLoading} from '../src/modules/
 import {loadingAtTerminals} from '../src/modules/psse/calculations/rating.js';
 import {motionPolicy} from '../src/modules/psse/map/motion-policy.js';
 import {ScenarioStore} from '../src/modules/psse/scenarios/store.js';
-test('system reduced motion defaults off; explicit app permission and data gates remain independent',()=>{
-  const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,false);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',layer:'saved'}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
+test('Flow checkbox alone controls animation regardless of system reduced motion',()=>{
+  const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,true);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',layer:'saved'}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
 });
 test('scenario CRUD preserves the base, independent copies and round-trip history',()=>{
   const network={modelHash:'n'},make=(n,operations=[])=>({networkHash:n.modelHash,operations:structuredClone(operations),hash:JSON.stringify(operations)}),book=new ScenarioStore(network,make,'source');
@@ -19,6 +19,7 @@ test('current-expressed MVA RATE uses nominal terminal kV and current, independe
 });
 test('GA P arrows: ceil count, signed direction, speed, thresholds and cell density',()=>{
   const frame=flowArrows([line],{time:100,density:4});assert.equal(frame.length,2);assert(frame.every(a=>a.angle===0));assert(flowArrows([{...line,pFrom:-100,pTo:101}],{time:100})[0].angle===Math.PI);
+  assert.deepEqual(flowArrows([{...line,path:[line.a,line.b],lengths:[300],length:300}],{time:100,density:4}),frame);
   assert(flowArrows([line],{time:200})[0].x>frame[0].x);assert(flowArrows([line],{time:100,speed:'fast'})[0].x>flowArrows([line],{time:100,speed:'slow'})[0].x);
   for(const bad of [{pFrom:.1},{pTo:2},{status:0},{kv:66},{b:{x:30,y:0}}])assert.equal(flowArrows([{...line,...bad}]).length,0);
   assert(flowArrows([line,{...line,id:'b'}],{time:100,density:1}).length<flowArrows([line,{...line,id:'b'}],{time:100,density:8}).length);

@@ -7,13 +7,7 @@ import {expandIncidentAcScope} from './filter-scope.js';
 // Migrated V12 engine. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
 ctx.py = function py(e2) {
-  let t2 = ctx.window.matchMedia?.(`(prefers-reduced-motion: reduce)`),
-    n2 = t2?.matches ?? false,
-    r2 = true,
-    i2 = 0,
-    a2 = 0,
-    o2 = [],
-    s2 = ctx.Q(`section`, `ga-feature ga-psse-diagram ga-psse-map`),
+  let s2 = ctx.Q(`section`, `ga-feature ga-psse-diagram ga-psse-map`),
     c2 = ctx.Q(`header`, `ga-feature-heading`),
     l2 = ctx.Q(`div`, `ga-psse-diagram-controls`),
     u2 = ctx.Q(`div`, `ga-psse-map-modebar`),
@@ -145,10 +139,7 @@ ctx.py = function py(e2) {
   D2.setAttribute(`aria-label`, `Servis durumu filtresi`), D2.append(new Option(`T\xFCm durumlar`, `all`), new Option(`Serviste`, `in`), new Option(`Devre d\u0131\u015F\u0131`, `out`)), D2.value = `all`;
   let O2 = ctx.Q(`select`);
   O2.setAttribute(`aria-label`, `De\u011Fer katman\u0131`);
-  let k2 = ctx.Q(`input`);
-  k2.type = `checkbox`, k2.checked = true, k2.setAttribute(`aria-label`, `MW ak\u0131\u015F oku animasyonu (hareket azaltma tercihine sayg\u0131l\u0131)`);
-  let A2 = ctx.Q(`label`, `ga-check`);
-  A2.append(k2, ctx.document.createTextNode(`Ak\u0131\u015F animasyonu`)), O2.append(new Option(`Kaynak kay\u0131t`, `saved`), new Option(`GA hesap`, `calculated`));
+  O2.append(new Option(`Kaynak kayıt`, `saved`),new Option(`GA hesap`, `calculated`));
   let j2 = ctx.$(`Co\u011Frafi harita`, () => {
       be2 = `map`, ct2();
     }),
@@ -207,8 +198,7 @@ ctx.py = function py(e2) {
   oe2.append(ctx.ly(`TM`, E2), ctx.ly(`BM / OWNER`, T2), ctx.ly(`Servis durumu`, D2), ctx.ly(`E\u015Fle\u015Fmeler`, b2)), ae2.append(ctx.Q(`summary`, ``, `Filtreler`), oe2);
   let se2 = ctx.Q(`details`, `ga-map-menu ga-map-options`),
     ce2 = ctx.Q(`div`, `ga-map-menu-body`);
-  ce2.append(A2, F2, ctx.$(`Harita Ayarlar\u0131`, () => e2.setView(`settings`))), se2.append(ctx.Q(`summary`, ``, `\xD6l\xE7\xFCm`), ce2);
-  const motionPermission=ctx.Q('input'),motionLabel=ctx.Q('label','ga-check'),flowReason=ctx.Q('small','ga-flow-reason');motionPermission.type='checkbox';motionPermission.setAttribute('aria-label','Bu uygulamada hareket azaltmaya rağmen animasyona izin ver');motionLabel.append(motionPermission,ctx.document.createTextNode('Bu uygulamada hareket azaltmaya rağmen animasyona izin ver'));motionPermission.onchange=()=>e2.settings.update({flowMotionPolicy:motionPermission.checked?'allow':'system',...(motionPermission.checked?{flowDefault:true}:{})});ce2.prepend(motionLabel);V2.append(flowReason);
+  ce2.append(F2, ctx.$(`Harita Ayarlar\u0131`, () => e2.setView(`settings`))), se2.append(ctx.Q(`summary`, ``, `\xD6l\xE7\xFCm`), ce2);
   let le2 = ctx.$(`Baz \xB7 Sonu\xE7 yok`, () => he2.open(`SCENARIOS`), `Senaryolar\u0131 a\xE7`);
   le2.classList.add(`ga-map-scenario-chip`), le2.dataset.psseLightningToggle = ``;
   let ue2 = ctx.$(`Sonu\xE7lar`, () => he2.open(`LF`), `Elektriksel sonu\xE7lar\u0131 a\xE7`);
@@ -832,15 +822,16 @@ ctx.py = function py(e2) {
     return Ee2 === `delta` ? Je2(i3 ? q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(r3, n3) : null) : q2.value === `loading` ? ctx.Cg(a3, e2.settings.value) : Qe2(a3, v9MetricScale());
   }
   let flowAvailable=false;
-  const policy=()=>motionPolicy({requested:e2.settings.value.flowDefault!==false,reduced:n2,permission:e2.settings.value.flowMotionPolicy,layer:Ee2,available:flowAvailable,mode:q2.value==='q'?'q':'p',zoom:Ce2});
-  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&policy().enabled,reduced:false,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
-  function rt2(){const state=policy();I2=state.enabled;k2.checked=state.enabled;k2.disabled=false;V2.querySelector('input').checked=state.enabled;V2.querySelector('input').disabled=false;V2.title=state.reason||'Geçerli P/Q ile hareketli akış';flowReason.textContent=state.reason;flowReason.hidden=!state.reason;motionPermission.checked=e2.settings.value.flowMotionPolicy==='allow';flowLayer.refresh();}
+  const policy=()=>motionPolicy({requested:e2.settings.value.flowDefault!==false,layer:Ee2,available:flowAvailable,mode:q2.value==='q'?'q':'p',zoom:Ce2});
+  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&policy().enabled,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
+  function rt2(){I2=e2.settings.value.flowDefault!==false;V2.querySelector('input').checked=I2;V2.querySelector('input').disabled=false;V2.removeAttribute('title');flowLayer.refresh();}
+
   function it2(t3) {
     if (h2.hidden = be2 !== `map`, v2.hidden = be2 !== `topology`, Ge2(), _2.replaceChildren(), v11SvgBasis = {
       zoom: Ce2,
       panX: we2,
       panY: Te2
-    }, o2.length = 0, !De2 || !Y2) return [];
+    }, !De2 || !Y2) return [];
     let n3 = ze2(),
       r3 = /* @__PURE__ */new Map();
     for (let [e3, i4] of n3.buses.entries()) {
@@ -1347,9 +1338,7 @@ ctx.py = function py(e2) {
   for (let z3 of [T2, E2]) z3.onchange = () => {
     v9FitScope(), ct2();
   };
-  k2.onchange = () => {
-    e2.settings.update({flowDefault:k2.checked});rt2();
-  }, y2.addEventListener(`input`, () => {
+  y2.addEventListener(`input`, () => {
     Ie2();
     let e3 = ctx.lv(y2.value),
       t3 = Y2?.network.buses.filter(t4 => [t4.id, t4.connectionKey, t4.externalNumber].some(t5 => ctx.lv(t5) === e3)) ?? [];
@@ -1369,10 +1358,6 @@ ctx.py = function py(e2) {
     }
     ct2();
   };
-  let ut2 = () => {
-    n2 = t2?.matches ?? false;rt2();
-  };
-  t2?.addEventListener(`change`, ut2), ut2();
   let lastContextKey = "",lastBookId=e2.scenarios?.selected;
   const contextKey=()=>JSON.stringify([e2.psseNetwork?.modelHash,e2.scenarios?.selected,e2.psseScenario?.hash,e2.psseCalculation?.id,e2.psseBaseCalculation?.id,e2.settings.value,h2.clientWidth,h2.clientHeight]);
   function renderCached(){if(lastBookId!==e2.scenarios?.selected){lastBookId=e2.scenarios?.selected;K2.value=lastBookId==='base'?'base':'scenario';Ee2='calculated';O2.value='calculated';}ge2.render();const key=contextKey();if(key===lastContextKey&&Y2?.model===e2.psseInspection){he2.render();if(K2.value==='scenario')le2.textContent=(e2.scenarios?.item.name??'Senaryo')+' · '+(Y2.calculation?'LF':'—');rt2();return;}ct2();lastContextKey=contextKey();}
@@ -1479,7 +1464,7 @@ ctx.py = function py(e2) {
     element: s2,
     render: renderCached,
     dispose: () => {
-      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), t2?.removeEventListener(`change`, ut2), he2.dispose(), tooltip.dispose(), flowLayer.dispose(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), a2 && ctx.window.cancelAnimationFrame(a2), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
+      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), he2.dispose(), tooltip.dispose(), flowLayer.dispose(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
     }
   };
 };
