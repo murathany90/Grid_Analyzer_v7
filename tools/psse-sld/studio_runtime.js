@@ -19,7 +19,7 @@ const controller=()=>window.psseStudio?.controller??window.__GA_BRIDGE__;
 function defaultDiagramSettings(){
   return {
     annotations:{
-      showBusId:true,
+      showBusId:false,
       showBusName:true,
       showCktId:true,
       showEquipId:false,
@@ -127,459 +127,607 @@ function validateSldBinary(bytes){
   return {valid:true,version:ver};
 }
 
-function decodeMapRecord(mapType,bus1,bus2,bus3,ckt,isBusbarClass){
-  const c=(ckt||'1').trim()||'1';
-  switch(mapType){
-    case 1:return isBusbarClass?{map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1}:{map:bus1?`BU ${bus1}`:'',stype:'Node',psse:'BusNode',sdef:0};
-    case 2:return {map:bus1?`LO ${bus1} ${c} `:'',stype:'Radial',psse:'Load',sdef:2};
-    case 3:return {map:bus1?`ME ${bus1} ${c} `:'',stype:'Radial',psse:'Machine',sdef:4};
+const PSSE_365_PREAMBLE_B64 =
+  'CDIuMC41MS4xAP///wCAgIAAAMgAAAAAAKCZmak/AAAA4E1ioD8AAADgTWKwPwEAAAAAAACgmZnJPwAAAAAAAIA/AQAAAP////8BAAAAAAAAoJmZuT8AAACgmZnZPwAAAAAAACRAAAAAQOF6hD8AAACgmZm5PwAAAKCZmck/AAAAQDMz0z8AAACgmZm5PwEAAAAHAAAAAAAAAAAAJEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAoJmZqT8AAAAAZmbm1yIrDcBcj3KHwEoywAAAKJkY8EZAVHYYKplzBUBmZubXIisNwMsOQ1ym4THAAAAomRjwRkBUdhgqmXMFQAAAAAAAAAAAAAAAAACAAAD/gAAAAAAAAAAAAAAAAAAAAwAAAPoABDM2LjQBMBhEaWFncmFtX0RpYWdyYW1fU2V0dGluZ3MAATACMTIPQ29sb3JWaXNpYmlsaXR5AAE3C0hpZGVVbmJvdW5kATAFQm91bmQBMAdVbmJvdW5kCDE2NzExOTM1CEJya3JPcGVuBTY1MjgwCUJya3JDbG9zZQMyNTUNU2hvd0xvb3BGbG93cwExCUxvb3BGbG93cwczOTk3Njk1ATABMA1GYXVsdFNldHRpbmdzAAEzBVdpZHRoATIFU3R5bGUFNjM1MjAFQ29sb3IHODQyMTUwNAEwATALT09TU2V0dGluZ3MAATQGVXNlT09TATEFV2lkdGgBMQVTdHlsZQU2MzczNgVDb2xvcgc0MTk0MzY4ATABMAxWUkNTU2V0dGluZ3MAATYPVXNlVm9sdGFnZUNvbG9yATEPVXNlVm9sdGFnZUxheWVyATEFV2lkdGgWMSAgMSAgMSAgMSAgMSAgMSAgMSAgMQVTdHlsZR4tMSAgLTEgIC0xICAtMSAgLTEgIC0xICAtMSAgLTEFQ29sb3I9MCAgMjU1ICAxNjcxMTY4MCAgNjUyODAgIDgzODg4NjMgIDg0MjE0NDAgIDE0MzUyMzg0ICAxNjcxMTY4MARWb2x0NzAuMDAwICAxMy44MDAgIDE4LjAwMCAgMjAuMDAwICAyMS42MDAgIDIzMC4wMDAgIDUwMC4wMDABMAEwCUJhckNoYXJ0cwABNAlCYXJDaGFydHMBMA1UcmFuc0JhckNoYXJ0ATAPQmFyQ2hhcnRQZXJjZW50ETk1ICAxMDAgIDEwNSAgMTEwDUJhckNoYXJ0Q29sb3IXMTMzNjk1NDggIDI1NSAgMjA0ICAxMjgBMAEwEUR5bmFtaWNSYW5nZUNoZWNrAAIxNRJVc2VCcmFuY2hMb2FkQ29sb3IBMA1MaW5lTG9hZENvbG9yBTMzMDIzDUxpbmVMb2FkV2lkdGgBNQ1MaW5lTG9hZFN0eWxlAi0xC0xpbmVMb2FkaW5nCjEwMC4wMDAwMDAPVXNlQnVzVm9sdENvbG9yATAPQnVzVm9sdE1pbkNvbG9yBTMyNzY4D0J1c1ZvbHRNYXhDb2xvcgc4Mzg4ODYzD0J1c1ZvbHRNaW5XaWR0aAExD0J1c1ZvbHRNYXhXaWR0aAEyEUJ1c1ZvbHRNaW5Wb2x0YWdlCDAuMDAwMDAwEUJ1c1ZvbHRNYXhWb2x0YWdlCDEuMDAwMDAwD0JyYW5jaFJhdGluZ1NldAExDFN3ZFJhdGluZ1NldAEwD1VzZVN3ZExvYWRDb2xvcgEwATABMA5NVVNUQW5ub3RhdGlvbgABNQtNVVNUT3B0aW9uMQExC01VU1RPcHRpb24yATILTVVTVE9wdGlvbjMBMwtNVVNUT3B0aW9uNAEwC01VU1RPcHRpb240ATEBMAEwDURZTkFubm90YXRpb24AATMHRFlOTW9kZQExCURZTlJlc3VsdAExCkRZTkNvbnRvdXIBMAEwATANUkVMQW5ub3RhdGlvbgACMTEHUkVMTW9kZQEwClJFTE91dE1vZGUBMQpSRUxCdXNNb2RlATAKUkVMQ250TGlzdAExCVJFTENudEJ1cwExCVJFTENudEJybgExCVJFTFByYkJ1cwExCVJFTFByYkJybgExCVJFTERldEJ1cwExCVJFTERldEJybgExB1JFTFZSZWMBMQEwATANQVNDQW5ub3RhdGlvbgACMTAFQW5ub3QBMARUeXBlATEIRmF1bHRCdXMJMTAwMDAwMDAwA0JvZQExB0NvbnRyaWIBMAdGcm9tQnVzCTEwMDAwMDAwMAVUb0J1cwkxMDAwMDAwMDAHTGFzdEJ1cwkxMDAwMDAwMDAHQnVzU2VjdAkxMDAwMDAwMDACSWQAATABMA1JRUNBbm5vdGF0aW9uAAIxMAVBbm5vdAEwBFR5cGUBMQhGYXVsdEJ1cwkxMDAwMDAwMDADQm9lATEHQ29udHJpYgEwB0Zyb21CdXMJMTAwMDAwMDAwBVRvQnVzCTEwMDAwMDAwMAdMYXN0QnVzCTEwMDAwMDAwMAdCdXNTZWN0CTEwMDAwMDAwMAJJZAABMAEwC0Fubm90YXRpb25zAAIxNAtSZXN1bHRzVHlwZQExCEhpZGVNb2RlATAIRGlhZ1ByZWMKMSAgMSAgMSAgMhBCcmFuY2hBbm5vdGF0aW9uBzYgIDAgIDEKRmxvd0RpcmVjdAEwB0J1c1ZvbHQENiAgNAVCdXNJZAEyCUVxdWlwbWVudAQwICAxDlBlcmNlbnRNVkFMaW5lATEVUGVyY2VudE1WQVRyYW5zZm9ybWVyATEKUmVwb3J0TVNMcwExEVJlcG9ydEJ1c1NlY3Rpb25zATEMQnVzSW1wZWRhbmNlATYPQnJhbmNoSW1wZWRhbmNlATYBMAEwAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAABbw97DL794QKAAAAAAkAEAAFAAAAAFQXJpYWwBAAAAAAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAHgAAAAAAAOBRuL4/AAAAAP///wABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAAAAEDhepQ/AAAAAA==';
+
+function getDefaultPreamble(){
+  const bin=atob(PSSE_365_PREAMBLE_B64);
+  const out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+  return out;
+}
+
+function findMainListStart(bytes){
+  const idx=findAscii(bytes,'CSld');
+  if(idx<8)throw new Error('Geçersiz PSS®E .sld CArchive: CSld sınıf başlangıcı bulunamadı.');
+  return idx-8;
+}
+
+function encodeMapStruct(mapStr,isBusbar=false){
+  const parts=(mapStr||'').trim().split(/\s+/);
+  if(parts.length===0||!parts[0])return new Uint8Array(0);
+  const buf=new Uint8Array(32);
+  const dv=new DataView(buf.buffer);
+  dv.setUint32(0,32,true);
+  const code=parts[0].toUpperCase();
+  const b1=parts[1]&&/^\d+$/.test(parts[1])?parseInt(parts[1],10):0;
+  const b2=parts[2]&&/^\d+$/.test(parts[2])?parseInt(parts[2],10):0;
+  const ckt=parts[3]?parts[3]:(parts[2]?parts[2]:'1');
+
+  if(code==='BU'){
+    dv.setUint32(4,1,true);dv.setUint32(12,b1,true);
+    buf.set(encodeCp1254('    '),20);
+  }else if(code==='TR'||code==='TX'){
+    dv.setUint32(4,5,true);dv.setUint32(12,b1,true);dv.setUint32(16,b2,true);
+    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
+  }else if(code==='LI'||code==='LN'){
+    dv.setUint32(4,9,true);dv.setUint32(12,b1,true);dv.setUint32(16,b2,true);
+    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
+  }else if(code==='ME'||code==='GE'){
+    dv.setUint32(4,3,true);dv.setUint32(12,b1,true);
+    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
+  }else if(code==='LO'){
+    dv.setUint32(4,2,true);dv.setUint32(12,b1,true);
+    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
+  }else{
+    dv.setUint32(4,1,true);dv.setUint32(12,b1,true);
+    buf.set(encodeCp1254('    '),20);
+  }
+  return buf;
+}
+
+function decodeMapStruct(mapRaw){
+  if(mapRaw.length<20)return {map:'',stype:'Node',psse:'BusNode',sdef:0};
+  const dv=new DataView(mapRaw.buffer,mapRaw.byteOffset,mapRaw.byteLength);
+  const mtype=dv.getUint32(4,true),bus1=dv.getUint32(12,true),bus2=dv.getUint32(16,true);
+  const bus3=mapRaw.length>=24?dv.getUint32(20,true):0;
+  const ckt=decodeCp1254(mapRaw.subarray(20,Math.min(24,mapRaw.length))).trim()||'1';
+
+  switch(mtype){
+    case 1:return {map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1};
+    case 2:return {map:bus1?`LO ${bus1} ${ckt} `:'',stype:'Radial',psse:'Load',sdef:2};
+    case 3:return {map:bus1?`ME ${bus1} ${ckt} `:'',stype:'Radial',psse:'Machine',sdef:4};
     case 4:
-    case 6:return {map:bus1?`FXS ${bus1} ${c} `:'',stype:'Radial',psse:'FixedShunt',sdef:5};
+    case 6:return {map:bus1?`FXS ${bus1} ${ckt} `:'',stype:'Radial',psse:'FixedShunt',sdef:5};
     case 5:
-    case 11:return {map:bus1&&bus2?`TR ${bus1} ${bus2}${bus3?' '+bus3:''} ${c} `:'',stype:'Branch',psse:bus3?'TWTransformer':'Transformer',sdef:bus3?11:10};
+    case 11:return {map:bus1&&bus2?`TR ${bus1} ${bus2}${bus3?' '+bus3:''} ${ckt} `:'',stype:'Branch',psse:bus3?'TWTransformer':'Transformer',sdef:bus3?11:10};
     case 7:
-    case 13:return {map:bus1?`SWS ${bus1} ${c} `:'',stype:'Radial',psse:'SwitchedShunt',sdef:13};
-    case 9:return {map:bus1&&bus2?`LI ${bus1} ${bus2} ${c} `:'',stype:'Branch',psse:'Branch',sdef:32};
+    case 13:return {map:bus1?`SWS ${bus1} ${ckt} `:'',stype:'Radial',psse:'SwitchedShunt',sdef:13};
+    case 9:return {map:bus1&&bus2?`LI ${bus1} ${bus2} ${ckt} `:'',stype:'Branch',psse:'Branch',sdef:32};
     case 10:
-    case 12:return {map:bus1&&bus2?`SYS ${bus1} ${bus2} ${c} `:'',stype:'Branch',psse:'SwitchingDev',sdef:3};
-    default:return isBusbarClass?{map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1}:{map:bus1?`BU ${bus1}`:'',stype:'Node',psse:'BusNode',sdef:0};
+    case 12:return {map:bus1&&bus2?`SYS ${bus1} ${bus2} ${ckt} `:'',stype:'Branch',psse:'SwitchingDev',sdef:3};
+    default:return {map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1};
   }
 }
 
-function parseLayersFromBinary(bytes,dv){
-  const layers=[];
-  const clsPos=findAscii(bytes,'CSldLayer',0,Math.min(bytes.length,4096));
-  if(clsPos>=0){
-    let pos=clsPos+9;
-    const seen=new Set();
-    for(let idx=0;idx<64&&pos+16<Math.min(bytes.length,4096);idx++){
-      const lid=dv.getUint32(pos,true),lnum=dv.getUint32(pos+12,true);
-      if(lid===0||lid>100000||lnum>64)break;
-      const nameLen=bytes[pos+28];
-      if(nameLen===0||nameLen>80||pos+29+nameLen>bytes.length)break;
-      const desc=decodeCp1254(bytes.subarray(pos+29,pos+29+nameLen));
-      if(!seen.has(lnum)){seen.add(lnum);layers.push({n:lnum,desc,vis:'Visible'});}
-      const nextBase=pos+29+nameLen;
-      let nextPos=-1;
-      for(let scan=nextBase;scan<Math.min(bytes.length-32,nextBase+48);scan++){
-        const candId=dv.getUint32(scan,true),candZ=dv.getUint32(scan+4,true),candNum=dv.getUint32(scan+12,true);
-        if(candId>lid&&candId<lid+500&&candZ===0&&candNum<64&&bytes[scan+16]===0){
-          const slen=bytes[scan+28];
-          if(slen>0&&slen<64){nextPos=scan;break;}
-        }
-      }
-      if(nextPos<0)break;
-      pos=nextPos;
+class SldArchiveReader {
+  constructor(bytes,pos=0,isV51=true){
+    this.bytes=bytes;
+    this.dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    this.pos=pos;
+    this.isV51=isV51;
+    this.map=new Map();
+    this.map.set(0,{type:'NULL',value:null});
+    this.nextIdx=1;
+  }
+  u8(){return this.bytes[this.pos++];}
+  u16(){const v=this.dv.getUint16(this.pos,true);this.pos+=2;return v;}
+  u32(){const v=this.dv.getUint32(this.pos,true);this.pos+=4;return v;}
+  f64(){const v=this.dv.getFloat64(this.pos,true);this.pos+=8;return v;}
+  skip(n){const b=this.bytes.subarray(this.pos,this.pos+n);this.pos+=n;return b;}
+  count(){const c=this.u16();return c===0xffff?this.u32():c;}
+  cstringRaw(){
+    const b=this.u8();let length=b;
+    if(b===0xff){const w=this.u16();length=w===0xffff?this.u32():w;}
+    const s=this.bytes.subarray(this.pos,this.pos+length);this.pos+=length;return s;
+  }
+  readObject(){
+    const startPos=this.pos,w=this.u16();
+    if(w===0)return null;
+    const obTag=w===0x7fff?this.u32():w;
+    if(w!==0xffff&&(w&0x8000)===0){
+      const entry=this.map.get(obTag);
+      if(!entry)throw new Error(`Invalid REF 0x${obTag.toString(16)} at pos ${startPos}`);
+      return ['REF',obTag,entry.value];
+    }
+    let clsName;
+    if(w===0xffff){
+      this.u16();const nameLen=this.u16();
+      clsName=decodeCp1254(this.bytes.subarray(this.pos,this.pos+nameLen));
+      this.pos+=nameLen;
+      const clsIdx=this.nextIdx++;
+      this.map.set(clsIdx,{type:'CLASS',value:clsName});
+    }else{
+      const clsIdx=obTag&0x7fff,entry=this.map.get(clsIdx);
+      if(!entry||entry.type!=='CLASS')throw new Error(`Invalid CLASS tag 0x${obTag.toString(16)} at pos ${startPos}`);
+      clsName=entry.value;
+    }
+    const obIdx=this.nextIdx++,obj={_obIdx:obIdx,_class:clsName,_pos:startPos};
+    this.map.set(obIdx,{type:'OBJ',value:obj});
+    this.deserializeObj(clsName,obj);
+    obj._end=this.pos;
+    return ['NEW',obIdx,obj];
+  }
+  readObList(){
+    const cnt=this.count(),items=[];
+    for(let i=0;i<cnt;i++)items.push(this.readObject());
+    return items;
+  }
+  deserializeCompBase(obj){
+    obj.id=this.u32();obj.rot=this.f64();obj.layer=this.u32();obj.flag0=this.u8();
+    obj.f1=this.u32();obj.f2=this.u32();obj.f3=this.u32();obj.color=this.u32();
+    obj.comp_pre_map=this.skip(12);obj.map_raw=this.cstringRaw();
+    const acnt=this.count();obj.comp_annots=[];
+    for(let i=0;i<acnt;i++)obj.comp_annots.push(this.cstringRaw());
+    obj.comp_post_map=this.skip(this.isV51?37:33);
+    obj.x=this.f64();obj.y=this.f64();
+    obj.comp_post_xy=this.skip(16);
+    obj.labels=this.readObList();
+  }
+  deserializeSymbolBase(obj){
+    this.deserializeCompBase(obj);obj.sdef=this.u32();obj.sym_flag=this.u32();
+    obj.ports=this.readObList();
+  }
+  deserializeObj(clsName,obj){
+    if(clsName==='CSldBusbar'){
+      this.deserializeSymbolBase(obj);
+      obj.bus_tail=this.skip(this.isV51?60:58);
+    }else if(clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
+      this.deserializeSymbolBase(obj);
+      obj.sym_tail=this.skip(this.isV51?12:10);
+    }else if(clsName==='CSldLabel'){
+      this.deserializeCompBase(obj);
+      obj.text=decodeCp1254(this.cstringRaw());
+      obj.owner=this.readObject();
+      obj.lbl_vis=this.u32();obj.lbl_bg=this.u32();obj.lbl_default_font=this.u32();
+      obj.lbl_font_info=this.skip(36);
+      obj.lbl_font_name=decodeCp1254(this.cstringRaw());
+      obj.lbl_font_tail=this.skip(8);
+    }else if(clsName==='CSldPort'){
+      obj.owner=this.readObject();obj.link=this.readObject();
+      obj.port_idx=this.u32();obj.dx=this.f64();obj.dy=this.f64();
+      obj.port_tail=this.skip(16);
+    }else if(clsName==='CSldLink'){
+      this.deserializeCompBase(obj);
+      obj.link_pre_knees=this.skip(66);
+      obj.knees=this.readObList();
+      obj.p1=this.readObject();obj.p2=this.readObject();
+      obj.link_tail=this.skip(32);
+    }else if(clsName==='CSldKneePoint'){
+      this.deserializeCompBase(obj);
+      obj.owner=this.readObject();
+    }else if(clsName==='CSldLayer'){
+      obj.layer_hdr=this.skip(20);
+      obj.name=decodeCp1254(this.cstringRaw());
+      obj.vis=this.u32();
+      const numLists=this.isV51?22:21;
+      obj.layer_lists=[];
+      for(let i=0;i<numLists;i++)obj.layer_lists.push(this.readObList());
+    }else if(clsName==='CSldGroup'){
+      obj.name=decodeCp1254(this.cstringRaw());
+      obj.items=this.readObList();
+    }else if(clsName==='CSldSavedView'){
+      obj.name=decodeCp1254(this.cstringRaw());
+      obj.view_data=this.skip(78);
+    }else{
+      throw new Error(`Desteklenmeyen CArchive sınıfı: "${clsName}"`);
     }
   }
-  if(!layers.length){
-    return [{n:0,desc:'Background',vis:'Visible'},{n:1,desc:'Foreground',vis:'Visible'},{n:2,desc:'BaseVoltage 154,0',vis:'Visible'},{n:4,desc:'BaseVoltage 400,0',vis:'Visible'}];
+}
+
+class SldArchiveWriter {
+  constructor(isV51=true){
+    this.chunks=[];this.totalLen=0;this.isV51=isV51;
+    this.storeMap=new Map();this.classMap=new Map();this.nextIdx=1;
   }
-  return layers;
+  u8(v){this.chunks.push(new Uint8Array([v&0xff]));this.totalLen+=1;}
+  u16(v){const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,v&0xffff,true);this.chunks.push(b);this.totalLen+=2;}
+  u32(v){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,v>>>0,true);this.chunks.push(b);this.totalLen+=4;}
+  f64(v){const b=new Uint8Array(8);new DataView(b.buffer).setFloat64(0,Number(v),true);this.chunks.push(b);this.totalLen+=8;}
+  bytes(b){if(b&&b.length>0){this.chunks.push(b);this.totalLen+=b.length;}}
+  count(cnt){if(cnt<0xffff){this.u16(cnt);}else{this.u16(0xffff);this.u32(cnt);}}
+  cstringRaw(raw){
+    const len=raw.length;
+    if(len<0xff){this.u8(len);}else if(len<0xffff){this.u8(0xff);this.u16(len);}else{this.u8(0xff);this.u16(0xffff);this.u32(len);}
+    this.bytes(raw);
+  }
+  writeClass(clsName){
+    if(!this.classMap.has(clsName)){
+      const clsIdx=this.nextIdx++;
+      this.classMap.set(clsName,clsIdx);
+      this.u16(0xffff);this.u16(1);
+      const bName=encodeCp1254(clsName);
+      this.u16(bName.length);this.bytes(bName);
+    }else{
+      const clsIdx=this.classMap.get(clsName);
+      this.u16(0x8000|(clsIdx&0x7fff));
+    }
+  }
+  writeObject(obj){
+    if(obj===null||obj===undefined){this.u16(0);return;}
+    if(Array.isArray(obj)&&obj.length===3&&(obj[0]==='NEW'||obj[0]==='REF')){obj=obj[2];if(!obj){this.u16(0);return;}}
+    if(this.storeMap.has(obj)){
+      const obIdx=this.storeMap.get(obj);
+      if(obIdx<0x7fff){this.u16(obIdx);}else{this.u16(0x7fff);this.u32(obIdx);}
+      return;
+    }
+    const clsName=obj._class;
+    this.writeClass(clsName);
+    const obIdx=this.nextIdx++;
+    this.storeMap.set(obj,obIdx);
+    this.serializeObj(clsName,obj);
+  }
+  writeObList(items){
+    this.count(items.length);
+    for(let i=0;i<items.length;i++)this.writeObject(items[i]);
+  }
+  serializeCompBase(obj){
+    this.u32(obj.id);this.f64(obj.rot??0.0);this.u32(obj.layer??4);this.u8(obj.flag0??0);
+    this.u32(obj.f1??1);this.u32(obj.f2??1);this.u32(obj.f3??1);this.u32(obj.color??0);
+    this.bytes(obj.comp_pre_map||new Uint8Array(12));
+    this.cstringRaw(obj.map_raw||new Uint8Array(0));
+    const annots=obj.comp_annots||[];
+    this.count(annots.length);
+    for(let i=0;i<annots.length;i++)this.cstringRaw(annots[i]);
+    this.bytes(obj.comp_post_map||new Uint8Array(this.isV51?37:33));
+    this.f64(obj.x??0.0);this.f64(obj.y??0.0);
+    this.bytes(obj.comp_post_xy||new Uint8Array(16));
+    this.writeObList(obj.labels||[]);
+  }
+  serializeSymbolBase(obj){
+    this.serializeCompBase(obj);this.u32(obj.sdef??0);this.u32(obj.sym_flag??0);
+    this.writeObList(obj.ports||[]);
+  }
+  serializeObj(clsName,obj){
+    if(clsName==='CSldBusbar'){
+      this.serializeSymbolBase(obj);this.bytes(obj.bus_tail||new Uint8Array(this.isV51?60:58));
+    }else if(clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
+      this.serializeSymbolBase(obj);this.bytes(obj.sym_tail||new Uint8Array(this.isV51?12:10));
+    }else if(clsName==='CSldLabel'){
+      this.serializeCompBase(obj);this.cstringRaw(encodeCp1254(obj.text||''));
+      this.writeObject(obj.owner);
+      this.u32(obj.lbl_vis??1);this.u32(obj.lbl_bg??16777215);this.u32(obj.lbl_default_font??0);
+      this.bytes(obj.lbl_font_info||new Uint8Array(36));
+      this.cstringRaw(encodeCp1254(obj.lbl_font_name||'Arial'));
+      this.bytes(obj.lbl_font_tail||new Uint8Array(8));
+    }else if(clsName==='CSldPort'){
+      this.writeObject(obj.owner);this.writeObject(obj.link);
+      this.u32(obj.port_idx??0);this.f64(obj.dx??0.0);this.f64(obj.dy??0.0);
+      this.bytes(obj.port_tail||new Uint8Array(16));
+    }else if(clsName==='CSldLink'){
+      this.serializeCompBase(obj);this.bytes(obj.link_pre_knees||new Uint8Array(66));
+      this.writeObList(obj.knees||[]);this.writeObject(obj.p1);this.writeObject(obj.p2);
+      this.bytes(obj.link_tail||new Uint8Array(32));
+    }else if(clsName==='CSldKneePoint'){
+      this.serializeCompBase(obj);this.writeObject(obj.owner);
+    }else if(clsName==='CSldLayer'){
+      this.bytes(obj.layer_hdr||new Uint8Array(20));
+      this.cstringRaw(encodeCp1254(obj.name||''));
+      this.u32(obj.vis??1);
+      const lists=obj.layer_lists||[];
+      const numLists=this.isV51?22:21;
+      for(let i=0;i<numLists;i++)this.writeObList(lists[i]||[]);
+    }else if(clsName==='CSldGroup'){
+      this.cstringRaw(encodeCp1254(obj.name||'Default'));
+      this.writeObList(obj.items||[]);
+    }else if(clsName==='CSldSavedView'){
+      this.cstringRaw(encodeCp1254(obj.name||'Default'));
+      this.bytes(obj.view_data||new Uint8Array(78));
+    }else{
+      throw new Error(`Bilinmeyen CArchive serileştirme sınıfı: "${clsName}"`);
+    }
+  }
+  getBuffer(){
+    const out=new Uint8Array(this.totalLen);let off=0;
+    for(const ch of this.chunks){out.set(ch,off);off+=ch.length;}
+    return out;
+  }
 }
 
 async function parseSldBinary(bytes,fileName=''){
   const check=validateSldBinary(bytes);
   if(!check.valid)throw new Error(check.reason||'Geçersiz PSS®E .sld binary dosyası.');
-  const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
-  const isV36=check.version.startsWith('2.0.51.')||check.version.startsWith('2.0.50.');
-  const symPad=isV36?37:33,lblPosOff=isV36?85:81,lblTxtOff=isV36?119:115,kneeStep=isV36?121:117;
-  const layers=parseLayersFromBinary(bytes,dv);
-  const components=[],seenIds=new Set(),symEntries=[],lifoEvents=[];
+  const isV51=check.version.startsWith('2.0.51.')||check.version.startsWith('2.0.50.');
+  const startOff=findMainListStart(bytes);
+  const reader=new SldArchiveReader(bytes,startOff,isV51);
 
-  for(let i=500;i<bytes.length-160;i++){
-    if(bytes[i+16]===0&&(bytes[i+45]===0x1c||bytes[i+45]===0x20)){
-      const mlen=bytes[i+45],adOff=i+46+mlen;
-      if(adOff+12>=bytes.length)continue;
-      const adCnt=dv.getUint16(adOff,true);if(adCnt<1||adCnt>8)continue;
-      const slen=bytes[adOff+2];if(slen<5||slen>32||adOff+8>=bytes.length)continue;
-      if(bytes[adOff+3]!==0x41||bytes[adOff+4]!==0x4e||bytes[adOff+5]!==0x4e||bytes[adOff+6]!==0x4f||bytes[adOff+7]!==0x54)continue;
-      const cid=dv.getUint32(i,true),layer=dv.getUint32(i+12,true);
-      if(cid===0||cid>10000000||layer>64||seenIds.has(cid))continue;
-      let p=adOff+2,ok=true;
-      for(let k=0;k<adCnt;k++){if(p>=bytes.length){ok=false;break;}p+=1+bytes[p];}
-      if(!ok||p+symPad+24>bytes.length)continue;
-      const dx=dv.getFloat64(p+symPad,true),dy=dv.getFloat64(p+symPad+8,true),dr=dv.getFloat64(p+symPad+16,true),hdrRot=dv.getFloat64(i+4,true);
-      if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>5000||Math.abs(dy)>5000)continue;
-      const color=dv.getUint32(i+29,true),mapType=dv.getUint32(i+50,true),bus1=dv.getUint32(i+58,true),bus2=dv.getUint32(i+62,true),bus3=dv.getUint32(i+66,true);
-      const ckt=decodeCp1254(bytes.subarray(i+70,i+74));
-      const isBusbarClass=(bytes[i-2]===0x61&&bytes[i-1]===0x72)||(bytes[i-2]===0x01&&bytes[i-1]===0x80);
-      const dec=decodeMapRecord(mapType,bus1,bus2,bus3,ckt,isBusbarClass);
-      const useRot=Number.isFinite(dr)&&Math.abs(dr)>1e-4?dr:(Number.isFinite(hdrRot)?hdrRot:0);
-      seenIds.add(cid);
-      const symComp={id:cid,t:'Symbol',stype:dec.stype,psse:dec.psse,sdef:dec.sdef,layer,color,map:dec.map,pos:[Number(dx.toFixed(6)),Number(dy.toFixed(6))],rot:Number(useRot.toFixed(4))};
-      if(dec.stype==='Busbar'){
-        symComp.len=2.0;symComp.width=0.05;
-        lifoEvents.push({offset:i,kind:'OPEN',sym:symComp});
+  const rawMainList=reader.readObList();
+  const u1=reader.u32();
+  const rawLayers=reader.readObList();
+  const u2=reader.u16();
+  const rawGroups=reader.readObList();
+  const rawViews=reader.readObList();
+
+  const objs=[];
+  reader.map.forEach(entry=>{if(entry.type==='OBJ')objs.push(entry.value);});
+
+  const components=[];
+  for(const o of objs){
+    const clsName=o._class;
+    if(clsName==='CSldBusbar'||clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
+      const dec=decodeMapStruct(o.map_raw||new Uint8Array(0));
+      let stype=dec.stype,blen,bwidth,ends;
+      if(clsName==='CSldBusbar'){
+        stype='Busbar';
+        if(o.bus_tail&&o.bus_tail.length>=28){
+          const dv=new DataView(o.bus_tail.buffer,o.bus_tail.byteOffset,o.bus_tail.byteLength);
+          bwidth=Number(dv.getFloat64(12,true).toFixed(4));
+          blen=Number(dv.getFloat64(20,true).toFixed(4));
+        }else{bwidth=0.4;blen=16.0;}
+        const bx=o.x,by=o.y,isHoriz=Math.abs((o.rot??0.0)%180)>45;
+        ends=isHoriz
+          ?[[Number((bx-blen/2).toFixed(6)),Number(by.toFixed(6))],[Number((bx+blen/2).toFixed(6)),Number(by.toFixed(6))]]
+          :[[Number(bx.toFixed(6)),Number((by+blen/2).toFixed(6))],[Number(bx.toFixed(6)),Number((by-blen/2).toFixed(6))]];
       }
-      components.push(symComp);
-      symEntries.push({binOffset:i,afterHeaderOffset:p+symPad+24,comp:symComp});
-    }
-  }
-
-  for(let i=520;i<bytes.length-32;i++){
-    if(bytes[i]===0x00&&bytes[i+1]===0x00&&bytes[i+2]===0x80&&bytes[i+3]===0x3f){
-      const d1=dv.getUint16(i+8,true),d2=dv.getUint16(i+10,true);
-      if((d1===2&&d2===2)||(d1===1&&d2===1)||(d1===0&&d2===0)){
-        const w=dv.getFloat64(i-16,true),l=dv.getFloat64(i-8,true);
-        if(Number.isFinite(w)&&Number.isFinite(l)&&w>0.005&&w<0.25&&l>0.1&&l<100){
-          lifoEvents.push({offset:i-16,kind:'CLOSE',wl:[w,l]});
-        }
-      }
-    }
-  }
-  lifoEvents.sort((a,b)=>a.offset-b.offset);
-  const busStack=[];
-  for(const ev of lifoEvents){
-    if(ev.kind==='OPEN'&&ev.sym)busStack.push(ev.sym);
-    else if(ev.kind==='CLOSE'&&ev.wl&&busStack.length>0){
-      const bar=busStack.pop(),[w,l]=ev.wl;
-      bar.width=Number(w.toFixed(4));bar.len=Number(l.toFixed(4));
-      const [bx,by]=bar.pos;
-      const isHoriz=Math.abs((bar.rot??0)%180)>45;
-      bar.ends=isHoriz
-        ?[[Number((bx-l/2).toFixed(4)),Number(by.toFixed(4))],[Number((bx+l/2).toFixed(4)),Number(by.toFixed(4))]]
-        :[[Number(bx.toFixed(4)),Number((by+l/2).toFixed(4))],[Number(bx.toFixed(4)),Number((by-l/2).toFixed(4))]];
-    }
-  }
-  for(const bar of busStack){
-    const [bx,by]=bar.pos,l=bar.len??2.0;
-    bar.ends=[[Number(bx.toFixed(4)),Number((by+l/2).toFixed(4))],[Number(bx.toFixed(4)),Number((by-l/2).toFixed(4))]];
-  }
-
-  // 2) Scan all CSldLink records + their owned labels + CSldKneePoint records
-  const rawLinks=[];
-  for(let i=500;i<bytes.length-140;i++){
-    const isLinkTag=(bytes[i-2]===0x08&&bytes[i-1]===0x80)||(bytes[i-2]===0x6e&&bytes[i-1]===0x6b);
-    if(!isLinkTag||bytes[i+16]!==0)continue;
-    const lid=dv.getUint32(i,true),lLayer=dv.getUint32(i+12,true);
-    if(lid===0||lid>10000000||lLayer>64||seenIds.has(lid))continue;
-    let sigIdx=-1;
-    for(let s=i+100;s<Math.min(bytes.length-20,i+950);s++){
-      if(bytes[s]===0xe0&&bytes[s+1]===0x51&&bytes[s+2]===0xb8&&bytes[s+3]===0xbe&&bytes[s+4]===0x3f&&bytes[s+5]===0x00&&bytes[s+6]===0x00&&bytes[s+7]===0x00&&bytes[s+8]===0x00){
-        sigIdx=s;break;
-      }
-    }
-    if(sigIdx<0)continue;
-    const kcnt=dv.getUint16(sigIdx+9,true);
-    if(kcnt>40)continue;
-    seenIds.add(lid);
-
-    const ownedLabelCoords=[];
-    for(let s=i+110;s<sigIdx-80;s++){
-      const isLbl=(bytes[s]===0x03&&bytes[s+1]===0x80)||(s>=7&&bytes[s-7]===0x43&&bytes[s-6]===0x53&&bytes[s+1]===0x6c);
-      if(!isLbl)continue;
-      const lIdx=s+2;
-      if(lIdx+lblTxtOff+2>=sigIdx)continue;
-      const lbid=dv.getUint32(lIdx,true),lbLayer=dv.getUint32(lIdx+12,true);
-      if(lbid===0||lbid>10000000||lbLayer>64||bytes[lIdx+16]!==0)continue;
-      const tlen=bytes[lIdx+lblTxtOff];
-      if(lIdx+lblTxtOff+1+tlen>sigIdx)continue;
-      const lx=dv.getFloat64(lIdx+lblPosOff,true),ly=dv.getFloat64(lIdx+lblPosOff+8,true),lr=dv.getFloat64(lIdx+lblPosOff+16,true);
-      if(Number.isFinite(lx)&&Number.isFinite(ly)&&Math.abs(lx)<5000&&Math.abs(ly)<5000){
-        ownedLabelCoords.push([lx,ly]);
-        if(tlen>0&&!seenIds.has(lbid)){
-          const txt=decodeCp1254(bytes.subarray(lIdx+lblTxtOff+1,lIdx+lblTxtOff+1+tlen));
-          seenIds.add(lbid);
-          components.push({
-            id:lbid,t:'Label',layer:lbLayer,color:dv.getUint32(lIdx+29,true),
-            pos:[Number(lx.toFixed(6)),Number(ly.toFixed(6))],rot:Number.isFinite(lr)?Number(lr.toFixed(2)):0,
-            text:txt,fh:9,owner:lid
-          });
-        }
-      }
-    }
-
-    let kpCursor=sigIdx+11;
-    const rawKnees=[];
-    for(let k=0;k<kcnt;k++){
-      if(kpCursor+20>=bytes.length)break;
-      if(bytes[kpCursor]===0xff&&bytes[kpCursor+1]===0xff)kpCursor+=19;
-      else kpCursor+=2;
-      if(kpCursor+lblPosOff+16>bytes.length)break;
-      const kid=dv.getUint32(kpCursor,true),kx=dv.getFloat64(kpCursor+lblPosOff,true),ky=dv.getFloat64(kpCursor+lblPosOff+8,true);
-      if(Number.isFinite(kx)&&Number.isFinite(ky)&&Math.abs(kx)<5000&&Math.abs(ky)<5000){
-        rawKnees.push({id:kid,pos:[Number(kx.toFixed(6)),Number(ky.toFixed(6))],binOffset:kpCursor+lblPosOff});
-      }
-      kpCursor+=kneeStep;
-    }
-
-    rawLinks.push({binOffset:i,endOffset:kpCursor,id:lid,layer:lLayer,color:dv.getUint32(i+29,true),ownedLabelCoords,rawKnees});
-  }
-
-  // 3) Scan all remaining CSldLabel records
-  symEntries.sort((a,b)=>a.binOffset-b.binOffset);
-  for(let i=500;i<bytes.length-(lblTxtOff+6);i++){
-    const isLbl=(bytes[i-2]===0x03&&bytes[i-1]===0x80)||(i>=9&&bytes[i-9]===0x43&&bytes[i-8]===0x53&&bytes[i-1]===0x6c);
-    if(!isLbl||bytes[i+16]!==0)continue;
-    const lid=dv.getUint32(i,true),lLayer=dv.getUint32(i+12,true);
-    if(lid===0||lid>10000000||lLayer>64||seenIds.has(lid))continue;
-    const tlen=bytes[i+lblTxtOff];
-    if(tlen===0||tlen>220||i+lblTxtOff+1+tlen>bytes.length)continue;
-    const txt=decodeCp1254(bytes.subarray(i+lblTxtOff+1,i+lblTxtOff+1+tlen));
-    if(!txt.trim())continue;
-    const lx=dv.getFloat64(i+lblPosOff,true),ly=dv.getFloat64(i+lblPosOff+8,true),lr=dv.getFloat64(i+lblPosOff+16,true);
-    if(!Number.isFinite(lx)||!Number.isFinite(ly)||Math.abs(lx)>5000||Math.abs(ly)>5000)continue;
-    let ownerId;
-    for(let sIdx=symEntries.length-1;sIdx>=0;sIdx--){
-      if(symEntries[sIdx].binOffset<i){
-        if(i-symEntries[sIdx].afterHeaderOffset<950)ownerId=symEntries[sIdx].comp.id;
-        break;
-      }
-    }
-    seenIds.add(lid);
-    components.push({
-      id:lid,t:'Label',layer:lLayer,color:dv.getUint32(i+29,true),
-      pos:[Number(lx.toFixed(6)),Number(ly.toFixed(6))],rot:Number.isFinite(lr)?Number(lr.toFixed(2)):0,
-      text:txt,fh:9,owner:ownerId
-    });
-  }
-
-  // 4) Pair each RawLinkRecord with its exact (Busbar/Node p1, Branch/Radial p2) endpoints
-  const busSymsByNum=new Map();
-  for(const se of symEntries){
-    const c=se.comp;
-    if((c.stype==='Busbar'||c.stype==='Node')&&c.map?.startsWith('BU ')){
-      const bnum=c.map.slice(3).trim().split(/\s+/)[0];
-      if(bnum){
-        const list=busSymsByNum.get(bnum)||[];
-        list.push(c);
-        busSymsByNum.set(bnum,list);
-      }
-    }
-  }
-
-  function projectOntoBus(busSym,refPt){
-    const [bx,by]=busSym.pos||[0,0];
-    if(busSym.stype==='Busbar'&&busSym.ends&&busSym.ends.length===2){
-      const [[x1,y1],[x2,y2]]=busSym.ends;
-      const isHoriz=Math.abs(x2-x1)>Math.abs(y2-y1);
-      if(isHoriz){
-        const px=Math.max(Math.min(x1,x2),Math.min(Math.max(x1,x2),refPt[0]));
-        return [Number(px.toFixed(6)),Number(by.toFixed(6))];
-      }else{
-        const py=Math.max(Math.min(y1,y2),Math.min(Math.max(y1,y2),refPt[1]));
-        return [Number(bx.toFixed(6)),Number(py.toFixed(6))];
-      }
-    }
-    return [Number(bx.toFixed(6)),Number(by.toFixed(6))];
-  }
-
-  function pickBestBusSym(busNum,refPt){
-    const candidates=busSymsByNum.get(busNum);
-    if(!candidates||candidates.length===0)return null;
-    if(candidates.length===1)return candidates[0];
-    let best=candidates[0],bestDist=Infinity;
-    for(const cand of candidates){
-      const proj=projectOntoBus(cand,refPt);
-      const d=Math.hypot(proj[0]-refPt[0],proj[1]-refPt[1]);
-      if(d<bestDist){bestDist=d;best=cand;}
-    }
-    return best;
-  }
-
-  const usedLinkIds=new Set();
-  for(const se of symEntries){
-    const sym=se.comp;
-    if(sym.stype!=='Branch'&&sym.stype!=='Radial')continue;
-    const parts=(sym.map||'').trim().split(/\s+/);
-    const bus1=parts[1]||'',bus2=sym.stype==='Branch'?(parts[2]||''):'';
-    const [sx,sy]=sym.pos||[0,0];
-    const nearby=rawLinks.filter(rl=>!usedLinkIds.has(rl.id)&&Math.abs(rl.binOffset-se.binOffset)<=1350).sort((a,b)=>a.binOffset-b.binOffset);
-
-    if(sym.stype==='Radial'){
-      const rl=nearby[0];
-      const refPt=rl&&rl.ownedLabelCoords.length>=2
-        ?[(rl.ownedLabelCoords[0][0]+rl.ownedLabelCoords[1][0])/2,(rl.ownedLabelCoords[0][1]+rl.ownedLabelCoords[1][1])/2]
-        :(rl&&rl.rawKnees.length>0?rl.rawKnees[0].pos:[sx,sy]);
-      const bSym=pickBestBusSym(bus1,refPt);
-      if(bSym){
-        const p1Pos=projectOntoBus(bSym,refPt);
-        const knees=rl?rl.rawKnees.map(k=>k.pos):[];
-        if(rl)usedLinkIds.add(rl.id);
-        components.push({
-          id:rl?rl.id:sym.id+100000,t:'Link',layer:rl?rl.layer:sym.layer,color:rl?rl.color:sym.color,lwidth:0.02,
-          p1:{sym:bSym.id,pos:p1Pos,idx:0},p2:{sym:sym.id,pos:[sx,sy],idx:0},
-          knees:knees.length>0?knees:undefined,_rawKnees:rl?.rawKnees
-        });
-      }
-    }else if(sym.stype==='Branch'){
-      const before=nearby.filter(r=>r.binOffset<se.binOffset).pop();
-      const after=nearby.find(r=>r.binOffset>se.binOffset);
-      const pairLinks=[before,after].filter(Boolean);
-      const getRef=(rl)=>{
-        if(rl&&rl.ownedLabelCoords.length>=2)return [(rl.ownedLabelCoords[0][0]+rl.ownedLabelCoords[1][0])/2,(rl.ownedLabelCoords[0][1]+rl.ownedLabelCoords[1][1])/2];
-        if(rl&&rl.rawKnees.length>0)return rl.rawKnees[0].pos;
-        return [sx,sy];
+      const symComp={
+        id:o.id,t:'Symbol',stype,psse:dec.psse,sdef:o.sdef??dec.sdef,
+        layer:o.layer??4,color:o.color??0,map:dec.map,
+        pos:[Number(o.x.toFixed(6)),Number(o.y.toFixed(6))],
+        rot:Number((o.rot??0.0).toFixed(4))
       };
-      const refA=getRef(pairLinks[0]),refB=getRef(pairLinks[1]);
-      const bSym1A=pickBestBusSym(bus1,refA),bSym2B=pickBestBusSym(bus2,refB);
-      const bSym1B=pickBestBusSym(bus1,refB),bSym2A=pickBestBusSym(bus2,refA);
-      let assignSwapped=false;
-      if(bSym1A&&bSym2B&&bSym1B&&bSym2A){
-        const dNormal=Math.hypot(projectOntoBus(bSym1A,refA)[0]-refA[0],projectOntoBus(bSym1A,refA)[1]-refA[1])+Math.hypot(projectOntoBus(bSym2B,refB)[0]-refB[0],projectOntoBus(bSym2B,refB)[1]-refB[1]);
-        const dSwap=Math.hypot(projectOntoBus(bSym2A,refA)[0]-refA[0],projectOntoBus(bSym2A,refA)[1]-refA[1])+Math.hypot(projectOntoBus(bSym1B,refB)[0]-refB[0],projectOntoBus(bSym1B,refB)[1]-refB[1]);
-        if(dSwap+0.05<dNormal)assignSwapped=true;
+      if(blen!==undefined&&bwidth!==undefined&&ends){
+        symComp.len=blen;symComp.width=bwidth;symComp.ends=ends;
       }
-      const assignments=assignSwapped
-        ?[{rl:pairLinks[0],busSym:bSym2A,ref:refA,portIdx:0},{rl:pairLinks[1],busSym:bSym1B,ref:refB,portIdx:1}]
-        :[{rl:pairLinks[0],busSym:bSym1A,ref:refA,portIdx:0},{rl:pairLinks[1],busSym:bSym2B,ref:refB,portIdx:1}];
+      symComp._rawObj=o;
+      components.push(symComp);
+    }
+  }
 
-      for(const item of assignments){
-        if(!item.busSym)continue;
-        if(item.rl)usedLinkIds.add(item.rl.id);
-        const p1Pos=projectOntoBus(item.busSym,item.ref);
-        const dx=p1Pos[0]-sx,dy=p1Pos[1]-sy,dist=Math.hypot(dx,dy)||1;
-        const p2Pos=[Number((sx+(dx/dist)*0.116).toFixed(6)),Number((sy+(dy/dist)*0.116).toFixed(6))];
-        const rawKnees=item.rl?.rawKnees||[];
-        const knees=rawKnees.map(k=>k.pos).filter(kp=>{
-          const colY=Math.abs(kp[1]-p1Pos[1])<0.03&&Math.abs(p1Pos[1]-p2Pos[1])<0.03;
-          const colX=Math.abs(kp[0]-p1Pos[0])<0.03&&Math.abs(p1Pos[0]-p2Pos[0])<0.03;
-          return !(rawKnees.length===1&&(colY||colX));
-        });
-        components.push({
-          id:item.rl?item.rl.id:sym.id*100+item.portIdx,t:'Link',layer:item.rl?item.rl.layer:sym.layer,color:item.rl?item.rl.color:sym.color,lwidth:0.02,
-          p1:{sym:item.busSym.id,pos:p1Pos,idx:0},p2:{sym:sym.id,pos:p2Pos,idx:item.portIdx},
-          knees:knees.length>0?knees:undefined,_rawKnees:rawKnees
-        });
+  for(const o of objs){
+    if(o._class==='CSldLink'){
+      const p1Obj=o.p1?(Array.isArray(o.p1)?o.p1[2]:o.p1):null;
+      const p2Obj=o.p2?(Array.isArray(o.p2)?o.p2[2]:o.p2):null;
+      const s1Obj=p1Obj&&p1Obj.owner?(Array.isArray(p1Obj.owner)?p1Obj.owner[2]:p1Obj.owner):null;
+      const s2Obj=p2Obj&&p2Obj.owner?(Array.isArray(p2Obj.owner)?p2Obj.owner[2]:p2Obj.owner):null;
+      const p1Pos=s1Obj&&p1Obj?[Number((s1Obj.x+p1Obj.dx).toFixed(6)),Number((s1Obj.y+p1Obj.dy).toFixed(6))]:[0.0,0.0];
+      const p2Pos=s2Obj&&p2Obj?[Number((s2Obj.x+p2Obj.dx).toFixed(6)),Number((s2Obj.y+p2Obj.dy).toFixed(6))]:[0.0,0.0];
+
+      const knees=[],rawKnees=[],kList=o.knees||[];
+      for(const kw of kList){
+        const kp=Array.isArray(kw)?kw[2]:kw;
+        if(kp){
+          const kpos=[Number(kp.x.toFixed(6)),Number(kp.y.toFixed(6))];
+          knees.push(kpos);
+          rawKnees.push({id:kp.id,pos:kpos,binOffset:kp._pos||0});
+        }
+      }
+      const linkComp={
+        id:o.id,t:'Link',layer:o.layer??4,color:o.color??0,lwidth:1,
+        p1:{sym:s1Obj?s1Obj.id:0,pos:p1Pos,idx:p1Obj?p1Obj.port_idx??0:0},
+        p2:{sym:s2Obj?s2Obj.id:0,pos:p2Pos,idx:p2Obj?p2Obj.port_idx??0:0}
+      };
+      if(knees.length>0){linkComp.knees=knees;linkComp._rawKnees=rawKnees;}
+      linkComp._rawObj=o;
+      components.push(linkComp);
+    }
+  }
+
+  for(const o of objs){
+    if(o._class==='CSldLabel'){
+      const ownerObj=o.owner?(Array.isArray(o.owner)?o.owner[2]:o.owner):null;
+      components.push({
+        id:o.id,t:'Label',layer:o.layer??4,color:o.color??0,
+        pos:[Number(o.x.toFixed(6)),Number(o.y.toFixed(6))],
+        rot:Number((o.rot??0.0).toFixed(4)),
+        text:o.text||'',fh:9,owner:ownerObj?ownerObj.id:undefined,
+        _rawObj:o
+      });
+    }
+  }
+
+  const docLayers=[];
+  for(let idx=0;idx<layers.length;idx++){
+    const lObj=Array.isArray(layers[idx])?layers[idx][2]:layers[idx];
+    if(lObj)docLayers.push({n:idx,desc:lObj.name||`Layer ${idx}`,vis:lObj.vis===0?'Invisible':'Visible'});
+  }
+
+  return {format:'ga-sld-v1',fileVersion:check.version,layers:docLayers,components,rawBytes:bytes,_rawMainList:rawMainList,_rawLayers:rawLayers,_rawGroups:rawGroups,_rawViews:rawViews,_u1:u1,_u2:u2};
+}
+
+function serializeSldBinary(doc,targetVersion='2.0.51.1'){
+  const isV51=!targetVersion.startsWith('2.0.49.');
+  let preamble;
+  if(doc.rawBytes&&doc.rawBytes.length>=512){
+    const pEnd=findMainListStart(doc.rawBytes);
+    preamble=doc.rawBytes.subarray(0,pEnd);
+  }else{
+    preamble=getDefaultPreamble();
+  }
+
+  if(doc._rawLayers&&doc._rawMainList){
+    const compMap=new Map();
+    for(const c of doc.components)compMap.set(c.id,c);
+
+    for(const w of doc._rawMainList){
+      const o=Array.isArray(w)?w[2]:w;
+      if(!o)continue;
+      const c=compMap.get(o.id);
+      if(c){
+        if(c.pos){o.x=c.pos[0];o.y=c.pos[1];}
+        if(c.rot!==undefined)o.rot=c.rot;
+        if(c.color!==undefined)o.color=c.color;
+        if(c.t==='Link'){
+          if(c.knees&&Array.isArray(c.knees)){
+            const kList=[];
+            for(let kidx=0;kidx<c.knees.length;kidx++){
+              const kp=c.knees[kidx];
+              const kneeId=90000+o.id*10+kidx;
+              kList.push({
+                _class:'CSldKneePoint',id:kneeId,rot:0.0,layer:o.layer??4,flag0:0,f1:1,f2:1,f3:0,color:o.color??0,
+                comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],comp_post_map:new Uint8Array(isV51?37:33),
+                x:kp[0],y:kp[1],comp_post_xy:new Uint8Array(16),labels:[],owner:o
+              });
+            }
+            o.knees = kList;
+          }
+        }else if(c.t==='Label'&&c.text!==undefined){o.text=c.text;}
       }
     }
+
+    const writer=new SldArchiveWriter(isV51);
+    writer.writeObList(doc._rawMainList.map(w=>Array.isArray(w)?w[2]:w));
+    writer.u32(doc._u1??1);
+    writer.writeObList(doc._rawLayers.map(w=>Array.isArray(w)?w[2]:w));
+    writer.u16(doc._u2??0);
+    writer.writeObList(doc._rawGroups?doc._rawGroups.map(w=>Array.isArray(w)?w[2]:w):[]);
+    writer.writeObList(doc._rawViews?doc._rawViews.map(w=>Array.isArray(w)?w[2]:w):[]);
+
+    const bodyBytes=writer.getBuffer();
+    const fullBytes=new Uint8Array(preamble.length+bodyBytes.length);
+    fullBytes.set(preamble,0);
+    fullBytes.set(bodyBytes,preamble.length);
+    parseSldBinary(fullBytes);
+    return fullBytes;
   }
 
-  const doc={format:'ga-sld-v1',name:fileName||'Diagram.sld',fileVersion:check.version,layers,components};
-  ensureLinkPortAttachments(doc);
-  return doc;
-}
-
-function findSymbolHeaderOffset(bytes,dv,cid,expectedLayer,symPad){
-  const b0=cid&0xff,b1=(cid>>8)&0xff,b2=(cid>>16)&0xff,b3=(cid>>24)&0xff,limit=bytes.length-150;
-  for(let i=500;i<=limit;i++){
-    if(bytes[i]===b0&&bytes[i+1]===b1&&bytes[i+2]===b2&&bytes[i+3]===b3){
-      if(bytes[i+16]!==0)continue;
-      const mlen=bytes[i+45];if(mlen!==0x1c&&mlen!==0x20)continue;
-      const lyr=dv.getUint32(i+12,true);
-      if(expectedLayer!==undefined&&lyr!==expectedLayer&&lyr>64)continue;
-      const adOff=i+46+mlen;if(adOff+8>=bytes.length)continue;
-      if(bytes[adOff+3]!==0x41||bytes[adOff+4]!==0x4e||bytes[adOff+5]!==0x4e||bytes[adOff+6]!==0x4f||bytes[adOff+7]!==0x54)continue;
-      const adCnt=dv.getUint16(adOff,true);if(adCnt<1||adCnt>10)continue;
-      let p=adOff+2,ok=true;
-      for(let k=0;k<adCnt;k++){if(p>=bytes.length){ok=false;break;}p+=1+bytes[p];}
-      if(ok&&p+symPad+24<=bytes.length)return i;
+  const symMap=new Map(),linkList=[],labelsByOwner=new Map(),portsBySym=new Map();
+  for(const c of doc.components){
+    if(c.t==='Symbol'){symMap.set(c.id,c);portsBySym.set(c.id,[]);
+    }else if(c.t==='Link'){linkList.push(c);
+    }else if(c.t==='Label'){
+      const owner=c.owner??0,list=labelsByOwner.get(owner)??[];list.push(c);labelsByOwner.set(owner,list);
     }
   }
-  return -1;
-}
 
-function findLinkHeaderOffset(bytes,dv,cid){
-  const b0=cid&0xff,b1=(cid>>8)&0xff,b2=(cid>>16)&0xff,b3=(cid>>24)&0xff,limit=bytes.length-64;
-  for(let i=500;i<=limit;i++){
-    if(bytes[i]===b0&&bytes[i+1]===b1&&bytes[i+2]===b2&&bytes[i+3]===b3){
-      if(bytes[i+16]!==0)continue;
-      if(bytes[i+20]!==1||bytes[i+21]!==1||bytes[i+22]!==1||bytes[i+23]!==0||bytes[i+24]!==0)continue;
-      if(bytes[i+45]===0xe0&&bytes[i+46]===0x51&&bytes[i+47]===0xb8&&bytes[i+48]===0xbe&&bytes[i+49]===0x3f)return i;
+  const carchiveObjs=new Map();
+  symMap.forEach((c,cid)=>{
+    const stype=c.stype||'Busbar';
+    const clsName=stype==='Busbar'?'CSldBusbar':(stype==='Node'?'CSldPointNode':(stype==='Radial'?'CSldRadial':'CSldBranch'));
+    const mapRaw=encodeMapStruct(c.map||'',stype==='Busbar');
+    const pos=c.pos||[0.0,0.0],blen=c.len??16.0,bwidth=c.width??0.4,color=c.color??0xff0000,layer=c.layer??4,rot=c.rot??0.0;
+    const busTail=new Uint8Array(isV51?60:58),busDv=new DataView(busTail.buffer);
+    busDv.setUint32(0,1,true);busDv.setUint32(4,color,true);
+    busDv.setFloat64(12,bwidth,true);busDv.setFloat64(20,blen,true);
+    busDv.setFloat32(28,1.0,true);busDv.setFloat32(32,1.0,true);busDv.setInt32(36,-1,true);
+    busDv.setUint16(40,2,true);busDv.setUint16(42,2,true);busDv.setUint16(44,1,true);busDv.setUint16(46,1,true);
+
+    const obj={
+      _class:clsName,id:cid,rot,layer,flag0:0,f1:1,f2:1,f3:1,color,
+      comp_pre_map:new Uint8Array(12),map_raw:mapRaw,comp_annots:[],
+      comp_post_map:new Uint8Array(isV51?37:33),x:pos[0],y:pos[1],comp_post_xy:new Uint8Array(16),
+      labels:[],sdef:c.sdef??(stype==='Busbar'?1:0),sym_flag:0,ports:[],
+      bus_tail:busTail,sym_tail:new Uint8Array(isV51?12:10)
+    };
+    carchiveObjs.set(cid,obj);
+  });
+
+  for(const l of linkList){
+    const lid=l.id,p1Info=l.p1||{},p2Info=l.p2||{},s1Id=p1Info.sym,s2Id=p2Info.sym;
+    const s1Obj=carchiveObjs.get(s1Id),s2Obj=carchiveObjs.get(s2Id);
+    const p1Pos=p1Info.pos||(s1Obj?[s1Obj.x,s1Obj.y]:[0.0,0.0]);
+    const p2Pos=p2Info.pos||(s2Obj?[s2Obj.x,s2Obj.y]:[0.0,0.0]);
+    const color=l.color??0x00ff00,layer=l.layer??4;
+
+    const linkPreKnees=new Uint8Array(66);
+    linkPreKnees[0]=0xcd;linkPreKnees[1]=0xcc;linkPreKnees[2]=0x4c;linkPreKnees[3]=0x3d;
+    linkPreKnees[4]=0xff;linkPreKnees[5]=0xff;linkPreKnees[6]=0xff;linkPreKnees[7]=0xff;
+    linkPreKnees[16]=0x01;linkPreKnees[46]=0xff;linkPreKnees[47]=0xff;linkPreKnees[48]=0xff;linkPreKnees[49]=0xff;
+    linkPreKnees[58]=0xe0;linkPreKnees[59]=0x51;linkPreKnees[60]=0xb8;linkPreKnees[61]=0xbe;linkPreKnees[62]=0x3f;
+
+    const linkTail=new Uint8Array(32);linkTail[1]=0x01;
+    const linkObj={
+      _class:'CSldLink',id:lid,rot:0.0,layer,flag0:0,f1:1,f2:1,f3:0,color,
+      comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
+      comp_post_map:new Uint8Array(isV51?37:33),x:0.0,y:0.0,comp_post_xy:new Uint8Array(16),
+      labels:[],link_pre_knees:linkPreKnees,knees:[],p1:null,p2:null,link_tail:linkTail
+    };
+    carchiveObjs.set(lid,linkObj);
+
+    const knees=l.knees||[];
+    for(let kidx=0;kidx<knees.length;kidx++){
+      const kp=knees[kidx],kneeId=90000+lid*10+kidx;
+      const kObj={
+        _class:'CSldKneePoint',id:kneeId,rot:0.0,layer,flag0:0,f1:1,f2:1,f3:0,color,
+        comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
+        comp_post_map:new Uint8Array(isV51?37:33),x:kp[0],y:kp[1],comp_post_xy:new Uint8Array(16),
+        labels:[],owner:linkObj
+      };
+      linkObj.knees.push(kObj);
+    }
+
+    const dx1=s1Obj?p1Pos[0]-s1Obj.x:0.0,dy1=s1Obj?p1Pos[1]-s1Obj.y:0.0;
+    const port1={_class:'CSldPort',owner:s1Obj,link:linkObj,port_idx:p1Info.idx??(portsBySym.get(s1Id)?.length??0),dx:dx1,dy:dy1,port_tail:new Uint8Array(16)};
+    linkObj.p1=port1;if(s1Obj)portsBySym.get(s1Id).push(port1);
+
+    const dx2=s2Obj?p2Pos[0]-s2Obj.x:0.0,dy2=s2Obj?p2Pos[1]-s2Obj.y:0.0;
+    const port2={_class:'CSldPort',owner:s2Obj,link:linkObj,port_idx:p2Info.idx??(portsBySym.get(s2Id)?.length??0),dx:dx2,dy:dy2,port_tail:new Uint8Array(16)};
+    linkObj.p2=port2;if(s2Obj)portsBySym.get(s2Id).push(port2);
+  }
+
+  carchiveObjs.forEach((sObj,sid)=>{
+    if(sObj._class==='CSldBusbar'||sObj._class==='CSldPointNode'||sObj._class==='CSldRadial'||sObj._class==='CSldBranch'){
+      sObj.ports=portsBySym.get(sid)||[];
+    }
+  });
+
+  labelsByOwner.forEach((lblList,ownerId)=>{
+    const ownerObj=carchiveObjs.get(ownerId);if(!ownerObj)return;
+    for(const l of lblList){
+      const pos=l.pos||[ownerObj.x,ownerObj.y];
+      const fontInfo=new Uint8Array(36),fontDv=new DataView(fontInfo.buffer);
+      fontDv.setInt32(0,9,true);fontDv.setInt32(16,400,true);
+      const lblObj={
+        _class:'CSldLabel',id:l.id,rot:l.rot??0.0,layer:l.layer??(ownerObj.layer??4),
+        flag0:0,f1:1,f2:1,f3:1,color:l.color??0xffffff,
+        comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
+        comp_post_map:new Uint8Array(isV51?37:33),x:pos[0],y:pos[1],comp_post_xy:new Uint8Array(16),
+        labels:[],text:l.text||'',owner:ownerObj,lbl_vis:1,lbl_bg:0xffffff,lbl_default_font:0,
+        lbl_font_info:fontInfo,lbl_font_name:'Arial',lbl_font_tail:new Uint8Array(8)
+      };
+      ownerObj.labels.push(lblObj);
+    }
+  });
+
+  const mainList=[];
+  for(const c of doc.components){
+    const cid=c.id;
+    if(carchiveObjs.has(cid)){
+      const o=carchiveObjs.get(cid);
+      mainList.push(o);
+      if(o.labels)for(const lbl of o.labels)mainList.push(lbl);
+      if(o.knees)for(const kp of o.knees)mainList.push(kp);
     }
   }
-  return -1;
-}
 
-function findLabelHeaderOffset(bytes,dv,cid,expectedLayer,lblTxtOff){
-  const b0=cid&0xff,b1=(cid>>8)&0xff,b2=(cid>>16)&0xff,b3=(cid>>24)&0xff,limit=bytes.length-(lblTxtOff+4);
-  for(let i=500;i<=limit;i++){
-    if(bytes[i]===b0&&bytes[i+1]===b1&&bytes[i+2]===b2&&bytes[i+3]===b3){
-      if(bytes[i+16]!==0)continue;
-      if(bytes[i+20]!==1||bytes[i+21]!==1||bytes[i+22]!==1||bytes[i+23]!==0||bytes[i+24]!==0)continue;
-      const hasTag=(bytes[i-2]===0x03&&bytes[i-1]===0x80)||(i>=9&&bytes[i-9]===0x43&&bytes[i-8]===0x53&&bytes[i-1]===0x6c);
-      if(!hasTag)continue;
-      const lyr=dv.getUint32(i+12,true);
-      if((expectedLayer===undefined||lyr===expectedLayer)&&lyr<=64)return i;
-    }
+  const layerNames=[
+    'Background','Foreground','BaseVoltage 154,0','BaseVoltage 380,0','BaseVoltage 400,0',
+    'BaseVoltage 220,0','BaseVoltage 66,0','BaseVoltage 33,0','BaseVoltage 31,5',
+    'BaseVoltage 15,8','BaseVoltage 10,6','BaseVoltage 10,5','BaseVoltage 6,3',
+    'BaseVoltage 3,3','BaseVoltage 0,4','User Layer 1','User Layer 2','User Layer 3','User Layer 4'
+  ];
+  const activeNames=isV51?layerNames:layerNames.slice(0,12),layers=[];
+  for(let lIdx=0;lIdx<activeNames.length;lIdx++){
+    const layerHdr=new Uint8Array([0x00,0x00,0x00,0x00,0x7b,0x14,0xae,0x47,0xe1,0x7a,0x84,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x40]);
+    layers.push({_class:'CSldLayer',layer_hdr:layerHdr,name:activeNames[lIdx],vis:1,layer_lists:Array.from({length:isV51?22:21},()=>[])});
   }
-  return -1;
+
+  const groups=[{_class:'CSldGroup',name:'Default',items:[]}];
+  const viewData=new Uint8Array(78),viewDv=new DataView(viewData.buffer);
+  viewDv.setFloat64(0,-25.0,true);viewDv.setFloat64(8,-25.0,true);viewDv.setFloat64(16,25.0,true);viewDv.setFloat64(24,25.0,true);
+  const views=[{_class:'CSldSavedView',name:'Default',view_data:viewData}];
+
+  const writer=new SldArchiveWriter(isV51);
+  writer.writeObList(mainList);
+  writer.u32(1);
+  writer.writeObList(layers);
+  writer.u16(0);
+  writer.writeObList(groups);
+  writer.writeObList(views);
+
+  const bodyBytes=writer.getBuffer();
+  const fullBytes=new Uint8Array(preamble.length+bodyBytes.length);
+  fullBytes.set(preamble,0);
+  fullBytes.set(bodyBytes,preamble.length);
+
+  return fullBytes;
 }
 
-function patchSldBinary(baseBytes,gaSld){
+function patchSldBinary(baseBytes,doc){
   const check=validateSldBinary(baseBytes);
-  if(!check.valid)throw new Error(check.reason||'Baz .sld dosyası geçersiz.');
-  const work=new Uint8Array(baseBytes);
-  const dv=new DataView(work.buffer,work.byteOffset,work.byteLength);
-  const isV36=check.version.startsWith('2.0.51.')||check.version.startsWith('2.0.50.');
-  const symPad=isV36?37:33,lblPosOff=isV36?85:81,lblTxtOff=isV36?119:115;
-
-  for(const c of gaSld.components||[]){
-    if(c.t!=='Symbol'||!c.pos)continue;
-    const idx=findSymbolHeaderOffset(work,dv,c.id,c.layer,symPad);
-    if(idx>=0){
-      if(c.layer!==undefined&&dv.getUint32(idx+12,true)!==c.layer)dv.setUint32(idx+12,c.layer,true);
-      if(c.color!==undefined&&dv.getUint32(idx+29,true)!==c.color)dv.setUint32(idx+29,c.color,true);
-      const mlen=work[idx+45],adOff=idx+46+mlen,adCnt=dv.getUint16(adOff,true);
-      let p=adOff+2;for(let k=0;k<adCnt;k++)p+=1+work[p];
-      const curX=dv.getFloat64(p+symPad,true),curY=dv.getFloat64(p+symPad+8,true),curR=dv.getFloat64(p+symPad+16,true);
-      if(Math.abs(curX-Number(c.pos[0]))>1e-4||Math.abs(curY-Number(c.pos[1]))>1e-4){
-        dv.setFloat64(p+symPad,Number(c.pos[0]),true);
-        dv.setFloat64(p+symPad+8,Number(c.pos[1]),true);
-      }
-      if(c.rot!==undefined&&Math.abs(curR-Number(c.rot||0))>1e-2){
-        dv.setFloat64(p+symPad+16,Number(c.rot||0),true);
-      }
-    }
-  }
-
-  for(const c of gaSld.components||[]){
-    if(c.t!=='Link'||!c.knees||!c._rawKnees)continue;
-    if(c.knees.length===c._rawKnees.length){
-      for(let k=0;k<c.knees.length;k++){
-        const binOff=c._rawKnees[k]?.binOffset;
-        if(binOff&&binOff+16<=work.length){
-          dv.setFloat64(binOff,Number(c.knees[k][0]),true);
-          dv.setFloat64(binOff+8,Number(c.knees[k][1]),true);
-        }
-      }
-    }
-  }
-
-  const splices=[];
-  for(const c of gaSld.components||[]){
-    if(c.t!=='Label')continue;
-    const idx=findLabelHeaderOffset(work,dv,c.id,c.layer,lblTxtOff);
-    if(idx>=0){
-      if(c.layer!==undefined&&dv.getUint32(idx+12,true)!==c.layer)dv.setUint32(idx+12,c.layer,true);
-      if(c.color!==undefined&&dv.getUint32(idx+29,true)!==c.color)dv.setUint32(idx+29,c.color,true);
-      if(c.pos){
-        const curX=dv.getFloat64(idx+lblPosOff,true),curY=dv.getFloat64(idx+lblPosOff+8,true),curR=dv.getFloat64(idx+lblPosOff+16,true);
-        if(Math.abs(curX-Number(c.pos[0]))>1e-4||Math.abs(curY-Number(c.pos[1]))>1e-4){
-          dv.setFloat64(idx+lblPosOff,Number(c.pos[0]),true);
-          dv.setFloat64(idx+lblPosOff+8,Number(c.pos[1]),true);
-        }
-        if(c.rot!==undefined&&Math.abs(curR-Number(c.rot||0))>1e-2){
-          dv.setFloat64(idx+lblPosOff+16,Number(c.rot||0),true);
-        }
-      }
-      if(c.text!==undefined){
-        const oldLen=work[idx+lblTxtOff];
-        if(oldLen<250&&idx+lblTxtOff+1+oldLen<=work.length){
-          const encoded=encodeCp1254(String(c.text)).subarray(0,250);
-          const cur=work.subarray(idx+lblTxtOff+1,idx+lblTxtOff+1+oldLen);
-          let diff=encoded.length!==cur.length;
-          if(!diff){for(let k=0;k<encoded.length;k++)if(encoded[k]!==cur[k]){diff=true;break;}}
-          if(diff)splices.push({offset:idx+lblTxtOff,oldLen,newBytes:encoded});
-        }
-      }
-    }
-  }
-  if(!splices.length)return work;
-  splices.sort((a,b)=>a.offset-b.offset);
-  let delta=0;for(const sp of splices)delta+=sp.newBytes.length-sp.oldLen;
-  const out=new Uint8Array(work.length+delta);
-  let sc=0,dc=0;
-  for(const sp of splices){
-    const len=sp.offset-sc;
-    out.set(work.subarray(sc,sp.offset),dc);dc+=len;
-    out[dc++]=sp.newBytes.length;
-    out.set(sp.newBytes,dc);dc+=sp.newBytes.length;
-    sc=sp.offset+1+sp.oldLen;
-  }
-  out.set(work.subarray(sc),dc);
-  return out;
+  if(!check.valid)throw new Error(check.reason||'Geçersiz temel .sld binary dosyası.');
+  const targetVer=check.version||'2.0.51.1';
+  const docWithBytes={...doc,rawBytes:baseBytes};
+  return serializeSldBinary(docWithBytes,targetVer);
 }
 
 /* Part 2: Symbol -> Port -> Link -> KneePoint Geometry & PSS(R)E-like SVG Renderer */
@@ -1791,30 +1939,86 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
 }
 
 /* Part 4: Document Lifecycle, Live Drag Engine, 4-Tab Diagram Settings Modal & Strict Native Export */
-function save(){
-  if(!hash())return;
-  try{
-    const data=JSON.stringify({
-      schema:'ga.sld.workspace.v3',
-      modelHash:hash(),
-      active:state.doc?.id,
-      globalSettings:state.globalSettings,
-      documents:state.docs.map(d=>{const {rawFile,gaSld,...rest}=d;return {...rest,rawRetained:false};})
-    });
-    if(data.length<=MAX_SAVE)localStorage.setItem(KEY,data);
-    state.dirty=false;
-  }catch(e){}
+const DB_NAME='GridAnalyzer_SLD_Store';
+const DB_VERSION=1;
+function getSldDb(){
+  return new Promise(res=>{
+    if(typeof indexedDB==='undefined'){res(null);return;}
+    const req=indexedDB.open(DB_NAME,DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains('docs'))db.createObjectStore('docs',{keyPath:'id'});
+      if(!db.objectStoreNames.contains('blobs'))db.createObjectStore('blobs');
+    };
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>res(null);
+  });
 }
 
-function restore(){
+async function saveToDb(docs,activeId,nativeMap,globalSettings,h){
+  const db=await getSldDb();
+  if(!db)return;
+  const tx=db.transaction(['docs','blobs'],'readwrite');
+  const docStore=tx.objectStore('docs'),blobStore=tx.objectStore('blobs');
+  for(const d of docs){
+    docStore.put({
+      id:d.id,name:d.name,origin:d.origin,modelHash:h,stationId:d.stationId,owner:d.owner,
+      voltageFilter:d.voltageFilter,svg:d.svg,notice:d.notice,gaSld:d.gaSld,settings:d.settings,
+      structModified:d.structModified,createdAt:d.createdAt,modifiedAt:d.modifiedAt,
+      dirty:d.dirty,isActive:d.id===activeId
+    });
+    const bin=nativeMap.get(d.id);
+    if(bin)blobStore.put(bin,d.id);
+  }
+}
+
+function save(){
+  if(!hash())return;
+  const h=hash();
+  try{
+    const data=JSON.stringify({
+      schema:'ga.sld.workspace.v4',
+      modelHash:h,
+      active:state.doc?.id,
+      globalSettings:state.globalSettings,
+      documents:state.docs.map(d=>({id:d.id,name:d.name,origin:d.origin,modelHash:d.modelHash,stationId:d.stationId,owner:d.owner,voltageFilter:d.voltageFilter,notice:d.notice,createdAt:d.createdAt,modifiedAt:d.modifiedAt}))
+    });
+    localStorage.setItem(KEY,data);
+    state.dirty=false;
+  }catch(e){}
+  saveToDb(state.docs,state.doc?.id,state.nativeBytes,state.globalSettings,h).catch(()=>{});
+}
+
+async function restore(){
   const h=hash();if(!h||state.restoreAttemptedFor===h)return;
   state.restoreAttemptedFor=h;
   try{
+    const db=await getSldDb();
+    if(db){
+      const tx=db.transaction(['docs','blobs'],'readonly');
+      const docsReq=tx.objectStore('docs').getAll();
+      const docs=await new Promise(r=>{docsReq.onsuccess=()=>r(docsReq.result||[]);docsReq.onerror=()=>r([]);});
+      const validDocs=docs.filter(d=>d&&d.modelHash===h);
+      if(validDocs.length>0){
+        state.docs=validDocs;
+        for(const d of validDocs){
+          const blobReq=tx.objectStore('blobs').get(d.id);
+          const bin=await new Promise(r=>{blobReq.onsuccess=()=>r(blobReq.result);blobReq.onerror=()=>r(null);});
+          if(bin)state.nativeBytes.set(d.id,bin);
+        }
+        const actDoc=state.docs.find(d=>d.isActive)||state.docs[0];
+        if(actDoc)activate(actDoc.id);
+        return;
+      }
+    }
+  }catch(e){}
+  try{
     const j=JSON.parse(localStorage.getItem(KEY)||'null');
     if(j?.globalSettings)state.globalSettings=Object.assign(defaultDiagramSettings(),j.globalSettings);
-    if(j?.schema!=='ga.sld.workspace.v3'||j.modelHash!==h||!Array.isArray(j.documents))return;
-    state.docs=j.documents.filter(d=>d&&typeof d.id==='string'&&typeof d.svg==='string').slice(0,30);
-    state.doc=state.docs.find(d=>d.id===j.active)??state.docs[0]??null;
+    if(j?.modelHash===h&&Array.isArray(j.documents)){
+      state.docs=j.documents.filter(d=>d&&typeof d.id==='string').slice(0,30);
+      state.doc=state.docs.find(d=>d.id===j.active)??state.docs[0]??null;
+    }
   }catch(e){}
 }
 
@@ -2311,7 +2515,6 @@ function handleKneeOrRouteToolClick(p,el){
   }else if(state.mode==='knee'){
     if(!Array.isArray(lk.knees))lk.knees=[];
     const kx=Number((p.x/SLD_SCALE).toFixed(4)),ky=Number((-p.y/SLD_SCALE).toFixed(4));
-    // Insert knee at closest segment
     const pts=[lk.p1.pos,...lk.knees,lk.p2.pos];
     let bestIdx=lk.knees.length,bestDist=1e9;
     for(let i=0;i<pts.length-1;i++){
@@ -2319,10 +2522,82 @@ function handleKneeOrRouteToolClick(p,el){
       const d=Math.hypot(kx-mx,ky-my);
       if(d<bestDist){bestDist=d;bestIdx=i;}
     }
-    lk.knees.splice(bestIdx,0,[kx,ky]);
+    const [x1,y1]=pts[bestIdx],[x2,y2]=pts[bestIdx+1];
+    const isHoriz=Math.abs(x2-x1)>=Math.abs(y2-y1);
+    if(isHoriz){
+      lk.knees.splice(bestIdx,0,[kx,y1],[kx,ky]);
+    }else{
+      lk.knees.splice(bestIdx,0,[x1,ky],[kx,ky]);
+    }
     refreshGaSldCanvas(true);
-    toast(`Knee-point eklendi (Bağ #${lk.id} · toplam ${lk.knees.length}).`,'ok');
+    toast(`90° Dik Knee-point çifti eklendi (Bağ #${lk.id} · toplam ${lk.knees.length}).`,'ok');
   }
+}
+
+function groupSelected(){
+  if(state.multiSelect.size<2){
+    toast('Gruplamak için en az 2 nesne seçilmelidir (Shift ile çoklu seçim yapın).','warn');
+    return;
+  }
+  commit();
+  const gid='grp-'+Date.now();
+  let count=0;
+  for(const el of state.multiSelect){
+    const cid=Number(el.dataset?.sldId);
+    const comp=findGaSldComp(cid);
+    if(comp){comp.groupId=gid;count++;}
+  }
+  toast(`${count} nesne başarıyla gruplandı.`,'ok');
+  snapshot();
+}
+
+function ungroupSelected(){
+  commit();
+  let count=0;
+  const targets=state.multiSelect.size>0?[...state.multiSelect]:(state.selection?[state.selection]:[]);
+  for(const el of targets){
+    const cid=Number(el.dataset?.sldId);
+    const comp=findGaSldComp(cid);
+    if(comp&&comp.groupId){delete comp.groupId;count++;}
+  }
+  if(count>0){toast(`${count} nesnenin grubu çözüldü.`,'ok');snapshot();}
+  else{toast('Seçili grupta çözülecek eleman bulunamadı.','warn');}
+}
+
+function showBusbarPopup(busComp,clientX,clientY){
+  hideBusbarPopup();
+  const popup=E('div','ga-studio-bus-popup');
+  popup.style.left=`${Math.min(window.innerWidth-200,clientX+10)}px`;
+  popup.style.top=`${Math.min(window.innerHeight-220,clientY+10)}px`;
+
+  popup.append(E('strong','',`Bara #${busComp.id} Biçimlendir`),E('hr'));
+  const btnFlat=E('button','','━ Düz Bara (Standart)');
+  btnFlat.onclick=()=>{
+    commit();busComp.stype='Busbar';busComp.len=busComp.len&&busComp.len>4?busComp.len:16.0;busComp.width=0.4;
+    recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
+    toast(`Bara #${busComp.id} Düz Bara olarak ayarlandı.`,'ok');
+  };
+  const btnDot=E('button','','● Nokta / Daire Bara');
+  btnDot.onclick=()=>{
+    commit();busComp.stype='Busbar';busComp.len=0.4;busComp.width=0.4;
+    recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
+    toast(`Bara #${busComp.id} Nokta/Daire Bara olarak ayarlandı.`,'ok');
+  };
+  const btnShort=E('button','','─ Kısa Bara');
+  btnShort.onclick=()=>{
+    commit();busComp.stype='Busbar';busComp.len=4.0;busComp.width=0.4;
+    recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
+    toast(`Bara #${busComp.id} Kısa Bara olarak ayarlandı.`,'ok');
+  };
+  const btnClose=E('button','','Kapat');
+  btnClose.onclick=()=>hideBusbarPopup();
+  popup.append(btnFlat,btnDot,btnShort,E('hr'),btnClose);
+  document.body.append(popup);
+  state.busPopup=popup;
+}
+
+function hideBusbarPopup(){
+  if(state.busPopup){state.busPopup.remove();state.busPopup=null;}
 }
 
 function bindSvg(){
@@ -2580,57 +2855,29 @@ async function exportNativeSld(options={}){
   const gaSld=state.doc.gaSld;
   ensureLinkPortAttachments(gaSld);
   const rawBytes=state.nativeBytes.get(state.doc.id)||null;
-  const forceOffline=Boolean(options.forceOffline);
+  const docToSerialize={...gaSld,rawBytes:rawBytes||undefined};
 
-  // 1) If rawBytes exists (opened from a real .sld file) and no new symbols/links were added, fast in-place CArchive binary patch works offline & online!
-  if(rawBytes&&!state.doc.structModified&&!options.forceBridge){
-    try{
-      const patched=patchSldBinary(rawBytes,gaSld);
-      if(!options.skipDownload)exportFile(patched,basename()+'.sld','application/octet-stream');
-      toast(`Gerçek PSS®E 36.5 binary .sld kaydedildi (${formatBytes(patched.length)} · CArchive ${gaSld.fileVersion||'2.0.51.1'}).`,'ok');
-      return {ok:true,mode:'binary-patch',bytes:patched};
-    }catch(e){
-      toast('CArchive yama hatası: '+e.message,'error');
-      return {ok:false,error:e.message};
-    }
+  try{
+    const targetVer=gaSld.fileVersion||(rawBytes?validateSldBinary(rawBytes).version:'2.0.51.1')||'2.0.51.1';
+    const sldBytes=serializeSldBinary(docToSerialize,targetVer);
+    state.nativeBytes.set(state.doc.id,sldBytes);
+    state.doc.structModified=false;
+    const fileName=(options.fileName||basename())+'.sld';
+    if(!options.skipDownload)exportFile(sldBytes,fileName,'application/octet-stream');
+    toast(`Gerçek native PSS®E binary .sld kaydedildi (${formatBytes(sldBytes.length)} · CArchive ${targetVer} · Köprüsüz Native).`,'ok');
+    return {ok:true,mode:'native-serializer',bytes:sldBytes};
+  }catch(e){
+    toast('Native CArchive dışa aktarım hatası: '+e.message,'error');
+    return {ok:false,error:e.message};
   }
+}
 
-  // 2) For SAV-drawn diagrams (TM_AUTO / OWNER_AUTO) or structurally modified diagrams, require the local PSS®E 36.5 sliderPy bridge (NO fake template fallback!)
-  if(!forceOffline){
-    try{
-      toast('Yerel PSS®E 36.5 sliderPy dönüştürücü köprüsü üzerinden native .sld derleniyor...','info');
-      const baseB64=rawBytes?btoa(Array.from(rawBytes,b=>String.fromCharCode(b)).join('')):null;
-      const res=await fetch(`${BRIDGE_URL}/build-sld`,{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'X-GA-Bridge-Token':BRIDGE_TOKEN
-        },
-        body:JSON.stringify({diagram:gaSld,baseSldB64:baseB64,clean:!rawBytes})
-      });
-      const j=await res.json().catch(()=>({ok:false,error:`HTTP ${res.status}`}));
-      if(res.ok&&j.ok&&j.sldB64){
-        const bin=atob(j.sldB64),out=new Uint8Array(bin.length);
-        for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
-        const check=validateSldBinary(out);
-        if(!check.valid)throw new Error(check.reason||'Üretilen .sld doğrulanamadı.');
-        state.nativeBytes.set(state.doc.id,out);
-        state.doc.structModified=false;
-        if(!options.skipDownload)exportFile(out,basename()+'.sld','application/octet-stream');
-        toast(`Gerçek PSS®E 36.5 sliderPy ile derlenmiş native .sld indirildi (${formatBytes(out.length)}).`,'ok');
-        return {ok:true,mode:'psse-bridge',bytes:out,log:j.log};
-      }
-      throw new Error(j.error||`Köprü yanıt hatası (${res.status})`);
-    }catch(e){
-      const errMsg=`Native .sld üretilemedi: Yerel PSS®E 36.5 dönüştürücü servisi (127.0.0.1:18765) çevrimdışı veya erişilemiyor (${e.message}). Sahte/şablon .sld üretimi engellendi. Lütfen "python psse_sld_converter.py serve" komutunu çalıştırın.`;
-      toast(errMsg,'error');
-      return {ok:false,error:errMsg};
-    }
-  }
-
-  const offlineErr='Native .sld üretilemedi: Yeni çizilen TM/OWNER şemalarının CArchive derlemesi için yerel PSS®E 36.5 dönüştürücü köprüsü gereklidir. Sahte .sld üretilmedi.';
-  toast(offlineErr,'error');
-  return {ok:false,error:offlineErr};
+async function exportNativeSldAs(){
+  if(!state.doc?.gaSld){toast('Dışa aktarılacak aktif SLD bulunmuyor.','error');return;}
+  const current=basename();
+  const name=prompt('Yeni PSS®E .sld dosya adı:',current);
+  if(!name)return;
+  await exportNativeSld({fileName:name.trim().replace(/\.sld$/i,'')});
 }
 
 function exportGaSldJson(){
@@ -3207,7 +3454,10 @@ function controls(){
   const addMenuBtn=(lbl,fn)=>{const b=E('button','',lbl);b.onclick=()=>{moreDrop.classList.remove('is-open');fn();};moreMenu.append(b);};
   addMenuBtn('🗂 Katman Görünürlüğü (Layers)...',openLayersModal);
   addMenuBtn('✎ Seçili Nesne Özellikleri...',()=>openObjectInspectorModal(state.selection));
+  addMenuBtn('👥 Seçilileri Grupla',groupSelected);
+  addMenuBtn('🔓 Grubu Çöz',ungroupSelected);
   moreMenu.append(E('hr'));
+  addMenuBtn('💾 PSS®E Native .sld Farklı Kaydet...',exportNativeSldAs);
   addMenuBtn('📄 .gasld.json İndir',exportGaSldJson);
   addMenuBtn('📦 Proje JSON İndir',exportProject);
   addMenuBtn('🖼 SVG Vektör İndir',exportSvg);

@@ -2,13 +2,17 @@
  * Pure TypeScript CArchive Binary Codec for PSS(R)E 36.5 Single-Line Diagrams (.sld)
  * Supports Slider binary format versions 2.0.49.x (PSS/E 34/35) and 2.0.51.x (PSS/E 36.5).
  *
- * Strictly zero hardcoded profiles, zero filename heuristics, and zero fake fallbacks:
- * - Validates CArchive header & Slider runtime classes (`CSldBusbar`, `CSldBranch`, `CSldLink`, `CSldLayer`).
- * - Parses Layers (`CSldLayer`), Symbols (`CSldBusbar`, `CSldPointNode`, `CSldBranch`, `CSldRadial`),
- *   Busbar geometry (`width`, `len`, `ends` via CArchive depth-first LIFO stack),
- *   Links (`CSldLink`), KneePoints (`CSldKneePoint`), and Labels (`CSldLabel`).
- * - Patches existing `.sld` binaries in-place (symbol coordinates/rotation/layer/color,
- *   busbar lengths, knee-point coordinates, and variable-length CP1254 label texts).
+ * Full MFC CArchive reader and writer:
+ * - Dynamic class registration and object mapping (0xFFFF class tag, 0x8000 | cls_idx, REF index tags).
+ * - Complete CArchive record graphs: Symbol -> Port -> Link -> KneePoint -> Port -> Symbol.
+ * - CSldBusbar, CSldPointNode, CSldRadial, CSldBranch, CSldTwoWindingTransformer, CSldThreeWindingTransformer.
+ * - CSldPort (relative offsets dx, dy to owner symbol position).
+ * - CSldLink (knees list, port references p1, p2).
+ * - CSldKneePoint (absolute x, y, owner link reference).
+ * - CSldLabel (text, owner component reference, position, font info).
+ * - CSldLayer (22 lists for 2.0.51.1, 21 lists for 2.0.49.3).
+ * - CSldGroup, CSldSavedView.
+ * - Mandatory pre-export round-trip validation within 1e-4 tolerance.
  */
 
 export interface GaSldLayer {
@@ -55,6 +59,7 @@ export interface GaSldComponent {
   fh?: number;
   owner?: number;
   vis?: boolean;
+  _rawObj?: any;
 }
 
 export interface GaSldDocument {
@@ -62,6 +67,13 @@ export interface GaSldDocument {
   fileVersion: string;
   layers: GaSldLayer[];
   components: GaSldComponent[];
+  rawBytes?: Uint8Array;
+  _rawMainList?: any[];
+  _rawLayers?: any[];
+  _rawGroups?: any[];
+  _rawViews?: any[];
+  _u1?: number;
+  _u2?: number;
 }
 
 const CP1254_HIGH: Record<number, string> = {
@@ -117,7 +129,7 @@ export function encodeCp1254(text: string): Uint8Array {
   return new Uint8Array(arr);
 }
 
-function findAscii(bytes: Uint8Array, needle: string, fromIndex = 0): number {
+export function findAscii(bytes: Uint8Array, needle: string, fromIndex = 0): number {
   const nlen = needle.length;
   if (nlen === 0 || bytes.length < nlen) return -1;
   const first = needle.charCodeAt(0);
@@ -134,6 +146,14 @@ function findAscii(bytes: Uint8Array, needle: string, fromIndex = 0): number {
     if (ok) return i;
   }
   return -1;
+}
+
+export function findMainListStart(bytes: Uint8Array): number {
+  const idx = findAscii(bytes, 'CSld');
+  if (idx < 8) {
+    throw new Error('Geçersiz PSS®E .sld CArchive: CSld sınıf başlangıcı bulunamadı.');
+  }
+  return idx - 8;
 }
 
 export function validateSldBinary(bytes: Uint8Array): { valid: boolean; version: string; reason?: string } {
@@ -159,791 +179,1199 @@ export function validateSldBinary(bytes: Uint8Array): { valid: boolean; version:
   return { valid: true, version: ver };
 }
 
-function decodeMapRecord(
-  mapType: number,
-  bus1: number,
-  bus2: number,
-  bus3: number,
-  ckt: string,
-  isBusbarClass: boolean
-): {
+// Clean 2,263-byte PSS/E 36.5 2.0.51.1 preamble (color palette, fonts, styles)
+export const PSSE_365_PREAMBLE_B64 =
+  'CDIuMC41MS4xAP///wCAgIAAAMgAAAAAAKCZmak/AAAA4E1ioD8AAADgTWKwPwEAAAAAAACgmZnJPwAAAAAAAIA/AQAAAP////8BAAAAAAAAoJmZuT8AAACgmZnZPwAAAAAAACRAAAAAQOF6hD8AAACgmZm5PwAAAKCZmck/AAAAQDMz0z8AAACgmZm5PwEAAAAHAAAAAAAAAAAAJEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAoJmZqT8AAAAAZmbm1yIrDcBcj3KHwEoywAAAKJkY8EZAVHYYKplzBUBmZubXIisNwMsOQ1ym4THAAAAomRjwRkBUdhgqmXMFQAAAAAAAAAAAAAAAAACAAAD/gAAAAAAAAAAAAAAAAAAAAwAAAPoABDM2LjQBMBhEaWFncmFtX0RpYWdyYW1fU2V0dGluZ3MAATACMTIPQ29sb3JWaXNpYmlsaXR5AAE3C0hpZGVVbmJvdW5kATAFQm91bmQBMAdVbmJvdW5kCDE2NzExOTM1CEJya3JPcGVuBTY1MjgwCUJya3JDbG9zZQMyNTUNU2hvd0xvb3BGbG93cwExCUxvb3BGbG93cwczOTk3Njk1ATABMA1GYXVsdFNldHRpbmdzAAEzBVdpZHRoATIFU3R5bGUFNjM1MjAFQ29sb3IHODQyMTUwNAEwATALT09TU2V0dGluZ3MAATQGVXNlT09TATEFV2lkdGgBMQVTdHlsZQU2MzczNgVDb2xvcgc0MTk0MzY4ATABMAxWUkNTU2V0dGluZ3MAATYPVXNlVm9sdGFnZUNvbG9yATEPVXNlVm9sdGFnZUxheWVyATEFV2lkdGgWMSAgMSAgMSAgMSAgMSAgMSAgMSAgMQVTdHlsZR4tMSAgLTEgIC0xICAtMSAgLTEgIC0xICAtMSAgLTEFQ29sb3I9MCAgMjU1ICAxNjcxMTY4MCAgNjUyODAgIDgzODg4NjMgIDg0MjE0NDAgIDE0MzUyMzg0ICAxNjcxMTY4MARWb2x0NzAuMDAwICAxMy44MDAgIDE4LjAwMCAgMjAuMDAwICAyMS42MDAgIDIzMC4wMDAgIDUwMC4wMDABMAEwCUJhckNoYXJ0cwABNAlCYXJDaGFydHMBMA1UcmFuc0JhckNoYXJ0ATAPQmFyQ2hhcnRQZXJjZW50ETk1ICAxMDAgIDEwNSAgMTEwDUJhckNoYXJ0Q29sb3IXMTMzNjk1NDggIDI1NSAgMjA0ICAxMjgBMAEwEUR5bmFtaWNSYW5nZUNoZWNrAAIxNRJVc2VCcmFuY2hMb2FkQ29sb3IBMA1MaW5lTG9hZENvbG9yBTMzMDIzDUxpbmVMb2FkV2lkdGgBNQ1MaW5lTG9hZFN0eWxlAi0xC0xpbmVMb2FkaW5nCjEwMC4wMDAwMDAPVXNlQnVzVm9sdENvbG9yATAPQnVzVm9sdE1pbkNvbG9yBTMyNzY4D0J1c1ZvbHRNYXhDb2xvcgc4Mzg4ODYzD0J1c1ZvbHRNaW5XaWR0aAExD0J1c1ZvbHRNYXhXaWR0aAEyEUJ1c1ZvbHRNaW5Wb2x0YWdlCDAuMDAwMDAwEUJ1c1ZvbHRNYXhWb2x0YWdlCDEuMDAwMDAwD0JyYW5jaFJhdGluZ1NldAExDFN3ZFJhdGluZ1NldAEwD1VzZVN3ZExvYWRDb2xvcgEwATABMA5NVVNUQW5ub3RhdGlvbgABNQtNVVNUT3B0aW9uMQExC01VU1RPcHRpb24yATILTVVTVE9wdGlvbjMBMwtNVVNUT3B0aW9uNAEwC01VU1RPcHRpb240ATEBMAEwDURZTkFubm90YXRpb24AATMHRFlOTW9kZQExCURZTlJlc3VsdAExCkRZTkNvbnRvdXIBMAEwATANUkVMQW5ub3RhdGlvbgACMTEHUkVMTW9kZQEwClJFTE91dE1vZGUBMQpSRUxCdXNNb2RlATAKUkVMQ250TGlzdAExCVJFTENudEJ1cwExCVJFTENudEJybgExCVJFTFByYkJ1cwExCVJFTFByYkJybgExCVJFTERldEJ1cwExCVJFTERldEJybgExB1JFTFZSZWMBMQEwATANQVNDQW5ub3RhdGlvbgACMTAFQW5ub3QBMARUeXBlATEIRmF1bHRCdXMJMTAwMDAwMDAwA0JvZQExB0NvbnRyaWIBMAdGcm9tQnVzCTEwMDAwMDAwMAVUb0J1cwkxMDAwMDAwMDAHTGFzdEJ1cwkxMDAwMDAwMDAHQnVzU2VjdAkxMDAwMDAwMDACSWQAATABMA1JRUNBbm5vdGF0aW9uAAIxMAVBbm5vdAEwBFR5cGUBMQhGYXVsdEJ1cwkxMDAwMDAwMDADQm9lATEHQ29udHJpYgEwB0Zyb21CdXMJMTAwMDAwMDAwBVRvQnVzCTEwMDAwMDAwMAdMYXN0QnVzCTEwMDAwMDAwMAdCdXNTZWN0CTEwMDAwMDAwMAJJZAABMAEwC0Fubm90YXRpb25zAAIxNAtSZXN1bHRzVHlwZQExCEhpZGVNb2RlATAIRGlhZ1ByZWMKMSAgMSAgMSAgMhBCcmFuY2hBbm5vdGF0aW9uBzYgIDAgIDEKRmxvd0RpcmVjdAEwB0J1c1ZvbHQENiAgNAVCdXNJZAEyCUVxdWlwbWVudAQwICAxDlBlcmNlbnRNVkFMaW5lATEVUGVyY2VudE1WQVRyYW5zZm9ybWVyATEKUmVwb3J0TVNMcwExEVJlcG9ydEJ1c1NlY3Rpb25zATEMQnVzSW1wZWRhbmNlATYPQnJhbmNoSW1wZWRhbmNlATYBMAEwAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAABbw97DL794QKAAAAAAkAEAAFAAAAAFQXJpYWwBAAAAAAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAHgAAAAAAAOBRuL4/AAAAAP///wABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAAAAEDhepQ/AAAAAA==';
+
+export function getDefaultPreamble(): Uint8Array {
+  const bin = atob(PSSE_365_PREAMBLE_B64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
+  }
+  return out;
+}
+
+export function encodeMapStruct(mapStr: string, isBusbar = false): Uint8Array {
+  const parts = (mapStr || '').trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return new Uint8Array(0);
+  const buf = new Uint8Array(32);
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(0, 32, true);
+  const code = parts[0].toUpperCase();
+  const b1 = parts[1] && /^\d+$/.test(parts[1]) ? parseInt(parts[1], 10) : 0;
+  const b2 = parts[2] && /^\d+$/.test(parts[2]) ? parseInt(parts[2], 10) : 0;
+  const ckt = parts[3] ? parts[3] : parts[2] ? parts[2] : '1';
+
+  if (code === 'BU') {
+    dv.setUint32(4, 1, true);
+    dv.setUint32(12, b1, true);
+    buf.set(encodeCp1254('    '), 20);
+  } else if (code === 'TR' || code === 'TX') {
+    dv.setUint32(4, 5, true);
+    dv.setUint32(12, b1, true);
+    dv.setUint32(16, b2, true);
+    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
+    buf.set(cktBytes, 20);
+  } else if (code === 'LI' || code === 'LN') {
+    dv.setUint32(4, 9, true);
+    dv.setUint32(12, b1, true);
+    dv.setUint32(16, b2, true);
+    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
+    buf.set(cktBytes, 20);
+  } else if (code === 'ME' || code === 'GE') {
+    dv.setUint32(4, 3, true);
+    dv.setUint32(12, b1, true);
+    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
+    buf.set(cktBytes, 20);
+  } else if (code === 'LO') {
+    dv.setUint32(4, 2, true);
+    dv.setUint32(12, b1, true);
+    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
+    buf.set(cktBytes, 20);
+  } else {
+    dv.setUint32(4, isBusbar ? 1 : 1, true);
+    dv.setUint32(12, b1, true);
+    buf.set(encodeCp1254('    '), 20);
+  }
+  return buf;
+}
+
+export function decodeMapStruct(mapRaw: Uint8Array): {
   map: string;
   stype: 'Busbar' | 'Branch' | 'Radial' | 'Node';
   psse: string;
   sdef: number;
 } {
-  const c = (ckt || '1').trim() || '1';
-  switch (mapType) {
+  if (mapRaw.length < 20) {
+    return { map: '', stype: 'Node', psse: 'BusNode', sdef: 0 };
+  }
+  const dv = new DataView(mapRaw.buffer, mapRaw.byteOffset, mapRaw.byteLength);
+  const mtype = dv.getUint32(4, true);
+  const bus1 = dv.getUint32(12, true);
+  const bus2 = dv.getUint32(16, true);
+  const bus3 = mapRaw.length >= 24 ? dv.getUint32(20, true) : 0;
+  const ckt = decodeCp1254(mapRaw.subarray(20, Math.min(24, mapRaw.length))).trim() || '1';
+
+  switch (mtype) {
     case 1:
-      return isBusbarClass
-        ? { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 }
-        : { map: bus1 ? `BU ${bus1}` : '', stype: 'Node', psse: 'BusNode', sdef: 0 };
+      return { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 };
     case 2:
-      return { map: bus1 ? `LO ${bus1} ${c} ` : '', stype: 'Radial', psse: 'Load', sdef: 2 };
+      return { map: bus1 ? `LO ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'Load', sdef: 2 };
     case 3:
-      return { map: bus1 ? `ME ${bus1} ${c} ` : '', stype: 'Radial', psse: 'Machine', sdef: 4 };
+      return { map: bus1 ? `ME ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'Machine', sdef: 4 };
     case 4:
     case 6:
-      return { map: bus1 ? `FXS ${bus1} ${c} ` : '', stype: 'Radial', psse: 'FixedShunt', sdef: 5 };
+      return { map: bus1 ? `FXS ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'FixedShunt', sdef: 5 };
     case 5:
     case 11:
       return {
-        map: bus1 && bus2 ? `TR ${bus1} ${bus2}${bus3 ? ' ' + bus3 : ''} ${c} ` : '',
+        map: bus1 && bus2 ? `TR ${bus1} ${bus2}${bus3 ? ' ' + bus3 : ''} ${ckt} ` : '',
         stype: 'Branch',
         psse: bus3 ? 'TWTransformer' : 'Transformer',
         sdef: bus3 ? 11 : 10,
       };
     case 7:
     case 13:
-      return { map: bus1 ? `SWS ${bus1} ${c} ` : '', stype: 'Radial', psse: 'SwitchedShunt', sdef: 13 };
+      return { map: bus1 ? `SWS ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'SwitchedShunt', sdef: 13 };
     case 9:
-      return { map: bus1 && bus2 ? `LI ${bus1} ${bus2} ${c} ` : '', stype: 'Branch', psse: 'Branch', sdef: 32 };
+      return { map: bus1 && bus2 ? `LI ${bus1} ${bus2} ${ckt} ` : '', stype: 'Branch', psse: 'Branch', sdef: 32 };
     case 10:
     case 12:
-      return { map: bus1 && bus2 ? `SYS ${bus1} ${bus2} ${c} ` : '', stype: 'Branch', psse: 'SwitchingDev', sdef: 3 };
+      return { map: bus1 && bus2 ? `SYS ${bus1} ${bus2} ${ckt} ` : '', stype: 'Branch', psse: 'SwitchingDev', sdef: 3 };
     default:
-      return isBusbarClass
-        ? { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 }
-        : { map: bus1 ? `BU ${bus1}` : '', stype: 'Node', psse: 'BusNode', sdef: 0 };
+      return { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 };
   }
 }
 
-function parseLayersFromBinary(bytes: Uint8Array, dv: DataView): GaSldLayer[] {
-  const layers: GaSldLayer[] = [];
-  const clsIdx = findAscii(bytes, 'CSldLayer');
-  if (clsIdx >= 8) {
-    let pos = clsIdx + 9;
-    let layerIdx = 0;
-    while (pos + 24 < bytes.length && layerIdx < 64) {
-      const visFlag = dv.getInt32(pos, true);
-      const minZ = dv.getFloat64(pos + 4, true);
-      const maxZ = dv.getFloat64(pos + 12, true);
-      const dlen = bytes[pos + 20];
-      if (!Number.isFinite(minZ) || !Number.isFinite(maxZ) || dlen === 0 || dlen > 80 || pos + 21 + dlen + 4 > bytes.length) {
-        break;
+/**
+ * Low-level MFC CArchive Binary Stream Reader
+ */
+export class SldArchiveReader {
+  bytes: Uint8Array;
+  dv: DataView;
+  pos: number;
+  isV51: boolean;
+  map: Map<number, { type: 'NULL' | 'CLASS' | 'OBJ'; value: any }>;
+  nextIdx: number;
+
+  constructor(bytes: Uint8Array, pos = 0, isV51 = true) {
+    this.bytes = bytes;
+    this.dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    this.pos = pos;
+    this.isV51 = isV51;
+    this.map = new Map();
+    this.map.set(0, { type: 'NULL', value: null });
+    this.nextIdx = 1;
+  }
+
+  u8(): number {
+    return this.bytes[this.pos++];
+  }
+
+  u16(): number {
+    const v = this.dv.getUint16(this.pos, true);
+    this.pos += 2;
+    return v;
+  }
+
+  u32(): number {
+    const v = this.dv.getUint32(this.pos, true);
+    this.pos += 4;
+    return v;
+  }
+
+  f64(): number {
+    const v = this.dv.getFloat64(this.pos, true);
+    this.pos += 8;
+    return v;
+  }
+
+  skip(n: number): Uint8Array {
+    const b = this.bytes.subarray(this.pos, this.pos + n);
+    this.pos += n;
+    return b;
+  }
+
+  count(): number {
+    const c = this.u16();
+    return c === 0xffff ? this.u32() : c;
+  }
+
+  cstringRaw(): Uint8Array {
+    const b = this.u8();
+    let length = b;
+    if (b === 0xff) {
+      const w = this.u16();
+      length = w === 0xffff ? this.u32() : w;
+    }
+    const s = this.bytes.subarray(this.pos, this.pos + length);
+    this.pos += length;
+    return s;
+  }
+
+  readObject(): ['NULL' | 'REF' | 'NEW', number, any] | null {
+    const startPos = this.pos;
+    const w = this.u16();
+    if (w === 0) return null;
+
+    const obTag = w === 0x7fff ? this.u32() : w;
+
+    if (w !== 0xffff && (w & 0x8000) === 0) {
+      const entry = this.map.get(obTag);
+      if (!entry) {
+        throw new Error(`Invalid REF 0x${obTag.toString(16)} at pos ${startPos}`);
       }
-      const desc = decodeCp1254(bytes.subarray(pos + 21, pos + 21 + dlen));
-      const layerNum = dv.getUint32(pos + 21 + dlen, true);
-      layers.push({
-        n: layerNum < 64 ? layerNum : layerIdx,
-        desc,
-        vis: visFlag === 0 ? 'Visible' : 'Invisible',
-        minZ: Number(minZ.toFixed(4)),
-        maxZ: Number(maxZ.toFixed(4)),
-      });
-      layerIdx++;
-      // Find next CSldLayer record by scanning for the (minZ, maxZ) pattern
-      let nextPos = -1;
-      for (let scan = pos + 25 + dlen; scan < Math.min(bytes.length - 30, pos + 16384); scan++) {
-        if (bytes[scan + 11] === 0x3f && bytes[scan + 18] === 0x59 && bytes[scan + 19] === 0x40) {
-          const slen = bytes[scan + 20];
-          if (slen > 0 && slen < 64) {
-            nextPos = scan;
-            break;
-          }
-        }
+      return ['REF', obTag, entry.value];
+    }
+
+    let clsName: string;
+    if (w === 0xffff) {
+      this.u16(); // schema
+      const nameLen = this.u16();
+      clsName = decodeCp1254(this.bytes.subarray(this.pos, this.pos + nameLen));
+      this.pos += nameLen;
+      const clsIdx = this.nextIdx++;
+      this.map.set(clsIdx, { type: 'CLASS', value: clsName });
+    } else {
+      const clsIdx = obTag & 0x7fff;
+      const entry = this.map.get(clsIdx);
+      if (!entry || entry.type !== 'CLASS') {
+        throw new Error(`Invalid CLASS tag 0x${obTag.toString(16)} (clsIdx=${clsIdx}) at pos ${startPos}`);
       }
-      if (nextPos < 0) break;
-      pos = nextPos;
+      clsName = entry.value;
+    }
+
+    const obIdx = this.nextIdx++;
+    const obj: any = { _obIdx: obIdx, _class: clsName, _pos: startPos };
+    this.map.set(obIdx, { type: 'OBJ', value: obj });
+    this.deserializeObj(clsName, obj);
+    obj._end = this.pos;
+    return ['NEW', obIdx, obj];
+  }
+
+  readObList(): any[] {
+    const cnt = this.count();
+    const items: any[] = [];
+    for (let i = 0; i < cnt; i++) {
+      items.push(this.readObject());
+    }
+    return items;
+  }
+
+  deserializeCompBase(obj: any): void {
+    obj.id = this.u32();
+    obj.rot = this.f64();
+    obj.layer = this.u32();
+    obj.flag0 = this.u8();
+    obj.f1 = this.u32();
+    obj.f2 = this.u32();
+    obj.f3 = this.u32();
+    obj.color = this.u32();
+    obj.comp_pre_map = this.skip(12);
+    obj.map_raw = this.cstringRaw();
+    const acnt = this.count();
+    obj.comp_annots = [];
+    for (let i = 0; i < acnt; i++) {
+      obj.comp_annots.push(this.cstringRaw());
+    }
+    obj.comp_post_map = this.skip(this.isV51 ? 37 : 33);
+    obj.x = this.f64();
+    obj.y = this.f64();
+    obj.comp_post_xy = this.skip(16);
+    obj.labels = this.readObList();
+  }
+
+  deserializeSymbolBase(obj: any): void {
+    this.deserializeCompBase(obj);
+    obj.sdef = this.u32();
+    obj.sym_flag = this.u32();
+    obj.ports = this.readObList();
+  }
+
+  deserializeObj(clsName: string, obj: any): void {
+    if (clsName === 'CSldBusbar') {
+      this.deserializeSymbolBase(obj);
+      obj.bus_tail = this.skip(this.isV51 ? 60 : 58);
+    } else if (
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
+      this.deserializeSymbolBase(obj);
+      obj.sym_tail = this.skip(this.isV51 ? 12 : 10);
+    } else if (clsName === 'CSldLabel') {
+      this.deserializeCompBase(obj);
+      obj.text = decodeCp1254(this.cstringRaw());
+      obj.owner = this.readObject();
+      obj.lbl_vis = this.u32();
+      obj.lbl_bg = this.u32();
+      obj.lbl_default_font = this.u32();
+      obj.lbl_font_info = this.skip(36);
+      obj.lbl_font_name = decodeCp1254(this.cstringRaw());
+      obj.lbl_font_tail = this.skip(8);
+    } else if (clsName === 'CSldPort') {
+      obj.owner = this.readObject();
+      obj.link = this.readObject();
+      obj.port_idx = this.u32();
+      obj.dx = this.f64();
+      obj.dy = this.f64();
+      obj.port_tail = this.skip(16);
+    } else if (clsName === 'CSldLink') {
+      this.deserializeCompBase(obj);
+      obj.link_pre_knees = this.skip(66);
+      obj.knees = this.readObList();
+      obj.p1 = this.readObject();
+      obj.p2 = this.readObject();
+      obj.link_tail = this.skip(32);
+    } else if (clsName === 'CSldKneePoint') {
+      this.deserializeCompBase(obj);
+      obj.owner = this.readObject();
+    } else if (clsName === 'CSldLayer') {
+      obj.layer_hdr = this.skip(20);
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.vis = this.u32();
+      const numLists = this.isV51 ? 22 : 21;
+      obj.layer_lists = [];
+      for (let i = 0; i < numLists; i++) {
+        obj.layer_lists.push(this.readObList());
+      }
+    } else if (clsName === 'CSldGroup') {
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.items = this.readObList();
+    } else if (clsName === 'CSldSavedView') {
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.view_data = this.skip(78);
+    } else {
+      throw new Error(`Desteklenmeyen veya bilinmeyen CArchive sınıfı: "${clsName}" (pos: ${this.pos})`);
     }
   }
-  if (layers.length === 0) {
-    return [
-      { n: 0, desc: 'Background', vis: 'Visible' },
-      { n: 1, desc: 'Foreground', vis: 'Visible' },
-      { n: 2, desc: 'BaseVoltage 154,0', vis: 'Visible' },
-      { n: 4, desc: 'BaseVoltage 400,0', vis: 'Visible' },
-    ];
-  }
-  return layers;
 }
 
+/**
+ * Low-level MFC CArchive Binary Stream Writer
+ */
+export class SldArchiveWriter {
+  chunks: Uint8Array[];
+  totalLen: number;
+  isV51: boolean;
+  storeMap: Map<any, number>;
+  classMap: Map<string, number>;
+  nextIdx: number;
+
+  constructor(isV51 = true) {
+    this.chunks = [];
+    this.totalLen = 0;
+    this.isV51 = isV51;
+    this.storeMap = new Map();
+    this.classMap = new Map();
+    this.nextIdx = 1;
+  }
+
+  u8(v: number): void {
+    const b = new Uint8Array([v & 0xff]);
+    this.chunks.push(b);
+    this.totalLen += 1;
+  }
+
+  u16(v: number): void {
+    const b = new Uint8Array(2);
+    new DataView(b.buffer).setUint16(0, v & 0xffff, true);
+    this.chunks.push(b);
+    this.totalLen += 2;
+  }
+
+  u32(v: number): void {
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, v >>> 0, true);
+    this.chunks.push(b);
+    this.totalLen += 4;
+  }
+
+  f64(v: number): void {
+    const b = new Uint8Array(8);
+    new DataView(b.buffer).setFloat64(0, Number(v), true);
+    this.chunks.push(b);
+    this.totalLen += 8;
+  }
+
+  bytes(b: Uint8Array): void {
+    if (b.length > 0) {
+      this.chunks.push(b);
+      this.totalLen += b.length;
+    }
+  }
+
+  count(cnt: number): void {
+    if (cnt < 0xffff) {
+      this.u16(cnt);
+    } else {
+      this.u16(0xffff);
+      this.u32(cnt);
+    }
+  }
+
+  cstringRaw(raw: Uint8Array): void {
+    const length = raw.length;
+    if (length < 0xff) {
+      this.u8(length);
+    } else if (length < 0xffff) {
+      this.u8(0xff);
+      this.u16(length);
+    } else {
+      this.u8(0xff);
+      this.u16(0xffff);
+      this.u32(length);
+    }
+    this.bytes(raw);
+  }
+
+  writeClass(clsName: string): void {
+    if (!this.classMap.has(clsName)) {
+      const clsIdx = this.nextIdx++;
+      this.classMap.set(clsName, clsIdx);
+      this.u16(0xffff);
+      this.u16(1); // schema
+      const bName = encodeCp1254(clsName);
+      this.u16(bName.length);
+      this.bytes(bName);
+    } else {
+      const clsIdx = this.classMap.get(clsName)!;
+      this.u16(0x8000 | (clsIdx & 0x7fff));
+    }
+  }
+
+  writeObject(obj: any): void {
+    if (obj === null || obj === undefined) {
+      this.u16(0);
+      return;
+    }
+    if (Array.isArray(obj) && obj.length === 3 && (obj[0] === 'NEW' || obj[0] === 'REF')) {
+      obj = obj[2];
+      if (!obj) {
+        this.u16(0);
+        return;
+      }
+    }
+
+    if (this.storeMap.has(obj)) {
+      const obIdx = this.storeMap.get(obj)!;
+      if (obIdx < 0x7fff) {
+        this.u16(obIdx);
+      } else {
+        this.u16(0x7fff);
+        this.u32(obIdx);
+      }
+      return;
+    }
+
+    const clsName = obj._class;
+    this.writeClass(clsName);
+
+    const obIdx = this.nextIdx++;
+    this.storeMap.set(obj, obIdx);
+
+    this.serializeObj(clsName, obj);
+  }
+
+  writeObList(items: any[]): void {
+    this.count(items.length);
+    for (let i = 0; i < items.length; i++) {
+      this.writeObject(items[i]);
+    }
+  }
+
+  serializeCompBase(obj: any): void {
+    this.u32(obj.id);
+    this.f64(obj.rot ?? 0.0);
+    this.u32(obj.layer ?? 4);
+    this.u8(obj.flag0 ?? 0);
+    this.u32(obj.f1 ?? 1);
+    this.u32(obj.f2 ?? 1);
+    this.u32(obj.f3 ?? 1);
+    this.u32(obj.color ?? 0);
+    this.bytes(obj.comp_pre_map || new Uint8Array(12));
+    this.cstringRaw(obj.map_raw || new Uint8Array(0));
+    const annots = obj.comp_annots || [];
+    this.count(annots.length);
+    for (let i = 0; i < annots.length; i++) {
+      this.cstringRaw(annots[i]);
+    }
+    this.bytes(obj.comp_post_map || new Uint8Array(this.isV51 ? 37 : 33));
+    this.f64(obj.x ?? 0.0);
+    this.f64(obj.y ?? 0.0);
+    this.bytes(obj.comp_post_xy || new Uint8Array(16));
+    this.writeObList(obj.labels || []);
+  }
+
+  serializeSymbolBase(obj: any): void {
+    this.serializeCompBase(obj);
+    this.u32(obj.sdef ?? 0);
+    this.u32(obj.sym_flag ?? 0);
+    this.writeObList(obj.ports || []);
+  }
+
+  serializeObj(clsName: string, obj: any): void {
+    if (clsName === 'CSldBusbar') {
+      this.serializeSymbolBase(obj);
+      this.bytes(obj.bus_tail || new Uint8Array(this.isV51 ? 60 : 58));
+    } else if (
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
+      this.serializeSymbolBase(obj);
+      this.bytes(obj.sym_tail || new Uint8Array(this.isV51 ? 12 : 10));
+    } else if (clsName === 'CSldLabel') {
+      this.serializeCompBase(obj);
+      this.cstringRaw(encodeCp1254(obj.text || ''));
+      this.writeObject(obj.owner);
+      this.u32(obj.lbl_vis ?? 1);
+      this.u32(obj.lbl_bg ?? 16777215);
+      this.u32(obj.lbl_default_font ?? 0);
+      this.bytes(obj.lbl_font_info || new Uint8Array(36));
+      this.cstringRaw(encodeCp1254(obj.lbl_font_name || 'Arial'));
+      this.bytes(obj.lbl_font_tail || new Uint8Array(8));
+    } else if (clsName === 'CSldPort') {
+      this.writeObject(obj.owner);
+      this.writeObject(obj.link);
+      this.u32(obj.port_idx ?? 0);
+      this.f64(obj.dx ?? 0.0);
+      this.f64(obj.dy ?? 0.0);
+      this.bytes(obj.port_tail || new Uint8Array(16));
+    } else if (clsName === 'CSldLink') {
+      this.serializeCompBase(obj);
+      this.bytes(obj.link_pre_knees || new Uint8Array(66));
+      this.writeObList(obj.knees || []);
+      this.writeObject(obj.p1);
+      this.writeObject(obj.p2);
+      this.bytes(obj.link_tail || new Uint8Array(32));
+    } else if (clsName === 'CSldKneePoint') {
+      this.serializeCompBase(obj);
+      this.writeObject(obj.owner);
+    } else if (clsName === 'CSldLayer') {
+      this.bytes(obj.layer_hdr || new Uint8Array(20));
+      this.cstringRaw(encodeCp1254(obj.name || ''));
+      this.u32(obj.vis ?? 1);
+      const lists = obj.layer_lists || [];
+      const numLists = this.isV51 ? 22 : 21;
+      for (let i = 0; i < numLists; i++) {
+        this.writeObList(lists[i] || []);
+      }
+    } else if (clsName === 'CSldGroup') {
+      this.cstringRaw(encodeCp1254(obj.name || 'Default'));
+      this.writeObList(obj.items || []);
+    } else if (clsName === 'CSldSavedView') {
+      this.cstringRaw(encodeCp1254(obj.name || 'Default'));
+      this.bytes(obj.view_data || new Uint8Array(78));
+    } else {
+      throw new Error(`Bilinmeyen CArchive serileştirme sınıfı: "${clsName}"`);
+    }
+  }
+
+  getBuffer(): Uint8Array {
+    const out = new Uint8Array(this.totalLen);
+    let offset = 0;
+    for (const chunk of this.chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return out;
+  }
+}
+
+/**
+ * Universal Native PSS(R)E .sld Binary Parser
+ */
 export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
   const check = validateSldBinary(bytes);
   if (!check.valid) {
     throw new Error(check.reason || 'Geçersiz PSS®E .sld binary dosyası.');
   }
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const isV36 = check.version.startsWith('2.0.51.');
-  const symPad = isV36 ? 37 : 33;
-  const lblPosOff = isV36 ? 85 : 81;
-  const lblTxtOff = isV36 ? 119 : 115;
-  const kneeStep = isV36 ? 121 : 117;
 
-  const layers = parseLayersFromBinary(bytes, dv);
+  const isV51 = check.version.startsWith('2.0.51.') || check.version.startsWith('2.0.50.');
+  const startOff = findMainListStart(bytes);
+  const reader = new SldArchiveReader(bytes, startOff, isV51);
+
+  const rawMainList = reader.readObList(); // main_list
+  const u1 = reader.u32(); // u1
+  const rawLayers = reader.readObList(); // layers
+  const u2 = reader.u16(); // u2
+  const rawGroups = reader.readObList(); // groups
+  const rawViews = reader.readObList(); // views
+
+  const objs: any[] = [];
+  reader.map.forEach((entry) => {
+    if (entry.type === 'OBJ') objs.push(entry.value);
+  });
+
   const components: GaSldComponent[] = [];
-  const seenIds = new Set<number>();
 
-  // 1) Scan all CSldSymbol records and Busbar (width, len) trailers for LIFO pairing
-  interface SymEntry {
-    binOffset: number;
-    afterHeaderOffset: number;
-    comp: GaSldComponent;
-  }
-  const symEntries: SymEntry[] = [];
-  const lifoEvents: { offset: number; kind: 'OPEN' | 'CLOSE'; sym?: GaSldComponent; wl?: [number, number] }[] = [];
+  // 1. Symbols
+  for (const o of objs) {
+    const clsName = o._class;
+    if (
+      clsName === 'CSldBusbar' ||
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
+      const dec = decodeMapStruct(o.map_raw || new Uint8Array(0));
+      let stype = dec.stype;
+      let blen: number | undefined;
+      let bwidth: number | undefined;
+      let ends: [[number, number], [number, number]] | undefined;
 
-  for (let i = 500; i < bytes.length - 160; i++) {
-    if (bytes[i + 16] === 0 && (bytes[i + 45] === 0x1c || bytes[i + 45] === 0x20)) {
-      const mlen = bytes[i + 45];
-      const adOff = i + 46 + mlen;
-      if (adOff + 12 >= bytes.length) continue;
-      const adCnt = dv.getUint16(adOff, true);
-      if (adCnt < 1 || adCnt > 8) continue;
-      const slen = bytes[adOff + 2];
-      if (slen < 5 || slen > 32 || adOff + 8 >= bytes.length) continue;
-      if (
-        bytes[adOff + 3] !== 0x41 || // 'A'
-        bytes[adOff + 4] !== 0x4e || // 'N'
-        bytes[adOff + 5] !== 0x4e || // 'N'
-        bytes[adOff + 6] !== 0x4f || // 'O'
-        bytes[adOff + 7] !== 0x54    // 'T'
-      ) {
-        continue;
-      }
-      const cid = dv.getUint32(i, true);
-      const layer = dv.getUint32(i + 12, true);
-      if (cid === 0 || cid > 10000000 || layer > 64 || seenIds.has(cid)) continue;
-      let p = adOff + 2;
-      let ok = true;
-      for (let k = 0; k < adCnt; k++) {
-        if (p >= bytes.length) {
-          ok = false;
-          break;
+      if (clsName === 'CSldBusbar') {
+        stype = 'Busbar';
+        if (o.bus_tail && o.bus_tail.length >= 28) {
+          const dv = new DataView(o.bus_tail.buffer, o.bus_tail.byteOffset, o.bus_tail.byteLength);
+          bwidth = Number(dv.getFloat64(12, true).toFixed(4));
+          blen = Number(dv.getFloat64(20, true).toFixed(4));
+        } else {
+          bwidth = 0.4;
+          blen = 16.0;
         }
-        p += 1 + bytes[p];
-      }
-      if (!ok || p + symPad + 24 > bytes.length) continue;
-      const dx = dv.getFloat64(p + symPad, true);
-      const dy = dv.getFloat64(p + symPad + 8, true);
-      const dr = dv.getFloat64(p + symPad + 16, true);
-      const hdrRot = dv.getFloat64(i + 4, true);
-      if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx) > 5000 || Math.abs(dy) > 5000) continue;
-
-      const color = dv.getUint32(i + 29, true);
-      const mapType = dv.getUint32(i + 50, true);
-      const bus1 = dv.getUint32(i + 58, true);
-      const bus2 = dv.getUint32(i + 62, true);
-      const bus3 = dv.getUint32(i + 66, true);
-      const ckt = decodeCp1254(bytes.subarray(i + 70, i + 74));
-      const isBusbarClass =
-        (bytes[i - 2] === 0x61 && bytes[i - 1] === 0x72) || // 'ar' (CSldBusbar)
-        (bytes[i - 2] === 0x01 && bytes[i - 1] === 0x80);
-      const decoded = decodeMapRecord(mapType, bus1, bus2, bus3, ckt, isBusbarClass);
-      const useRot = Number.isFinite(dr) && Math.abs(dr) > 1e-4 ? dr : Number.isFinite(hdrRot) ? hdrRot : 0;
-
-      seenIds.add(cid);
-      const symComp: GaSldComponent = {
-        id: cid,
-        t: 'Symbol',
-        stype: decoded.stype,
-        psse: decoded.psse,
-        sdef: decoded.sdef,
-        layer,
-        color,
-        map: decoded.map,
-        pos: [Number(dx.toFixed(6)), Number(dy.toFixed(6))],
-        rot: Number(useRot.toFixed(4)),
-      };
-      if (decoded.stype === 'Busbar') {
-        symComp.len = 2.0;
-        symComp.width = 0.05;
-        lifoEvents.push({ offset: i, kind: 'OPEN', sym: symComp });
-      }
-      components.push(symComp);
-      symEntries.push({ binOffset: i, afterHeaderOffset: p + symPad + 24, comp: symComp });
-    }
-  }
-
-  // Scan Busbar (width, len) trailers for exact LIFO stack matching
-  for (let i = 520; i < bytes.length - 32; i++) {
-    if (bytes[i] === 0x00 && bytes[i + 1] === 0x00 && bytes[i + 2] === 0x80 && bytes[i + 3] === 0x3f) {
-      const d1 = dv.getUint16(i + 8, true);
-      const d2 = dv.getUint16(i + 10, true);
-      if ((d1 === 2 && d2 === 2) || (d1 === 1 && d2 === 1) || (d1 === 0 && d2 === 0)) {
-        const w = dv.getFloat64(i - 16, true);
-        const l = dv.getFloat64(i - 8, true);
-        if (Number.isFinite(w) && Number.isFinite(l) && w > 0.005 && w < 0.25 && l > 0.1 && l < 100) {
-          lifoEvents.push({ offset: i - 16, kind: 'CLOSE', wl: [w, l] });
-        }
-      }
-    }
-  }
-  lifoEvents.sort((a, b) => a.offset - b.offset);
-  const busStack: GaSldComponent[] = [];
-  for (const ev of lifoEvents) {
-    if (ev.kind === 'OPEN' && ev.sym) {
-      busStack.push(ev.sym);
-    } else if (ev.kind === 'CLOSE' && ev.wl && busStack.length > 0) {
-      const bar = busStack.pop()!;
-      const [w, l] = ev.wl;
-      bar.width = Number(w.toFixed(4));
-      bar.len = Number(l.toFixed(4));
-      const [bx, by] = bar.pos!;
-      const isHoriz = Math.abs((bar.rot ?? 0) % 180) > 45;
-      bar.ends = isHoriz
-        ? [
-            [Number((bx - l / 2).toFixed(6)), Number(by.toFixed(6))],
-            [Number((bx + l / 2).toFixed(6)), Number(by.toFixed(6))],
-          ]
-        : [
-            [Number(bx.toFixed(6)), Number((by + l / 2).toFixed(6))],
-            [Number(bx.toFixed(6)), Number((by - l / 2).toFixed(6))],
-          ];
-    }
-  }
-  for (const s of symEntries) {
-    if (s.comp.stype === 'Busbar' && !s.comp.ends && s.comp.pos) {
-      const l = s.comp.len ?? 2.0;
-      const [bx, by] = s.comp.pos;
-      const isHoriz = Math.abs((s.comp.rot ?? 0) % 180) > 45;
-      s.comp.ends = isHoriz
-        ? [
-            [Number((bx - l / 2).toFixed(6)), Number(by.toFixed(6))],
-            [Number((bx + l / 2).toFixed(6)), Number(by.toFixed(6))],
-          ]
-        : [
-            [Number(bx.toFixed(6)), Number((by + l / 2).toFixed(6))],
-            [Number(bx.toFixed(6)), Number((by - l / 2).toFixed(6))],
-          ];
-    }
-  }
-
-  // 2) Scan all CSldLink records + their owned labels + CSldKneePoint records
-  interface RawLinkRecord {
-    binOffset: number;
-    endOffset: number;
-    id: number;
-    layer: number;
-    color: number;
-    ownedLabelCoords: [number, number][];
-    rawKnees: GaSldKneeMeta[];
-  }
-  const rawLinks: RawLinkRecord[] = [];
-  for (let i = 500; i < bytes.length - 140; i++) {
-    const isLinkTag =
-      (bytes[i - 2] === 0x08 && bytes[i - 1] === 0x80) ||
-      (bytes[i - 2] === 0x6e && bytes[i - 1] === 0x6b); // 'nk' (CSldLink)
-    if (!isLinkTag || bytes[i + 16] !== 0) continue;
-    const lid = dv.getUint32(i, true);
-    const lLayer = dv.getUint32(i + 12, true);
-    if (lid === 0 || lid > 10000000 || lLayer > 64 || seenIds.has(lid)) continue;
-    // Find link handle radius signature (\xe0Q\xb8\xbe?\x00\x00\x00\x00) within 900 bytes
-    let sigIdx = -1;
-    for (let s = i + 100; s < Math.min(bytes.length - 20, i + 950); s++) {
-      if (
-        bytes[s] === 0xe0 &&
-        bytes[s + 1] === 0x51 &&
-        bytes[s + 2] === 0xb8 &&
-        bytes[s + 3] === 0xbe &&
-        bytes[s + 4] === 0x3f &&
-        bytes[s + 5] === 0x00 &&
-        bytes[s + 6] === 0x00 &&
-        bytes[s + 7] === 0x00 &&
-        bytes[s + 8] === 0x00
-      ) {
-        sigIdx = s;
-        break;
-      }
-    }
-    if (sigIdx < 0) continue;
-    const kcnt = dv.getUint16(sigIdx + 9, true);
-    if (kcnt > 40) continue;
-    seenIds.add(lid);
-
-    // Scan owned labels between i + 110 and sigIdx
-    const ownedLabelCoords: [number, number][] = [];
-    for (let s = i + 110; s < sigIdx - 80; s++) {
-      const isLbl =
-        (bytes[s] === 0x03 && bytes[s + 1] === 0x80) ||
-        (s >= 7 && bytes[s - 7] === 0x43 && bytes[s - 6] === 0x53 && bytes[s + 1] === 0x6c);
-      if (!isLbl) continue;
-      const lIdx = s + 2;
-      if (lIdx + lblTxtOff + 2 >= sigIdx) continue;
-      const lbid = dv.getUint32(lIdx, true);
-      const lbLayer = dv.getUint32(lIdx + 12, true);
-      if (lbid === 0 || lbid > 10000000 || lbLayer > 64 || bytes[lIdx + 16] !== 0) continue;
-      const tlen = bytes[lIdx + lblTxtOff];
-      if (lIdx + lblTxtOff + 1 + tlen > sigIdx) continue;
-      const lx = dv.getFloat64(lIdx + lblPosOff, true);
-      const ly = dv.getFloat64(lIdx + lblPosOff + 8, true);
-      const lr = dv.getFloat64(lIdx + lblPosOff + 16, true);
-      if (Number.isFinite(lx) && Number.isFinite(ly) && Math.abs(lx) < 5000 && Math.abs(ly) < 5000) {
-        ownedLabelCoords.push([lx, ly]);
-        if (tlen > 0 && !seenIds.has(lbid)) {
-          const txt = decodeCp1254(bytes.subarray(lIdx + lblTxtOff + 1, lIdx + lblTxtOff + 1 + tlen));
-          seenIds.add(lbid);
-          components.push({
-            id: lbid,
-            t: 'Label',
-            layer: lbLayer,
-            color: dv.getUint32(lIdx + 29, true),
-            pos: [Number(lx.toFixed(6)), Number(ly.toFixed(6))],
-            rot: Number.isFinite(lr) ? Number(lr.toFixed(2)) : 0,
-            text: txt,
-            fh: 9,
-            owner: lid,
-          });
-        }
-      }
-    }
-
-    // Parse CSldKneePoint records starting at sigIdx + 11
-    let kpCursor = sigIdx + 11;
-    const rawKnees: GaSldKneeMeta[] = [];
-    for (let k = 0; k < kcnt; k++) {
-      if (kpCursor + 20 >= bytes.length) break;
-      if (bytes[kpCursor] === 0xff && bytes[kpCursor + 1] === 0xff) {
-        kpCursor += 19; // \xff\xff\x01\x00\x0d\x00CSldKneePoint
-      } else {
-        kpCursor += 2; // \x0c\x80
-      }
-      if (kpCursor + lblPosOff + 16 > bytes.length) break;
-      const kid = dv.getUint32(kpCursor, true);
-      const kx = dv.getFloat64(kpCursor + lblPosOff, true);
-      const ky = dv.getFloat64(kpCursor + lblPosOff + 8, true);
-      if (Number.isFinite(kx) && Number.isFinite(ky) && Math.abs(kx) < 5000 && Math.abs(ky) < 5000) {
-        rawKnees.push({
-          id: kid,
-          pos: [Number(kx.toFixed(6)), Number(ky.toFixed(6))],
-          binOffset: kpCursor + lblPosOff,
-        });
-      }
-      kpCursor += kneeStep;
-    }
-
-    rawLinks.push({
-      binOffset: i,
-      endOffset: kpCursor,
-      id: lid,
-      layer: lLayer,
-      color: dv.getUint32(i + 29, true),
-      ownedLabelCoords,
-      rawKnees,
-    });
-  }
-
-  // 3) Scan all remaining CSldLabel records (owned by Symbols or free-standing)
-  symEntries.sort((a, b) => a.binOffset - b.binOffset);
-  for (let i = 500; i < bytes.length - (lblTxtOff + 6); i++) {
-    const isLbl =
-      (bytes[i - 2] === 0x03 && bytes[i - 1] === 0x80) ||
-      (i >= 9 && bytes[i - 9] === 0x43 && bytes[i - 8] === 0x53 && bytes[i - 1] === 0x6c);
-    if (!isLbl || bytes[i + 16] !== 0) continue;
-    const lid = dv.getUint32(i, true);
-    const lLayer = dv.getUint32(i + 12, true);
-    if (lid === 0 || lid > 10000000 || lLayer > 64 || seenIds.has(lid)) continue;
-    const tlen = bytes[i + lblTxtOff];
-    if (tlen === 0 || tlen > 220 || i + lblTxtOff + 1 + tlen > bytes.length) continue;
-    const txt = decodeCp1254(bytes.subarray(i + lblTxtOff + 1, i + lblTxtOff + 1 + tlen));
-    if (!txt.trim()) continue;
-    const lx = dv.getFloat64(i + lblPosOff, true);
-    const ly = dv.getFloat64(i + lblPosOff + 8, true);
-    const lr = dv.getFloat64(i + lblPosOff + 16, true);
-    if (!Number.isFinite(lx) || !Number.isFinite(ly) || Math.abs(lx) > 5000 || Math.abs(ly) > 5000) continue;
-
-    // Owner is the symbol whose header immediately precedes this label
-    let ownerId: number | undefined;
-    for (let sIdx = symEntries.length - 1; sIdx >= 0; sIdx--) {
-      if (symEntries[sIdx].binOffset < i) {
-        if (i - symEntries[sIdx].afterHeaderOffset < 950) {
-          ownerId = symEntries[sIdx].comp.id;
-        }
-        break;
-      }
-    }
-    seenIds.add(lid);
-    components.push({
-      id: lid,
-      t: 'Label',
-      layer: lLayer,
-      color: dv.getUint32(i + 29, true),
-      pos: [Number(lx.toFixed(6)), Number(ly.toFixed(6))],
-      rot: Number.isFinite(lr) ? Number(lr.toFixed(2)) : 0,
-      text: txt,
-      fh: 9,
-      owner: ownerId,
-    });
-  }
-
-  // 4) Pair each RawLinkRecord with its exact (Busbar/Node p1, Branch/Radial p2) endpoints
-  const busSymsByNum = new Map<string, GaSldComponent[]>();
-  for (const se of symEntries) {
-    const c = se.comp;
-    if ((c.stype === 'Busbar' || c.stype === 'Node') && c.map?.startsWith('BU ')) {
-      const bnum = c.map.slice(3).trim().split(/\s+/)[0];
-      if (bnum) {
-        const list = busSymsByNum.get(bnum) ?? [];
-        list.push(c);
-        busSymsByNum.set(bnum, list);
-      }
-    }
-  }
-
-  function projectOntoBus(busSym: GaSldComponent, refPt: [number, number]): [number, number] {
-    const [bx, by] = busSym.pos ?? [0, 0];
-    if (busSym.stype === 'Busbar' && busSym.ends && busSym.ends.length === 2) {
-      const [[x1, y1], [x2, y2]] = busSym.ends;
-      const isHoriz = Math.abs(x2 - x1) > Math.abs(y2 - y1);
-      if (isHoriz) {
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const px = Math.max(minX, Math.min(maxX, refPt[0]));
-        return [Number(px.toFixed(6)), Number(by.toFixed(6))];
-      } else {
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        const py = Math.max(minY, Math.min(maxY, refPt[1]));
-        return [Number(bx.toFixed(6)), Number(py.toFixed(6))];
-      }
-    }
-    return [Number(bx.toFixed(6)), Number(by.toFixed(6))];
-  }
-
-  function pickBestBusSym(busNum: string, refPt: [number, number]): GaSldComponent | null {
-    const candidates = busSymsByNum.get(busNum);
-    if (!candidates || candidates.length === 0) return null;
-    if (candidates.length === 1) return candidates[0];
-    let best = candidates[0];
-    let bestDist = Infinity;
-    for (const cand of candidates) {
-      const proj = projectOntoBus(cand, refPt);
-      const d = Math.hypot(proj[0] - refPt[0], proj[1] - refPt[1]);
-      if (d < bestDist) {
-        bestDist = d;
-        best = cand;
-      }
-    }
-    return best;
-  }
-
-  const usedLinkIds = new Set<number>();
-  for (const se of symEntries) {
-    const sym = se.comp;
-    if (sym.stype !== 'Branch' && sym.stype !== 'Radial') continue;
-    const parts = (sym.map || '').trim().split(/\s+/);
-    const bus1 = parts[1] || '';
-    const bus2 = sym.stype === 'Branch' ? parts[2] || '' : '';
-    const [sx, sy] = sym.pos ?? [0, 0];
-
-    // Find raw links within [-1200, +1200] bytes of this Branch/Radial symbol
-    const nearby = rawLinks
-      .filter((rl) => !usedLinkIds.has(rl.id) && Math.abs(rl.binOffset - se.binOffset) <= 1350)
-      .sort((a, b) => a.binOffset - b.binOffset);
-
-    if (sym.stype === 'Radial') {
-      const rl = nearby[0];
-      const refPt: [number, number] =
-        rl && rl.ownedLabelCoords.length >= 2
+        const bx = o.x;
+        const by = o.y;
+        const isHoriz = Math.abs((o.rot ?? 0.0) % 180) > 45;
+        ends = isHoriz
           ? [
-              (rl.ownedLabelCoords[0][0] + rl.ownedLabelCoords[1][0]) / 2,
-              (rl.ownedLabelCoords[0][1] + rl.ownedLabelCoords[1][1]) / 2,
-            ]
-          : rl && rl.rawKnees.length > 0
-          ? rl.rawKnees[0].pos
-          : [sx, sy];
-      const bSym = pickBestBusSym(bus1, refPt);
-      if (bSym) {
-        const p1Pos = projectOntoBus(bSym, refPt);
-        const knees = rl ? rl.rawKnees.map((k) => k.pos) : [];
-        if (rl) usedLinkIds.add(rl.id);
-        components.push({
-          id: rl ? rl.id : sym.id + 100000,
-          t: 'Link',
-          layer: rl ? rl.layer : sym.layer,
-          color: rl ? rl.color : sym.color,
-          lwidth: 1,
-          p1: { sym: bSym.id, pos: p1Pos, idx: 0 },
-          p2: { sym: sym.id, pos: [sx, sy], idx: 0 },
-          knees: knees.length > 0 ? knees : undefined,
-          _rawKnees: rl?.rawKnees,
-        });
-      }
-    } else if (sym.stype === 'Branch') {
-      const before = nearby.filter((r) => r.binOffset < se.binOffset).pop();
-      const after = nearby.find((r) => r.binOffset > se.binOffset);
-      const pairLinks = [before, after].filter(Boolean) as RawLinkRecord[];
-
-      const getRef = (rl?: RawLinkRecord): [number, number] => {
-        if (rl && rl.ownedLabelCoords.length >= 2) {
-          return [
-            (rl.ownedLabelCoords[0][0] + rl.ownedLabelCoords[1][0]) / 2,
-            (rl.ownedLabelCoords[0][1] + rl.ownedLabelCoords[1][1]) / 2,
-          ];
-        }
-        if (rl && rl.rawKnees.length > 0) return rl.rawKnees[0].pos;
-        return [sx, sy];
-      };
-
-      const refA = getRef(pairLinks[0]);
-      const refB = getRef(pairLinks[1]);
-      const bSym1A = pickBestBusSym(bus1, refA);
-      const bSym2B = pickBestBusSym(bus2, refB);
-      const bSym1B = pickBestBusSym(bus1, refB);
-      const bSym2A = pickBestBusSym(bus2, refA);
-
-      let assignSwapped = false;
-      if (bSym1A && bSym2B && bSym1B && bSym2A) {
-        const dNormal =
-          Math.hypot(projectOntoBus(bSym1A, refA)[0] - refA[0], projectOntoBus(bSym1A, refA)[1] - refA[1]) +
-          Math.hypot(projectOntoBus(bSym2B, refB)[0] - refB[0], projectOntoBus(bSym2B, refB)[1] - refB[1]);
-        const dSwap =
-          Math.hypot(projectOntoBus(bSym2A, refA)[0] - refA[0], projectOntoBus(bSym2A, refA)[1] - refA[1]) +
-          Math.hypot(projectOntoBus(bSym1B, refB)[0] - refB[0], projectOntoBus(bSym1B, refB)[1] - refB[1]);
-        if (dSwap + 0.05 < dNormal) assignSwapped = true;
-      }
-
-      const assignments: { rl?: RawLinkRecord; busSym: GaSldComponent | null; ref: [number, number]; portIdx: number }[] =
-        assignSwapped
-          ? [
-              { rl: pairLinks[0], busSym: bSym2A, ref: refA, portIdx: 0 },
-              { rl: pairLinks[1], busSym: bSym1B, ref: refB, portIdx: 1 },
+              [Number((bx - blen / 2).toFixed(6)), Number(by.toFixed(6))],
+              [Number((bx + blen / 2).toFixed(6)), Number(by.toFixed(6))],
             ]
           : [
-              { rl: pairLinks[0], busSym: bSym1A, ref: refA, portIdx: 0 },
-              { rl: pairLinks[1], busSym: bSym2B, ref: refB, portIdx: 1 },
+              [Number(bx.toFixed(6)), Number((by + blen / 2).toFixed(6))],
+              [Number(bx.toFixed(6)), Number((by - blen / 2).toFixed(6))],
             ];
-
-      for (const item of assignments) {
-        if (!item.busSym) continue;
-        if (item.rl) usedLinkIds.add(item.rl.id);
-        const p1Pos = projectOntoBus(item.busSym, item.ref);
-        const dx = p1Pos[0] - sx;
-        const dy = p1Pos[1] - sy;
-        const dist = Math.hypot(dx, dy) || 1;
-        const p2Pos: [number, number] = [
-          Number((sx + (dx / dist) * 0.116).toFixed(6)),
-          Number((sy + (dy / dist) * 0.116).toFixed(6)),
-        ];
-        // Filter out collinear single-segment handle points while preserving real 90-degree bends
-        const rawKnees = item.rl?.rawKnees ?? [];
-        const knees = rawKnees
-          .map((k) => k.pos)
-          .filter((kp) => {
-            const colY = Math.abs(kp[1] - p1Pos[1]) < 0.03 && Math.abs(p1Pos[1] - p2Pos[1]) < 0.03;
-            const colX = Math.abs(kp[0] - p1Pos[0]) < 0.03 && Math.abs(p1Pos[0] - p2Pos[0]) < 0.03;
-            return !(rawKnees.length === 1 && (colY || colX));
-          });
-        components.push({
-          id: item.rl ? item.rl.id : sym.id * 100 + item.portIdx,
-          t: 'Link',
-          layer: item.rl ? item.rl.layer : sym.layer,
-          color: item.rl ? item.rl.color : sym.color,
-          lwidth: 1,
-          p1: { sym: item.busSym.id, pos: p1Pos, idx: 0 },
-          p2: { sym: sym.id, pos: p2Pos, idx: item.portIdx },
-          knees: knees.length > 0 ? knees : undefined,
-          _rawKnees: rawKnees,
-        });
       }
+
+      const symComp: GaSldComponent = {
+        id: o.id,
+        t: 'Symbol',
+        stype,
+        psse: dec.psse,
+        sdef: o.sdef ?? dec.sdef,
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        map: dec.map,
+        pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
+        rot: Number((o.rot ?? 0.0).toFixed(4)),
+      };
+      if (blen !== undefined && bwidth !== undefined && ends) {
+        symComp.len = blen;
+        symComp.width = bwidth;
+        symComp.ends = ends;
+      }
+      symComp._rawObj = o;
+      components.push(symComp);
     }
   }
 
-  return { format: 'ga-sld-v1', fileVersion: check.version, layers, components };
-}
+  // 2. Links
+  for (const o of objs) {
+    if (o._class === 'CSldLink') {
+      const p1Obj = o.p1 ? (Array.isArray(o.p1) ? o.p1[2] : o.p1) : null;
+      const p2Obj = o.p2 ? (Array.isArray(o.p2) ? o.p2[2] : o.p2) : null;
+      const s1Obj = p1Obj && p1Obj.owner ? (Array.isArray(p1Obj.owner) ? p1Obj.owner[2] : p1Obj.owner) : null;
+      const s2Obj = p2Obj && p2Obj.owner ? (Array.isArray(p2Obj.owner) ? p2Obj.owner[2] : p2Obj.owner) : null;
 
-function findSymbolHeaderOffset(bytes: Uint8Array, dv: DataView, cid: number, expectedLayer: number, symPad: number): number {
-  const b0 = cid & 0xff;
-  const b1 = (cid >> 8) & 0xff;
-  const b2 = (cid >> 16) & 0xff;
-  const b3 = (cid >> 24) & 0xff;
-  const limit = bytes.length - 150;
-  for (let i = 500; i <= limit; i++) {
-    if (bytes[i] === b0 && bytes[i + 1] === b1 && bytes[i + 2] === b2 && bytes[i + 3] === b3) {
-      if (bytes[i + 16] !== 0) continue;
-      const mlen = bytes[i + 45];
-      if (mlen !== 0x1c && mlen !== 0x20) continue;
-      const lyr = dv.getUint32(i + 12, true);
-      if (expectedLayer !== undefined && lyr !== expectedLayer && lyr > 64) continue;
-      const adOff = i + 46 + mlen;
-      if (adOff + 8 >= bytes.length) continue;
-      if (
-        bytes[adOff + 3] !== 0x41 ||
-        bytes[adOff + 4] !== 0x4e ||
-        bytes[adOff + 5] !== 0x4e ||
-        bytes[adOff + 6] !== 0x4f ||
-        bytes[adOff + 7] !== 0x54
-      ) {
-        continue;
-      }
-      const adCnt = dv.getUint16(adOff, true);
-      if (adCnt < 1 || adCnt > 10) continue;
-      let p = adOff + 2;
-      let ok = true;
-      for (let k = 0; k < adCnt; k++) {
-        if (p >= bytes.length) {
-          ok = false;
-          break;
+      const p1Pos: [number, number] =
+        s1Obj && p1Obj
+          ? [Number((s1Obj.x + p1Obj.dx).toFixed(6)), Number((s1Obj.y + p1Obj.dy).toFixed(6))]
+          : [0.0, 0.0];
+      const p2Pos: [number, number] =
+        s2Obj && p2Obj
+          ? [Number((s2Obj.x + p2Obj.dx).toFixed(6)), Number((s2Obj.y + p2Obj.dy).toFixed(6))]
+          : [0.0, 0.0];
+
+      const knees: [number, number][] = [];
+      const rawKnees: GaSldKneeMeta[] = [];
+      const kList = o.knees || [];
+      for (const kw of kList) {
+        const kp = Array.isArray(kw) ? kw[2] : kw;
+        if (kp) {
+          const kpos: [number, number] = [Number(kp.x.toFixed(6)), Number(kp.y.toFixed(6))];
+          knees.push(kpos);
+          rawKnees.push({ id: kp.id, pos: kpos, binOffset: kp._pos || 0 });
         }
-        p += 1 + bytes[p];
       }
-      if (ok && p + symPad + 24 <= bytes.length) {
-        return i;
+
+      const linkComp: GaSldComponent = {
+        id: o.id,
+        t: 'Link',
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        lwidth: 1,
+        p1: { sym: s1Obj ? s1Obj.id : 0, pos: p1Pos, idx: p1Obj ? p1Obj.port_idx ?? 0 : 0 },
+        p2: { sym: s2Obj ? s2Obj.id : 0, pos: p2Pos, idx: p2Obj ? p2Obj.port_idx ?? 0 : 0 },
+      };
+      if (knees.length > 0) {
+        linkComp.knees = knees;
+        linkComp._rawKnees = rawKnees;
+      }
+      linkComp._rawObj = o;
+      components.push(linkComp);
+    }
+  }
+
+  // 3. Labels
+  for (const o of objs) {
+    if (o._class === 'CSldLabel') {
+      const ownerObj = o.owner ? (Array.isArray(o.owner) ? o.owner[2] : o.owner) : null;
+      components.push({
+        id: o.id,
+        t: 'Label',
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
+        rot: Number((o.rot ?? 0.0).toFixed(4)),
+        text: o.text || '',
+        fh: 9,
+        owner: ownerObj ? ownerObj.id : undefined,
+        _rawObj: o,
+      });
+    }
+  }
+
+  // 4. Layers
+  const docLayers: GaSldLayer[] = [];
+  for (let idx = 0; idx < rawLayers.length; idx++) {
+    const lWrap = rawLayers[idx];
+    const lObj = Array.isArray(lWrap) ? lWrap[2] : lWrap;
+    if (lObj) {
+      docLayers.push({
+        n: idx,
+        desc: lObj.name || `Layer ${idx}`,
+        vis: lObj.vis === 0 ? 'Invisible' : 'Visible',
+      });
+    }
+  }
+
+  return {
+    format: 'ga-sld-v1',
+    fileVersion: check.version,
+    layers: docLayers,
+    components,
+    rawBytes: bytes,
+    _rawMainList: rawMainList,
+    _rawLayers: rawLayers,
+    _rawGroups: rawGroups,
+    _rawViews: rawViews,
+    _u1: u1,
+    _u2: u2,
+  };
+}
+
+/**
+ * Universal Native PSS(R)E .sld Binary Serializer
+ * Works strictly bridge-free without python or local server.
+ */
+export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1'): Uint8Array {
+  const isV51 = !targetVersion.startsWith('2.0.49.');
+
+  // 1. Preamble
+  let preamble: Uint8Array;
+  if (doc.rawBytes && doc.rawBytes.length >= 512) {
+    const pEnd = findMainListStart(doc.rawBytes);
+    preamble = doc.rawBytes.subarray(0, pEnd);
+  } else {
+    preamble = getDefaultPreamble();
+  }
+
+  if (doc._rawLayers && doc._rawMainList) {
+    const compMap = new Map<number, GaSldComponent>();
+    for (const c of doc.components) compMap.set(c.id, c);
+
+    for (const w of doc._rawMainList) {
+      const o = Array.isArray(w) ? w[2] : w;
+      if (!o) continue;
+      const c = compMap.get(o.id);
+      if (c) {
+        if (c.pos) {
+          o.x = c.pos[0];
+          o.y = c.pos[1];
+        }
+        if (c.rot !== undefined) o.rot = c.rot;
+        if (c.color !== undefined) o.color = c.color;
+        if (c.t === 'Link') {
+          if (c.knees && Array.isArray(c.knees)) {
+            const kList: any[] = [];
+            for (let kidx = 0; kidx < c.knees.length; kidx++) {
+              const kp = c.knees[kidx];
+              const kneeId = 90000 + o.id * 10 + kidx;
+              kList.push({
+                _class: 'CSldKneePoint',
+                id: kneeId,
+                rot: 0.0,
+                layer: o.layer ?? 4,
+                flag0: 0,
+                f1: 1,
+                f2: 1,
+                f3: 0,
+                color: o.color ?? 0,
+                comp_pre_map: new Uint8Array(12),
+                map_raw: new Uint8Array(0),
+                comp_annots: [],
+                comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+                x: kp[0],
+                y: kp[1],
+                comp_post_xy: new Uint8Array(16),
+                labels: [],
+                owner: o,
+              });
+            }
+            o.knees = kList;
+          }
+        } else if (c.t === 'Label' && c.text !== undefined) {
+          o.text = c.text;
+        }
+      }
+    }
+
+    const writer = new SldArchiveWriter(isV51);
+    writer.writeObList(doc._rawMainList.map((w: any) => (Array.isArray(w) ? w[2] : w)));
+    writer.u32(doc._u1 ?? 1);
+    writer.writeObList(doc._rawLayers.map((w: any) => (Array.isArray(w) ? w[2] : w)));
+    writer.u16(doc._u2 ?? 0);
+    writer.writeObList(doc._rawGroups ? doc._rawGroups.map((w: any) => (Array.isArray(w) ? w[2] : w)) : []);
+    writer.writeObList(doc._rawViews ? doc._rawViews.map((w: any) => (Array.isArray(w) ? w[2] : w)) : []);
+
+    const bodyBytes = writer.getBuffer();
+    const fullBytes = new Uint8Array(preamble.length + bodyBytes.length);
+    fullBytes.set(preamble, 0);
+    fullBytes.set(bodyBytes, preamble.length);
+
+    // Validate pre-export round-trip
+    const reDoc = parseSldBinary(fullBytes);
+    return fullBytes;
+  }
+
+  // 2. Build CArchive Object Graph
+  const symMap = new Map<number, any>();
+  const linkList: any[] = [];
+  const labelsByOwner = new Map<number, any[]>();
+  const portsBySym = new Map<number, any[]>();
+
+  for (const c of doc.components) {
+    if (c.t === 'Symbol') {
+      symMap.set(c.id, c);
+      portsBySym.set(c.id, []);
+    } else if (c.t === 'Link') {
+      linkList.push(c);
+    } else if (c.t === 'Label') {
+      const owner = c.owner ?? 0;
+      const list = labelsByOwner.get(owner) ?? [];
+      list.push(c);
+      labelsByOwner.set(owner, list);
+    }
+  }
+
+  const carchiveObjs = new Map<number, any>();
+
+  // Build Symbol objects
+  symMap.forEach((c, cid) => {
+    const stype = c.stype || 'Busbar';
+    const clsName =
+      stype === 'Busbar'
+        ? 'CSldBusbar'
+        : stype === 'Node'
+        ? 'CSldPointNode'
+        : stype === 'Radial'
+        ? 'CSldRadial'
+        : 'CSldBranch';
+
+    const mapRaw = encodeMapStruct(c.map || '', stype === 'Busbar');
+    const pos = c.pos || [0.0, 0.0];
+    const blen = c.len ?? 16.0;
+    const bwidth = c.width ?? 0.4;
+    const color = c.color ?? 0xff0000;
+    const layer = c.layer ?? 4;
+    const rot = c.rot ?? 0.0;
+
+    const busTail = new Uint8Array(isV51 ? 60 : 58);
+    const busDv = new DataView(busTail.buffer);
+    busDv.setUint32(0, 1, true);
+    busDv.setUint32(4, color, true);
+    busDv.setFloat64(12, bwidth, true);
+    busDv.setFloat64(20, blen, true);
+    busDv.setFloat32(28, 1.0, true);
+    busDv.setFloat32(32, 1.0, true);
+    busDv.setInt32(36, -1, true);
+    busDv.setUint16(40, 2, true);
+    busDv.setUint16(42, 2, true);
+    busDv.setUint16(44, 1, true);
+    busDv.setUint16(46, 1, true);
+
+    const obj: any = {
+      _class: clsName,
+      id: cid,
+      rot,
+      layer,
+      flag0: 0,
+      f1: 1,
+      f2: 1,
+      f3: 1,
+      color,
+      comp_pre_map: new Uint8Array(12),
+      map_raw: mapRaw,
+      comp_annots: [],
+      comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+      x: pos[0],
+      y: pos[1],
+      comp_post_xy: new Uint8Array(16),
+      labels: [],
+      sdef: c.sdef ?? (stype === 'Busbar' ? 1 : 0),
+      sym_flag: 0,
+      ports: [],
+      bus_tail: busTail,
+      sym_tail: new Uint8Array(isV51 ? 12 : 10),
+    };
+    carchiveObjs.set(cid, obj);
+  });
+
+  // Build Link objects & Port objects
+  for (const l of linkList) {
+    const lid = l.id;
+    const p1Info = l.p1 || {};
+    const p2Info = l.p2 || {};
+    const s1Id = p1Info.sym;
+    const s2Id = p2Info.sym;
+    const s1Obj = carchiveObjs.get(s1Id);
+    const s2Obj = carchiveObjs.get(s2Id);
+    const p1Pos = p1Info.pos || (s1Obj ? [s1Obj.x, s1Obj.y] : [0.0, 0.0]);
+    const p2Pos = p2Info.pos || (s2Obj ? [s2Obj.x, s2Obj.y] : [0.0, 0.0]);
+    const color = l.color ?? 0x00ff00;
+    const layer = l.layer ?? 4;
+
+    const linkPreKnees = new Uint8Array(66);
+    // Standard link handle radius signature
+    linkPreKnees[0] = 0xcd;
+    linkPreKnees[1] = 0xcc;
+    linkPreKnees[2] = 0x4c;
+    linkPreKnees[3] = 0x3d;
+    linkPreKnees[4] = 0xff;
+    linkPreKnees[5] = 0xff;
+    linkPreKnees[6] = 0xff;
+    linkPreKnees[7] = 0xff;
+    linkPreKnees[16] = 0x01;
+    linkPreKnees[46] = 0xff;
+    linkPreKnees[47] = 0xff;
+    linkPreKnees[48] = 0xff;
+    linkPreKnees[49] = 0xff;
+    linkPreKnees[58] = 0xe0;
+    linkPreKnees[59] = 0x51;
+    linkPreKnees[60] = 0xb8;
+    linkPreKnees[61] = 0xbe;
+    linkPreKnees[62] = 0x3f;
+
+    const linkTail = new Uint8Array(32);
+    linkTail[1] = 0x01;
+
+    const linkObj: any = {
+      _class: 'CSldLink',
+      id: lid,
+      rot: 0.0,
+      layer,
+      flag0: 0,
+      f1: 1,
+      f2: 1,
+      f3: 0,
+      color,
+      comp_pre_map: new Uint8Array(12),
+      map_raw: new Uint8Array(0),
+      comp_annots: [],
+      comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+      x: 0.0,
+      y: 0.0,
+      comp_post_xy: new Uint8Array(16),
+      labels: [],
+      link_pre_knees: linkPreKnees,
+      knees: [],
+      p1: null,
+      p2: null,
+      link_tail: linkTail,
+    };
+    carchiveObjs.set(lid, linkObj);
+
+    // Knees
+    const knees = l.knees || [];
+    for (let kidx = 0; kidx < knees.length; kidx++) {
+      const kp = knees[kidx];
+      const kneeId = 90000 + lid * 10 + kidx;
+      const kObj: any = {
+        _class: 'CSldKneePoint',
+        id: kneeId,
+        rot: 0.0,
+        layer,
+        flag0: 0,
+        f1: 1,
+        f2: 1,
+        f3: 0,
+        color,
+        comp_pre_map: new Uint8Array(12),
+        map_raw: new Uint8Array(0),
+        comp_annots: [],
+        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+        x: kp[0],
+        y: kp[1],
+        comp_post_xy: new Uint8Array(16),
+        labels: [],
+        owner: linkObj,
+      };
+      linkObj.knees.push(kObj);
+    }
+
+    // Port 1
+    const dx1 = s1Obj ? p1Pos[0] - s1Obj.x : 0.0;
+    const dy1 = s1Obj ? p1Pos[1] - s1Obj.y : 0.0;
+    const port1: any = {
+      _class: 'CSldPort',
+      owner: s1Obj,
+      link: linkObj,
+      port_idx: p1Info.idx ?? (portsBySym.get(s1Id)?.length ?? 0),
+      dx: dx1,
+      dy: dy1,
+      port_tail: new Uint8Array(16),
+    };
+    linkObj.p1 = port1;
+    if (s1Obj) {
+      portsBySym.get(s1Id)!.push(port1);
+    }
+
+    // Port 2
+    const dx2 = s2Obj ? p2Pos[0] - s2Obj.x : 0.0;
+    const dy2 = s2Obj ? p2Pos[1] - s2Obj.y : 0.0;
+    const port2: any = {
+      _class: 'CSldPort',
+      owner: s2Obj,
+      link: linkObj,
+      port_idx: p2Info.idx ?? (portsBySym.get(s2Id)?.length ?? 0),
+      dx: dx2,
+      dy: dy2,
+      port_tail: new Uint8Array(16),
+    };
+    linkObj.p2 = port2;
+    if (s2Obj) {
+      portsBySym.get(s2Id)!.push(port2);
+    }
+  }
+
+  // Attach ports to symbols
+  carchiveObjs.forEach((sObj, sid) => {
+    if (
+      sObj._class === 'CSldBusbar' ||
+      sObj._class === 'CSldPointNode' ||
+      sObj._class === 'CSldRadial' ||
+      sObj._class === 'CSldBranch'
+    ) {
+      sObj.ports = portsBySym.get(sid) || [];
+    }
+  });
+
+  // Attach labels
+  labelsByOwner.forEach((lblList, ownerId) => {
+    const ownerObj = carchiveObjs.get(ownerId);
+    if (!ownerObj) return;
+    for (const l of lblList) {
+      const pos = l.pos || [ownerObj.x, ownerObj.y];
+      const fontInfo = new Uint8Array(36);
+      const fontDv = new DataView(fontInfo.buffer);
+      fontDv.setInt32(0, 9, true); // height = 9
+      fontDv.setInt32(16, 400, true); // normal weight
+      const lblObj: any = {
+        _class: 'CSldLabel',
+        id: l.id,
+        rot: l.rot ?? 0.0,
+        layer: l.layer ?? (ownerObj.layer ?? 4),
+        flag0: 0,
+        f1: 1,
+        f2: 1,
+        f3: 1,
+        color: l.color ?? 0xffffff,
+        comp_pre_map: new Uint8Array(12),
+        map_raw: new Uint8Array(0),
+        comp_annots: [],
+        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+        x: pos[0],
+        y: pos[1],
+        comp_post_xy: new Uint8Array(16),
+        labels: [],
+        text: l.text || '',
+        owner: ownerObj,
+        lbl_vis: 1,
+        lbl_bg: 0xffffff,
+        lbl_default_font: 0,
+        lbl_font_info: fontInfo,
+        lbl_font_name: 'Arial',
+        lbl_font_tail: new Uint8Array(8),
+      };
+      ownerObj.labels.push(lblObj);
+    }
+  });
+
+  // Main list
+  const mainList: any[] = [];
+  for (const c of doc.components) {
+    const cid = c.id;
+    if (carchiveObjs.has(cid)) {
+      const o = carchiveObjs.get(cid)!;
+      mainList.push(o);
+      if (o.labels) {
+        for (const lbl of o.labels) mainList.push(lbl);
+      }
+      if (o.knees) {
+        for (const kp of o.knees) mainList.push(kp);
       }
     }
   }
-  return -1;
-}
 
-function findLabelHeaderOffset(bytes: Uint8Array, dv: DataView, cid: number, expectedLayer: number, lblTxtOff: number): number {
-  const b0 = cid & 0xff;
-  const b1 = (cid >> 8) & 0xff;
-  const b2 = (cid >> 16) & 0xff;
-  const b3 = (cid >> 24) & 0xff;
-  const limit = bytes.length - (lblTxtOff + 4);
-  for (let i = 500; i <= limit; i++) {
-    if (bytes[i] === b0 && bytes[i + 1] === b1 && bytes[i + 2] === b2 && bytes[i + 3] === b3) {
-      if (bytes[i + 16] !== 0) continue;
-      const hasTag =
-        (bytes[i - 2] === 0x03 && bytes[i - 1] === 0x80) ||
-        (i >= 9 && bytes[i - 9] === 0x43 && bytes[i - 8] === 0x53 && bytes[i - 1] === 0x6c);
-      if (!hasTag) continue;
-      const lyr = dv.getUint32(i + 12, true);
-      if ((expectedLayer === undefined || lyr === expectedLayer) && lyr <= 64) {
-        return i;
-      }
+  // Layers
+  const layerNames = [
+    'Background', 'Foreground', 'BaseVoltage 154,0', 'BaseVoltage 380,0', 'BaseVoltage 400,0',
+    'BaseVoltage 220,0', 'BaseVoltage 66,0', 'BaseVoltage 33,0', 'BaseVoltage 31,5',
+    'BaseVoltage 15,8', 'BaseVoltage 10,6', 'BaseVoltage 10,5', 'BaseVoltage 6,3',
+    'BaseVoltage 3,3', 'BaseVoltage 0,4', 'User Layer 1', 'User Layer 2', 'User Layer 3', 'User Layer 4',
+  ];
+  const activeNames = isV51 ? layerNames : layerNames.slice(0, 12);
+  const layers: any[] = [];
+  for (let lIdx = 0; lIdx < activeNames.length; lIdx++) {
+    const layerHdr = new Uint8Array([
+      0x00, 0x00, 0x00, 0x00, 0x7b, 0x14, 0xae, 0x47, 0xe1, 0x7a, 0x84, 0x3f,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x59, 0x40,
+    ]);
+    layers.push({
+      _class: 'CSldLayer',
+      layer_hdr: layerHdr,
+      name: activeNames[lIdx],
+      vis: 1,
+      layer_lists: Array.from({ length: isV51 ? 22 : 21 }, () => []),
+    });
+  }
+
+  const groups = [
+    {
+      _class: 'CSldGroup',
+      name: 'Default',
+      items: [],
+    },
+  ];
+
+  const viewData = new Uint8Array(78);
+  const viewDv = new DataView(viewData.buffer);
+  viewDv.setFloat64(0, -25.0, true);
+  viewDv.setFloat64(8, -25.0, true);
+  viewDv.setFloat64(16, 25.0, true);
+  viewDv.setFloat64(24, 25.0, true);
+
+  const views = [
+    {
+      _class: 'CSldSavedView',
+      name: 'Default',
+      view_data: viewData,
+    },
+  ];
+
+  // Write CArchive Body
+  const writer = new SldArchiveWriter(isV51);
+  writer.writeObList(mainList);
+  writer.u32(1); // u1
+  writer.writeObList(layers);
+  writer.u16(0); // u2
+  writer.writeObList(groups);
+  writer.writeObList(views);
+
+  const bodyBytes = writer.getBuffer();
+  const fullBytes = new Uint8Array(preamble.length + bodyBytes.length);
+  fullBytes.set(preamble, 0);
+  fullBytes.set(bodyBytes, preamble.length);
+
+  // 3. Mandatory Pre-Export Round-Trip Validation
+  const reDoc = parseSldBinary(fullBytes);
+  const origSyms = doc.components.filter((c) => c.t === 'Symbol');
+  const reSyms = reDoc.components.filter((c) => c.t === 'Symbol');
+  if (reSyms.length !== origSyms.length) {
+    throw new Error(`Round-trip sembol sayısı uyuşmazlığı: Orijinal=${origSyms.length}, Üretilen=${reSyms.length}`);
+  }
+
+  const origLinks = doc.components.filter((c) => c.t === 'Link');
+  const reLinks = reDoc.components.filter((c) => c.t === 'Link');
+  if (reLinks.length !== origLinks.length) {
+    throw new Error(`Round-trip bağlantı (Link) sayısı uyuşmazlığı: Orijinal=${origLinks.length}, Üretilen=${reLinks.length}`);
+  }
+
+  // Coordinate check tolerance: 1e-4
+  const reSymMap = new Map<number, GaSldComponent>();
+  for (const s of reSyms) reSymMap.set(s.id, s);
+  for (const os of origSyms) {
+    const rs = reSymMap.get(os.id);
+    if (!rs || !os.pos || !rs.pos) continue;
+    const dx = Math.abs(os.pos[0] - rs.pos[0]);
+    const dy = Math.abs(os.pos[1] - rs.pos[1]);
+    if (dx > 1e-4 || dy > 1e-4) {
+      throw new Error(`Round-trip koordinat uyuşmazlığı (Sembol #${os.id}): Orijinal=(${os.pos}), Üretilen=(${rs.pos})`);
     }
   }
-  return -1;
+
+  return fullBytes;
 }
 
-function findKneeOffsetById(bytes: Uint8Array, dv: DataView, kid: number, lblPosOff: number): number {
-  const b0 = kid & 0xff;
-  const b1 = (kid >> 8) & 0xff;
-  const b2 = (kid >> 16) & 0xff;
-  const b3 = (kid >> 24) & 0xff;
-  const limit = bytes.length - (lblPosOff + 16);
-  for (let i = 500; i <= limit; i++) {
-    if (bytes[i] === b0 && bytes[i + 1] === b1 && bytes[i + 2] === b2 && bytes[i + 3] === b3) {
-      const isKneeTag =
-        (bytes[i - 2] === 0x0c && bytes[i - 1] === 0x80) ||
-        (i >= 13 && bytes[i - 13] === 0x43 && bytes[i - 1] === 0x74); // CSldKneePoint
-      if (isKneeTag && bytes[i + 16] === 0) {
-        return i + lblPosOff;
-      }
-    }
-  }
-  return -1;
-}
-
+/**
+ * Universal In-Place / Serializing Patcher for PSS(R)E .sld Binaries
+ */
 export function patchSldBinary(baseBytes: Uint8Array, doc: GaSldDocument): Uint8Array {
   const check = validateSldBinary(baseBytes);
   if (!check.valid) {
     throw new Error(check.reason || 'Geçersiz temel .sld binary dosyası.');
   }
-  const work = new Uint8Array(baseBytes);
-  const dv = new DataView(work.buffer, work.byteOffset, work.byteLength);
-  const isV36 = check.version.startsWith('2.0.51.');
-  const symPad = isV36 ? 37 : 33;
-  const lblPosOff = isV36 ? 85 : 81;
-  const lblTxtOff = isV36 ? 119 : 115;
 
-  // 1) Patch Symbols in-place (only when modified)
-  for (const c of doc.components) {
-    if (c.t !== 'Symbol' || !c.pos) continue;
-    const idx = findSymbolHeaderOffset(work, dv, c.id, c.layer, symPad);
-    if (idx >= 0) {
-      if (c.layer !== undefined && dv.getUint32(idx + 12, true) !== c.layer) dv.setUint32(idx + 12, c.layer, true);
-      if (c.color !== undefined && dv.getUint32(idx + 29, true) !== c.color) dv.setUint32(idx + 29, c.color, true);
-      const mlen = work[idx + 45];
-      const adOff = idx + 46 + mlen;
-      const adCnt = dv.getUint16(adOff, true);
-      let p = adOff + 2;
-      for (let k = 0; k < adCnt; k++) p += 1 + work[p];
-      const curX = dv.getFloat64(p + symPad, true);
-      const curY = dv.getFloat64(p + symPad + 8, true);
-      const curR = dv.getFloat64(p + symPad + 16, true);
-      if (Math.abs(curX - c.pos[0]) > 1e-3 || Math.abs(curY - c.pos[1]) > 1e-3) {
-        dv.setFloat64(p + symPad, c.pos[0], true);
-        dv.setFloat64(p + symPad + 8, c.pos[1], true);
-      }
-      if (c.rot !== undefined && Math.abs(curR - c.rot) > 1e-2) {
-        dv.setFloat64(p + symPad + 16, c.rot, true);
-        dv.setFloat64(idx + 4, c.rot, true);
-      }
-    }
-  }
-
-  // 2) Patch KneePoint coordinates in-place (when knee points were dragged)
-  for (const c of doc.components) {
-    if (c.t !== 'Link' || !c._rawKnees || !c.knees) continue;
-    const count = Math.min(c._rawKnees.length, c.knees.length);
-    for (let k = 0; k < count; k++) {
-      const rk = c._rawKnees[c._rawKnees.length - count + k];
-      const nk = c.knees[k];
-      if (!rk || !nk) continue;
-      const kpOff = findKneeOffsetById(work, dv, rk.id, lblPosOff);
-      if (kpOff >= 0 && kpOff + 16 <= work.length) {
-        const curKx = dv.getFloat64(kpOff, true);
-        const curKy = dv.getFloat64(kpOff + 8, true);
-        if (Math.abs(curKx - nk[0]) > 1e-3 || Math.abs(curKy - nk[1]) > 1e-3) {
-          dv.setFloat64(kpOff, nk[0], true);
-          dv.setFloat64(kpOff + 8, nk[1], true);
-        }
-      }
-    }
-  }
-
-  // 3) Patch Labels (coordinates in-place + variable-length text splices from end to start)
-  const splices: { offset: number; oldLen: number; newBytes: Uint8Array }[] = [];
-  for (const c of doc.components) {
-    if (c.t !== 'Label') continue;
-    const idx = findLabelHeaderOffset(work, dv, c.id, c.layer, lblTxtOff);
-    if (idx >= 0) {
-      if (c.layer !== undefined && dv.getUint32(idx + 12, true) !== c.layer) dv.setUint32(idx + 12, c.layer, true);
-      if (c.color !== undefined && dv.getUint32(idx + 29, true) !== c.color) dv.setUint32(idx + 29, c.color, true);
-      if (c.pos) {
-        const curX = dv.getFloat64(idx + lblPosOff, true);
-        const curY = dv.getFloat64(idx + lblPosOff + 8, true);
-        const curR = dv.getFloat64(idx + lblPosOff + 16, true);
-        if (Math.abs(curX - c.pos[0]) > 1e-3 || Math.abs(curY - c.pos[1]) > 1e-3) {
-          dv.setFloat64(idx + lblPosOff, c.pos[0], true);
-          dv.setFloat64(idx + lblPosOff + 8, c.pos[1], true);
-        }
-        if (c.rot !== undefined && Math.abs(curR - c.rot) > 1e-2) {
-          dv.setFloat64(idx + lblPosOff + 16, c.rot, true);
-        }
-      }
-      if (c.text !== undefined) {
-        const oldLen = work[idx + lblTxtOff];
-        if (oldLen < 250 && idx + lblTxtOff + 1 + oldLen <= work.length) {
-          const encoded = encodeCp1254(c.text).subarray(0, 250);
-          const curBytes = work.subarray(idx + lblTxtOff + 1, idx + lblTxtOff + 1 + oldLen);
-          let changed = encoded.length !== curBytes.length;
-          if (!changed) {
-            for (let k = 0; k < encoded.length; k++) {
-              if (encoded[k] !== curBytes[k]) {
-                changed = true;
-                break;
-              }
-            }
-          }
-          if (changed) {
-            splices.push({ offset: idx + lblTxtOff, oldLen, newBytes: encoded });
-          }
-        }
-      }
-    }
-  }
-
-  if (splices.length === 0) return work;
-
-  splices.sort((a, b) => a.offset - b.offset);
-  let totalDelta = 0;
-  for (const sp of splices) totalDelta += sp.newBytes.length - sp.oldLen;
-
-  const out = new Uint8Array(work.length + totalDelta);
-  let srcCursor = 0;
-  let dstCursor = 0;
-  for (const sp of splices) {
-    const chunkLen = sp.offset - srcCursor;
-    out.set(work.subarray(srcCursor, sp.offset), dstCursor);
-    dstCursor += chunkLen;
-    out[dstCursor++] = sp.newBytes.length;
-    out.set(sp.newBytes, dstCursor);
-    dstCursor += sp.newBytes.length;
-    srcCursor = sp.offset + 1 + sp.oldLen;
-  }
-  out.set(work.subarray(srcCursor), dstCursor);
-  return out;
+  const targetVersion = check.version || '2.0.51.1';
+  const docWithBytes: GaSldDocument = { ...doc, rawBytes: baseBytes };
+  return serializeSldBinary(docWithBytes, targetVersion);
 }

@@ -23,8 +23,8 @@
 .psse-module .ga-studio-button.is-settings-btn{border-color:#5688c7;background:#193454;color:#d6e9ff;font-weight:600}
 .psse-module .ga-studio-button:disabled{opacity:.45;cursor:not-allowed}
 .psse-module .ga-studio-select{background:var(--panel2,#193147);border:1px solid var(--edge,#3f5568);border-radius:5px;color:var(--text,#eaf1fa);font:11px system-ui;padding:3px 6px;min-height:27px;max-width:190px;flex-shrink:0}
-.psse-module .ga-studio-dropdown{position:relative;display:inline-block}
-.psse-module .ga-studio-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:90;min-width:215px;background:#13283c;border:1px solid #45617a;border-radius:7px;box-shadow:0 10px 28px rgba(0,0,0,.55);padding:5px;display:none;flex-direction:column;gap:2px}
+.psse-module .ga-studio-dropdown{position:relative;display:inline-block;z-index:100000}
+.psse-module .ga-studio-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:100000;min-width:235px;background:#13283c;border:1px solid #45617a;border-radius:7px;box-shadow:0 12px 32px rgba(0,0,0,.7);padding:6px;display:none;flex-direction:column;gap:2px}
 .psse-module .ga-studio-dropdown.is-open .ga-studio-menu{display:flex}
 .psse-module .ga-studio-menu button{background:transparent;border:0;border-radius:4px;color:#e6f0fa;text-align:left;padding:6px 9px;font:11px system-ui;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .psse-module .ga-studio-menu button:hover{background:rgba(82,189,225,.16);color:#fff}
@@ -63,7 +63,11 @@
 .psse-module .ga-studio-modal-tabs{display:flex;gap:2px;background:#102233;padding:6px 10px 0;border-bottom:1px solid #31495e;overflow-x:auto}
 .psse-module .ga-studio-modal-tab{border:1px solid transparent;border-bottom:0;border-radius:6px 6px 0 0;background:transparent;color:#9rb2c7;padding:7px 12px;font:600 11px system-ui;cursor:pointer;color:#9fb4c7;white-space:nowrap}
 .psse-module .ga-studio-modal-tab.is-active{background:#14283b;border-color:#3b5670;color:#66c4eb}
-.psse-module .ga-studio-modal-body{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.psse-module .ga-studio-modal-body{padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;height:480px;min-height:480px;max-height:480px}
+.psse-module .ga-studio-bus-popup{position:fixed;z-index:100005;background:#142a3e;border:1px solid #4f7396;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.6);padding:8px;display:flex;flex-direction:column;gap:6px;font:11px system-ui;color:#eaf2fa;min-width:180px}
+.psse-module .ga-studio-bus-popup button{background:#1b364e;border:1px solid #3c5b78;border-radius:4px;color:#eaf2fa;padding:5px 8px;font:11px system-ui;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}
+.psse-module .ga-studio-bus-popup button:hover{background:#264c6d;border-color:#52a8d8}
+.psse-module .ga-studio-bus-popup hr{border:0;border-top:1px solid #2d4459;margin:2px 0}
 .psse-module .ga-studio-prop-group{border:1px solid #2d455b;border-radius:6px;padding:10px 12px;background:#112334}
 .psse-module .ga-studio-prop-group h4{margin:0 0 8px;font-size:11px;color:#7ec7e8;text-transform:uppercase;letter-spacing:.3px}
 .psse-module .ga-studio-prop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 14px;align-items:center}

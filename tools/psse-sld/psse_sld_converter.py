@@ -26,6 +26,7 @@ BUILD_PY = HERE / "psse_sld_build.py"
 DEFAULT_PSSE_EXE = Path(r"C:\Program Files\PTI\PSSE36\36.5\PSSBIN\psse36.exe")
 CONTROL1_DIR = Path(r"C:\Program Files\PTI\PSSE36\36.5\control1")
 BRIDGE_TOKEN = "ga-psse-365-local-bridge-v1"
+MAX_PAYLOAD = 50 * 1024 * 1024  # 50 MB payload limit for security
 
 
 def validate_sld_bytes(raw: bytes) -> tuple[bool, str]:
@@ -332,6 +333,13 @@ class BridgeHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_PAYLOAD:
+            self.send_response(413)
+            self._cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": False, "error": f"Payload too large: {length} bytes exceeds {MAX_PAYLOAD} bytes limit"}).encode("utf-8"))
+            return
         raw_body = self.rfile.read(length) if length > 0 else b"{}"
         try:
             req = json.loads(raw_body.decode("utf-8"))

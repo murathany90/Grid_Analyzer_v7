@@ -1,9 +1,9 @@
 # SLD_HANDOFF
-- **Branch / Ref Commit:** `fix/psse-sld-visual-native-parity` (base `572d997d`)
-- **Tamamlanan Değişiklikler:**
-  - `src/features/psse/sld-binary-codec.ts` & `tools/psse-sld/studio_runtime.js`: Tüm gömülü örnek profiller ve sahte şablonlar kaldırıldı; CArchive (`2.0.48–2.0.51`) binary doğrulayıcı (`Ankara_fake.sld` reddi), %100 sembol/port/link/knee/etiket çıkarıcı (`parseSldBinary`) ve yerinde binary yamalayıcı (`patchSldBinary`) uygulandı.
-  - `tools/psse-sld/studio_style.css` & `studio_runtime.js`: Yan paneller ve sıfırdan eleman ekleme araçları kaldırıldı (%98.9 tam genişlik Canvas); 4 sekmeli PSS®E `⚙ Diyagram Ayarları` modalı, kopmayan `Symbol -> Port -> Link -> Knee -> Port` modeli, Tek Tık SAV -> TM (varsayılan YATAY) ve 23 OWNER bölge çizimi eklendi.
-  - `tools/psse-sld/psse_sld_converter.py` & `psse_sld_build.py`: `sliderPy` port tahsisi (`GetLink() is None`) ve yerel köprü doğrulaması düzeltildi; Sincan TM (`583`), Ankara OWNER 708 (`2342`), Ankara (`2794`), Kayseri (`1984`) ve Konya (`1600`) `.sld` dosyaları PSS®E 36.5'te 0 hata ile doğrulandı.
-- **Kalan Sorun:** SAV'dan yeni çizilen şemaların sıfırdan `.sld` CArchive kaydı için yerel `psse_sld_converter.py serve` köprüsü (PSS®E 36.5 `sliderPy`) gereklidir; köprü kapalıyken sahte dosya üretilmez ve açık uyarı verilir.
-- **Sonraki İşlem:** İsteğe bağlı olarak sıfırdan CArchive `CLink`/`CSldSymbol` binary serileştirmesini tarayıcıya taşımak.
-- **Build Komutu:** `python tools/psse-sld/generate_studio_bundle.py && npm run typecheck && npm run build`
+- **Branch:** `fix/psse-sld-roundtrip-ui-v2`
+- **Native CArchive Serializer:** Köprüsüz `serializeSldBinary()` tamamlandı; PSS®E 36.5 (v2.0.51.1 & v2.0.49.3) tam binary yazımı sağlandı.
+- **Geometrik Parite (T1-T3):** Kayseri #100 taşıma (0.2,-0.2)->(1.7,0.55), ortogonal knee ekleme, Sincan TM (73 sym/77 link/427 label) ve Ankara 708 (416 sym/218 link/1704 label) %100 parite ile PSS®E 36.5 GUI'de test edilip doğrulandı.
+- **0 Symbol / 0 Link Parser Hatası:** `CSldLayer` (21/22 ObList) ve `CSldPointNode` v51 yapı farkları çözüldü, tüm nesneler eksiksiz okunuyor.
+- **UI & Ayarlar (T4):** Modal gövde yüksekliği 480px sabitlendi, Dışa Aktar menüsü z-index:100000 ile öne alındı, showBusId varsayılanı false yapıldı, Grupla/Grubu Çöz (Ctrl+G) ve bara popup eklendi.
+- **Oturum Kalıcılığı:** IndexedDB (`GridAnalyzer_SLD_Store`) ile gaSld, native byte'lar ve modelHash tam saklanıyor.
+- **Güvenlik (T5):** `psse_sld_converter.py` HTTP bridge için 50 MB payload sınırı eklendi.
+- **Build & Test:** `python tools/psse-sld/generate_studio_bundle.py && npx tsc --noEmit && npm run build:portable`
