@@ -74,9 +74,9 @@ try{
  const n1Download=page.waitForEvent('download');await view.locator('summary[aria-label="N-1 sonuçlarını dışa aktar"]').click();await view.getByRole('button',{name:'Senaryolar CSV'}).click();
  if((await n1Download).suggestedFilename()!=='GridAnalyzer-n1-senaryolar.csv')throw new Error('N-1 CSV export missing.');
  await navigateAnalysis(page,'Harita');
- await page.getByLabel('Benchmark harita analizi',{exact:true}).selectOption('N1');await page.locator('.ga-map-options>summary').click();await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-risk');
+ await page.getByLabel('Benchmark harita analizi',{exact:true}).selectOption('N1');await page.locator('.ga-map-options>summary:visible').click();await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-risk');
  await page.waitForFunction(()=>/N-1 termik risk/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
- await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-island');await page.locator('.ga-map-options>summary').click();
+ await page.getByLabel('N-1 topoloji görünümü',{exact:true}).selectOption('n1-island');await page.locator('.ga-map-options>summary:visible').click();
  await page.waitForFunction(()=>/N-1 adaları/.test(document.querySelector('.ga-map-legend b')?.textContent||''));
  await navigateAnalysis(page,'Analizler');
  await page.getByRole('button',{name:'N-1 SONUÇLARI',exact:true}).click();

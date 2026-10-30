@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/psse-ac-dc-busbranch-v1, fix/psse-v1-real-model-parity]
+    branches: [main, feature/psse-ac-dc-busbranch-v1, fix/psse-v1-real-model-parity, feature/psse-map-ui-data-fixes-v2, fix/psse-sld-v3-acceptance, integration/psse-sld-v3-to-map-ui]
   pull_request:
     branches: [main]
 

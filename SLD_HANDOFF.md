@@ -1,0 +1,12 @@
+# SLD_HANDOFF
+- Development: `fix/psse-sld-v3-acceptance`; permanent target: `feature/psse-map-ui-data-fixes-v2`.
+- Browser codec generated from TS; immutable CArchive edits preserve local ports, knees, layers and group membership.
+- Native v49 bus-tail offsets, map circuit bytes, font/label slots and v51 geometry fields corrected.
+- New native layer indexes prevent the blank PSS/E canvas; authored labels use slot -1 and explicit circuit slots.
+- Menu uses browser top layer; settings Apply/Cancel, group drag, true point nodes, Undo/Redo and reload are covered.
+- OWNER draws individual parallel circuits and all boundary feeders; SAV records remain read-only.
+- Metro router uses orthogonal A*, compressed visibility fallback, label packing, pins and measurable diagnostics.
+- Remaining dense edge/obstacle collisions and fallback attempts are reported; zero-collision routing is not claimed.
+- Real private fixtures/evidence stay under Downloads; none is committed or packaged.
+- Run `python tools/psse-sld/generate_studio_bundle.py`, typecheck, lint, tests, build and browser acceptance.
+- Licensed GUI reopen: Sincan 51/55/85 and OWNER 247/296/247 Symbol/Link/Label; zero coordinate differences (1e-4 tolerance).
