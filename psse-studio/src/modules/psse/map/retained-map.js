@@ -489,7 +489,7 @@ ctx.py = function py(e2) {
   }
   function focusEquipment(id){
     if(!Y2)return;const source=ke2.get(id);if(!source){e2.setMessage('Kaynak ekipman kimliği bulunamadı.');return;}if(!allowedEquipment(source)){e2.setMessage('Ekipman YTM / gerilim kapsamı dışında.');return;}
-    const net=ze2(),branches=net.branches.filter(b=>b.sourceEquipmentId===id),bus=source.kind==='bus'?net.buses.find(b=>b.sourceEquipmentId===id):null,indices=bus?[net.buses.indexOf(bus)]:[...new Set(branches.flatMap(b=>[b.from,b.to]).filter(i=>net.buses[i]?.source))],stations=source.kind==='substation'?De2.stations.filter(st=>st.sourceEquipmentId===id):indices.map(i=>Ae2.get(net.buses[i].connectionKey));
+    const net=ze2(),branches=net.branches.filter(b=>b.sourceEquipmentId===id),bus=source.kind==='bus'?net.buses.find(b=>b.sourceEquipmentId===id):source.kind==='generator'?net.buses[net.generators.find(g=>g.sourceEquipmentId===id)?.bus]:null,indices=bus?[net.buses.indexOf(bus)]:[...new Set(branches.flatMap(b=>[b.from,b.to]).filter(i=>net.buses[i]?.source))],stations=source.kind==='substation'?De2.stations.filter(st=>st.sourceEquipmentId===id):indices.map(i=>Ae2.get(net.buses[i].connectionKey));
     if(!stations.length||stations.some(st=>!st||!Number.isFinite(st.longitude)||!Number.isFinite(st.latitude))){e2.setMessage('Kaynak TM koordinatı eksik; harita odağı değiştirilmedi.');return;}
     const points=stations.map(st=>ctx.kg(st.longitude,st.latitude)),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;Ce2=Math.max(3,Math.min(10,ctx.ny*.65/(Math.max(.05,Math.max(...xs)-Math.min(...xs))*ctx.iy),ctx.ry*.65/(Math.max(.05,Math.max(...ys)-Math.min(...ys))*ctx.iy)));we2=-cx*ctx.iy*Ce2;Te2=-cy*ctx.iy*Ce2;be2='map';
     const sameStation=stations.every(st=>st.isub===stations[0].isub);if(h2.clientWidth<1280)he2.close();ge2.open(source,source.kind==='line'?Fe2(branches[0]):source.name,{normalizedBranch:branches[0],normalizedBus:bus,stationId:stations[0].isub,highlightStation:sameStation});ct2();e2.setMessage('Harita · '+source.name);
@@ -527,7 +527,7 @@ ctx.py = function py(e2) {
     }
     return o3;
   }
-  function allowedEquipment(source){if(!Y2)return false;const net=ze2(),scope=Be2();return source.kind==='substation'?De2.associations.some(a=>String(a.stationIsub)===String(source.fields.isub)&&net.buses.some((b,i)=>b.connectionKey===a.connectionKey&&scope.has(i))):source.kind==='bus'?net.buses.some((b,i)=>b.sourceEquipmentId===source.id&&scope.has(i)):net.branches.some(b=>b.sourceEquipmentId===source.id&&(b.kind==='line'?scope.has(b.from)&&scope.has(b.to):scope.has(b.from)||scope.has(b.to))&&v13IncidentYtm(b,net));}
+  function allowedEquipment(source){if(!Y2)return false;const net=ze2(),scope=Be2();return source.kind==='substation'?De2.associations.some(a=>String(a.stationIsub)===String(source.fields.isub)&&net.buses.some((b,i)=>b.connectionKey===a.connectionKey&&scope.has(i))):source.kind==='bus'?net.buses.some((b,i)=>b.sourceEquipmentId===source.id&&scope.has(i)):source.kind==='generator'?net.generators.some(g=>g.sourceEquipmentId===source.id&&scope.has(g.bus)):net.branches.some(b=>b.sourceEquipmentId===source.id&&(b.kind==='line'?scope.has(b.from)&&scope.has(b.to):scope.has(b.from)||scope.has(b.to))&&v13IncidentYtm(b,net));}
   function v9FitScope() {
     if (!Y2 || !De2) {
       Ce2 = 1;
@@ -742,7 +742,7 @@ ctx.py = function py(e2) {
         loss: `Hat / trafo aktif kayb\u0131 (MW)`,
         loading: `Hat / trafo y\xFCkleme (%)`
       }[t3] ?? t3),
-      settings=e2.settings.value,description=t3==='violation'?'İhlal · sınır içinde · veri yok':t3==='vm'?`${[settings.voltageMin,settings.voltageNeutral,settings.voltageMax].map(v=>ctx.ov(v*100,1)).join(' / ')} % Vn`:t3==='loading'?`RATE ${(ctx.window.__GA_PSSE_RATE_INDEX__??0)+1} · ${settings.thresholds.map(v=>ctx.ov(v,1)).join(' / ')} %`:t3==='q'?'Negatif Q · nötr · pozitif Q':t3==='va'?'Negatif açı · nötr · pozitif açı':'Negatif P · nötr · pozitif P';
+      settings=e2.settings.value,description=t3==='violation'?'İhlal · sınır içinde · veri yok':t3==='vm'?`Renk: V/Vn (%) · ${[settings.voltageMin,settings.voltageNeutral,settings.voltageMax].map(v=>ctx.ov(v*100,1)).join(' / ')}`:t3==='loading'?`RATE ${(ctx.window.__GA_PSSE_RATE_INDEX__??0)+1} · ${settings.thresholds.map(v=>ctx.ov(v,1)).join(' / ')} %`:t3==='q'?'Negatif Q · nötr · pozitif Q':t3==='va'?'Negatif açı · nötr · pozitif açı':'Negatif P · nötr · pozitif P';
     m2.append(ot2(r3,description,n3?'delta':t3==='vm'?'voltage':t3==='loading'?'loading':t3==='violation'?'violation':'delta'));
   }
 

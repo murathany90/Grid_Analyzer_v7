@@ -1,6 +1,7 @@
 export const metricChoices=kind=>kind==='buses'?[['voltage','V'],['angle','Açı'],['voltage-angle','V-Açı']]:[['p-loading','P-Yük (%)'],['pq','P-Q'],['pq-loading','P-Q-Yük (%)']];
 const c=(key,label,unit='',secondary)=>({key,label,unit,secondary});
 export function resultColumns(kind,mode){
+  if(kind==='generators')return [c('name','Jeneratör · TM'),c('p','P','MW'),c('q','Q','MVAr'),c('qState','Q durumu'),c('status','Durum')];
   if(kind==='buses')return [c('name','TM · Bara'),...(mode==='angle'?[]:[c('vKv','V','kV')]),...(mode==='voltage'?[]:[c('angle','Açı','°')]),c('status','Durum')];
   const q=mode!=='p-loading',load=mode!=='pq',trafo=kind==='transformers';
   return [...(trafo?[c('station','TM'),c('name','Trafo'),c('ratio','YG/AG','kV')]:[c('name','Hat')]),c('p',trafo?'YG P':'A P','MW',q?'q':null),c('pTo',trafo?'AG P':'B P','MW',q?'qTo':null),c('loss','Kayıp P','MW',q?'lossQ':null),...(load?[c('loading','Yük','%')]:[]),c('status','Durum')];

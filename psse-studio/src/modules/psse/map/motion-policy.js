@@ -1,5 +1,5 @@
-export function motionPolicy({requested=true,available=false,mode='p',zoom=1}){
-  return {enabled:requested&&available&&(mode!=='q'||zoom>=1.7)};
+export function motionPolicy({requested=true,available=false}){
+  return {enabled:requested&&available};
 }
 // The caller supplies an identity-validated GA LF result. Never changes the value layer.
 export function flowSource(result,mode='p'){

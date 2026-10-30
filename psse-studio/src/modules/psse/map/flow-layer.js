@@ -17,7 +17,7 @@ export function flowArrows(lines,{mode='p',time=0,zoom=1,speed='normal',density=
     if(line.status!==1||![400,154].includes(line.kv))continue;
     const length=line.length;
     if(mode==='q'){
-      if(zoom<1.7||length<48)continue;
+      if(length<48)continue;
       for(const [side,q,forward,phase]of [['from',line.qFrom,line.qFrom>=0,0],['to',line.qTo,line.qTo<0,.31]]){
         if(!finite(q)||Math.abs(q)<.1)continue;
         const progress=(time/5000*factor+phase)%.26,fraction=side==='from'?(forward?.08+progress:.34-progress):(forward?.66+progress:.92-progress);

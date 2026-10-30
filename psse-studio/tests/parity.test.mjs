@@ -42,7 +42,7 @@ test('GA P arrows: ceil count, signed direction, speed, thresholds and cell dens
   assert(flowArrows([line,{...line,id:'b'}],{time:100,density:1}).length<flowArrows([line,{...line,id:'b'}],{time:100,density:8}).length);
 });
 test('Q endpoints move independently, including to-only and both injection directions',()=>{
-  assert.equal(flowArrows([line],{mode:'q',zoom:1}).length,0);const frame=flowArrows([line],{mode:'q',zoom:3,time:0});assert.equal(frame.length,2);assert.equal(frame[0].angle,0);assert.equal(frame[1].angle,Math.PI);
+  assert.equal(flowArrows([line],{mode:'q',zoom:1}).length,2);const frame=flowArrows([line],{mode:'q',zoom:3,time:0});assert.equal(frame.length,2);assert.equal(frame[0].angle,0);assert.equal(frame[1].angle,Math.PI);
   const toOnly=flowArrows([{...line,qFrom:null,qTo:-5}],{mode:'q',zoom:3,time:400});assert.equal(toOnly.length,1);assert.equal(toOnly[0].q,-5);assert.equal(toOnly[0].angle,0);
   const later=flowArrows([line],{mode:'q',zoom:3,time:500});assert(later[0].x>frame[0].x);assert(later[1].x<frame[1].x);
 });
