@@ -7,17 +7,18 @@ import {loadingAtTerminals} from '../src/modules/psse/calculations/rating.js';
 import {motionPolicy,flowSource} from '../src/modules/psse/map/motion-policy.js';
 import {ScenarioStore} from '../src/modules/psse/scenarios/store.js';
 test('Flow checkbox alone controls animation regardless of system reduced motion',()=>{
-  const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,true);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',layer:'saved'}).enabled,false);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
+  const config={requested:true,reduced:true,available:true};assert.equal(motionPolicy(config).enabled,true);assert.equal(motionPolicy({...config,permission:'allow'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',requested:false}).enabled,false);assert.equal(motionPolicy({...config,layer:'saved'}).enabled,true);assert.equal(motionPolicy({...config,permission:'allow',available:false}).enabled,false);assert.equal(motionPolicy({...config,reduced:false}).enabled,true);
 });
-test('Flow admits a validated GA source without starting a calculation or inventing saved flows',()=>{
-  assert.equal(flowSource('saved',true,null),'saved');assert.equal(flowSource('saved',false,{branchResults:[line]}),'saved');
-  assert.equal(flowSource('saved',true,{branchResults:[{pFromMw:10,pToMw:-9}]}),'calculated');
-  assert.equal(flowSource('saved',true,{branchResults:[{qToMvar:-2}]}),'calculated');assert.equal(flowSource('delta',true,{branchResults:[{qToMvar:2}]}),'delta');
+test('Flow data is independent of the value layer and admits only the selected P/Q mode',()=>{
+  const p={branchResults:[{pFromMw:10,pToMw:-9}]},q={branchResults:[{qToMvar:-2}]};
+  assert.equal(flowSource(null),null);assert.equal(flowSource(p,'p'),p);assert.equal(flowSource(p,'q'),null);assert.equal(flowSource(q,'q'),q);assert.equal(flowSource(q,'p'),null);
+  for(const row of [{pFromMw:.1,pToMw:-.1},{pFromMw:10,pToMw:9},{pFromMw:NaN,pToMw:-9},{qFromMvar:.01},{qToMvar:NaN}])for(const mode of ['p','q'])assert.equal(flowSource({branchResults:[row]},mode),null);
 });
-test('parallel schematic paths keep terminals and canonical separation for reversed circuits at every scale',()=>{
+test('parallel schematic paths use distinct TM ports and canonical lanes for reversed circuits at every scale',()=>{
   const a={x:0,y:0},b={x:300,y:0};for(const scale of [1,3]){
     const first=parallelPath(a,b,{index:0,count:2,scale}),second=parallelPath(b,a,{index:1,count:2,forward:false,scale});
-    assert(first.length>4);assert.deepEqual(first[0],a);assert.deepEqual(second[0],b);assert.deepEqual(first.at(-1),b);assert.equal((second[2].y-first[2].y)*scale,5);
+    assert(first.length>4);assert.equal(first[0].x,a.x);assert.equal(second[0].x,b.x);assert.equal(first.at(-1).x,b.x);assert.equal((second[2].y-first[2].y)*scale,5);assert.equal((second.at(-1).y-first[0].y)*scale,5);
+    const ports=Array.from({length:6},(_,index)=>parallelPath(a,b,{index,count:6,scale})[0]);assert.equal(new Set(ports.map(p=>p.y)).size,6);assert(ports.every(p=>Math.abs(p.y)*scale<=3));
   }assert.deepEqual(parallelPath(a,b,{count:2,separated:false}),[a,b]);
 });
 test('TM highest nominal tooltip and metric representatives are deterministic and keep missing data empty',()=>{

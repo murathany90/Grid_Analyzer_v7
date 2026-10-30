@@ -829,9 +829,9 @@ ctx.py = function py(e2) {
     let a3 = q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : $e2(n3);
     return Ee2 === `delta` ? Je2(i3 ? q2.value === `loading` ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null && ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) !== null ? ctx.v10RatePct(t3, n3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) - ctx.v10RatePct(t3, r3, ctx.window.__GA_PSSE_RATE_INDEX__ ?? 0) : null : et2(r3, n3) : null) : q2.value === `loading` ? ctx.Cg(a3, e2.settings.value) : Qe2(a3, v9MetricScale());
   }
-  let flowAvailable=false;
-  const policy=()=>motionPolicy({requested:e2.settings.value.flowDefault!==false,layer:Ee2,available:flowAvailable,mode:q2.value==='q'?'q':'p',zoom:Ce2});
-  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&policy().enabled,mode:q2.value==='q'?'q':'p',zoom:Ce2,selected:Se2})});
+  let flowAvailable=false,flowMode='p';
+  const policy=()=>motionPolicy({requested:e2.settings.value.flowDefault!==false,available:flowAvailable,mode:flowMode,zoom:Ce2});
+  const flowLayer=createFlowLayer({stage:h2,svg:_2,window:ctx.window,settings:()=>e2.settings.value,state:()=>({enabled:e2.view==='map'&&e2.modelMode==='PSSE'&&be2==='map'&&policy().enabled,mode:flowMode,zoom:Ce2,selected:Se2})});
   function rt2(){I2=e2.settings.value.flowDefault!==false;V2.querySelector('input').checked=I2;V2.querySelector('input').disabled=false;V2.removeAttribute('title');flowLayer.refresh();}
 
   function it2(t3) {
@@ -890,6 +890,10 @@ ctx.py = function py(e2) {
       S3 = /* @__PURE__ */new Map(),
       C3 = [], drawnSegments = new Map(),
       w3 = /* @__PURE__ */new Map();
+    const animationNetwork=K2.value==='base'?Y2.base:Y2.network,
+      animationResult=flowSource(K2.value==='base'?d3.base:K2.value==='scenario'?d3.scenario:null,flowMode),
+      animationRows=new Map(animationResult?.branchResults.filter(u3.branch).map(row=>[row.id,row])??[]),
+      animationBranches=new Map(animationNetwork.branches.map(branch=>[branch.id,branch]));
     for (let e3 of n3.branches) {
       if (e3.kind !== `line` && e3.kind !== `three-winding-leg` || e3.kind === `line` && !String(e3.sourceEquipmentId).startsWith(`line:`)) continue;
       if (!ctx.wv(e3.status, D2.value)) continue;
@@ -1014,8 +1018,8 @@ ctx.py = function py(e2) {
       u4.textContent = `\xDC\xE7 sarg\u0131l\u0131 trafo ${c4?.name ?? e3} \xB7 yeri g\xF6rsel ortalamad\u0131r, TM veya kaynak koordinat\u0131 de\u011Fildir`;l4.dataset.v12Title=c4?.name??e3;l4.dataset.branchId=r4[0].leg.branch.id;l4.dataset.v12Sub='3 sargı · '+(f3?.physicsCoverage??'NOT_RUN');l4.dataset.v12Cols='Sargı / TM|P (MW)|Q (Mvar)|Yük (%)';l4.dataset.v12Rows=r4.map(v=>{const row=p3.get(v.leg.branch.id);return v.leg.station.name+'|'+ctx.ov(row?.pFromMw,1)+'|'+ctx.ov(row?.qFromMvar,1)+'|'+ctx.ov(row?.loadingFromPct,1);}).join(';');l4.addEventListener('click',()=>ge2.open(c4,c4?.name??e3,{normalizedBranch:r4[0].leg.branch}));T3.append(l4);
     }
     _2.append(T3);
-    flowAvailable=C3.some(b=>{const r=p3.get(b.id);return b.status===1&&[400,154].includes(n3.buses[b.from]?.baseKv)&&(q2.value==='q'?[r?.qFromMvar,r?.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1):Number.isFinite(r?.pFromMw)&&Number.isFinite(r?.pToMw)&&r.pFromMw*r.pToMw<0&&Math.abs(r.pFromMw)>=.15);});
-    renderedFlows=C3.map(branch=>{const row=p3.get(branch.id),segment=drawnSegments.get(branch.id);return segment?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:n3.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0)}:null;}).filter(Boolean);
+    flowAvailable=C3.some(display=>{const b=animationBranches.get(display.id),r=animationRows.get(display.id);return b?.status===1&&[400,154].includes(animationNetwork.buses[b.from]?.baseKv)&&(flowMode==='q'?[r?.qFromMvar,r?.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1):Number.isFinite(r?.pFromMw)&&Number.isFinite(r?.pToMw)&&r.pFromMw*r.pToMw<0&&Math.abs(r.pFromMw)>=.15);});
+    renderedFlows=C3.map(display=>{const branch=animationBranches.get(display.id),row=animationRows.get(display.id),segment=drawnSegments.get(display.id);return segment&&branch?{id:branch.id,a:segment.from,b:segment.to,path:segment.points,status:branch.status,kv:animationNetwork.buses[branch.from]?.baseKv,pFrom:row?.pFromMw,pTo:row?.pToMw,qFrom:row?.qFromMvar,qTo:row?.qToMvar,loading:ctx.v10RatePct(branch,row,ctx.window.__GA_PSSE_RATE_INDEX__??0,animationNetwork)}:null;}).filter(Boolean);
     const flowById=new Map(renderedFlows.map(flow=>[flow.id,flow]));for(const item of renderedGeometry)item.flow=flowById.get(item.id);geometryScale=glyphScale;flowLayer.setLines(renderedFlows);
     let k3 = ctx.sv(`g`, {
       class: `ga-psse-geo-stations`
@@ -1247,8 +1251,7 @@ ctx.py = function py(e2) {
       p2.textContent = e2.psseNetwork && e2.psseScenario && e2.psseScenario.networkHash !== e2.psseNetwork.modelHash ? `PSS/E senaryosu ba\u015Fka bir modelin a\u011F\u0131na ba\u011Fl\u0131. Ge\xE7erli modeli a\xE7\u0131n veya senaryoyu yenileyin.` : `PSS/E modeli ve senaryosu bekleniyor.`, f2.replaceChildren(), m2.replaceChildren(), _2.replaceChildren(), v2.replaceChildren();
       return;
     }
-    const pair=ctx.Rv(Y2,e2.psseBaseCalculation),admitted=K2.value==='base'?pair.base:pair.scenario;
-    Ee2=flowSource(Ee2,e2.settings.value.flowDefault!==false,admitted);O2.value=Ee2==='delta'?'calculated':Ee2;
+    O2.value=Ee2==='delta'?'calculated':Ee2;
     ge2.render();Pe2(), Y2.model !== Oe2 && (Oe2 = Y2.model, ke2 = new Map(Y2.model.equipment.map(e3 => [e3.id, e3])), De2 = ctx.Zs(Oe2, Y2.base), Ae2 = (()=>{const stations=new Map(De2.stations.map(station=>[station.isub,station]));return new Map(De2.associations.map(association=>[association.connectionKey,stations.get(association.stationIsub)]));})());
     let t3 = Y2.network,
       n3 = Y2.model,
@@ -1271,7 +1274,7 @@ ctx.py = function py(e2) {
     he2.setFilterScope({busIds:a3,branchIds:new Set(t3.branches.filter(b=>(b.kind==='line'?a3.has(b.from)&&a3.has(b.to):a3.has(b.from)||a3.has(b.to))&&v13IncidentYtm(b,t3)).map(b=>b.id))});he2.render();ge2.render();tooltip.hide();lastContextKey=contextKey();
   }
   Ee2 = 'calculated';O2.value=Ee2;
-  J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";ct2();};
+  J2.onchange=()=>{q2.value=J2.value==="nominal"?"nominal":"p";flowMode='p';ct2();};
   let lt2 = () => {
     Ee2 = O2.value === `saved` ? `saved` : K2.value === `delta` ? `delta` : `calculated`, Ee2 === `delta` && !qe2() && Y2 && e2.setMessage(ctx.Rv(Y2, e2.psseBaseCalculation).reason ?? `Uyumlu baz ve senaryo hesaplar\u0131 gerekir.`), ct2();
   };
@@ -1284,7 +1287,9 @@ ctx.py = function py(e2) {
     v11RenderVoltage();
     ct2();
   };
-  for (let e3 of [D2, ee2, q2]) e3.onchange = ct2;
+  for (let e3 of [D2, ee2]) e3.onchange = ct2;
+  // A SAV-only metric fallback must not silently turn a requested Q animation into P.
+  q2.onchange=()=>{flowMode=q2.value==='q'?'q':'p';ct2();};
   for (let z3 of [T2, E2]) z3.onchange = () => {
     v9FitScope(), ct2();
   };

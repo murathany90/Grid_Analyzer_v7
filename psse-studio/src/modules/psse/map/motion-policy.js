@@ -1,9 +1,9 @@
-export function motionPolicy({requested=true,layer='calculated',available=false,mode='p',zoom=1}){
-  return {enabled:requested&&layer==='calculated'&&available&&(mode!=='q'||zoom>=1.7)};
+export function motionPolicy({requested=true,available=false,mode='p',zoom=1}){
+  return {enabled:requested&&available&&(mode!=='q'||zoom>=1.7)};
 }
-// The caller supplies only identity-validated LF results. Flow never starts a solver.
-export function flowSource(layer,requested,result){
-  return layer==='saved'&&requested&&result?.branchResults?.some(r=>
-    Number.isFinite(r.pFromMw)&&Number.isFinite(r.pToMw)&&r.pFromMw*r.pToMw<0||
-    [r.qFromMvar,r.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1))?'calculated':layer;
+// The caller supplies an identity-validated GA LF result. Never changes the value layer.
+export function flowSource(result,mode='p'){
+  return result?.branchResults?.some(r=>mode==='q'?
+    [r.qFromMvar,r.qToMvar].some(v=>Number.isFinite(v)&&Math.abs(v)>=.1):
+    Number.isFinite(r.pFromMw)&&Number.isFinite(r.pToMw)&&r.pFromMw*r.pToMw<0&&Math.abs(r.pFromMw)>=.15)?result:null;
 }
