@@ -113,68 +113,68 @@ function sourceRows(){const m=model();return new Map((m?.equipment||[]).map(e=>[
  * - Mandatory pre-export round-trip validation within 1e-4 tolerance.
  */
 
-                             
-            
-               
-              
-                
-                
- 
 
-                                    
-              
-                        
-               
- 
 
-                                
-             
-                        
-                    
- 
 
-                                 
-             
-                                 
-                
-                
-                         
-               
-               
-                                                  
-                
-                
-               
-                 
-                                              
-                         
-                         
-                             
-                              
-                  
-                  
-                
-              
-                
-                 
-                
-                   
-                
- 
 
-                                
-                      
-                      
-                       
-                               
-                        
-                       
-                     
-                     
-                    
-               
-               
- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const CP1254_HIGH                         = {
   0xd0: 'Ğ',
@@ -313,11 +313,11 @@ function encodeMapStruct(mapStr        , isBusbar = false)             {
   return buf;
 }
 
-function decodeMapStruct(mapRaw            )   
-              
-                                                 
-               
-               
+function decodeMapStruct(mapRaw            )
+
+
+
+
   {
   if (mapRaw.length < 20) {
     return { map: '', stype: 'Node', psse: 'BusNode', sdef: 0 };

@@ -27,6 +27,7 @@ def main():
         "const s=fs.readFileSync('src/features/psse/sld-binary-codec.ts','utf8'); "
         "process.stdout.write(stripTypeScriptTypes(s).replace(/^export /gm,''));"
     ], cwd=WORK_REPO).decode('utf-8').replace('\r\n', '\n')
+    codec = '\n'.join(line.rstrip() for line in codec.splitlines()) + '\n'
     start = full_js.index('function findAscii(') if '/* GENERATED CODEC START */' not in full_js else full_js.index('/* GENERATED CODEC START */')
     end = full_js.index('/* Part 2:')
     layout_path = HERE / 'studio_layout.js'
