@@ -150,9 +150,13 @@ try:
         except Exception:
             pass
         if st == 'Busbar':
-            if e.get('len') is not None:
+            min_len = 0.0
+            if not use_inplace:
+                deg = len(links_by_sym.get(e.get('id'), []))
+                min_len = max(2.5, deg * 0.45 + 1.5)
+            if e.get('len') is not None or min_len > 0:
                 try:
-                    cv.SetLength(float(e['len']))
+                    cv.SetLength(max(float(e.get('len') or 3.0), min_len))
                 except Exception as ex:
                     err('busLen', ex)
             if e.get('width') is not None:
@@ -208,25 +212,36 @@ try:
                 links_by_sym.setdefault(sid, []).append((e, side, other))
 
     handled_links = set()
+    used_ports = {}
 
     def get_bus_or_node_port(other_spec, fallback_pos, layer=1):
         sym_id = other_spec.get('sym') if other_spec else None
         pos = (other_spec.get('pos') if other_spec else None) or fallback_pos
         c = comp.get(sym_id)
         if c is not None:
-            try:
-                p = c.GetClosestUnlinkedPort(P(*pos))
-                if p is not None:
-                    return p
-            except Exception:
-                pass
-            ports = c.GetPorts() or []
-            for p in ports:
+            used_set = used_ports.setdefault(sym_id, set())
+            ports = list(c.GetPorts() or [])
+            best_p = None
+            best_idx = None
+            best_d2 = 1e18
+            for idx, p in enumerate(ports):
+                if idx in used_set:
+                    continue
                 try:
-                    if not p.IsLinked():
-                        return p
+                    if p.GetLink() is not None:
+                        used_set.add(idx)
+                        continue
+                    pp = p.GetPosition()
+                    d2 = (pp.GetX() - float(pos[0])) ** 2 + (pp.GetY() - float(pos[1])) ** 2
+                    if d2 < best_d2:
+                        best_d2 = d2
+                        best_p = p
+                        best_idx = idx
                 except Exception:
-                    pass
+                    continue
+            if best_p is not None:
+                used_set.add(best_idx)
+                return best_p
         # Create an anchor BusNode at fallback_pos so Branch/Radial port invariant is satisfied
         anchor = d.CreateSymbol(0)
         acv, _ = upcast_sym(anchor, 'Node')
@@ -245,7 +260,7 @@ try:
                 d.CreateKneePoint(P(*k), lk)
             except Exception as ex:
                 err('knee', ex)
-        for m, key in (('SetColor', 'color'), ('SetLineStyle', 'lstyle'), ('SetLineWidth', 'lwidth')):
+        for m, key in (('SetColor', 'color'), ('SetLineWidth', 'lwidth')):
             if e.get(key) is not None:
                 try:
                     getattr(lk, m)(int(e[key]) if key != 'lwidth' else float(e[key]))
@@ -350,7 +365,7 @@ try:
                 pass
         for p in ports:
             try:
-                if not p.IsLinked():
+                if p.GetLink() is None:
                     return p
             except Exception:
                 pass
@@ -365,7 +380,24 @@ try:
         try:
             if use_inplace and jid in existing:
                 lk = existing[jid].SldLink()
-                for m, key in (('SetColor', 'color'), ('SetLineStyle', 'lstyle'), ('SetLineWidth', 'lwidth')):
+                if e.get('knees') is not None:
+                    try:
+                        old_knees = list(lk.GetKneePoints() or [])
+                        new_knees = e.get('knees') or []
+                        if len(old_knees) == len(new_knees):
+                            for kp_obj, kp_xy in zip(old_knees, new_knees):
+                                kp_obj.SetPosition(P(*kp_xy))
+                        else:
+                            for kp_obj in old_knees:
+                                try:
+                                    d.DeleteComponent(kp_obj)
+                                except Exception:
+                                    pass
+                            for kp_xy in new_knees:
+                                d.CreateKneePoint(P(*kp_xy), lk)
+                    except Exception as ex:
+                        err('knee_upd', ex)
+                for m, key in (('SetColor', 'color'), ('SetLineWidth', 'lwidth')):
                     if e.get(key) is not None:
                         try:
                             getattr(lk, m)(int(e[key]) if key != 'lwidth' else float(e[key]))

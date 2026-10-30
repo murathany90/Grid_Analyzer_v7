@@ -1,8 +1,9 @@
-﻿# SLD_HANDOFF
-- **Branch / Son Commit:** `feature/psse-native-sld-editor-v1` (base `0b75396` -> 0b75396)
-- **Tamamlanan DeÄŸiÅŸiklikler:**
-  - `src/features/psse/sld-studio.ts`, `sld-binary-codec.ts`, `sld-view.ts`: Ã‡oklu sekme SLD Studio, gerÃ§ek `.sld` (`2.0.49.3` & `2.0.51.1` CArchive) binary okuma/yamalama, yatay/dikey bara, 2W/3W trafo, hat, jeneratÃ¶r, yÃ¼k, ÅŸÃ¶nt, kesici (`CB`), ayÄ±rÄ±cÄ± (`DS`), kuplaj (`BC`), drag/drop, baÄŸlantÄ±/knee Ã§izimi, hizalama, Undo/Redo, Ã§akÄ±ÅŸma giderici, katman yÃ¶netimi, SAV eÅŸleÅŸtirme, 23 OWNER bÃ¶lge Ã§izimi, TM otomatik/manuel Ã§izim, yÃ¼k akÄ±ÅŸÄ±/manevra ve `.sld`/JSON/SVG/PNG dÄ±ÅŸa aktarma.
-  - `tools/psse-sld/`: PSSÂ®E 36.5 `sliderPy` + GUI otomasyon kÃ¶prÃ¼sÃ¼ (`psse_sld_converter.py`, `psse_sld_dump.py`, `psse_sld_build.py`, `psse_gui_driver.ps1`). Ankara (`2794`), Kayseri (`1986`), Konya (`1604`) ve sÄ±fÄ±rdan HTML ÅŸemasÄ± PSSÂ®E 36.5'te 0 hata ile doÄŸrulandÄ±.
-- **Kalan Sorun:** TarayÄ±cÄ±da Ã§evrimdÄ±ÅŸÄ± binary yamalama mevcut sembol/etiket koordinat, katman, renk ve metinlerini doÄŸrudan `.sld` iÃ§ine yazar; sÄ±fÄ±rdan yeni CArchive sembolÃ¼ eklemek iÃ§in yerel `psse_sld_converter.py serve` kÃ¶prÃ¼sÃ¼ (PSSÂ®E 36.5 `sliderPy`) kullanÄ±lÄ±r.
-- **Sonraki Ä°ÅŸlem:** Ä°steÄŸe baÄŸlÄ± olarak CArchive `CLink`/`CSldSymbol` sÄ±fÄ±rdan binary serileÅŸtirmesini Python kÃ¶prÃ¼sÃ¼ olmadan tarayÄ±cÄ±ya taÅŸÄ±mak.
-- **Build Komutu:** `npm install && npm run typecheck && npm run build` (veya `python tools/psse-sld/generate_studio_bundle.py`)
+# SLD_HANDOFF
+- **Branch / Ref Commit:** `fix/psse-sld-visual-native-parity` (base `572d997d`)
+- **Tamamlanan Değişiklikler:**
+  - `src/features/psse/sld-binary-codec.ts` & `tools/psse-sld/studio_runtime.js`: Tüm gömülü örnek profiller ve sahte şablonlar kaldırıldı; CArchive (`2.0.48–2.0.51`) binary doğrulayıcı (`Ankara_fake.sld` reddi), %100 sembol/port/link/knee/etiket çıkarıcı (`parseSldBinary`) ve yerinde binary yamalayıcı (`patchSldBinary`) uygulandı.
+  - `tools/psse-sld/studio_style.css` & `studio_runtime.js`: Yan paneller ve sıfırdan eleman ekleme araçları kaldırıldı (%98.9 tam genişlik Canvas); 4 sekmeli PSS®E `⚙ Diyagram Ayarları` modalı, kopmayan `Symbol -> Port -> Link -> Knee -> Port` modeli, Tek Tık SAV -> TM (varsayılan YATAY) ve 23 OWNER bölge çizimi eklendi.
+  - `tools/psse-sld/psse_sld_converter.py` & `psse_sld_build.py`: `sliderPy` port tahsisi (`GetLink() is None`) ve yerel köprü doğrulaması düzeltildi; Sincan TM (`583`), Ankara OWNER 708 (`2342`), Ankara (`2794`), Kayseri (`1984`) ve Konya (`1600`) `.sld` dosyaları PSS®E 36.5'te 0 hata ile doğrulandı.
+- **Kalan Sorun:** SAV'dan yeni çizilen şemaların sıfırdan `.sld` CArchive kaydı için yerel `psse_sld_converter.py serve` köprüsü (PSS®E 36.5 `sliderPy`) gereklidir; köprü kapalıyken sahte dosya üretilmez ve açık uyarı verilir.
+- **Sonraki İşlem:** İsteğe bağlı olarak sıfırdan CArchive `CLink`/`CSldSymbol` binary serileştirmesini tarayıcıya taşımak.
+- **Build Komutu:** `python tools/psse-sld/generate_studio_bundle.py && npm run typecheck && npm run build`
