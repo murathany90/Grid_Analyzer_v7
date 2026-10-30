@@ -57,8 +57,10 @@ export interface GaSldComponent {
   lstyle?: number;
   text?: string;
   fh?: number;
+  lpos?: number;
   owner?: number;
   vis?: boolean;
+  groupId?: string;
   _rawObj?: any;
 }
 
@@ -199,41 +201,17 @@ export function encodeMapStruct(mapStr: string, isBusbar = false): Uint8Array {
   const dv = new DataView(buf.buffer);
   dv.setUint32(0, 32, true);
   const code = parts[0].toUpperCase();
-  const b1 = parts[1] && /^\d+$/.test(parts[1]) ? parseInt(parts[1], 10) : 0;
-  const b2 = parts[2] && /^\d+$/.test(parts[2]) ? parseInt(parts[2], 10) : 0;
-  const ckt = parts[3] ? parts[3] : parts[2] ? parts[2] : '1';
-
-  if (code === 'BU') {
-    dv.setUint32(4, 1, true);
-    dv.setUint32(12, b1, true);
-    buf.set(encodeCp1254('    '), 20);
-  } else if (code === 'TR' || code === 'TX') {
-    dv.setUint32(4, 5, true);
-    dv.setUint32(12, b1, true);
-    dv.setUint32(16, b2, true);
-    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
-    buf.set(cktBytes, 20);
-  } else if (code === 'LI' || code === 'LN') {
-    dv.setUint32(4, 9, true);
-    dv.setUint32(12, b1, true);
-    dv.setUint32(16, b2, true);
-    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
-    buf.set(cktBytes, 20);
-  } else if (code === 'ME' || code === 'GE') {
-    dv.setUint32(4, 3, true);
-    dv.setUint32(12, b1, true);
-    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
-    buf.set(cktBytes, 20);
-  } else if (code === 'LO') {
-    dv.setUint32(4, 2, true);
-    dv.setUint32(12, b1, true);
-    const cktBytes = encodeCp1254((ckt + '    ').slice(0, 4));
-    buf.set(cktBytes, 20);
-  } else {
-    dv.setUint32(4, isBusbar ? 1 : 1, true);
-    dv.setUint32(12, b1, true);
-    buf.set(encodeCp1254('    '), 20);
-  }
+  const b1 = Number(parts[1]) || 0;
+  const branch = ['TR', 'TX', 'LI', 'LN', 'SYS'].includes(code);
+  const thirdBus = branch && parts.length >= 5 ? Number(parts[3]) || 0 : 0;
+  const b2 = branch ? Number(parts[2]) || 0 : 0;
+  const ckt = code === 'BU' ? '' : branch ? parts[thirdBus ? 4 : 3] || '1' : parts[2] || '1';
+  const kinds: Record<string, number> = { BU: 1, LO: 2, ME: 3, GE: 3, FXS: 6, SWS: 13, TR: 11, TX: 11, LI: 9, LN: 9, SYS: 12 };
+  const kind = kinds[code];
+  if (kind === undefined) throw new Error(`Unsupported PSS/E map code ${code}`);
+  dv.setUint32(4, kind, true);
+  dv.setUint32(12, b1, true); dv.setUint32(16, b2, true); dv.setUint32(20, thirdBus, true);
+  buf.set(encodeCp1254((ckt + '    ').slice(0, 4)), 24);
   return buf;
 }
 
@@ -251,7 +229,7 @@ export function decodeMapStruct(mapRaw: Uint8Array): {
   const bus1 = dv.getUint32(12, true);
   const bus2 = dv.getUint32(16, true);
   const bus3 = mapRaw.length >= 24 ? dv.getUint32(20, true) : 0;
-  const ckt = decodeCp1254(mapRaw.subarray(20, Math.min(24, mapRaw.length))).trim() || '1';
+  const ckt = decodeCp1254(mapRaw.subarray(24, Math.min(28, mapRaw.length))).replace(/\0/g, '').trim() || '1';
 
   switch (mtype) {
     case 1:
@@ -448,7 +426,7 @@ export class SldArchiveReader {
       obj.owner = this.readObject();
       obj.lbl_vis = this.u32();
       obj.lbl_bg = this.u32();
-      obj.lbl_default_font = this.u32();
+      obj.lbl_position = this.u32();
       obj.lbl_font_info = this.skip(36);
       obj.lbl_font_name = decodeCp1254(this.cstringRaw());
       obj.lbl_font_tail = this.skip(8);
@@ -672,7 +650,7 @@ export class SldArchiveWriter {
       this.writeObject(obj.owner);
       this.u32(obj.lbl_vis ?? 1);
       this.u32(obj.lbl_bg ?? 16777215);
-      this.u32(obj.lbl_default_font ?? 0);
+      this.u32(obj.lbl_position ?? 0);
       this.bytes(obj.lbl_font_info || new Uint8Array(36));
       this.cstringRaw(encodeCp1254(obj.lbl_font_name || 'Arial'));
       this.bytes(obj.lbl_font_tail || new Uint8Array(8));
@@ -763,7 +741,7 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
       clsName === 'CSldThreeWindingTransformer'
     ) {
       const dec = decodeMapStruct(o.map_raw || new Uint8Array(0));
-      let stype = dec.stype;
+      let stype: GaSldComponent['stype'] = clsName === 'CSldPointNode' ? 'Node' : clsName === 'CSldRadial' ? 'Radial' : clsName === 'CSldBusbar' ? 'Busbar' : 'Branch';
       let blen: number | undefined;
       let bwidth: number | undefined;
       let ends: [[number, number], [number, number]] | undefined;
@@ -772,8 +750,8 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
         stype = 'Busbar';
         if (o.bus_tail && o.bus_tail.length >= 28) {
           const dv = new DataView(o.bus_tail.buffer, o.bus_tail.byteOffset, o.bus_tail.byteLength);
-          bwidth = Number(dv.getFloat64(12, true).toFixed(4));
-          blen = Number(dv.getFloat64(20, true).toFixed(4));
+          bwidth = Number(dv.getFloat64(isV51 ? 12 : 10, true).toFixed(4));
+          blen = Number(dv.getFloat64(isV51 ? 20 : 18, true).toFixed(4));
         } else {
           bwidth = 0.4;
           blen = 16.0;
@@ -822,14 +800,8 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
       const s1Obj = p1Obj && p1Obj.owner ? (Array.isArray(p1Obj.owner) ? p1Obj.owner[2] : p1Obj.owner) : null;
       const s2Obj = p2Obj && p2Obj.owner ? (Array.isArray(p2Obj.owner) ? p2Obj.owner[2] : p2Obj.owner) : null;
 
-      const p1Pos: [number, number] =
-        s1Obj && p1Obj
-          ? [Number((s1Obj.x + p1Obj.dx).toFixed(6)), Number((s1Obj.y + p1Obj.dy).toFixed(6))]
-          : [0.0, 0.0];
-      const p2Pos: [number, number] =
-        s2Obj && p2Obj
-          ? [Number((s2Obj.x + p2Obj.dx).toFixed(6)), Number((s2Obj.y + p2Obj.dy).toFixed(6))]
-          : [0.0, 0.0];
+      const p1Pos = archivePortWorld(s1Obj, p1Obj);
+      const p2Pos = archivePortWorld(s2Obj, p2Obj);
 
       const knees: [number, number][] = [];
       const rawKnees: GaSldKneeMeta[] = [];
@@ -873,11 +845,21 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
         pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
         rot: Number((o.rot ?? 0.0).toFixed(4)),
         text: o.text || '',
-        fh: 9,
+        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) || 9 : 9,
+        lpos: o.lbl_position | 0,
+        vis: o.lbl_vis !== 0,
         owner: ownerObj ? ownerObj.id : undefined,
         _rawObj: o,
       });
     }
+  }
+
+  // Native group membership is geometry/editor state, independent of SAV data.
+  for (const wrapped of rawGroups) {
+    const group = Array.isArray(wrapped) ? wrapped[2] : wrapped;
+    if (!group || group.name === 'Default') continue;
+    const members = new Set((group.items || []).map((w: any) => (Array.isArray(w) ? w[2] : w)?.id));
+    for (const c of components) if (members.has(c.id)) c.groupId = group.name;
   }
 
   // 4. Layers
@@ -913,7 +895,151 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
  * Universal Native PSS(R)E .sld Binary Serializer
  * Works strictly bridge-free without python or local server.
  */
+function archivePortWorld(owner: any, port: any): [number, number] {
+  if (!owner || !port) return [0, 0];
+  const a = (owner.rot || 0) * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  return [Number((owner.x + co * port.dx - si * port.dy).toFixed(6)), Number((owner.y + si * port.dx + co * port.dy).toFixed(6))];
+}
+
+function archivePortLocal(owner: any, pos: number[]): { dx: number; dy: number } {
+  const a = (owner.rot || 0) * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  const x = pos[0] - owner.x, y = pos[1] - owner.y;
+  return { dx: co * x + si * y, dy: -si * x + co * y };
+}
+
+function assertSldGeometry(doc: GaSldDocument): void {
+  const ids = new Set<number>();
+  const symbols = new Set(doc.components.filter(c => c.t === 'Symbol').map(c => c.id));
+  const point = (p: number[] | undefined) => p?.length === 2 && p.every(Number.isFinite);
+  for (const c of doc.components) {
+    if (!Number.isInteger(c.id) || ids.has(c.id)) throw new Error(`Duplicate/invalid SLD ID ${c.id}`);
+    ids.add(c.id);
+    if (c.t === 'Link') {
+      for (const p of [c.p1, c.p2]) {
+        if (!p || !symbols.has(p.sym) || !point(p.pos) || (p.idx !== undefined && (!Number.isInteger(p.idx) || p.idx < 0))) {
+          throw new Error(`Invalid Link #${c.id} port/owner/position`);
+        }
+      }
+      if (!(c.knees || []).every(point)) throw new Error(`Invalid Link #${c.id} knee`);
+    } else if (!point(c.pos)) throw new Error(`Invalid ${c.t} #${c.id} position`);
+    if (c.len !== undefined && (!Number.isFinite(c.len) || c.len <= 0)) throw new Error(`Invalid bus length #${c.id}`);
+  }
+}
+
+function assertSldRoundTrip(expected: GaSldDocument, actual: GaSldDocument): void {
+  const byId = new Map(actual.components.map(c => [c.id, c]));
+  if (expected.components.length !== actual.components.length) throw new Error('SLD component count changed during export');
+  const close = (a: number | undefined, b: number | undefined) => a === undefined || (b !== undefined && Math.abs(a - b) <= 1e-4);
+  const point = (a: number[] | undefined, b: number[] | undefined) => !a || (!!b && close(a[0], b[0]) && close(a[1], b[1]));
+  for (const c of expected.components) {
+    const r = byId.get(c.id);
+    if (!r || r.t !== c.t || !point(c.pos, r.pos) || !close(c.rot, r.rot)) throw new Error(`SLD geometry mismatch #${c.id}`);
+    if (c.t === 'Symbol' && (!close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
+    if (c.t === 'Label' && c.text !== r.text) throw new Error(`SLD label mismatch #${c.id}`);
+    if (c.groupId !== r.groupId) throw new Error(`SLD group mismatch #${c.id}`);
+    if (c.t === 'Symbol' && (c.map || '').trim().replace(/\s+/g, ' ') !== (r.map || '').trim().replace(/\s+/g, ' ')) throw new Error(`SLD equipment map mismatch #${c.id}`);
+    if (c.t === 'Link') {
+      for (const key of ['p1', 'p2'] as const) {
+        if (c[key]?.sym !== r[key]?.sym || !point(c[key]?.pos, r[key]?.pos) || (c[key]?.idx !== undefined && c[key]?.idx !== r[key]?.idx)) {
+          throw new Error(`SLD endpoint mismatch #${c.id}.${key}`);
+        }
+      }
+      if ((c.knees || []).length !== (r.knees || []).length || !(c.knees || []).every((p, i) => point(p, r.knees?.[i]))) throw new Error(`SLD knee mismatch #${c.id}`);
+    }
+  }
+}
+
+function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
+  const unwrap = (o: any): any => Array.isArray(o) && (o[0] === 'NEW' || o[0] === 'REF') ? o[2] : o;
+  const objects = new Map<number, any>(), seen = new Set<any>();
+  function visit(value: any): void {
+    if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) return;
+    seen.add(value);
+    if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawGroups); visit(doc._rawViews);
+  let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
+  for (const c of doc.components) {
+    const o = objects.get(c.id);
+    if (!o) throw new Error(`Unsupported archive structural edit #${c.id}`);
+    if (c.pos) [o.x, o.y] = c.pos;
+    for (const k of ['rot', 'color', 'layer'] as const) if (c[k] !== undefined) o[k] = c[k];
+    if (c.t === 'Symbol') {
+      if(c.sdef !== undefined)o.sdef=c.sdef;
+      o.ports = (o.ports || []).map(unwrap);
+      if (c.stype === 'Node' && o._class === 'CSldBusbar') {
+        o._class = 'CSldPointNode'; o.sym_tail = new Uint8Array(isV51 ? 12 : 10);
+      } else if (c.stype === 'Busbar') {
+        o._class = 'CSldBusbar';
+        if (!o.bus_tail) o.bus_tail = new Uint8Array(isV51 ? 60 : 58);
+        const dv = new DataView(o.bus_tail.buffer, o.bus_tail.byteOffset, o.bus_tail.byteLength);
+        dv.setFloat64(isV51 ? 12 : 10, c.width ?? 0.4, true); dv.setFloat64(isV51 ? 20 : 18, c.len ?? 2, true);
+      }
+    } else if (c.t === 'Label') {
+      o.text = c.text || '';
+      if (c.owner !== undefined) o.owner = objects.get(c.owner) || null;
+    }
+  }
+  for (const c of doc.components.filter(c => c.t === 'Link')) {
+    const o = objects.get(c.id);
+    for (const key of ['p1', 'p2'] as const) {
+      const ep = c[key]!, owner = objects.get(ep.sym);
+      const port = unwrap(o[key]) || { _class: 'CSldPort', port_tail: new Uint8Array(16) };
+      const priorOwner = unwrap(port.owner);
+      if(priorOwner && priorOwner !== owner)priorOwner.ports = priorOwner.ports.filter((p: any)=>unwrap(p)!==port);
+      Object.assign(port, { owner, link: o, port_idx: ep.idx ?? owner.ports.length, ...archivePortLocal(owner, ep.pos) });
+      if(!owner.ports.includes(port))owner.ports.push(port); o[key] = port;
+    }
+    const oldKnees = (o.knees || []).map(unwrap);
+    o.knees = (c.knees || []).map((p, i) => ({
+      ...(oldKnees[i] || { _class: 'CSldKneePoint', id: nextId++, comp_post_map: new Uint8Array(isV51 ? 37 : 33) }),
+      x: p[0], y: p[1], owner: o,
+    }));
+  }
+  doc._rawLayers!.forEach((wrapped: any, i: number) => {
+    const layer = unwrap(wrapped), edited = doc.layers[i];
+    if (layer && edited) { layer.name = edited.desc; layer.vis = /^(Hidden|Invisible)$/.test(edited.vis) ? 0 : 1; }
+  });
+  registerArchiveLayers(doc._rawLayers!, doc.components.map(c => objects.get(c.id)));
+  doc._rawGroups = archiveGroups(doc, objects);
+}
+
+function archiveGroups(doc: GaSldDocument, objects: Map<number, any>): any[] {
+  const groups = new Map<string, any>();
+  groups.set('Default', { _class: 'CSldGroup', name: 'Default', items: [] });
+  for (const c of doc.components) {
+    if (!c.groupId) continue;
+    if (!groups.has(c.groupId)) groups.set(c.groupId, { _class: 'CSldGroup', name: c.groupId, items: [] });
+    groups.get(c.groupId).items.push(objects.get(c.id));
+  }
+  return [...groups.values()];
+}
+
+// Slider draws from each layer's typed indexes, independently of the main list.
+// An archive with empty layer indexes parses but opens as a blank PSS/E canvas.
+function registerArchiveLayers(layers: any[], components: any[]): void {
+  const typed: Record<string, number> = { CSldPointNode: 4, CSldBusbar: 5, CSldRadial: 6, CSldBranch: 7,
+    CSldTwoWindingTransformer: 7, CSldThreeWindingTransformer: 7, CSldLink: 11, CSldLabel: 17 };
+  const ids = new Set(components.map(o => o.id));
+  const unwrap = (o: any): any => Array.isArray(o) ? o[2] : o;
+  for (const wrapped of layers) {
+    const l = unwrap(wrapped);
+    l.layer_lists = l.layer_lists.map((items: any[]) => items.filter(w => !ids.has(unwrap(w)?.id)));
+  }
+  for (const o of components) {
+    const layer = unwrap(layers[o.layer]);
+    if (!layer || typed[o._class] === undefined) throw new Error(`Invalid SLD layer/class #${o.id}`);
+    layer.layer_lists[0].push(o);
+    layer.layer_lists[typed[o._class]].push(o);
+  }
+}
+
 export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1'): Uint8Array {
+  // CArchive contains cycles and shared references. Clone the entire graph once;
+  // serializing an immutable edit must never modify the parsed source document.
+  doc = structuredClone(doc);
+  assertSldGeometry(doc);
   const isV51 = !targetVersion.startsWith('2.0.49.');
 
   // 1. Preamble
@@ -924,57 +1050,13 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
   } else {
     preamble = getDefaultPreamble();
   }
+  preamble = preamble.slice();
+  const versionBytes = new TextEncoder().encode(targetVersion);
+  if (versionBytes.length !== preamble[0]) throw new Error('Unsupported SLD version header length');
+  preamble.set(versionBytes, 1);
 
   if (doc._rawLayers && doc._rawMainList) {
-    const compMap = new Map<number, GaSldComponent>();
-    for (const c of doc.components) compMap.set(c.id, c);
-
-    for (const w of doc._rawMainList) {
-      const o = Array.isArray(w) ? w[2] : w;
-      if (!o) continue;
-      const c = compMap.get(o.id);
-      if (c) {
-        if (c.pos) {
-          o.x = c.pos[0];
-          o.y = c.pos[1];
-        }
-        if (c.rot !== undefined) o.rot = c.rot;
-        if (c.color !== undefined) o.color = c.color;
-        if (c.t === 'Link') {
-          if (c.knees && Array.isArray(c.knees)) {
-            const kList: any[] = [];
-            for (let kidx = 0; kidx < c.knees.length; kidx++) {
-              const kp = c.knees[kidx];
-              const kneeId = 90000 + o.id * 10 + kidx;
-              kList.push({
-                _class: 'CSldKneePoint',
-                id: kneeId,
-                rot: 0.0,
-                layer: o.layer ?? 4,
-                flag0: 0,
-                f1: 1,
-                f2: 1,
-                f3: 0,
-                color: o.color ?? 0,
-                comp_pre_map: new Uint8Array(12),
-                map_raw: new Uint8Array(0),
-                comp_annots: [],
-                comp_post_map: new Uint8Array(isV51 ? 37 : 33),
-                x: kp[0],
-                y: kp[1],
-                comp_post_xy: new Uint8Array(16),
-                labels: [],
-                owner: o,
-              });
-            }
-            o.knees = kList;
-          }
-        } else if (c.t === 'Label' && c.text !== undefined) {
-          o.text = c.text;
-        }
-      }
-    }
-
+    synchronizeArchiveGeometry(doc, isV51);
     const writer = new SldArchiveWriter(isV51);
     writer.writeObList(doc._rawMainList.map((w: any) => (Array.isArray(w) ? w[2] : w)));
     writer.u32(doc._u1 ?? 1);
@@ -989,7 +1071,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     fullBytes.set(bodyBytes, preamble.length);
 
     // Validate pre-export round-trip
-    const reDoc = parseSldBinary(fullBytes);
+    assertSldRoundTrip(doc, parseSldBinary(fullBytes));
     return fullBytes;
   }
 
@@ -1039,15 +1121,14 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     const busDv = new DataView(busTail.buffer);
     busDv.setUint32(0, 1, true);
     busDv.setUint32(4, color, true);
-    busDv.setFloat64(12, bwidth, true);
-    busDv.setFloat64(20, blen, true);
-    busDv.setFloat32(28, 1.0, true);
-    busDv.setFloat32(32, 1.0, true);
-    busDv.setInt32(36, -1, true);
-    busDv.setUint16(40, 2, true);
-    busDv.setUint16(42, 2, true);
-    busDv.setUint16(44, 1, true);
-    busDv.setUint16(46, 1, true);
+    busDv.setFloat64(isV51 ? 12 : 10, bwidth, true);
+    busDv.setFloat64(isV51 ? 20 : 18, blen, true);
+    busDv.setFloat32(isV51 ? 28 : 26, 1.0, true);
+    busDv.setInt32(isV51 ? 32 : 30, -1, true);
+    busDv.setUint16(isV51 ? 36 : 34, 2, true);
+    busDv.setUint16(isV51 ? 38 : 36, 2, true);
+    busDv.setUint16(isV51 ? 40 : 38, 1, true);
+    busDv.setUint16(isV51 ? 42 : 40, 1, true);
 
     const obj: any = {
       _class: clsName,
@@ -1061,7 +1142,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       color,
       comp_pre_map: new Uint8Array(12),
       map_raw: mapRaw,
-      comp_annots: [],
+      comp_annots: [encodeCp1254('ANNOT' + 'N'.repeat(32))],
       comp_post_map: new Uint8Array(isV51 ? 37 : 33),
       x: pos[0],
       y: pos[1],
@@ -1169,15 +1250,13 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     }
 
     // Port 1
-    const dx1 = s1Obj ? p1Pos[0] - s1Obj.x : 0.0;
-    const dy1 = s1Obj ? p1Pos[1] - s1Obj.y : 0.0;
+    const local1 = archivePortLocal(s1Obj, p1Pos);
     const port1: any = {
       _class: 'CSldPort',
       owner: s1Obj,
       link: linkObj,
       port_idx: p1Info.idx ?? (portsBySym.get(s1Id)?.length ?? 0),
-      dx: dx1,
-      dy: dy1,
+      ...local1,
       port_tail: new Uint8Array(16),
     };
     linkObj.p1 = port1;
@@ -1186,15 +1265,13 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     }
 
     // Port 2
-    const dx2 = s2Obj ? p2Pos[0] - s2Obj.x : 0.0;
-    const dy2 = s2Obj ? p2Pos[1] - s2Obj.y : 0.0;
+    const local2 = archivePortLocal(s2Obj, p2Pos);
     const port2: any = {
       _class: 'CSldPort',
       owner: s2Obj,
       link: linkObj,
       port_idx: p2Info.idx ?? (portsBySym.get(s2Id)?.length ?? 0),
-      dx: dx2,
-      dy: dy2,
+      ...local2,
       port_tail: new Uint8Array(16),
     };
     linkObj.p2 = port2;
@@ -1211,25 +1288,37 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       sObj._class === 'CSldRadial' ||
       sObj._class === 'CSldBranch'
     ) {
-      sObj.ports = portsBySym.get(sid) || [];
+      const ports = portsBySym.get(sid) || [];
+      const c = symMap.get(sid);
+      const count = c?.stype === 'Branch' ? (c.psse === 'TWTransformer' ? 3 : 2) : c?.stype === 'Radial' ? 1 : 0;
+      for (let idx = 0; idx < count; idx++) {
+        if (ports.some(p => p.port_idx === idx)) continue;
+        const half = c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
+        ports.push({ _class: 'CSldPort', owner: sObj, link: null, port_idx: idx,
+          dx: c?.stype === 'Branch' ? (idx === 0 ? -half : idx === 1 ? half : 0) : 0,
+          dy: c?.stype === 'Radial' ? ({ 2: .082, 4: .099, 5: .13 } as Record<number, number>)[c.sdef || 0] || 0 : idx === 2 ? -.2 : 0,
+          port_tail: new Uint8Array(16) });
+      }
+      sObj.ports = ports.sort((a, b) => a.port_idx - b.port_idx);
     }
   });
 
   // Attach labels
+  const unownedLabels: any[] = [];
   labelsByOwner.forEach((lblList, ownerId) => {
     const ownerObj = carchiveObjs.get(ownerId);
-    if (!ownerObj) return;
+    if (!ownerObj && ownerId !== 0) throw new Error(`Invalid label owner ${ownerId}`);
     for (const l of lblList) {
-      const pos = l.pos || [ownerObj.x, ownerObj.y];
+      const pos = l.pos || [ownerObj?.x || 0, ownerObj?.y || 0];
       const fontInfo = new Uint8Array(36);
       const fontDv = new DataView(fontInfo.buffer);
-      fontDv.setInt32(0, 9, true); // height = 9
-      fontDv.setInt32(16, 400, true); // normal weight
+      fontDv.setInt32(8, Math.round(l.fh || 9), true); // native font height
+      fontDv.setInt32(24, 400, true); // native font weight
       const lblObj: any = {
         _class: 'CSldLabel',
         id: l.id,
         rot: l.rot ?? 0.0,
-        layer: l.layer ?? (ownerObj.layer ?? 4),
+        layer: l.layer ?? (ownerObj?.layer ?? 4),
         flag0: 0,
         f1: 1,
         f2: 1,
@@ -1244,15 +1333,15 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
         comp_post_xy: new Uint8Array(16),
         labels: [],
         text: l.text || '',
-        owner: ownerObj,
-        lbl_vis: 1,
+        owner: ownerObj || null,
+        lbl_vis: l.vis === false ? 0 : 1,
         lbl_bg: 0xffffff,
-        lbl_default_font: 0,
+        lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
         lbl_font_info: fontInfo,
         lbl_font_name: 'Arial',
         lbl_font_tail: new Uint8Array(8),
       };
-      ownerObj.labels.push(lblObj);
+      if(ownerObj)ownerObj.labels.push(lblObj);else unownedLabels.push(lblObj);
     }
   });
 
@@ -1271,6 +1360,8 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       }
     }
   }
+
+  mainList.push(...unownedLabels);
 
   // Layers
   const layerNames = [
@@ -1295,20 +1386,19 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     });
   }
 
-  const groups = [
-    {
-      _class: 'CSldGroup',
-      name: 'Default',
-      items: [],
-    },
-  ];
+  const groupObjects = new Map([...carchiveObjs.values()].flatMap(o => [o, ...(o.labels || [])]).concat(unownedLabels).map(o => [o.id, o]));
+  const groups = archiveGroups(doc, groupObjects);
 
   const viewData = new Uint8Array(78);
   const viewDv = new DataView(viewData.buffer);
-  viewDv.setFloat64(0, -25.0, true);
-  viewDv.setFloat64(8, -25.0, true);
-  viewDv.setFloat64(16, 25.0, true);
-  viewDv.setFloat64(24, 25.0, true);
+  const points = doc.components.flatMap(c => c.pos ? [c.pos] : [c.p1!.pos, ...(c.knees || []), c.p2!.pos]);
+  const minX = Math.min(...points.map(p => p[0])) - 1, maxX = Math.max(...points.map(p => p[0])) + 1;
+  const minY = Math.min(...points.map(p => p[1])) - 1, maxY = Math.max(...points.map(p => p[1])) + 1;
+  viewDv.setFloat64(0, 1.0, true); // positive zoom factor, not a bounding rectangle
+  viewDv.setFloat64(8, (minX + maxX) / 2, true);
+  viewDv.setFloat64(16, (minY + maxY) / 2, true);
+  viewDv.setFloat64(40, minX, true); viewDv.setFloat64(48, maxY, true);
+  viewDv.setFloat64(56, maxX, true); viewDv.setFloat64(64, minY, true);
 
   const views = [
     {
@@ -1319,6 +1409,8 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
   ];
 
   // Write CArchive Body
+  const allComponents = [...carchiveObjs.values()].flatMap(o => [o, ...(o.labels || [])]).concat(unownedLabels);
+  registerArchiveLayers(layers, allComponents);
   const writer = new SldArchiveWriter(isV51);
   writer.writeObList(mainList);
   writer.u32(1); // u1
@@ -1334,6 +1426,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
 
   // 3. Mandatory Pre-Export Round-Trip Validation
   const reDoc = parseSldBinary(fullBytes);
+  assertSldRoundTrip(doc, reDoc);
   const origSyms = doc.components.filter((c) => c.t === 'Symbol');
   const reSyms = reDoc.components.filter((c) => c.t === 'Symbol');
   if (reSyms.length !== origSyms.length) {

@@ -89,7 +89,7 @@ try:
             e['ports'] = []
             for i, p in enumerate(ports):
                 lk = g(p, 'GetLink')
-                e['ports'].append({'pos': pt(g(p, 'GetPosition')), 'link': (g(lk, 'GetID') if lk is not None else None)})
+                e['ports'].append({'pos': pt(g(p, 'GetPosition')), 'number': g(p, 'GetNumber'), 'link': (g(lk, 'GetID') if lk is not None else None)})
             syms[cid] = e
         elif t == 'Label':
             cv = c
@@ -111,7 +111,7 @@ try:
                 p = g(cv, pm)
                 if p is not None:
                     s = g(p, 'GetSymbol')
-                    e[k] = {'sym': (g(s, 'GetID') if s is not None else None), 'pos': pt(g(p, 'GetPosition'))}
+                    e[k] = {'sym': (g(s, 'GetID') if s is not None else None), 'pos': pt(g(p, 'GetPosition')), 'idx': g(p, 'GetNumber')}
             kp = g(cv, 'GetKneePointPositions')
             if kp:
                 try: e['knees'] = [pt(x) for x in kp]
@@ -125,7 +125,8 @@ try:
                 if pp and pp.get('sym') in syms:
                     for i, sp in enumerate(syms[pp['sym']]['ports']):
                         if sp['pos'] == pp['pos'] and sp.get('link') == e['id']:
-                            pp['idx'] = i; break
+                            if pp.get('idx') is None: pp['idx'] = sp.get('number') if sp.get('number') is not None else i
+                            break
     res['components'] = out
     try:
         res['savedViews'] = [{'name': g(v, 'GetName'), 'center': pt(g(v, 'GetCenterPoint')), 'zoom': g(v, 'GetZoomLevel')} for v in d.GetSavedViews()]

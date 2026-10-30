@@ -4,7 +4,7 @@
 (() => {
 'use strict';
 const NS='http://www.w3.org/2000/svg', KEY='ga.psse.sld.documents.v4', MAX_SAVE=3_900_000, SLD_SCALE=90;
-const BRIDGE_URL='http://127.0.0.1:18765', BRIDGE_TOKEN='ga-psse-365-local-bridge-v1';
+const BRIDGE_URL='http://127.0.0.1:18765';
 const $=(sel,root=document)=>root.querySelector(sel);
 const $$=(sel,root=document)=>[...root.querySelectorAll(sel)];
 const E=(tag,cls='',text)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(text!==undefined)x.textContent=text;return x;};
@@ -75,10 +75,6 @@ function defaultDiagramSettings(){
   };
 }
 
-const CP1254_HIGH={0xd0:'Ğ',0xdd:'İ',0xde:'Ş',0xf0:'ğ',0xfd:'ı',0xfe:'ş',0xc7:'Ç',0xe7:'ç',0xd6:'Ö',0xf6:'ö',0xdc:'Ü',0xfc:'ü'};
-const UNICODE_TO_CP1254={'Ğ':0xd0,'İ':0xdd,'Ş':0xde,'ğ':0xf0,'ı':0xfd,'ş':0xfe,'Ç':0xc7,'ç':0xe7,'Ö':0xd6,'ö':0xf6,'Ü':0xdc,'ü':0xfc};
-function decodeCp1254(bytes){let s='';for(let i=0;i<bytes.length;i++){const b=bytes[i];s+=CP1254_HIGH[b]??String.fromCharCode(b);}return s;}
-function encodeCp1254(text){const a=[];for(let i=0;i<text.length;i++){const c=text[i];if(c in UNICODE_TO_CP1254)a.push(UNICODE_TO_CP1254[c]);else{const k=text.charCodeAt(i);a.push(k<256?k:0x3f);}}return new Uint8Array(a);}
 function bgrToHex(c,fb='#7cb7f0'){if(c===undefined||c===null||!Number.isFinite(c)||c<0)return fb;const r=c&0xff,g=(c>>8)&0xff,b=(c>>16)&0xff;if(r===0&&g===0&&b===0)return '#dce7f3';if(r===128&&g===128&&b===64)return '#72a7d0';return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;}
 function hexToBgr(hex){const s=String(hex||'').replace(/^#/,'');if(s.length!==6)return 0xffffff;const r=parseInt(s.slice(0,2),16)||0,g=parseInt(s.slice(2,4),16)||0,b=parseInt(s.slice(4,6),16)||0;return r|(g<<8)|(b<<16);}
 
@@ -98,636 +94,1671 @@ function network(){return controller()?.psseNetwork??null;}
 function hash(){return network()?.modelHash??'standalone';}
 function sourceRows(){const m=model();return new Map((m?.equipment||[]).map(e=>[e.id,e]));}
 
-function findAscii(bytes,needle,start=0,end=bytes.length){
-  const nlen=needle.length,lim=Math.min(bytes.length,end)-nlen;
-  for(let i=Math.max(0,start);i<=lim;i++){
-    let ok=true;
-    for(let k=0;k<nlen;k++){if(bytes[i+k]!==needle.charCodeAt(k)){ok=false;break;}}
-    if(ok)return i;
+/* GENERATED CODEC START */
+/**
+ * Pure TypeScript CArchive Binary Codec for PSS(R)E 36.5 Single-Line Diagrams (.sld)
+ * Supports Slider binary format versions 2.0.49.x (PSS/E 34/35) and 2.0.51.x (PSS/E 36.5).
+ *
+ * Full MFC CArchive reader and writer:
+ * - Dynamic class registration and object mapping (0xFFFF class tag, 0x8000 | cls_idx, REF index tags).
+ * - Complete CArchive record graphs: Symbol -> Port -> Link -> KneePoint -> Port -> Symbol.
+ * - CSldBusbar, CSldPointNode, CSldRadial, CSldBranch, CSldTwoWindingTransformer, CSldThreeWindingTransformer.
+ * - CSldPort (relative offsets dx, dy to owner symbol position).
+ * - CSldLink (knees list, port references p1, p2).
+ * - CSldKneePoint (absolute x, y, owner link reference).
+ * - CSldLabel (text, owner component reference, position, font info).
+ * - CSldLayer (22 lists for 2.0.51.1, 21 lists for 2.0.49.3).
+ * - CSldGroup, CSldSavedView.
+ * - Mandatory pre-export round-trip validation within 1e-4 tolerance.
+ */
+
+                             
+            
+               
+              
+                
+                
+ 
+
+                                    
+              
+                        
+               
+ 
+
+                                
+             
+                        
+                    
+ 
+
+                                 
+             
+                                 
+                
+                
+                         
+               
+               
+                                                  
+                
+                
+               
+                 
+                                              
+                         
+                         
+                             
+                              
+                  
+                  
+                
+              
+                
+                 
+                
+                   
+                
+ 
+
+                                
+                      
+                      
+                       
+                               
+                        
+                       
+                     
+                     
+                    
+               
+               
+ 
+
+const CP1254_HIGH                         = {
+  0xd0: 'Ğ',
+  0xdd: 'İ',
+  0xde: 'Ş',
+  0xf0: 'ğ',
+  0xfd: 'ı',
+  0xfe: 'ş',
+  0xc7: 'Ç',
+  0xe7: 'ç',
+  0xd6: 'Ö',
+  0xf6: 'ö',
+  0xdc: 'Ü',
+  0xfc: 'ü',
+};
+
+const UNICODE_TO_CP1254                         = {
+  Ğ: 0xd0,
+  İ: 0xdd,
+  Ş: 0xde,
+  ğ: 0xf0,
+  ı: 0xfd,
+  ş: 0xfe,
+  Ç: 0xc7,
+  ç: 0xe7,
+  Ö: 0xd6,
+  ö: 0xf6,
+  Ü: 0xdc,
+  ü: 0xfc,
+};
+
+function decodeCp1254(bytes            )         {
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    out += CP1254_HIGH[b] ?? String.fromCharCode(b);
+  }
+  return out;
+}
+
+function encodeCp1254(text        )             {
+  const arr           = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch in UNICODE_TO_CP1254) {
+      arr.push(UNICODE_TO_CP1254[ch]);
+    } else {
+      const code = text.charCodeAt(i);
+      arr.push(code < 256 ? code : 0x3f);
+    }
+  }
+  return new Uint8Array(arr);
+}
+
+function findAscii(bytes            , needle        , fromIndex = 0)         {
+  const nlen = needle.length;
+  if (nlen === 0 || bytes.length < nlen) return -1;
+  const first = needle.charCodeAt(0);
+  const limit = bytes.length - nlen;
+  for (let i = Math.max(0, fromIndex); i <= limit; i++) {
+    if (bytes[i] !== first) continue;
+    let ok = true;
+    for (let k = 1; k < nlen; k++) {
+      if (bytes[i + k] !== needle.charCodeAt(k)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return i;
   }
   return -1;
 }
 
-function validateSldBinary(bytes){
-  if(!bytes||bytes.length<512){
-    return {valid:false,version:'',reason:'Dosya boyutu geçerli bir PSS®E .sld CArchive dosyası için çok küçük (<512 bayt).'};
+function findMainListStart(bytes            )         {
+  const idx = findAscii(bytes, 'CSld');
+  if (idx < 8) {
+    throw new Error('Geçersiz PSS®E .sld CArchive: CSld sınıf başlangıcı bulunamadı.');
   }
-  const vlen=bytes[0];
-  if(vlen<6||vlen>12||bytes[1+vlen]!==0){
-    return {valid:false,version:'',reason:'Geçersiz PSS®E .sld binary başlığı: CArchive sürüm imzası bulunamadı.'};
-  }
-  const ver=decodeCp1254(bytes.subarray(1,1+vlen));
-  if(!/^2\.0\.(48|49|50|51)\.\d+$/.test(ver)){
-    return {valid:false,version:ver,reason:`Desteklenmeyen veya sahte .sld versiyon başlığı: "${ver}".`};
-  }
-  const hasSldClass=findAscii(bytes,'CSldBusbar')>=0||findAscii(bytes,'CSldBranch')>=0||findAscii(bytes,'CSldPointNode')>=0||findAscii(bytes,'CSldLayer')>=0;
-  if(!hasSldClass){
-    return {valid:false,version:ver,reason:'CArchive içinde CSldBusbar / CSldBranch / CSldLayer çalışma zamanı sınıfları bulunamadı.'};
-  }
-  return {valid:true,version:ver};
+  return idx - 8;
 }
 
+function validateSldBinary(bytes            )                                                       {
+  if (!bytes || bytes.length < 512) {
+    return { valid: false, version: '', reason: 'Dosya boyutu geçerli bir PSS®E .sld CArchive dosyası için çok küçük (<512 bayt).' };
+  }
+  const vlen = bytes[0];
+  if (vlen < 6 || vlen > 12 || bytes[1 + vlen] !== 0) {
+    return { valid: false, version: '', reason: 'Geçersiz PSS®E .sld binary başlığı: CArchive sürüm imzası bulunamadı.' };
+  }
+  const ver = decodeCp1254(bytes.subarray(1, 1 + vlen));
+  if (!/^2\.0\.(48|49|50|51)\.\d+$/.test(ver)) {
+    return { valid: false, version: ver, reason: `Desteklenmeyen veya bozuk Slider sürüm başlığı: "${ver}".` };
+  }
+  const hasSldClass =
+    findAscii(bytes, 'CSldBusbar') >= 0 ||
+    findAscii(bytes, 'CSldBranch') >= 0 ||
+    findAscii(bytes, 'CSldPointNode') >= 0 ||
+    findAscii(bytes, 'CSldLayer') >= 0;
+  if (!hasSldClass) {
+    return { valid: false, version: ver, reason: 'CArchive içinde CSldBusbar / CSldBranch / CSldLayer çalışma zamanı sınıfları bulunamadı.' };
+  }
+  return { valid: true, version: ver };
+}
+
+// Clean 2,263-byte PSS/E 36.5 2.0.51.1 preamble (color palette, fonts, styles)
 const PSSE_365_PREAMBLE_B64 =
   'CDIuMC41MS4xAP///wCAgIAAAMgAAAAAAKCZmak/AAAA4E1ioD8AAADgTWKwPwEAAAAAAACgmZnJPwAAAAAAAIA/AQAAAP////8BAAAAAAAAoJmZuT8AAACgmZnZPwAAAAAAACRAAAAAQOF6hD8AAACgmZm5PwAAAKCZmck/AAAAQDMz0z8AAACgmZm5PwEAAAAHAAAAAAAAAAAAJEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAoJmZqT8AAAAAZmbm1yIrDcBcj3KHwEoywAAAKJkY8EZAVHYYKplzBUBmZubXIisNwMsOQ1ym4THAAAAomRjwRkBUdhgqmXMFQAAAAAAAAAAAAAAAAACAAAD/gAAAAAAAAAAAAAAAAAAAAwAAAPoABDM2LjQBMBhEaWFncmFtX0RpYWdyYW1fU2V0dGluZ3MAATACMTIPQ29sb3JWaXNpYmlsaXR5AAE3C0hpZGVVbmJvdW5kATAFQm91bmQBMAdVbmJvdW5kCDE2NzExOTM1CEJya3JPcGVuBTY1MjgwCUJya3JDbG9zZQMyNTUNU2hvd0xvb3BGbG93cwExCUxvb3BGbG93cwczOTk3Njk1ATABMA1GYXVsdFNldHRpbmdzAAEzBVdpZHRoATIFU3R5bGUFNjM1MjAFQ29sb3IHODQyMTUwNAEwATALT09TU2V0dGluZ3MAATQGVXNlT09TATEFV2lkdGgBMQVTdHlsZQU2MzczNgVDb2xvcgc0MTk0MzY4ATABMAxWUkNTU2V0dGluZ3MAATYPVXNlVm9sdGFnZUNvbG9yATEPVXNlVm9sdGFnZUxheWVyATEFV2lkdGgWMSAgMSAgMSAgMSAgMSAgMSAgMSAgMQVTdHlsZR4tMSAgLTEgIC0xICAtMSAgLTEgIC0xICAtMSAgLTEFQ29sb3I9MCAgMjU1ICAxNjcxMTY4MCAgNjUyODAgIDgzODg4NjMgIDg0MjE0NDAgIDE0MzUyMzg0ICAxNjcxMTY4MARWb2x0NzAuMDAwICAxMy44MDAgIDE4LjAwMCAgMjAuMDAwICAyMS42MDAgIDIzMC4wMDAgIDUwMC4wMDABMAEwCUJhckNoYXJ0cwABNAlCYXJDaGFydHMBMA1UcmFuc0JhckNoYXJ0ATAPQmFyQ2hhcnRQZXJjZW50ETk1ICAxMDAgIDEwNSAgMTEwDUJhckNoYXJ0Q29sb3IXMTMzNjk1NDggIDI1NSAgMjA0ICAxMjgBMAEwEUR5bmFtaWNSYW5nZUNoZWNrAAIxNRJVc2VCcmFuY2hMb2FkQ29sb3IBMA1MaW5lTG9hZENvbG9yBTMzMDIzDUxpbmVMb2FkV2lkdGgBNQ1MaW5lTG9hZFN0eWxlAi0xC0xpbmVMb2FkaW5nCjEwMC4wMDAwMDAPVXNlQnVzVm9sdENvbG9yATAPQnVzVm9sdE1pbkNvbG9yBTMyNzY4D0J1c1ZvbHRNYXhDb2xvcgc4Mzg4ODYzD0J1c1ZvbHRNaW5XaWR0aAExD0J1c1ZvbHRNYXhXaWR0aAEyEUJ1c1ZvbHRNaW5Wb2x0YWdlCDAuMDAwMDAwEUJ1c1ZvbHRNYXhWb2x0YWdlCDEuMDAwMDAwD0JyYW5jaFJhdGluZ1NldAExDFN3ZFJhdGluZ1NldAEwD1VzZVN3ZExvYWRDb2xvcgEwATABMA5NVVNUQW5ub3RhdGlvbgABNQtNVVNUT3B0aW9uMQExC01VU1RPcHRpb24yATILTVVTVE9wdGlvbjMBMwtNVVNUT3B0aW9uNAEwC01VU1RPcHRpb240ATEBMAEwDURZTkFubm90YXRpb24AATMHRFlOTW9kZQExCURZTlJlc3VsdAExCkRZTkNvbnRvdXIBMAEwATANUkVMQW5ub3RhdGlvbgACMTEHUkVMTW9kZQEwClJFTE91dE1vZGUBMQpSRUxCdXNNb2RlATAKUkVMQ250TGlzdAExCVJFTENudEJ1cwExCVJFTENudEJybgExCVJFTFByYkJ1cwExCVJFTFByYkJybgExCVJFTERldEJ1cwExCVJFTERldEJybgExB1JFTFZSZWMBMQEwATANQVNDQW5ub3RhdGlvbgACMTAFQW5ub3QBMARUeXBlATEIRmF1bHRCdXMJMTAwMDAwMDAwA0JvZQExB0NvbnRyaWIBMAdGcm9tQnVzCTEwMDAwMDAwMAVUb0J1cwkxMDAwMDAwMDAHTGFzdEJ1cwkxMDAwMDAwMDAHQnVzU2VjdAkxMDAwMDAwMDACSWQAATABMA1JRUNBbm5vdGF0aW9uAAIxMAVBbm5vdAEwBFR5cGUBMQhGYXVsdEJ1cwkxMDAwMDAwMDADQm9lATEHQ29udHJpYgEwB0Zyb21CdXMJMTAwMDAwMDAwBVRvQnVzCTEwMDAwMDAwMAdMYXN0QnVzCTEwMDAwMDAwMAdCdXNTZWN0CTEwMDAwMDAwMAJJZAABMAEwC0Fubm90YXRpb25zAAIxNAtSZXN1bHRzVHlwZQExCEhpZGVNb2RlATAIRGlhZ1ByZWMKMSAgMSAgMSAgMhBCcmFuY2hBbm5vdGF0aW9uBzYgIDAgIDEKRmxvd0RpcmVjdAEwB0J1c1ZvbHQENiAgNAVCdXNJZAEyCUVxdWlwbWVudAQwICAxDlBlcmNlbnRNVkFMaW5lATEVUGVyY2VudE1WQVRyYW5zZm9ybWVyATEKUmVwb3J0TVNMcwExEVJlcG9ydEJ1c1NlY3Rpb25zATEMQnVzSW1wZWRhbmNlATYPQnJhbmNoSW1wZWRhbmNlATYBMAEwAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAABbw97DL794QKAAAAAAkAEAAFAAAAAFQXJpYWwBAAAAAAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAHgAAAAAAAOBRuL4/AAAAAP///wABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAAAAEDhepQ/AAAAAA==';
 
-function getDefaultPreamble(){
-  const bin=atob(PSSE_365_PREAMBLE_B64);
-  const out=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+function getDefaultPreamble()             {
+  const bin = atob(PSSE_365_PREAMBLE_B64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) {
+    out[i] = bin.charCodeAt(i);
+  }
   return out;
 }
 
-function findMainListStart(bytes){
-  const idx=findAscii(bytes,'CSld');
-  if(idx<8)throw new Error('Geçersiz PSS®E .sld CArchive: CSld sınıf başlangıcı bulunamadı.');
-  return idx-8;
-}
-
-function encodeMapStruct(mapStr,isBusbar=false){
-  const parts=(mapStr||'').trim().split(/\s+/);
-  if(parts.length===0||!parts[0])return new Uint8Array(0);
-  const buf=new Uint8Array(32);
-  const dv=new DataView(buf.buffer);
-  dv.setUint32(0,32,true);
-  const code=parts[0].toUpperCase();
-  const b1=parts[1]&&/^\d+$/.test(parts[1])?parseInt(parts[1],10):0;
-  const b2=parts[2]&&/^\d+$/.test(parts[2])?parseInt(parts[2],10):0;
-  const ckt=parts[3]?parts[3]:(parts[2]?parts[2]:'1');
-
-  if(code==='BU'){
-    dv.setUint32(4,1,true);dv.setUint32(12,b1,true);
-    buf.set(encodeCp1254('    '),20);
-  }else if(code==='TR'||code==='TX'){
-    dv.setUint32(4,5,true);dv.setUint32(12,b1,true);dv.setUint32(16,b2,true);
-    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
-  }else if(code==='LI'||code==='LN'){
-    dv.setUint32(4,9,true);dv.setUint32(12,b1,true);dv.setUint32(16,b2,true);
-    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
-  }else if(code==='ME'||code==='GE'){
-    dv.setUint32(4,3,true);dv.setUint32(12,b1,true);
-    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
-  }else if(code==='LO'){
-    dv.setUint32(4,2,true);dv.setUint32(12,b1,true);
-    buf.set(encodeCp1254((ckt+'    ').slice(0,4)),20);
-  }else{
-    dv.setUint32(4,1,true);dv.setUint32(12,b1,true);
-    buf.set(encodeCp1254('    '),20);
-  }
+function encodeMapStruct(mapStr        , isBusbar = false)             {
+  const parts = (mapStr || '').trim().split(/\s+/);
+  if (parts.length === 0 || !parts[0]) return new Uint8Array(0);
+  const buf = new Uint8Array(32);
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(0, 32, true);
+  const code = parts[0].toUpperCase();
+  const b1 = Number(parts[1]) || 0;
+  const branch = ['TR', 'TX', 'LI', 'LN', 'SYS'].includes(code);
+  const thirdBus = branch && parts.length >= 5 ? Number(parts[3]) || 0 : 0;
+  const b2 = branch ? Number(parts[2]) || 0 : 0;
+  const ckt = code === 'BU' ? '' : branch ? parts[thirdBus ? 4 : 3] || '1' : parts[2] || '1';
+  const kinds                         = { BU: 1, LO: 2, ME: 3, GE: 3, FXS: 6, SWS: 13, TR: 11, TX: 11, LI: 9, LN: 9, SYS: 12 };
+  const kind = kinds[code];
+  if (kind === undefined) throw new Error(`Unsupported PSS/E map code ${code}`);
+  dv.setUint32(4, kind, true);
+  dv.setUint32(12, b1, true); dv.setUint32(16, b2, true); dv.setUint32(20, thirdBus, true);
+  buf.set(encodeCp1254((ckt + '    ').slice(0, 4)), 24);
   return buf;
 }
 
-function decodeMapStruct(mapRaw){
-  if(mapRaw.length<20)return {map:'',stype:'Node',psse:'BusNode',sdef:0};
-  const dv=new DataView(mapRaw.buffer,mapRaw.byteOffset,mapRaw.byteLength);
-  const mtype=dv.getUint32(4,true),bus1=dv.getUint32(12,true),bus2=dv.getUint32(16,true);
-  const bus3=mapRaw.length>=24?dv.getUint32(20,true):0;
-  const ckt=decodeCp1254(mapRaw.subarray(20,Math.min(24,mapRaw.length))).trim()||'1';
+function decodeMapStruct(mapRaw            )   
+              
+                                                 
+               
+               
+  {
+  if (mapRaw.length < 20) {
+    return { map: '', stype: 'Node', psse: 'BusNode', sdef: 0 };
+  }
+  const dv = new DataView(mapRaw.buffer, mapRaw.byteOffset, mapRaw.byteLength);
+  const mtype = dv.getUint32(4, true);
+  const bus1 = dv.getUint32(12, true);
+  const bus2 = dv.getUint32(16, true);
+  const bus3 = mapRaw.length >= 24 ? dv.getUint32(20, true) : 0;
+  const ckt = decodeCp1254(mapRaw.subarray(24, Math.min(28, mapRaw.length))).replace(/\0/g, '').trim() || '1';
 
-  switch(mtype){
-    case 1:return {map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1};
-    case 2:return {map:bus1?`LO ${bus1} ${ckt} `:'',stype:'Radial',psse:'Load',sdef:2};
-    case 3:return {map:bus1?`ME ${bus1} ${ckt} `:'',stype:'Radial',psse:'Machine',sdef:4};
+  switch (mtype) {
+    case 1:
+      return { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 };
+    case 2:
+      return { map: bus1 ? `LO ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'Load', sdef: 2 };
+    case 3:
+      return { map: bus1 ? `ME ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'Machine', sdef: 4 };
     case 4:
-    case 6:return {map:bus1?`FXS ${bus1} ${ckt} `:'',stype:'Radial',psse:'FixedShunt',sdef:5};
+    case 6:
+      return { map: bus1 ? `FXS ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'FixedShunt', sdef: 5 };
     case 5:
-    case 11:return {map:bus1&&bus2?`TR ${bus1} ${bus2}${bus3?' '+bus3:''} ${ckt} `:'',stype:'Branch',psse:bus3?'TWTransformer':'Transformer',sdef:bus3?11:10};
+    case 11:
+      return {
+        map: bus1 && bus2 ? `TR ${bus1} ${bus2}${bus3 ? ' ' + bus3 : ''} ${ckt} ` : '',
+        stype: 'Branch',
+        psse: bus3 ? 'TWTransformer' : 'Transformer',
+        sdef: bus3 ? 11 : 10,
+      };
     case 7:
-    case 13:return {map:bus1?`SWS ${bus1} ${ckt} `:'',stype:'Radial',psse:'SwitchedShunt',sdef:13};
-    case 9:return {map:bus1&&bus2?`LI ${bus1} ${bus2} ${ckt} `:'',stype:'Branch',psse:'Branch',sdef:32};
+    case 13:
+      return { map: bus1 ? `SWS ${bus1} ${ckt} ` : '', stype: 'Radial', psse: 'SwitchedShunt', sdef: 13 };
+    case 9:
+      return { map: bus1 && bus2 ? `LI ${bus1} ${bus2} ${ckt} ` : '', stype: 'Branch', psse: 'Branch', sdef: 32 };
     case 10:
-    case 12:return {map:bus1&&bus2?`SYS ${bus1} ${bus2} ${ckt} `:'',stype:'Branch',psse:'SwitchingDev',sdef:3};
-    default:return {map:bus1?`BU ${bus1}`:'',stype:'Busbar',psse:'Busbar',sdef:1};
+    case 12:
+      return { map: bus1 && bus2 ? `SYS ${bus1} ${bus2} ${ckt} ` : '', stype: 'Branch', psse: 'SwitchingDev', sdef: 3 };
+    default:
+      return { map: bus1 ? `BU ${bus1}` : '', stype: 'Busbar', psse: 'Busbar', sdef: 1 };
   }
 }
 
+/**
+ * Low-level MFC CArchive Binary Stream Reader
+ */
 class SldArchiveReader {
-  constructor(bytes,pos=0,isV51=true){
-    this.bytes=bytes;
-    this.dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
-    this.pos=pos;
-    this.isV51=isV51;
-    this.map=new Map();
-    this.map.set(0,{type:'NULL',value:null});
-    this.nextIdx=1;
+  bytes            ;
+  dv          ;
+  pos        ;
+  isV51         ;
+  map                                                             ;
+  nextIdx        ;
+
+  constructor(bytes            , pos = 0, isV51 = true) {
+    this.bytes = bytes;
+    this.dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    this.pos = pos;
+    this.isV51 = isV51;
+    this.map = new Map();
+    this.map.set(0, { type: 'NULL', value: null });
+    this.nextIdx = 1;
   }
-  u8(){return this.bytes[this.pos++];}
-  u16(){const v=this.dv.getUint16(this.pos,true);this.pos+=2;return v;}
-  u32(){const v=this.dv.getUint32(this.pos,true);this.pos+=4;return v;}
-  f64(){const v=this.dv.getFloat64(this.pos,true);this.pos+=8;return v;}
-  skip(n){const b=this.bytes.subarray(this.pos,this.pos+n);this.pos+=n;return b;}
-  count(){const c=this.u16();return c===0xffff?this.u32():c;}
-  cstringRaw(){
-    const b=this.u8();let length=b;
-    if(b===0xff){const w=this.u16();length=w===0xffff?this.u32():w;}
-    const s=this.bytes.subarray(this.pos,this.pos+length);this.pos+=length;return s;
+
+  u8()         {
+    return this.bytes[this.pos++];
   }
-  readObject(){
-    const startPos=this.pos,w=this.u16();
-    if(w===0)return null;
-    const obTag=w===0x7fff?this.u32():w;
-    if(w!==0xffff&&(w&0x8000)===0){
-      const entry=this.map.get(obTag);
-      if(!entry)throw new Error(`Invalid REF 0x${obTag.toString(16)} at pos ${startPos}`);
-      return ['REF',obTag,entry.value];
+
+  u16()         {
+    const v = this.dv.getUint16(this.pos, true);
+    this.pos += 2;
+    return v;
+  }
+
+  u32()         {
+    const v = this.dv.getUint32(this.pos, true);
+    this.pos += 4;
+    return v;
+  }
+
+  f64()         {
+    const v = this.dv.getFloat64(this.pos, true);
+    this.pos += 8;
+    return v;
+  }
+
+  skip(n        )             {
+    const b = this.bytes.subarray(this.pos, this.pos + n);
+    this.pos += n;
+    return b;
+  }
+
+  count()         {
+    const c = this.u16();
+    return c === 0xffff ? this.u32() : c;
+  }
+
+  cstringRaw()             {
+    const b = this.u8();
+    let length = b;
+    if (b === 0xff) {
+      const w = this.u16();
+      length = w === 0xffff ? this.u32() : w;
     }
-    let clsName;
-    if(w===0xffff){
-      this.u16();const nameLen=this.u16();
-      clsName=decodeCp1254(this.bytes.subarray(this.pos,this.pos+nameLen));
-      this.pos+=nameLen;
-      const clsIdx=this.nextIdx++;
-      this.map.set(clsIdx,{type:'CLASS',value:clsName});
-    }else{
-      const clsIdx=obTag&0x7fff,entry=this.map.get(clsIdx);
-      if(!entry||entry.type!=='CLASS')throw new Error(`Invalid CLASS tag 0x${obTag.toString(16)} at pos ${startPos}`);
-      clsName=entry.value;
-    }
-    const obIdx=this.nextIdx++,obj={_obIdx:obIdx,_class:clsName,_pos:startPos};
-    this.map.set(obIdx,{type:'OBJ',value:obj});
-    this.deserializeObj(clsName,obj);
-    obj._end=this.pos;
-    return ['NEW',obIdx,obj];
+    const s = this.bytes.subarray(this.pos, this.pos + length);
+    this.pos += length;
+    return s;
   }
-  readObList(){
-    const cnt=this.count(),items=[];
-    for(let i=0;i<cnt;i++)items.push(this.readObject());
+
+  readObject()                                               {
+    const startPos = this.pos;
+    const w = this.u16();
+    if (w === 0) return null;
+
+    const obTag = w === 0x7fff ? this.u32() : w;
+
+    if (w !== 0xffff && (w & 0x8000) === 0) {
+      const entry = this.map.get(obTag);
+      if (!entry) {
+        throw new Error(`Invalid REF 0x${obTag.toString(16)} at pos ${startPos}`);
+      }
+      return ['REF', obTag, entry.value];
+    }
+
+    let clsName        ;
+    if (w === 0xffff) {
+      this.u16(); // schema
+      const nameLen = this.u16();
+      clsName = decodeCp1254(this.bytes.subarray(this.pos, this.pos + nameLen));
+      this.pos += nameLen;
+      const clsIdx = this.nextIdx++;
+      this.map.set(clsIdx, { type: 'CLASS', value: clsName });
+    } else {
+      const clsIdx = obTag & 0x7fff;
+      const entry = this.map.get(clsIdx);
+      if (!entry || entry.type !== 'CLASS') {
+        throw new Error(`Invalid CLASS tag 0x${obTag.toString(16)} (clsIdx=${clsIdx}) at pos ${startPos}`);
+      }
+      clsName = entry.value;
+    }
+
+    const obIdx = this.nextIdx++;
+    const obj      = { _obIdx: obIdx, _class: clsName, _pos: startPos };
+    this.map.set(obIdx, { type: 'OBJ', value: obj });
+    this.deserializeObj(clsName, obj);
+    obj._end = this.pos;
+    return ['NEW', obIdx, obj];
+  }
+
+  readObList()        {
+    const cnt = this.count();
+    const items        = [];
+    for (let i = 0; i < cnt; i++) {
+      items.push(this.readObject());
+    }
     return items;
   }
-  deserializeCompBase(obj){
-    obj.id=this.u32();obj.rot=this.f64();obj.layer=this.u32();obj.flag0=this.u8();
-    obj.f1=this.u32();obj.f2=this.u32();obj.f3=this.u32();obj.color=this.u32();
-    obj.comp_pre_map=this.skip(12);obj.map_raw=this.cstringRaw();
-    const acnt=this.count();obj.comp_annots=[];
-    for(let i=0;i<acnt;i++)obj.comp_annots.push(this.cstringRaw());
-    obj.comp_post_map=this.skip(this.isV51?37:33);
-    obj.x=this.f64();obj.y=this.f64();
-    obj.comp_post_xy=this.skip(16);
-    obj.labels=this.readObList();
+
+  deserializeCompBase(obj     )       {
+    obj.id = this.u32();
+    obj.rot = this.f64();
+    obj.layer = this.u32();
+    obj.flag0 = this.u8();
+    obj.f1 = this.u32();
+    obj.f2 = this.u32();
+    obj.f3 = this.u32();
+    obj.color = this.u32();
+    obj.comp_pre_map = this.skip(12);
+    obj.map_raw = this.cstringRaw();
+    const acnt = this.count();
+    obj.comp_annots = [];
+    for (let i = 0; i < acnt; i++) {
+      obj.comp_annots.push(this.cstringRaw());
+    }
+    obj.comp_post_map = this.skip(this.isV51 ? 37 : 33);
+    obj.x = this.f64();
+    obj.y = this.f64();
+    obj.comp_post_xy = this.skip(16);
+    obj.labels = this.readObList();
   }
-  deserializeSymbolBase(obj){
-    this.deserializeCompBase(obj);obj.sdef=this.u32();obj.sym_flag=this.u32();
-    obj.ports=this.readObList();
+
+  deserializeSymbolBase(obj     )       {
+    this.deserializeCompBase(obj);
+    obj.sdef = this.u32();
+    obj.sym_flag = this.u32();
+    obj.ports = this.readObList();
   }
-  deserializeObj(clsName,obj){
-    if(clsName==='CSldBusbar'){
+
+  deserializeObj(clsName        , obj     )       {
+    if (clsName === 'CSldBusbar') {
       this.deserializeSymbolBase(obj);
-      obj.bus_tail=this.skip(this.isV51?60:58);
-    }else if(clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
+      obj.bus_tail = this.skip(this.isV51 ? 60 : 58);
+    } else if (
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
       this.deserializeSymbolBase(obj);
-      obj.sym_tail=this.skip(this.isV51?12:10);
-    }else if(clsName==='CSldLabel'){
+      obj.sym_tail = this.skip(this.isV51 ? 12 : 10);
+    } else if (clsName === 'CSldLabel') {
       this.deserializeCompBase(obj);
-      obj.text=decodeCp1254(this.cstringRaw());
-      obj.owner=this.readObject();
-      obj.lbl_vis=this.u32();obj.lbl_bg=this.u32();obj.lbl_default_font=this.u32();
-      obj.lbl_font_info=this.skip(36);
-      obj.lbl_font_name=decodeCp1254(this.cstringRaw());
-      obj.lbl_font_tail=this.skip(8);
-    }else if(clsName==='CSldPort'){
-      obj.owner=this.readObject();obj.link=this.readObject();
-      obj.port_idx=this.u32();obj.dx=this.f64();obj.dy=this.f64();
-      obj.port_tail=this.skip(16);
-    }else if(clsName==='CSldLink'){
+      obj.text = decodeCp1254(this.cstringRaw());
+      obj.owner = this.readObject();
+      obj.lbl_vis = this.u32();
+      obj.lbl_bg = this.u32();
+      obj.lbl_position = this.u32();
+      obj.lbl_font_info = this.skip(36);
+      obj.lbl_font_name = decodeCp1254(this.cstringRaw());
+      obj.lbl_font_tail = this.skip(8);
+    } else if (clsName === 'CSldPort') {
+      obj.owner = this.readObject();
+      obj.link = this.readObject();
+      obj.port_idx = this.u32();
+      obj.dx = this.f64();
+      obj.dy = this.f64();
+      obj.port_tail = this.skip(16);
+    } else if (clsName === 'CSldLink') {
       this.deserializeCompBase(obj);
-      obj.link_pre_knees=this.skip(66);
-      obj.knees=this.readObList();
-      obj.p1=this.readObject();obj.p2=this.readObject();
-      obj.link_tail=this.skip(32);
-    }else if(clsName==='CSldKneePoint'){
+      obj.link_pre_knees = this.skip(66);
+      obj.knees = this.readObList();
+      obj.p1 = this.readObject();
+      obj.p2 = this.readObject();
+      obj.link_tail = this.skip(32);
+    } else if (clsName === 'CSldKneePoint') {
       this.deserializeCompBase(obj);
-      obj.owner=this.readObject();
-    }else if(clsName==='CSldLayer'){
-      obj.layer_hdr=this.skip(20);
-      obj.name=decodeCp1254(this.cstringRaw());
-      obj.vis=this.u32();
-      const numLists=this.isV51?22:21;
-      obj.layer_lists=[];
-      for(let i=0;i<numLists;i++)obj.layer_lists.push(this.readObList());
-    }else if(clsName==='CSldGroup'){
-      obj.name=decodeCp1254(this.cstringRaw());
-      obj.items=this.readObList();
-    }else if(clsName==='CSldSavedView'){
-      obj.name=decodeCp1254(this.cstringRaw());
-      obj.view_data=this.skip(78);
-    }else{
-      throw new Error(`Desteklenmeyen CArchive sınıfı: "${clsName}"`);
+      obj.owner = this.readObject();
+    } else if (clsName === 'CSldLayer') {
+      obj.layer_hdr = this.skip(20);
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.vis = this.u32();
+      const numLists = this.isV51 ? 22 : 21;
+      obj.layer_lists = [];
+      for (let i = 0; i < numLists; i++) {
+        obj.layer_lists.push(this.readObList());
+      }
+    } else if (clsName === 'CSldGroup') {
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.items = this.readObList();
+    } else if (clsName === 'CSldSavedView') {
+      obj.name = decodeCp1254(this.cstringRaw());
+      obj.view_data = this.skip(78);
+    } else {
+      throw new Error(`Desteklenmeyen veya bilinmeyen CArchive sınıfı: "${clsName}" (pos: ${this.pos})`);
     }
   }
 }
 
+/**
+ * Low-level MFC CArchive Binary Stream Writer
+ */
 class SldArchiveWriter {
-  constructor(isV51=true){
-    this.chunks=[];this.totalLen=0;this.isV51=isV51;
-    this.storeMap=new Map();this.classMap=new Map();this.nextIdx=1;
+  chunks              ;
+  totalLen        ;
+  isV51         ;
+  storeMap                  ;
+  classMap                     ;
+  nextIdx        ;
+
+  constructor(isV51 = true) {
+    this.chunks = [];
+    this.totalLen = 0;
+    this.isV51 = isV51;
+    this.storeMap = new Map();
+    this.classMap = new Map();
+    this.nextIdx = 1;
   }
-  u8(v){this.chunks.push(new Uint8Array([v&0xff]));this.totalLen+=1;}
-  u16(v){const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,v&0xffff,true);this.chunks.push(b);this.totalLen+=2;}
-  u32(v){const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,v>>>0,true);this.chunks.push(b);this.totalLen+=4;}
-  f64(v){const b=new Uint8Array(8);new DataView(b.buffer).setFloat64(0,Number(v),true);this.chunks.push(b);this.totalLen+=8;}
-  bytes(b){if(b&&b.length>0){this.chunks.push(b);this.totalLen+=b.length;}}
-  count(cnt){if(cnt<0xffff){this.u16(cnt);}else{this.u16(0xffff);this.u32(cnt);}}
-  cstringRaw(raw){
-    const len=raw.length;
-    if(len<0xff){this.u8(len);}else if(len<0xffff){this.u8(0xff);this.u16(len);}else{this.u8(0xff);this.u16(0xffff);this.u32(len);}
+
+  u8(v        )       {
+    const b = new Uint8Array([v & 0xff]);
+    this.chunks.push(b);
+    this.totalLen += 1;
+  }
+
+  u16(v        )       {
+    const b = new Uint8Array(2);
+    new DataView(b.buffer).setUint16(0, v & 0xffff, true);
+    this.chunks.push(b);
+    this.totalLen += 2;
+  }
+
+  u32(v        )       {
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, v >>> 0, true);
+    this.chunks.push(b);
+    this.totalLen += 4;
+  }
+
+  f64(v        )       {
+    const b = new Uint8Array(8);
+    new DataView(b.buffer).setFloat64(0, Number(v), true);
+    this.chunks.push(b);
+    this.totalLen += 8;
+  }
+
+  bytes(b            )       {
+    if (b.length > 0) {
+      this.chunks.push(b);
+      this.totalLen += b.length;
+    }
+  }
+
+  count(cnt        )       {
+    if (cnt < 0xffff) {
+      this.u16(cnt);
+    } else {
+      this.u16(0xffff);
+      this.u32(cnt);
+    }
+  }
+
+  cstringRaw(raw            )       {
+    const length = raw.length;
+    if (length < 0xff) {
+      this.u8(length);
+    } else if (length < 0xffff) {
+      this.u8(0xff);
+      this.u16(length);
+    } else {
+      this.u8(0xff);
+      this.u16(0xffff);
+      this.u32(length);
+    }
     this.bytes(raw);
   }
-  writeClass(clsName){
-    if(!this.classMap.has(clsName)){
-      const clsIdx=this.nextIdx++;
-      this.classMap.set(clsName,clsIdx);
-      this.u16(0xffff);this.u16(1);
-      const bName=encodeCp1254(clsName);
-      this.u16(bName.length);this.bytes(bName);
-    }else{
-      const clsIdx=this.classMap.get(clsName);
-      this.u16(0x8000|(clsIdx&0x7fff));
+
+  writeClass(clsName        )       {
+    if (!this.classMap.has(clsName)) {
+      const clsIdx = this.nextIdx++;
+      this.classMap.set(clsName, clsIdx);
+      this.u16(0xffff);
+      this.u16(1); // schema
+      const bName = encodeCp1254(clsName);
+      this.u16(bName.length);
+      this.bytes(bName);
+    } else {
+      const clsIdx = this.classMap.get(clsName) ;
+      this.u16(0x8000 | (clsIdx & 0x7fff));
     }
   }
-  writeObject(obj){
-    if(obj===null||obj===undefined){this.u16(0);return;}
-    if(Array.isArray(obj)&&obj.length===3&&(obj[0]==='NEW'||obj[0]==='REF')){obj=obj[2];if(!obj){this.u16(0);return;}}
-    if(this.storeMap.has(obj)){
-      const obIdx=this.storeMap.get(obj);
-      if(obIdx<0x7fff){this.u16(obIdx);}else{this.u16(0x7fff);this.u32(obIdx);}
+
+  writeObject(obj     )       {
+    if (obj === null || obj === undefined) {
+      this.u16(0);
       return;
     }
-    const clsName=obj._class;
+    if (Array.isArray(obj) && obj.length === 3 && (obj[0] === 'NEW' || obj[0] === 'REF')) {
+      obj = obj[2];
+      if (!obj) {
+        this.u16(0);
+        return;
+      }
+    }
+
+    if (this.storeMap.has(obj)) {
+      const obIdx = this.storeMap.get(obj) ;
+      if (obIdx < 0x7fff) {
+        this.u16(obIdx);
+      } else {
+        this.u16(0x7fff);
+        this.u32(obIdx);
+      }
+      return;
+    }
+
+    const clsName = obj._class;
     this.writeClass(clsName);
-    const obIdx=this.nextIdx++;
-    this.storeMap.set(obj,obIdx);
-    this.serializeObj(clsName,obj);
+
+    const obIdx = this.nextIdx++;
+    this.storeMap.set(obj, obIdx);
+
+    this.serializeObj(clsName, obj);
   }
-  writeObList(items){
+
+  writeObList(items       )       {
     this.count(items.length);
-    for(let i=0;i<items.length;i++)this.writeObject(items[i]);
+    for (let i = 0; i < items.length; i++) {
+      this.writeObject(items[i]);
+    }
   }
-  serializeCompBase(obj){
-    this.u32(obj.id);this.f64(obj.rot??0.0);this.u32(obj.layer??4);this.u8(obj.flag0??0);
-    this.u32(obj.f1??1);this.u32(obj.f2??1);this.u32(obj.f3??1);this.u32(obj.color??0);
-    this.bytes(obj.comp_pre_map||new Uint8Array(12));
-    this.cstringRaw(obj.map_raw||new Uint8Array(0));
-    const annots=obj.comp_annots||[];
+
+  serializeCompBase(obj     )       {
+    this.u32(obj.id);
+    this.f64(obj.rot ?? 0.0);
+    this.u32(obj.layer ?? 4);
+    this.u8(obj.flag0 ?? 0);
+    this.u32(obj.f1 ?? 1);
+    this.u32(obj.f2 ?? 1);
+    this.u32(obj.f3 ?? 1);
+    this.u32(obj.color ?? 0);
+    this.bytes(obj.comp_pre_map || new Uint8Array(12));
+    this.cstringRaw(obj.map_raw || new Uint8Array(0));
+    const annots = obj.comp_annots || [];
     this.count(annots.length);
-    for(let i=0;i<annots.length;i++)this.cstringRaw(annots[i]);
-    this.bytes(obj.comp_post_map||new Uint8Array(this.isV51?37:33));
-    this.f64(obj.x??0.0);this.f64(obj.y??0.0);
-    this.bytes(obj.comp_post_xy||new Uint8Array(16));
-    this.writeObList(obj.labels||[]);
+    for (let i = 0; i < annots.length; i++) {
+      this.cstringRaw(annots[i]);
+    }
+    this.bytes(obj.comp_post_map || new Uint8Array(this.isV51 ? 37 : 33));
+    this.f64(obj.x ?? 0.0);
+    this.f64(obj.y ?? 0.0);
+    this.bytes(obj.comp_post_xy || new Uint8Array(16));
+    this.writeObList(obj.labels || []);
   }
-  serializeSymbolBase(obj){
-    this.serializeCompBase(obj);this.u32(obj.sdef??0);this.u32(obj.sym_flag??0);
-    this.writeObList(obj.ports||[]);
+
+  serializeSymbolBase(obj     )       {
+    this.serializeCompBase(obj);
+    this.u32(obj.sdef ?? 0);
+    this.u32(obj.sym_flag ?? 0);
+    this.writeObList(obj.ports || []);
   }
-  serializeObj(clsName,obj){
-    if(clsName==='CSldBusbar'){
-      this.serializeSymbolBase(obj);this.bytes(obj.bus_tail||new Uint8Array(this.isV51?60:58));
-    }else if(clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
-      this.serializeSymbolBase(obj);this.bytes(obj.sym_tail||new Uint8Array(this.isV51?12:10));
-    }else if(clsName==='CSldLabel'){
-      this.serializeCompBase(obj);this.cstringRaw(encodeCp1254(obj.text||''));
+
+  serializeObj(clsName        , obj     )       {
+    if (clsName === 'CSldBusbar') {
+      this.serializeSymbolBase(obj);
+      this.bytes(obj.bus_tail || new Uint8Array(this.isV51 ? 60 : 58));
+    } else if (
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
+      this.serializeSymbolBase(obj);
+      this.bytes(obj.sym_tail || new Uint8Array(this.isV51 ? 12 : 10));
+    } else if (clsName === 'CSldLabel') {
+      this.serializeCompBase(obj);
+      this.cstringRaw(encodeCp1254(obj.text || ''));
       this.writeObject(obj.owner);
-      this.u32(obj.lbl_vis??1);this.u32(obj.lbl_bg??16777215);this.u32(obj.lbl_default_font??0);
-      this.bytes(obj.lbl_font_info||new Uint8Array(36));
-      this.cstringRaw(encodeCp1254(obj.lbl_font_name||'Arial'));
-      this.bytes(obj.lbl_font_tail||new Uint8Array(8));
-    }else if(clsName==='CSldPort'){
-      this.writeObject(obj.owner);this.writeObject(obj.link);
-      this.u32(obj.port_idx??0);this.f64(obj.dx??0.0);this.f64(obj.dy??0.0);
-      this.bytes(obj.port_tail||new Uint8Array(16));
-    }else if(clsName==='CSldLink'){
-      this.serializeCompBase(obj);this.bytes(obj.link_pre_knees||new Uint8Array(66));
-      this.writeObList(obj.knees||[]);this.writeObject(obj.p1);this.writeObject(obj.p2);
-      this.bytes(obj.link_tail||new Uint8Array(32));
-    }else if(clsName==='CSldKneePoint'){
-      this.serializeCompBase(obj);this.writeObject(obj.owner);
-    }else if(clsName==='CSldLayer'){
-      this.bytes(obj.layer_hdr||new Uint8Array(20));
-      this.cstringRaw(encodeCp1254(obj.name||''));
-      this.u32(obj.vis??1);
-      const lists=obj.layer_lists||[];
-      const numLists=this.isV51?22:21;
-      for(let i=0;i<numLists;i++)this.writeObList(lists[i]||[]);
-    }else if(clsName==='CSldGroup'){
-      this.cstringRaw(encodeCp1254(obj.name||'Default'));
-      this.writeObList(obj.items||[]);
-    }else if(clsName==='CSldSavedView'){
-      this.cstringRaw(encodeCp1254(obj.name||'Default'));
-      this.bytes(obj.view_data||new Uint8Array(78));
-    }else{
+      this.u32(obj.lbl_vis ?? 1);
+      this.u32(obj.lbl_bg ?? 16777215);
+      this.u32(obj.lbl_position ?? 0);
+      this.bytes(obj.lbl_font_info || new Uint8Array(36));
+      this.cstringRaw(encodeCp1254(obj.lbl_font_name || 'Arial'));
+      this.bytes(obj.lbl_font_tail || new Uint8Array(8));
+    } else if (clsName === 'CSldPort') {
+      this.writeObject(obj.owner);
+      this.writeObject(obj.link);
+      this.u32(obj.port_idx ?? 0);
+      this.f64(obj.dx ?? 0.0);
+      this.f64(obj.dy ?? 0.0);
+      this.bytes(obj.port_tail || new Uint8Array(16));
+    } else if (clsName === 'CSldLink') {
+      this.serializeCompBase(obj);
+      this.bytes(obj.link_pre_knees || new Uint8Array(66));
+      this.writeObList(obj.knees || []);
+      this.writeObject(obj.p1);
+      this.writeObject(obj.p2);
+      this.bytes(obj.link_tail || new Uint8Array(32));
+    } else if (clsName === 'CSldKneePoint') {
+      this.serializeCompBase(obj);
+      this.writeObject(obj.owner);
+    } else if (clsName === 'CSldLayer') {
+      this.bytes(obj.layer_hdr || new Uint8Array(20));
+      this.cstringRaw(encodeCp1254(obj.name || ''));
+      this.u32(obj.vis ?? 1);
+      const lists = obj.layer_lists || [];
+      const numLists = this.isV51 ? 22 : 21;
+      for (let i = 0; i < numLists; i++) {
+        this.writeObList(lists[i] || []);
+      }
+    } else if (clsName === 'CSldGroup') {
+      this.cstringRaw(encodeCp1254(obj.name || 'Default'));
+      this.writeObList(obj.items || []);
+    } else if (clsName === 'CSldSavedView') {
+      this.cstringRaw(encodeCp1254(obj.name || 'Default'));
+      this.bytes(obj.view_data || new Uint8Array(78));
+    } else {
       throw new Error(`Bilinmeyen CArchive serileştirme sınıfı: "${clsName}"`);
     }
   }
-  getBuffer(){
-    const out=new Uint8Array(this.totalLen);let off=0;
-    for(const ch of this.chunks){out.set(ch,off);off+=ch.length;}
+
+  getBuffer()             {
+    const out = new Uint8Array(this.totalLen);
+    let offset = 0;
+    for (const chunk of this.chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
     return out;
   }
 }
 
-async function parseSldBinary(bytes,fileName=''){
-  const check=validateSldBinary(bytes);
-  if(!check.valid)throw new Error(check.reason||'Geçersiz PSS®E .sld binary dosyası.');
-  const isV51=check.version.startsWith('2.0.51.')||check.version.startsWith('2.0.50.');
-  const startOff=findMainListStart(bytes);
-  const reader=new SldArchiveReader(bytes,startOff,isV51);
+/**
+ * Universal Native PSS(R)E .sld Binary Parser
+ */
+function parseSldBinary(bytes            )                {
+  const check = validateSldBinary(bytes);
+  if (!check.valid) {
+    throw new Error(check.reason || 'Geçersiz PSS®E .sld binary dosyası.');
+  }
 
-  const rawMainList=reader.readObList();
-  const u1=reader.u32();
-  const rawLayers=reader.readObList();
-  const u2=reader.u16();
-  const rawGroups=reader.readObList();
-  const rawViews=reader.readObList();
+  const isV51 = check.version.startsWith('2.0.51.') || check.version.startsWith('2.0.50.');
+  const startOff = findMainListStart(bytes);
+  const reader = new SldArchiveReader(bytes, startOff, isV51);
 
-  const objs=[];
-  reader.map.forEach(entry=>{if(entry.type==='OBJ')objs.push(entry.value);});
+  const rawMainList = reader.readObList(); // main_list
+  const u1 = reader.u32(); // u1
+  const rawLayers = reader.readObList(); // layers
+  const u2 = reader.u16(); // u2
+  const rawGroups = reader.readObList(); // groups
+  const rawViews = reader.readObList(); // views
 
-  const components=[];
-  for(const o of objs){
-    const clsName=o._class;
-    if(clsName==='CSldBusbar'||clsName==='CSldPointNode'||clsName==='CSldRadial'||clsName==='CSldBranch'||clsName==='CSldTwoWindingTransformer'||clsName==='CSldThreeWindingTransformer'){
-      const dec=decodeMapStruct(o.map_raw||new Uint8Array(0));
-      let stype=dec.stype,blen,bwidth,ends;
-      if(clsName==='CSldBusbar'){
-        stype='Busbar';
-        if(o.bus_tail&&o.bus_tail.length>=28){
-          const dv=new DataView(o.bus_tail.buffer,o.bus_tail.byteOffset,o.bus_tail.byteLength);
-          bwidth=Number(dv.getFloat64(12,true).toFixed(4));
-          blen=Number(dv.getFloat64(20,true).toFixed(4));
-        }else{bwidth=0.4;blen=16.0;}
-        const bx=o.x,by=o.y,isHoriz=Math.abs((o.rot??0.0)%180)>45;
-        ends=isHoriz
-          ?[[Number((bx-blen/2).toFixed(6)),Number(by.toFixed(6))],[Number((bx+blen/2).toFixed(6)),Number(by.toFixed(6))]]
-          :[[Number(bx.toFixed(6)),Number((by+blen/2).toFixed(6))],[Number(bx.toFixed(6)),Number((by-blen/2).toFixed(6))]];
+  const objs        = [];
+  reader.map.forEach((entry) => {
+    if (entry.type === 'OBJ') objs.push(entry.value);
+  });
+
+  const components                   = [];
+
+  // 1. Symbols
+  for (const o of objs) {
+    const clsName = o._class;
+    if (
+      clsName === 'CSldBusbar' ||
+      clsName === 'CSldPointNode' ||
+      clsName === 'CSldRadial' ||
+      clsName === 'CSldBranch' ||
+      clsName === 'CSldTwoWindingTransformer' ||
+      clsName === 'CSldThreeWindingTransformer'
+    ) {
+      const dec = decodeMapStruct(o.map_raw || new Uint8Array(0));
+      let stype                          = clsName === 'CSldPointNode' ? 'Node' : clsName === 'CSldRadial' ? 'Radial' : clsName === 'CSldBusbar' ? 'Busbar' : 'Branch';
+      let blen                    ;
+      let bwidth                    ;
+      let ends                                                  ;
+
+      if (clsName === 'CSldBusbar') {
+        stype = 'Busbar';
+        if (o.bus_tail && o.bus_tail.length >= 28) {
+          const dv = new DataView(o.bus_tail.buffer, o.bus_tail.byteOffset, o.bus_tail.byteLength);
+          bwidth = Number(dv.getFloat64(isV51 ? 12 : 10, true).toFixed(4));
+          blen = Number(dv.getFloat64(isV51 ? 20 : 18, true).toFixed(4));
+        } else {
+          bwidth = 0.4;
+          blen = 16.0;
+        }
+        const bx = o.x;
+        const by = o.y;
+        const isHoriz = Math.abs((o.rot ?? 0.0) % 180) > 45;
+        ends = isHoriz
+          ? [
+              [Number((bx - blen / 2).toFixed(6)), Number(by.toFixed(6))],
+              [Number((bx + blen / 2).toFixed(6)), Number(by.toFixed(6))],
+            ]
+          : [
+              [Number(bx.toFixed(6)), Number((by + blen / 2).toFixed(6))],
+              [Number(bx.toFixed(6)), Number((by - blen / 2).toFixed(6))],
+            ];
       }
-      const symComp={
-        id:o.id,t:'Symbol',stype,psse:dec.psse,sdef:o.sdef??dec.sdef,
-        layer:o.layer??4,color:o.color??0,map:dec.map,
-        pos:[Number(o.x.toFixed(6)),Number(o.y.toFixed(6))],
-        rot:Number((o.rot??0.0).toFixed(4))
+
+      const symComp                 = {
+        id: o.id,
+        t: 'Symbol',
+        stype,
+        psse: dec.psse,
+        sdef: o.sdef ?? dec.sdef,
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        map: dec.map,
+        pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
+        rot: Number((o.rot ?? 0.0).toFixed(4)),
       };
-      if(blen!==undefined&&bwidth!==undefined&&ends){
-        symComp.len=blen;symComp.width=bwidth;symComp.ends=ends;
+      if (blen !== undefined && bwidth !== undefined && ends) {
+        symComp.len = blen;
+        symComp.width = bwidth;
+        symComp.ends = ends;
       }
-      symComp._rawObj=o;
+      symComp._rawObj = o;
       components.push(symComp);
     }
   }
 
-  for(const o of objs){
-    if(o._class==='CSldLink'){
-      const p1Obj=o.p1?(Array.isArray(o.p1)?o.p1[2]:o.p1):null;
-      const p2Obj=o.p2?(Array.isArray(o.p2)?o.p2[2]:o.p2):null;
-      const s1Obj=p1Obj&&p1Obj.owner?(Array.isArray(p1Obj.owner)?p1Obj.owner[2]:p1Obj.owner):null;
-      const s2Obj=p2Obj&&p2Obj.owner?(Array.isArray(p2Obj.owner)?p2Obj.owner[2]:p2Obj.owner):null;
-      const p1Pos=s1Obj&&p1Obj?[Number((s1Obj.x+p1Obj.dx).toFixed(6)),Number((s1Obj.y+p1Obj.dy).toFixed(6))]:[0.0,0.0];
-      const p2Pos=s2Obj&&p2Obj?[Number((s2Obj.x+p2Obj.dx).toFixed(6)),Number((s2Obj.y+p2Obj.dy).toFixed(6))]:[0.0,0.0];
+  // 2. Links
+  for (const o of objs) {
+    if (o._class === 'CSldLink') {
+      const p1Obj = o.p1 ? (Array.isArray(o.p1) ? o.p1[2] : o.p1) : null;
+      const p2Obj = o.p2 ? (Array.isArray(o.p2) ? o.p2[2] : o.p2) : null;
+      const s1Obj = p1Obj && p1Obj.owner ? (Array.isArray(p1Obj.owner) ? p1Obj.owner[2] : p1Obj.owner) : null;
+      const s2Obj = p2Obj && p2Obj.owner ? (Array.isArray(p2Obj.owner) ? p2Obj.owner[2] : p2Obj.owner) : null;
 
-      const knees=[],rawKnees=[],kList=o.knees||[];
-      for(const kw of kList){
-        const kp=Array.isArray(kw)?kw[2]:kw;
-        if(kp){
-          const kpos=[Number(kp.x.toFixed(6)),Number(kp.y.toFixed(6))];
+      const p1Pos = archivePortWorld(s1Obj, p1Obj);
+      const p2Pos = archivePortWorld(s2Obj, p2Obj);
+
+      const knees                     = [];
+      const rawKnees                  = [];
+      const kList = o.knees || [];
+      for (const kw of kList) {
+        const kp = Array.isArray(kw) ? kw[2] : kw;
+        if (kp) {
+          const kpos                   = [Number(kp.x.toFixed(6)), Number(kp.y.toFixed(6))];
           knees.push(kpos);
-          rawKnees.push({id:kp.id,pos:kpos,binOffset:kp._pos||0});
+          rawKnees.push({ id: kp.id, pos: kpos, binOffset: kp._pos || 0 });
         }
       }
-      const linkComp={
-        id:o.id,t:'Link',layer:o.layer??4,color:o.color??0,lwidth:1,
-        p1:{sym:s1Obj?s1Obj.id:0,pos:p1Pos,idx:p1Obj?p1Obj.port_idx??0:0},
-        p2:{sym:s2Obj?s2Obj.id:0,pos:p2Pos,idx:p2Obj?p2Obj.port_idx??0:0}
+
+      const linkComp                 = {
+        id: o.id,
+        t: 'Link',
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        lwidth: 1,
+        p1: { sym: s1Obj ? s1Obj.id : 0, pos: p1Pos, idx: p1Obj ? p1Obj.port_idx ?? 0 : 0 },
+        p2: { sym: s2Obj ? s2Obj.id : 0, pos: p2Pos, idx: p2Obj ? p2Obj.port_idx ?? 0 : 0 },
       };
-      if(knees.length>0){linkComp.knees=knees;linkComp._rawKnees=rawKnees;}
-      linkComp._rawObj=o;
+      if (knees.length > 0) {
+        linkComp.knees = knees;
+        linkComp._rawKnees = rawKnees;
+      }
+      linkComp._rawObj = o;
       components.push(linkComp);
     }
   }
 
-  for(const o of objs){
-    if(o._class==='CSldLabel'){
-      const ownerObj=o.owner?(Array.isArray(o.owner)?o.owner[2]:o.owner):null;
+  // 3. Labels
+  for (const o of objs) {
+    if (o._class === 'CSldLabel') {
+      const ownerObj = o.owner ? (Array.isArray(o.owner) ? o.owner[2] : o.owner) : null;
       components.push({
-        id:o.id,t:'Label',layer:o.layer??4,color:o.color??0,
-        pos:[Number(o.x.toFixed(6)),Number(o.y.toFixed(6))],
-        rot:Number((o.rot??0.0).toFixed(4)),
-        text:o.text||'',fh:9,owner:ownerObj?ownerObj.id:undefined,
-        _rawObj:o
+        id: o.id,
+        t: 'Label',
+        layer: o.layer ?? 4,
+        color: o.color ?? 0,
+        pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
+        rot: Number((o.rot ?? 0.0).toFixed(4)),
+        text: o.text || '',
+        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) || 9 : 9,
+        lpos: o.lbl_position | 0,
+        vis: o.lbl_vis !== 0,
+        owner: ownerObj ? ownerObj.id : undefined,
+        _rawObj: o,
       });
     }
   }
 
-  const docLayers=[];
-  for(let idx=0;idx<layers.length;idx++){
-    const lObj=Array.isArray(layers[idx])?layers[idx][2]:layers[idx];
-    if(lObj)docLayers.push({n:idx,desc:lObj.name||`Layer ${idx}`,vis:lObj.vis===0?'Invisible':'Visible'});
+  // Native group membership is geometry/editor state, independent of SAV data.
+  for (const wrapped of rawGroups) {
+    const group = Array.isArray(wrapped) ? wrapped[2] : wrapped;
+    if (!group || group.name === 'Default') continue;
+    const members = new Set((group.items || []).map((w     ) => (Array.isArray(w) ? w[2] : w)?.id));
+    for (const c of components) if (members.has(c.id)) c.groupId = group.name;
   }
 
-  return {format:'ga-sld-v1',fileVersion:check.version,layers:docLayers,components,rawBytes:bytes,_rawMainList:rawMainList,_rawLayers:rawLayers,_rawGroups:rawGroups,_rawViews:rawViews,_u1:u1,_u2:u2};
+  // 4. Layers
+  const docLayers               = [];
+  for (let idx = 0; idx < rawLayers.length; idx++) {
+    const lWrap = rawLayers[idx];
+    const lObj = Array.isArray(lWrap) ? lWrap[2] : lWrap;
+    if (lObj) {
+      docLayers.push({
+        n: idx,
+        desc: lObj.name || `Layer ${idx}`,
+        vis: lObj.vis === 0 ? 'Invisible' : 'Visible',
+      });
+    }
+  }
+
+  return {
+    format: 'ga-sld-v1',
+    fileVersion: check.version,
+    layers: docLayers,
+    components,
+    rawBytes: bytes,
+    _rawMainList: rawMainList,
+    _rawLayers: rawLayers,
+    _rawGroups: rawGroups,
+    _rawViews: rawViews,
+    _u1: u1,
+    _u2: u2,
+  };
 }
 
-function serializeSldBinary(doc,targetVersion='2.0.51.1'){
-  const isV51=!targetVersion.startsWith('2.0.49.');
-  let preamble;
-  if(doc.rawBytes&&doc.rawBytes.length>=512){
-    const pEnd=findMainListStart(doc.rawBytes);
-    preamble=doc.rawBytes.subarray(0,pEnd);
-  }else{
-    preamble=getDefaultPreamble();
-  }
+/**
+ * Universal Native PSS(R)E .sld Binary Serializer
+ * Works strictly bridge-free without python or local server.
+ */
+function archivePortWorld(owner     , port     )                   {
+  if (!owner || !port) return [0, 0];
+  const a = (owner.rot || 0) * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  return [Number((owner.x + co * port.dx - si * port.dy).toFixed(6)), Number((owner.y + si * port.dx + co * port.dy).toFixed(6))];
+}
 
-  if(doc._rawLayers&&doc._rawMainList){
-    const compMap=new Map();
-    for(const c of doc.components)compMap.set(c.id,c);
+function archivePortLocal(owner     , pos          )                             {
+  const a = (owner.rot || 0) * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  const x = pos[0] - owner.x, y = pos[1] - owner.y;
+  return { dx: co * x + si * y, dy: -si * x + co * y };
+}
 
-    for(const w of doc._rawMainList){
-      const o=Array.isArray(w)?w[2]:w;
-      if(!o)continue;
-      const c=compMap.get(o.id);
-      if(c){
-        if(c.pos){o.x=c.pos[0];o.y=c.pos[1];}
-        if(c.rot!==undefined)o.rot=c.rot;
-        if(c.color!==undefined)o.color=c.color;
-        if(c.t==='Link'){
-          if(c.knees&&Array.isArray(c.knees)){
-            const kList=[];
-            for(let kidx=0;kidx<c.knees.length;kidx++){
-              const kp=c.knees[kidx];
-              const kneeId=90000+o.id*10+kidx;
-              kList.push({
-                _class:'CSldKneePoint',id:kneeId,rot:0.0,layer:o.layer??4,flag0:0,f1:1,f2:1,f3:0,color:o.color??0,
-                comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],comp_post_map:new Uint8Array(isV51?37:33),
-                x:kp[0],y:kp[1],comp_post_xy:new Uint8Array(16),labels:[],owner:o
-              });
-            }
-            o.knees = kList;
-          }
-        }else if(c.t==='Label'&&c.text!==undefined){o.text=c.text;}
+function assertSldGeometry(doc               )       {
+  const ids = new Set        ();
+  const symbols = new Set(doc.components.filter(c => c.t === 'Symbol').map(c => c.id));
+  const point = (p                      ) => p?.length === 2 && p.every(Number.isFinite);
+  for (const c of doc.components) {
+    if (!Number.isInteger(c.id) || ids.has(c.id)) throw new Error(`Duplicate/invalid SLD ID ${c.id}`);
+    ids.add(c.id);
+    if (c.t === 'Link') {
+      for (const p of [c.p1, c.p2]) {
+        if (!p || !symbols.has(p.sym) || !point(p.pos) || (p.idx !== undefined && (!Number.isInteger(p.idx) || p.idx < 0))) {
+          throw new Error(`Invalid Link #${c.id} port/owner/position`);
+        }
       }
+      if (!(c.knees || []).every(point)) throw new Error(`Invalid Link #${c.id} knee`);
+    } else if (!point(c.pos)) throw new Error(`Invalid ${c.t} #${c.id} position`);
+    if (c.len !== undefined && (!Number.isFinite(c.len) || c.len <= 0)) throw new Error(`Invalid bus length #${c.id}`);
+  }
+}
+
+function assertSldRoundTrip(expected               , actual               )       {
+  const byId = new Map(actual.components.map(c => [c.id, c]));
+  if (expected.components.length !== actual.components.length) throw new Error('SLD component count changed during export');
+  const close = (a                    , b                    ) => a === undefined || (b !== undefined && Math.abs(a - b) <= 1e-4);
+  const point = (a                      , b                      ) => !a || (!!b && close(a[0], b[0]) && close(a[1], b[1]));
+  for (const c of expected.components) {
+    const r = byId.get(c.id);
+    if (!r || r.t !== c.t || !point(c.pos, r.pos) || !close(c.rot, r.rot)) throw new Error(`SLD geometry mismatch #${c.id}`);
+    if (c.t === 'Symbol' && (!close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
+    if (c.t === 'Label' && c.text !== r.text) throw new Error(`SLD label mismatch #${c.id}`);
+    if (c.groupId !== r.groupId) throw new Error(`SLD group mismatch #${c.id}`);
+    if (c.t === 'Symbol' && (c.map || '').trim().replace(/\s+/g, ' ') !== (r.map || '').trim().replace(/\s+/g, ' ')) throw new Error(`SLD equipment map mismatch #${c.id}`);
+    if (c.t === 'Link') {
+      for (const key of ['p1', 'p2']         ) {
+        if (c[key]?.sym !== r[key]?.sym || !point(c[key]?.pos, r[key]?.pos) || (c[key]?.idx !== undefined && c[key]?.idx !== r[key]?.idx)) {
+          throw new Error(`SLD endpoint mismatch #${c.id}.${key}`);
+        }
+      }
+      if ((c.knees || []).length !== (r.knees || []).length || !(c.knees || []).every((p, i) => point(p, r.knees?.[i]))) throw new Error(`SLD knee mismatch #${c.id}`);
     }
+  }
+}
 
-    const writer=new SldArchiveWriter(isV51);
-    writer.writeObList(doc._rawMainList.map(w=>Array.isArray(w)?w[2]:w));
-    writer.u32(doc._u1??1);
-    writer.writeObList(doc._rawLayers.map(w=>Array.isArray(w)?w[2]:w));
-    writer.u16(doc._u2??0);
-    writer.writeObList(doc._rawGroups?doc._rawGroups.map(w=>Array.isArray(w)?w[2]:w):[]);
-    writer.writeObList(doc._rawViews?doc._rawViews.map(w=>Array.isArray(w)?w[2]:w):[]);
+function synchronizeArchiveGeometry(doc               , isV51         )       {
+  const unwrap = (o     )      => Array.isArray(o) && (o[0] === 'NEW' || o[0] === 'REF') ? o[2] : o;
+  const objects = new Map             (), seen = new Set     ();
+  function visit(value     )       {
+    if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) return;
+    seen.add(value);
+    if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawGroups); visit(doc._rawViews);
+  let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
+  for (const c of doc.components) {
+    const o = objects.get(c.id);
+    if (!o) throw new Error(`Unsupported archive structural edit #${c.id}`);
+    if (c.pos) [o.x, o.y] = c.pos;
+    for (const k of ['rot', 'color', 'layer']         ) if (c[k] !== undefined) o[k] = c[k];
+    if (c.t === 'Symbol') {
+      if(c.sdef !== undefined)o.sdef=c.sdef;
+      o.ports = (o.ports || []).map(unwrap);
+      if (c.stype === 'Node' && o._class === 'CSldBusbar') {
+        o._class = 'CSldPointNode'; o.sym_tail = new Uint8Array(isV51 ? 12 : 10);
+      } else if (c.stype === 'Busbar') {
+        o._class = 'CSldBusbar';
+        if (!o.bus_tail) o.bus_tail = new Uint8Array(isV51 ? 60 : 58);
+        const dv = new DataView(o.bus_tail.buffer, o.bus_tail.byteOffset, o.bus_tail.byteLength);
+        dv.setFloat64(isV51 ? 12 : 10, c.width ?? 0.4, true); dv.setFloat64(isV51 ? 20 : 18, c.len ?? 2, true);
+      }
+    } else if (c.t === 'Label') {
+      o.text = c.text || '';
+      if (c.owner !== undefined) o.owner = objects.get(c.owner) || null;
+    }
+  }
+  for (const c of doc.components.filter(c => c.t === 'Link')) {
+    const o = objects.get(c.id);
+    for (const key of ['p1', 'p2']         ) {
+      const ep = c[key] , owner = objects.get(ep.sym);
+      const port = unwrap(o[key]) || { _class: 'CSldPort', port_tail: new Uint8Array(16) };
+      const priorOwner = unwrap(port.owner);
+      if(priorOwner && priorOwner !== owner)priorOwner.ports = priorOwner.ports.filter((p     )=>unwrap(p)!==port);
+      Object.assign(port, { owner, link: o, port_idx: ep.idx ?? owner.ports.length, ...archivePortLocal(owner, ep.pos) });
+      if(!owner.ports.includes(port))owner.ports.push(port); o[key] = port;
+    }
+    const oldKnees = (o.knees || []).map(unwrap);
+    o.knees = (c.knees || []).map((p, i) => ({
+      ...(oldKnees[i] || { _class: 'CSldKneePoint', id: nextId++, comp_post_map: new Uint8Array(isV51 ? 37 : 33) }),
+      x: p[0], y: p[1], owner: o,
+    }));
+  }
+  doc._rawLayers .forEach((wrapped     , i        ) => {
+    const layer = unwrap(wrapped), edited = doc.layers[i];
+    if (layer && edited) { layer.name = edited.desc; layer.vis = /^(Hidden|Invisible)$/.test(edited.vis) ? 0 : 1; }
+  });
+  registerArchiveLayers(doc._rawLayers , doc.components.map(c => objects.get(c.id)));
+  doc._rawGroups = archiveGroups(doc, objects);
+}
 
-    const bodyBytes=writer.getBuffer();
-    const fullBytes=new Uint8Array(preamble.length+bodyBytes.length);
-    fullBytes.set(preamble,0);
-    fullBytes.set(bodyBytes,preamble.length);
-    parseSldBinary(fullBytes);
+function archiveGroups(doc               , objects                  )        {
+  const groups = new Map             ();
+  groups.set('Default', { _class: 'CSldGroup', name: 'Default', items: [] });
+  for (const c of doc.components) {
+    if (!c.groupId) continue;
+    if (!groups.has(c.groupId)) groups.set(c.groupId, { _class: 'CSldGroup', name: c.groupId, items: [] });
+    groups.get(c.groupId).items.push(objects.get(c.id));
+  }
+  return [...groups.values()];
+}
+
+// Slider draws from each layer's typed indexes, independently of the main list.
+// An archive with empty layer indexes parses but opens as a blank PSS/E canvas.
+function registerArchiveLayers(layers       , components       )       {
+  const typed                         = { CSldPointNode: 4, CSldBusbar: 5, CSldRadial: 6, CSldBranch: 7,
+    CSldTwoWindingTransformer: 7, CSldThreeWindingTransformer: 7, CSldLink: 11, CSldLabel: 17 };
+  const ids = new Set(components.map(o => o.id));
+  const unwrap = (o     )      => Array.isArray(o) ? o[2] : o;
+  for (const wrapped of layers) {
+    const l = unwrap(wrapped);
+    l.layer_lists = l.layer_lists.map((items       ) => items.filter(w => !ids.has(unwrap(w)?.id)));
+  }
+  for (const o of components) {
+    const layer = unwrap(layers[o.layer]);
+    if (!layer || typed[o._class] === undefined) throw new Error(`Invalid SLD layer/class #${o.id}`);
+    layer.layer_lists[0].push(o);
+    layer.layer_lists[typed[o._class]].push(o);
+  }
+}
+
+function serializeSldBinary(doc               , targetVersion = '2.0.51.1')             {
+  // CArchive contains cycles and shared references. Clone the entire graph once;
+  // serializing an immutable edit must never modify the parsed source document.
+  doc = structuredClone(doc);
+  assertSldGeometry(doc);
+  const isV51 = !targetVersion.startsWith('2.0.49.');
+
+  // 1. Preamble
+  let preamble            ;
+  if (doc.rawBytes && doc.rawBytes.length >= 512) {
+    const pEnd = findMainListStart(doc.rawBytes);
+    preamble = doc.rawBytes.subarray(0, pEnd);
+  } else {
+    preamble = getDefaultPreamble();
+  }
+  preamble = preamble.slice();
+  const versionBytes = new TextEncoder().encode(targetVersion);
+  if (versionBytes.length !== preamble[0]) throw new Error('Unsupported SLD version header length');
+  preamble.set(versionBytes, 1);
+
+  if (doc._rawLayers && doc._rawMainList) {
+    synchronizeArchiveGeometry(doc, isV51);
+    const writer = new SldArchiveWriter(isV51);
+    writer.writeObList(doc._rawMainList.map((w     ) => (Array.isArray(w) ? w[2] : w)));
+    writer.u32(doc._u1 ?? 1);
+    writer.writeObList(doc._rawLayers.map((w     ) => (Array.isArray(w) ? w[2] : w)));
+    writer.u16(doc._u2 ?? 0);
+    writer.writeObList(doc._rawGroups ? doc._rawGroups.map((w     ) => (Array.isArray(w) ? w[2] : w)) : []);
+    writer.writeObList(doc._rawViews ? doc._rawViews.map((w     ) => (Array.isArray(w) ? w[2] : w)) : []);
+
+    const bodyBytes = writer.getBuffer();
+    const fullBytes = new Uint8Array(preamble.length + bodyBytes.length);
+    fullBytes.set(preamble, 0);
+    fullBytes.set(bodyBytes, preamble.length);
+
+    // Validate pre-export round-trip
+    assertSldRoundTrip(doc, parseSldBinary(fullBytes));
     return fullBytes;
   }
 
-  const symMap=new Map(),linkList=[],labelsByOwner=new Map(),portsBySym=new Map();
-  for(const c of doc.components){
-    if(c.t==='Symbol'){symMap.set(c.id,c);portsBySym.set(c.id,[]);
-    }else if(c.t==='Link'){linkList.push(c);
-    }else if(c.t==='Label'){
-      const owner=c.owner??0,list=labelsByOwner.get(owner)??[];list.push(c);labelsByOwner.set(owner,list);
+  // 2. Build CArchive Object Graph
+  const symMap = new Map             ();
+  const linkList        = [];
+  const labelsByOwner = new Map               ();
+  const portsBySym = new Map               ();
+
+  for (const c of doc.components) {
+    if (c.t === 'Symbol') {
+      symMap.set(c.id, c);
+      portsBySym.set(c.id, []);
+    } else if (c.t === 'Link') {
+      linkList.push(c);
+    } else if (c.t === 'Label') {
+      const owner = c.owner ?? 0;
+      const list = labelsByOwner.get(owner) ?? [];
+      list.push(c);
+      labelsByOwner.set(owner, list);
     }
   }
 
-  const carchiveObjs=new Map();
-  symMap.forEach((c,cid)=>{
-    const stype=c.stype||'Busbar';
-    const clsName=stype==='Busbar'?'CSldBusbar':(stype==='Node'?'CSldPointNode':(stype==='Radial'?'CSldRadial':'CSldBranch'));
-    const mapRaw=encodeMapStruct(c.map||'',stype==='Busbar');
-    const pos=c.pos||[0.0,0.0],blen=c.len??16.0,bwidth=c.width??0.4,color=c.color??0xff0000,layer=c.layer??4,rot=c.rot??0.0;
-    const busTail=new Uint8Array(isV51?60:58),busDv=new DataView(busTail.buffer);
-    busDv.setUint32(0,1,true);busDv.setUint32(4,color,true);
-    busDv.setFloat64(12,bwidth,true);busDv.setFloat64(20,blen,true);
-    busDv.setFloat32(28,1.0,true);busDv.setFloat32(32,1.0,true);busDv.setInt32(36,-1,true);
-    busDv.setUint16(40,2,true);busDv.setUint16(42,2,true);busDv.setUint16(44,1,true);busDv.setUint16(46,1,true);
+  const carchiveObjs = new Map             ();
 
-    const obj={
-      _class:clsName,id:cid,rot,layer,flag0:0,f1:1,f2:1,f3:1,color,
-      comp_pre_map:new Uint8Array(12),map_raw:mapRaw,comp_annots:[],
-      comp_post_map:new Uint8Array(isV51?37:33),x:pos[0],y:pos[1],comp_post_xy:new Uint8Array(16),
-      labels:[],sdef:c.sdef??(stype==='Busbar'?1:0),sym_flag:0,ports:[],
-      bus_tail:busTail,sym_tail:new Uint8Array(isV51?12:10)
+  // Build Symbol objects
+  symMap.forEach((c, cid) => {
+    const stype = c.stype || 'Busbar';
+    const clsName =
+      stype === 'Busbar'
+        ? 'CSldBusbar'
+        : stype === 'Node'
+        ? 'CSldPointNode'
+        : stype === 'Radial'
+        ? 'CSldRadial'
+        : 'CSldBranch';
+
+    const mapRaw = encodeMapStruct(c.map || '', stype === 'Busbar');
+    const pos = c.pos || [0.0, 0.0];
+    const blen = c.len ?? 16.0;
+    const bwidth = c.width ?? 0.4;
+    const color = c.color ?? 0xff0000;
+    const layer = c.layer ?? 4;
+    const rot = c.rot ?? 0.0;
+
+    const busTail = new Uint8Array(isV51 ? 60 : 58);
+    const busDv = new DataView(busTail.buffer);
+    busDv.setUint32(0, 1, true);
+    busDv.setUint32(4, color, true);
+    busDv.setFloat64(isV51 ? 12 : 10, bwidth, true);
+    busDv.setFloat64(isV51 ? 20 : 18, blen, true);
+    busDv.setFloat32(isV51 ? 28 : 26, 1.0, true);
+    busDv.setInt32(isV51 ? 32 : 30, -1, true);
+    busDv.setUint16(isV51 ? 36 : 34, 2, true);
+    busDv.setUint16(isV51 ? 38 : 36, 2, true);
+    busDv.setUint16(isV51 ? 40 : 38, 1, true);
+    busDv.setUint16(isV51 ? 42 : 40, 1, true);
+
+    const obj      = {
+      _class: clsName,
+      id: cid,
+      rot,
+      layer,
+      flag0: 0,
+      f1: 1,
+      f2: 1,
+      f3: 1,
+      color,
+      comp_pre_map: new Uint8Array(12),
+      map_raw: mapRaw,
+      comp_annots: [encodeCp1254('ANNOT' + 'N'.repeat(32))],
+      comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+      x: pos[0],
+      y: pos[1],
+      comp_post_xy: new Uint8Array(16),
+      labels: [],
+      sdef: c.sdef ?? (stype === 'Busbar' ? 1 : 0),
+      sym_flag: 0,
+      ports: [],
+      bus_tail: busTail,
+      sym_tail: new Uint8Array(isV51 ? 12 : 10),
     };
-    carchiveObjs.set(cid,obj);
+    carchiveObjs.set(cid, obj);
   });
 
-  for(const l of linkList){
-    const lid=l.id,p1Info=l.p1||{},p2Info=l.p2||{},s1Id=p1Info.sym,s2Id=p2Info.sym;
-    const s1Obj=carchiveObjs.get(s1Id),s2Obj=carchiveObjs.get(s2Id);
-    const p1Pos=p1Info.pos||(s1Obj?[s1Obj.x,s1Obj.y]:[0.0,0.0]);
-    const p2Pos=p2Info.pos||(s2Obj?[s2Obj.x,s2Obj.y]:[0.0,0.0]);
-    const color=l.color??0x00ff00,layer=l.layer??4;
+  // Build Link objects & Port objects
+  for (const l of linkList) {
+    const lid = l.id;
+    const p1Info = l.p1 || {};
+    const p2Info = l.p2 || {};
+    const s1Id = p1Info.sym;
+    const s2Id = p2Info.sym;
+    const s1Obj = carchiveObjs.get(s1Id);
+    const s2Obj = carchiveObjs.get(s2Id);
+    const p1Pos = p1Info.pos || (s1Obj ? [s1Obj.x, s1Obj.y] : [0.0, 0.0]);
+    const p2Pos = p2Info.pos || (s2Obj ? [s2Obj.x, s2Obj.y] : [0.0, 0.0]);
+    const color = l.color ?? 0x00ff00;
+    const layer = l.layer ?? 4;
 
-    const linkPreKnees=new Uint8Array(66);
-    linkPreKnees[0]=0xcd;linkPreKnees[1]=0xcc;linkPreKnees[2]=0x4c;linkPreKnees[3]=0x3d;
-    linkPreKnees[4]=0xff;linkPreKnees[5]=0xff;linkPreKnees[6]=0xff;linkPreKnees[7]=0xff;
-    linkPreKnees[16]=0x01;linkPreKnees[46]=0xff;linkPreKnees[47]=0xff;linkPreKnees[48]=0xff;linkPreKnees[49]=0xff;
-    linkPreKnees[58]=0xe0;linkPreKnees[59]=0x51;linkPreKnees[60]=0xb8;linkPreKnees[61]=0xbe;linkPreKnees[62]=0x3f;
+    const linkPreKnees = new Uint8Array(66);
+    // Standard link handle radius signature
+    linkPreKnees[0] = 0xcd;
+    linkPreKnees[1] = 0xcc;
+    linkPreKnees[2] = 0x4c;
+    linkPreKnees[3] = 0x3d;
+    linkPreKnees[4] = 0xff;
+    linkPreKnees[5] = 0xff;
+    linkPreKnees[6] = 0xff;
+    linkPreKnees[7] = 0xff;
+    linkPreKnees[16] = 0x01;
+    linkPreKnees[46] = 0xff;
+    linkPreKnees[47] = 0xff;
+    linkPreKnees[48] = 0xff;
+    linkPreKnees[49] = 0xff;
+    linkPreKnees[58] = 0xe0;
+    linkPreKnees[59] = 0x51;
+    linkPreKnees[60] = 0xb8;
+    linkPreKnees[61] = 0xbe;
+    linkPreKnees[62] = 0x3f;
 
-    const linkTail=new Uint8Array(32);linkTail[1]=0x01;
-    const linkObj={
-      _class:'CSldLink',id:lid,rot:0.0,layer,flag0:0,f1:1,f2:1,f3:0,color,
-      comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
-      comp_post_map:new Uint8Array(isV51?37:33),x:0.0,y:0.0,comp_post_xy:new Uint8Array(16),
-      labels:[],link_pre_knees:linkPreKnees,knees:[],p1:null,p2:null,link_tail:linkTail
+    const linkTail = new Uint8Array(32);
+    linkTail[1] = 0x01;
+
+    const linkObj      = {
+      _class: 'CSldLink',
+      id: lid,
+      rot: 0.0,
+      layer,
+      flag0: 0,
+      f1: 1,
+      f2: 1,
+      f3: 0,
+      color,
+      comp_pre_map: new Uint8Array(12),
+      map_raw: new Uint8Array(0),
+      comp_annots: [],
+      comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+      x: 0.0,
+      y: 0.0,
+      comp_post_xy: new Uint8Array(16),
+      labels: [],
+      link_pre_knees: linkPreKnees,
+      knees: [],
+      p1: null,
+      p2: null,
+      link_tail: linkTail,
     };
-    carchiveObjs.set(lid,linkObj);
+    carchiveObjs.set(lid, linkObj);
 
-    const knees=l.knees||[];
-    for(let kidx=0;kidx<knees.length;kidx++){
-      const kp=knees[kidx],kneeId=90000+lid*10+kidx;
-      const kObj={
-        _class:'CSldKneePoint',id:kneeId,rot:0.0,layer,flag0:0,f1:1,f2:1,f3:0,color,
-        comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
-        comp_post_map:new Uint8Array(isV51?37:33),x:kp[0],y:kp[1],comp_post_xy:new Uint8Array(16),
-        labels:[],owner:linkObj
+    // Knees
+    const knees = l.knees || [];
+    for (let kidx = 0; kidx < knees.length; kidx++) {
+      const kp = knees[kidx];
+      const kneeId = 90000 + lid * 10 + kidx;
+      const kObj      = {
+        _class: 'CSldKneePoint',
+        id: kneeId,
+        rot: 0.0,
+        layer,
+        flag0: 0,
+        f1: 1,
+        f2: 1,
+        f3: 0,
+        color,
+        comp_pre_map: new Uint8Array(12),
+        map_raw: new Uint8Array(0),
+        comp_annots: [],
+        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+        x: kp[0],
+        y: kp[1],
+        comp_post_xy: new Uint8Array(16),
+        labels: [],
+        owner: linkObj,
       };
       linkObj.knees.push(kObj);
     }
 
-    const dx1=s1Obj?p1Pos[0]-s1Obj.x:0.0,dy1=s1Obj?p1Pos[1]-s1Obj.y:0.0;
-    const port1={_class:'CSldPort',owner:s1Obj,link:linkObj,port_idx:p1Info.idx??(portsBySym.get(s1Id)?.length??0),dx:dx1,dy:dy1,port_tail:new Uint8Array(16)};
-    linkObj.p1=port1;if(s1Obj)portsBySym.get(s1Id).push(port1);
+    // Port 1
+    const local1 = archivePortLocal(s1Obj, p1Pos);
+    const port1      = {
+      _class: 'CSldPort',
+      owner: s1Obj,
+      link: linkObj,
+      port_idx: p1Info.idx ?? (portsBySym.get(s1Id)?.length ?? 0),
+      ...local1,
+      port_tail: new Uint8Array(16),
+    };
+    linkObj.p1 = port1;
+    if (s1Obj) {
+      portsBySym.get(s1Id) .push(port1);
+    }
 
-    const dx2=s2Obj?p2Pos[0]-s2Obj.x:0.0,dy2=s2Obj?p2Pos[1]-s2Obj.y:0.0;
-    const port2={_class:'CSldPort',owner:s2Obj,link:linkObj,port_idx:p2Info.idx??(portsBySym.get(s2Id)?.length??0),dx:dx2,dy:dy2,port_tail:new Uint8Array(16)};
-    linkObj.p2=port2;if(s2Obj)portsBySym.get(s2Id).push(port2);
+    // Port 2
+    const local2 = archivePortLocal(s2Obj, p2Pos);
+    const port2      = {
+      _class: 'CSldPort',
+      owner: s2Obj,
+      link: linkObj,
+      port_idx: p2Info.idx ?? (portsBySym.get(s2Id)?.length ?? 0),
+      ...local2,
+      port_tail: new Uint8Array(16),
+    };
+    linkObj.p2 = port2;
+    if (s2Obj) {
+      portsBySym.get(s2Id) .push(port2);
+    }
   }
 
-  carchiveObjs.forEach((sObj,sid)=>{
-    if(sObj._class==='CSldBusbar'||sObj._class==='CSldPointNode'||sObj._class==='CSldRadial'||sObj._class==='CSldBranch'){
-      sObj.ports=portsBySym.get(sid)||[];
+  // Attach ports to symbols
+  carchiveObjs.forEach((sObj, sid) => {
+    if (
+      sObj._class === 'CSldBusbar' ||
+      sObj._class === 'CSldPointNode' ||
+      sObj._class === 'CSldRadial' ||
+      sObj._class === 'CSldBranch'
+    ) {
+      const ports = portsBySym.get(sid) || [];
+      const c = symMap.get(sid);
+      const count = c?.stype === 'Branch' ? (c.psse === 'TWTransformer' ? 3 : 2) : c?.stype === 'Radial' ? 1 : 0;
+      for (let idx = 0; idx < count; idx++) {
+        if (ports.some(p => p.port_idx === idx)) continue;
+        const half = c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
+        ports.push({ _class: 'CSldPort', owner: sObj, link: null, port_idx: idx,
+          dx: c?.stype === 'Branch' ? (idx === 0 ? -half : idx === 1 ? half : 0) : 0,
+          dy: c?.stype === 'Radial' ? ({ 2: .082, 4: .099, 5: .13 }                          )[c.sdef || 0] || 0 : idx === 2 ? -.2 : 0,
+          port_tail: new Uint8Array(16) });
+      }
+      sObj.ports = ports.sort((a, b) => a.port_idx - b.port_idx);
     }
   });
 
-  labelsByOwner.forEach((lblList,ownerId)=>{
-    const ownerObj=carchiveObjs.get(ownerId);if(!ownerObj)return;
-    for(const l of lblList){
-      const pos=l.pos||[ownerObj.x,ownerObj.y];
-      const fontInfo=new Uint8Array(36),fontDv=new DataView(fontInfo.buffer);
-      fontDv.setInt32(0,9,true);fontDv.setInt32(16,400,true);
-      const lblObj={
-        _class:'CSldLabel',id:l.id,rot:l.rot??0.0,layer:l.layer??(ownerObj.layer??4),
-        flag0:0,f1:1,f2:1,f3:1,color:l.color??0xffffff,
-        comp_pre_map:new Uint8Array(12),map_raw:new Uint8Array(0),comp_annots:[],
-        comp_post_map:new Uint8Array(isV51?37:33),x:pos[0],y:pos[1],comp_post_xy:new Uint8Array(16),
-        labels:[],text:l.text||'',owner:ownerObj,lbl_vis:1,lbl_bg:0xffffff,lbl_default_font:0,
-        lbl_font_info:fontInfo,lbl_font_name:'Arial',lbl_font_tail:new Uint8Array(8)
+  // Attach labels
+  const unownedLabels        = [];
+  labelsByOwner.forEach((lblList, ownerId) => {
+    const ownerObj = carchiveObjs.get(ownerId);
+    if (!ownerObj && ownerId !== 0) throw new Error(`Invalid label owner ${ownerId}`);
+    for (const l of lblList) {
+      const pos = l.pos || [ownerObj?.x || 0, ownerObj?.y || 0];
+      const fontInfo = new Uint8Array(36);
+      const fontDv = new DataView(fontInfo.buffer);
+      fontDv.setInt32(8, Math.round(l.fh || 9), true); // native font height
+      fontDv.setInt32(24, 400, true); // native font weight
+      const lblObj      = {
+        _class: 'CSldLabel',
+        id: l.id,
+        rot: l.rot ?? 0.0,
+        layer: l.layer ?? (ownerObj?.layer ?? 4),
+        flag0: 0,
+        f1: 1,
+        f2: 1,
+        f3: 1,
+        color: l.color ?? 0xffffff,
+        comp_pre_map: new Uint8Array(12),
+        map_raw: new Uint8Array(0),
+        comp_annots: [],
+        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
+        x: pos[0],
+        y: pos[1],
+        comp_post_xy: new Uint8Array(16),
+        labels: [],
+        text: l.text || '',
+        owner: ownerObj || null,
+        lbl_vis: l.vis === false ? 0 : 1,
+        lbl_bg: 0xffffff,
+        lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
+        lbl_font_info: fontInfo,
+        lbl_font_name: 'Arial',
+        lbl_font_tail: new Uint8Array(8),
       };
-      ownerObj.labels.push(lblObj);
+      if(ownerObj)ownerObj.labels.push(lblObj);else unownedLabels.push(lblObj);
     }
   });
 
-  const mainList=[];
-  for(const c of doc.components){
-    const cid=c.id;
-    if(carchiveObjs.has(cid)){
-      const o=carchiveObjs.get(cid);
+  // Main list
+  const mainList        = [];
+  for (const c of doc.components) {
+    const cid = c.id;
+    if (carchiveObjs.has(cid)) {
+      const o = carchiveObjs.get(cid) ;
       mainList.push(o);
-      if(o.labels)for(const lbl of o.labels)mainList.push(lbl);
-      if(o.knees)for(const kp of o.knees)mainList.push(kp);
+      if (o.labels) {
+        for (const lbl of o.labels) mainList.push(lbl);
+      }
+      if (o.knees) {
+        for (const kp of o.knees) mainList.push(kp);
+      }
     }
   }
 
-  const layerNames=[
-    'Background','Foreground','BaseVoltage 154,0','BaseVoltage 380,0','BaseVoltage 400,0',
-    'BaseVoltage 220,0','BaseVoltage 66,0','BaseVoltage 33,0','BaseVoltage 31,5',
-    'BaseVoltage 15,8','BaseVoltage 10,6','BaseVoltage 10,5','BaseVoltage 6,3',
-    'BaseVoltage 3,3','BaseVoltage 0,4','User Layer 1','User Layer 2','User Layer 3','User Layer 4'
+  mainList.push(...unownedLabels);
+
+  // Layers
+  const layerNames = [
+    'Background', 'Foreground', 'BaseVoltage 154,0', 'BaseVoltage 380,0', 'BaseVoltage 400,0',
+    'BaseVoltage 220,0', 'BaseVoltage 66,0', 'BaseVoltage 33,0', 'BaseVoltage 31,5',
+    'BaseVoltage 15,8', 'BaseVoltage 10,6', 'BaseVoltage 10,5', 'BaseVoltage 6,3',
+    'BaseVoltage 3,3', 'BaseVoltage 0,4', 'User Layer 1', 'User Layer 2', 'User Layer 3', 'User Layer 4',
   ];
-  const activeNames=isV51?layerNames:layerNames.slice(0,12),layers=[];
-  for(let lIdx=0;lIdx<activeNames.length;lIdx++){
-    const layerHdr=new Uint8Array([0x00,0x00,0x00,0x00,0x7b,0x14,0xae,0x47,0xe1,0x7a,0x84,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x59,0x40]);
-    layers.push({_class:'CSldLayer',layer_hdr:layerHdr,name:activeNames[lIdx],vis:1,layer_lists:Array.from({length:isV51?22:21},()=>[])});
+  const activeNames = isV51 ? layerNames : layerNames.slice(0, 12);
+  const layers        = [];
+  for (let lIdx = 0; lIdx < activeNames.length; lIdx++) {
+    const layerHdr = new Uint8Array([
+      0x00, 0x00, 0x00, 0x00, 0x7b, 0x14, 0xae, 0x47, 0xe1, 0x7a, 0x84, 0x3f,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x59, 0x40,
+    ]);
+    layers.push({
+      _class: 'CSldLayer',
+      layer_hdr: layerHdr,
+      name: activeNames[lIdx],
+      vis: 1,
+      layer_lists: Array.from({ length: isV51 ? 22 : 21 }, () => []),
+    });
   }
 
-  const groups=[{_class:'CSldGroup',name:'Default',items:[]}];
-  const viewData=new Uint8Array(78),viewDv=new DataView(viewData.buffer);
-  viewDv.setFloat64(0,-25.0,true);viewDv.setFloat64(8,-25.0,true);viewDv.setFloat64(16,25.0,true);viewDv.setFloat64(24,25.0,true);
-  const views=[{_class:'CSldSavedView',name:'Default',view_data:viewData}];
+  const groupObjects = new Map([...carchiveObjs.values()].flatMap(o => [o, ...(o.labels || [])]).concat(unownedLabels).map(o => [o.id, o]));
+  const groups = archiveGroups(doc, groupObjects);
 
-  const writer=new SldArchiveWriter(isV51);
+  const viewData = new Uint8Array(78);
+  const viewDv = new DataView(viewData.buffer);
+  const points = doc.components.flatMap(c => c.pos ? [c.pos] : [c.p1 .pos, ...(c.knees || []), c.p2 .pos]);
+  const minX = Math.min(...points.map(p => p[0])) - 1, maxX = Math.max(...points.map(p => p[0])) + 1;
+  const minY = Math.min(...points.map(p => p[1])) - 1, maxY = Math.max(...points.map(p => p[1])) + 1;
+  viewDv.setFloat64(0, 1.0, true); // positive zoom factor, not a bounding rectangle
+  viewDv.setFloat64(8, (minX + maxX) / 2, true);
+  viewDv.setFloat64(16, (minY + maxY) / 2, true);
+  viewDv.setFloat64(40, minX, true); viewDv.setFloat64(48, maxY, true);
+  viewDv.setFloat64(56, maxX, true); viewDv.setFloat64(64, minY, true);
+
+  const views = [
+    {
+      _class: 'CSldSavedView',
+      name: 'Default',
+      view_data: viewData,
+    },
+  ];
+
+  // Write CArchive Body
+  const allComponents = [...carchiveObjs.values()].flatMap(o => [o, ...(o.labels || [])]).concat(unownedLabels);
+  registerArchiveLayers(layers, allComponents);
+  const writer = new SldArchiveWriter(isV51);
   writer.writeObList(mainList);
-  writer.u32(1);
+  writer.u32(1); // u1
   writer.writeObList(layers);
-  writer.u16(0);
+  writer.u16(0); // u2
   writer.writeObList(groups);
   writer.writeObList(views);
 
-  const bodyBytes=writer.getBuffer();
-  const fullBytes=new Uint8Array(preamble.length+bodyBytes.length);
-  fullBytes.set(preamble,0);
-  fullBytes.set(bodyBytes,preamble.length);
+  const bodyBytes = writer.getBuffer();
+  const fullBytes = new Uint8Array(preamble.length + bodyBytes.length);
+  fullBytes.set(preamble, 0);
+  fullBytes.set(bodyBytes, preamble.length);
+
+  // 3. Mandatory Pre-Export Round-Trip Validation
+  const reDoc = parseSldBinary(fullBytes);
+  assertSldRoundTrip(doc, reDoc);
+  const origSyms = doc.components.filter((c) => c.t === 'Symbol');
+  const reSyms = reDoc.components.filter((c) => c.t === 'Symbol');
+  if (reSyms.length !== origSyms.length) {
+    throw new Error(`Round-trip sembol sayısı uyuşmazlığı: Orijinal=${origSyms.length}, Üretilen=${reSyms.length}`);
+  }
+
+  const origLinks = doc.components.filter((c) => c.t === 'Link');
+  const reLinks = reDoc.components.filter((c) => c.t === 'Link');
+  if (reLinks.length !== origLinks.length) {
+    throw new Error(`Round-trip bağlantı (Link) sayısı uyuşmazlığı: Orijinal=${origLinks.length}, Üretilen=${reLinks.length}`);
+  }
+
+  // Coordinate check tolerance: 1e-4
+  const reSymMap = new Map                        ();
+  for (const s of reSyms) reSymMap.set(s.id, s);
+  for (const os of origSyms) {
+    const rs = reSymMap.get(os.id);
+    if (!rs || !os.pos || !rs.pos) continue;
+    const dx = Math.abs(os.pos[0] - rs.pos[0]);
+    const dy = Math.abs(os.pos[1] - rs.pos[1]);
+    if (dx > 1e-4 || dy > 1e-4) {
+      throw new Error(`Round-trip koordinat uyuşmazlığı (Sembol #${os.id}): Orijinal=(${os.pos}), Üretilen=(${rs.pos})`);
+    }
+  }
 
   return fullBytes;
 }
 
-function patchSldBinary(baseBytes,doc){
-  const check=validateSldBinary(baseBytes);
-  if(!check.valid)throw new Error(check.reason||'Geçersiz temel .sld binary dosyası.');
-  const targetVer=check.version||'2.0.51.1';
-  const docWithBytes={...doc,rawBytes:baseBytes};
-  return serializeSldBinary(docWithBytes,targetVer);
+/**
+ * Universal In-Place / Serializing Patcher for PSS(R)E .sld Binaries
+ */
+function patchSldBinary(baseBytes            , doc               )             {
+  const check = validateSldBinary(baseBytes);
+  if (!check.valid) {
+    throw new Error(check.reason || 'Geçersiz temel .sld binary dosyası.');
+  }
+
+  const targetVersion = check.version || '2.0.51.1';
+  const docWithBytes                = { ...doc, rawBytes: baseBytes };
+  return serializeSldBinary(docWithBytes, targetVersion);
+}
+
+/* Deterministic, topology-preserving metro layout for ga-sld-v1 documents.
+ * Mutates geometry only. Set preservePositions to route an already arranged drawing.
+ * Symbol locks: locked, manual, layoutLocked, or options.lockedIds (Set/array).
+ * measureText(label) may return {width,height} in diagram units.
+ */
+function metroIsLocked(c, opt) {
+  const ids = opt.lockedIds;
+  return !!(c.locked || c.manual || c.layoutLocked || (ids && (typeof ids.has === 'function' ? ids.has(c.id) : ids.includes(c.id))));
+}
+function metroBox(s, pad=0) {
+  let w=0.64,h=0.64;
+  if(s.stype==='Busbar') {
+    const horizontal=s.ends ? Math.abs(s.ends[1][0]-s.ends[0][0])>=Math.abs(s.ends[1][1]-s.ends[0][1]) : Math.abs((Number(s.rot)||0)%180)>45;
+    w=horizontal?Number(s.len)||2:0.14; h=horizontal?0.14:Number(s.len)||2;
+  }
+  return [s.pos[0]-w/2-pad,s.pos[1]-h/2-pad,s.pos[0]+w/2+pad,s.pos[1]+h/2+pad];
+}
+function metroOverlap(a,b) { return a[0]<b[2]-1e-8 && a[2]>b[0]+1e-8 && a[1]<b[3]-1e-8 && a[3]>b[1]+1e-8; }
+function metroLabelBox(c,opt) {
+  const lines=String(c.text||'').split(/\r?\n/), measured=opt.measureText && opt.measureText(c);
+  const h=measured && Number(measured.height)>0?Number(measured.height):Math.max(0.22,(Number(c.fh)||9)*0.027)*lines.length*1.15;
+  const w=measured && Number(measured.width)>0?Number(measured.width):Math.max(0.25,Math.max(...lines.map(x=>x.length))*Math.max(0.025,(Number(c.fh)||9)*0.014));
+  return [c.pos[0],c.pos[1]-h,c.pos[0]+w,c.pos[1]];
+}
+function metroSegs(link) {
+  if(!link.p1?.pos || !link.p2?.pos)return [];
+  const pts=[link.p1.pos,...(link.knees||[]),link.p2.pos], seg=[];
+  for(let i=1;i<pts.length;i++)if(Math.abs(pts[i][0]-pts[i-1][0])+Math.abs(pts[i][1]-pts[i-1][1])>1e-8)seg.push([pts[i-1],pts[i]]);
+  return seg;
+}
+function metroSegmentHitsBox(a,b,r) {
+  // Liang-Barsky clipping detects diagonal as well as orthogonal intersections.
+  const dx=b[0]-a[0],dy=b[1]-a[1],p=[-dx,dx,-dy,dy],q=[a[0]-r[0],r[2]-a[0],a[1]-r[1],r[3]-a[1]];
+  let lo=0,hi=1;
+  for(let i=0;i<4;i++){if(Math.abs(p[i])<1e-12){if(q[i]<=0)return false;}else{const t=q[i]/p[i];if(p[i]<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>=hi)return false;}}
+  return hi>1e-8&&lo<1-1e-8;
+}
+function measureMetroLayout(doc, options={}) {
+  const start=Date.now(), comps=doc?.components||[], syms=comps.filter(c=>c.t==='Symbol'&&c.pos), labels=comps.filter(c=>c.t==='Label'&&c.pos&&c.text&&c.vis!==false), links=comps.filter(c=>c.t==='Link');
+  let symbolCollisions=0,edgeSymbolCollisions=0,edgeLabelCollisions=0,labelCollisions=0,nonOrthogonalSegments=0,edgeCrossings=0,laneCongestion=0,totalEdgeLength=0;
+  for(let i=0;i<syms.length;i++)for(let j=i+1;j<syms.length;j++)if(metroOverlap(metroBox(syms[i]),metroBox(syms[j])))symbolCollisions++;
+  const boxes=labels.map(c=>metroLabelBox(c,options));
+  for(let i=0;i<labels.length;i++) {
+    for(let j=i+1;j<labels.length;j++)if(metroOverlap(boxes[i],boxes[j]))labelCollisions++;
+    for(const s of syms)if(metroOverlap(boxes[i],metroBox(s)))labelCollisions++;
+  }
+  for(const l of links) {
+    const segments=metroSegs(l);
+    for(const s of syms)if(s.id!==l.p1?.sym&&s.id!==l.p2?.sym&&segments.some(([a,b])=>metroSegmentHitsBox(a,b,metroBox(s))))edgeSymbolCollisions++;
+    for(let i=0;i<labels.length;i++)if(segments.some(([a,b])=>metroSegmentHitsBox(a,b,boxes[i])))edgeLabelCollisions++;
+  }
+  const hardCollisions=symbolCollisions+edgeSymbolCollisions;
+  const all=[];
+  for(const l of links)for(const [a,b] of metroSegs(l)) { const dx=Math.abs(a[0]-b[0]),dy=Math.abs(a[1]-b[1]); totalEdgeLength+=dx+dy; if(dx>1e-7&&dy>1e-7)nonOrthogonalSegments++; all.push({a,b,id:l.id}); }
+  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++) {
+    const x=all[i],y=all[j]; if(x.id===y.id)continue;
+    const xh=Math.abs(x.a[1]-x.b[1])<1e-7, yh=Math.abs(y.a[1]-y.b[1])<1e-7;
+    if(xh!==yh) {const h=xh?x:y,v=xh?y:x; if(v.a[0]>Math.min(h.a[0],h.b[0])+1e-7&&v.a[0]<Math.max(h.a[0],h.b[0])-1e-7&&h.a[1]>Math.min(v.a[1],v.b[1])+1e-7&&h.a[1]<Math.max(v.a[1],v.b[1])-1e-7)edgeCrossings++;}
+    else if(xh && Math.abs(x.a[1]-y.a[1])<1e-7 && Math.min(Math.max(x.a[0],x.b[0]),Math.max(y.a[0],y.b[0]))>Math.max(Math.min(x.a[0],x.b[0]),Math.min(y.a[0],y.b[0]))+1e-7)laneCongestion++;
+    else if(!xh && Math.abs(x.a[0]-y.a[0])<1e-7 && Math.min(Math.max(x.a[1],x.b[1]),Math.max(y.a[1],y.b[1]))>Math.max(Math.min(x.a[1],x.b[1]),Math.min(y.a[1],y.b[1]))+1e-7)laneCongestion++;
+  }
+  const bounds=[...syms.map(s=>metroBox(s)),...boxes,...all.map(s=>[Math.min(s.a[0],s.b[0]),Math.min(s.a[1],s.b[1]),Math.max(s.a[0],s.b[0]),Math.max(s.a[1],s.b[1])])];
+  const boundingBoxArea=bounds.length?(Math.max(...bounds.map(x=>x[2]))-Math.min(...bounds.map(x=>x[0])))*(Math.max(...bounds.map(x=>x[3]))-Math.min(...bounds.map(x=>x[1]))):0;
+  return {hardCollisions,symbolCollisions,edgeSymbolCollisions,edgeLabelCollisions,routingFailures:doc?._metroRoutingFailures||0,fallbackCount:doc?._metroFallbackCount||0,gridFailures:doc?._metroGridFailures||0,compressedSuccesses:doc?._metroCompressedSuccesses||0,edgeCrossings,labelCollisions,nonOrthogonalSegments,laneCongestion,boundingBoxArea,totalEdgeLength,runtimeMs:Date.now()-start};
+}
+function applyMetroLayout(doc, options={}) {
+  const started=Date.now(); if(!doc || !Array.isArray(doc.components))return measureMetroLayout({components:[]},options);
+  const comps=doc.components, syms=comps.filter(c=>c.t==='Symbol'&&c.pos).sort((a,b)=>a.id-b.id), links=comps.filter(c=>c.t==='Link'&&c.p1?.pos&&c.p2?.pos).sort((a,b)=>a.id-b.id), labels=comps.filter(c=>c.t==='Label'&&c.pos&&c.text&&c.vis!==false).sort((a,b)=>a.id-b.id), map=new Map(syms.map(s=>[s.id,s])), adj=new Map(syms.map(s=>[s.id,[]]));
+  for(const l of links)if(adj.has(l.p1.sym)&&adj.has(l.p2.sym)&&l.p1.sym!==l.p2.sym){adj.get(l.p1.sym).push(l.p2.sym);adj.get(l.p2.sym).push(l.p1.sym);}
+  for(const a of adj.values())a.sort((x,y)=>x-y);
+  const old=new Map(syms.map(s=>[s.id,[...s.pos]]));
+  const originalBounds=[...syms.map(s=>metroBox(s)),...labels.map(l=>metroLabelBox(l,options)),...links.flatMap(l=>metroSegs(l).map(([a,b])=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])]))];
+  const bounds=originalBounds.length?[Math.min(...originalBounds.map(r=>r[0])),Math.min(...originalBounds.map(r=>r[1])),Math.max(...originalBounds.map(r=>r[2])),Math.max(...originalBounds.map(r=>r[3]))]:null;
+  const busPorts=new Map();
+  for(const l of links)for(const [p,other] of [[l.p1,l.p2],[l.p2,l.p1]]){const s=map.get(p.sym);if(s?.stype==='Busbar'){if(!busPorts.has(s.id))busPorts.set(s.id,[]);busPorts.get(s.id).push({p,other,link:l});}}
+  const pitch=Math.max(0.1,Number(options.portPitch)||0.55);
+  for(const [id,ports] of busPorts){const s=map.get(id);if(options.preserveBusPorts||metroIsLocked(s,options))continue;const box=metroBox(s),horizontal=box[2]-box[0]>box[3]-box[1];s.len=Math.max(2.4,ports.length*pitch+1);const half=s.len/2;s.ends=horizontal?[[s.pos[0]-half,s.pos[1]],[s.pos[0]+half,s.pos[1]]]:[[s.pos[0],s.pos[1]+half],[s.pos[0],s.pos[1]-half]];}
+  if(!options.preservePositions){
+    const seen=new Set(), groups=[];
+    for(const seed of syms){if(seen.has(seed.id))continue; const group=[],queue=[seed.id];seen.add(seed.id);for(let i=0;i<queue.length;i++){const id=queue[i];group.push(id);for(const n of adj.get(id))if(!seen.has(n)){seen.add(n);queue.push(n);}}groups.push(group);}
+    // Metadata-backed station groups are used when the generator supplies them.
+    const clusterId=s=>{const c=options.clusterById;return (c&&(typeof c.get==='function'?c.get(s.id):c[s.id]))??s.stationId;};
+    if(syms.some(s=>clusterId(s)!=null)) {
+      const keyed=new Map(),remaining=[];
+      for(const s of syms){const id=clusterId(s);if(id==null)remaining.push([s.id]);else{const k=String(id);if(!keyed.has(k))keyed.set(k,[]);keyed.get(k).push(s.id);}}
+      groups.splice(0,groups.length,...[...keyed.keys()].sort().map(k=>keyed.get(k)),...remaining);
+    }
+    let baseY=0;
+    for(const group of groups){
+      const root=[...group].sort((a,b)=>(map.get(b).stype==='Busbar')-(map.get(a).stype==='Busbar')||adj.get(b).length-adj.get(a).length||a-b)[0], rank=new Map([[root,0]]),q=[root];
+      for(let i=0;i<q.length;i++)for(const n of adj.get(q[i]))if(!rank.has(n)){rank.set(n,rank.get(q[i])+1);q.push(n);}
+      const layers=[],ranks=[...new Set(group.map(id=>rank.get(id)||0))].sort((a,b)=>a-b); for(const id of group){const r=ranks.indexOf(rank.get(id)||0);(layers[r]||(layers[r]=[])).push(id);}
+      for(let pass=0;pass<8;pass++){const forward=pass%2===0,indices=layers.map((_,i)=>i);if(!forward)indices.reverse();for(const r of indices){const neighbor=layers[r+(forward?-1:1)];if(!neighbor)continue;const order=new Map(neighbor.map((x,i)=>[x,i]));const bary=id=>{const ns=adj.get(id).filter(x=>order.has(x));return ns.length?ns.reduce((v,x)=>v+order.get(x),0)/ns.length:layers[r].indexOf(id);};const scores=new Map(layers[r].map(id=>[id,bary(id)]));layers[r].sort((a,b)=>scores.get(a)-scores.get(b)||a-b);}}
+      let x=0,groupHeight=0;
+      for(const layer of layers){let maxW=0,y=baseY;for(const id of layer){const s=map.get(id),box=metroBox(s);maxW=Math.max(maxW,box[2]-box[0]);const h=box[3]-box[1];if(!metroIsLocked(s,options))s.pos=[x,y+h/2];y+=h+1.5;}groupHeight=Math.max(groupHeight,y-baseY);x+=maxW+2.8;}
+      baseY+=groupHeight+2;
+    }
+    const placed=syms.filter(s=>metroIsLocked(s,options));
+    for(const s of syms){if(metroIsLocked(s,options))continue;const origin=[...s.pos];let k=0;while(placed.some(p=>metroOverlap(metroBox(s,0.3),metroBox(p,0.3)))&&k<1000){k++;s.pos=[origin[0]+Math.floor((k+1)/2)*0.8,origin[1]+(k%2?1:-1)*Math.ceil(k/2)*0.8];}placed.push(s);}
+  }
+  if(options.resolveSymbolCollisions){
+    // Move only overlapping movable symbols. Small devices are considered before bars.
+    const ordered=[...syms].sort((a,b)=>{const aa=metroBox(a),bb=metroBox(b);return (aa[2]-aa[0])*(aa[3]-aa[1])-(bb[2]-bb[0])*(bb[3]-bb[1])||a.id-b.id;});
+    const pad=Math.max(0,Number(options.symbolClearance)||0.08);
+    for(let pass=0;pass<20;pass++){let moved=false;
+      for(const s of ordered){if(metroIsLocked(s,options))continue;const origin=[...s.pos],box=metroBox(s),over=syms.filter(o=>o!==s&&metroOverlap(box,metroBox(o)));if(!over.length)continue;
+        const candidates=[];for(const o of over){const b=metroBox(o),left=b[0]-(box[2]-origin[0])-pad,right=b[2]+(origin[0]-box[0])+pad,bottom=b[1]-(box[3]-origin[1])-pad,top=b[3]+(origin[1]-box[1])+pad;candidates.push([left,origin[1]],[right,origin[1]],[origin[0],bottom],[origin[0],top],[left,bottom],[left,top],[right,bottom],[right,top]);}
+        if(s.stype==='Branch'){const neighbors=adj.get(s.id).map(id=>map.get(id)).filter(Boolean);if(neighbors.length>=2)candidates.push([neighbors.reduce((v,n)=>v+n.pos[0],0)/neighbors.length,neighbors.reduce((v,n)=>v+n.pos[1],0)/neighbors.length]);}
+        let best=null,bestCount=over.length,bestDistance=Infinity;
+        for(const p of candidates){s.pos=p;const b=metroBox(s);if(bounds&&(b[0]<bounds[0]||b[1]<bounds[1]||b[2]>bounds[2]||b[3]>bounds[3]))continue;const count=syms.reduce((v,o)=>v+(o!==s&&metroOverlap(b,metroBox(o))?1:0),0),distance=Math.abs(p[0]-origin[0])+Math.abs(p[1]-origin[1]);if(count<bestCount||(count===bestCount&&count<over.length&&distance<bestDistance)){best=[...p];bestCount=count;bestDistance=distance;}}
+        s.pos=best||origin;if(best)moved=true;
+      }
+      if(!moved)break;
+    }
+  }
+  for(const s of syms)if(!metroIsLocked(s,options)&&s.ends){const dx=s.pos[0]-old.get(s.id)[0],dy=s.pos[1]-old.get(s.id)[1];if(dx||dy)s.ends=s.ends.map(p=>[p[0]+dx,p[1]+dy]);}
+  for(const l of labels){const s=map.get(l.owner);if(!metroIsLocked(l,options)&&!(s&&metroIsLocked(s,options))&&s){l.pos=[l.pos[0]+s.pos[0]-old.get(s.id)[0],l.pos[1]+s.pos[1]-old.get(s.id)[1]];}}
+  const placedLabels=labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options)));
+  const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*0.3,y*0.3]);
+  for(const l of labels){if(placedLabels.includes(l))continue;const original=[...l.pos];let best=[...original],bestScore=Infinity;for(const [dx,dy] of offsets){l.pos=[original[0]+dx,original[1]+dy];const b=metroLabelBox(l,options);if(options.constrainBounds&&bounds&&(b[0]<bounds[0]||b[1]<bounds[1]||b[2]>bounds[2]||b[3]>bounds[3]))continue;let score=0;for(const x of placedLabels)if(metroOverlap(b,metroLabelBox(x,options)))score++;for(const s of syms)if(metroOverlap(b,metroBox(s,0.05)))score++;if(score<bestScore){bestScore=score;best=[...l.pos];if(!score)break;}}l.pos=best;placedLabels.push(l);}
+  // Translate endpoint coordinates by the exact displacement of their owning symbol.
+  for(const l of links)for(const p of [l.p1,l.p2]){const s=map.get(p.sym),o=old.get(p.sym);if(s&&o&&(s.pos[0]!==o[0]||s.pos[1]!==o[1]))p.pos=[p.pos[0]+s.pos[0]-o[0],p.pos[1]+s.pos[1]-o[1]];}
+  // Keep the electrical port index/reference; only redistribute unlocked busbar geometry.
+  for(const [id,ports] of busPorts){const s=map.get(id);if(options.preserveBusPorts||metroIsLocked(s,options))continue;const box=metroBox(s),horizontal=box[2]-box[0]>box[3]-box[1],axis=horizontal?0:1;
+    ports.sort((a,b)=>{const aa=map.get(a.other.sym)?.pos||a.other.pos,bb=map.get(b.other.sym)?.pos||b.other.pos;return aa[axis]-bb[axis]||a.link.id-b.link.id;});
+    ports.forEach((entry,i)=>{const offset=(i-(ports.length-1)/2)*pitch;entry.p.pos=horizontal?[s.pos[0]+offset,s.pos[1]]:[s.pos[0],s.pos[1]+offset];entry.p.offsetRatio=offset/s.len;});
+  }
+  let routingFailures=0,fallbackCount=0,gridFailures=0,compressedSuccesses=0;
+  const step=Math.max(0.15,Number(options.gridSize)||0.35), occupied=new Map(), dirs=[[1,0],[0,1],[-1,0],[0,-1]],key=(x,y)=>x+','+y;
+  const spatialSize=Math.max(1.4,step*4), obstacleBins=new Map(), allObstacles=[...syms.map(s=>({id:s.id,box:metroBox(s,options.symbolRoutingPadding==null?step*0.35:Math.max(0,Number(options.symbolRoutingPadding)))})),...labels.map(c=>{const r=metroLabelBox(c,options),p=options.labelRoutingPadding==null?step*0.35:Math.max(0,Number(options.labelRoutingPadding));return {box:[r[0]-p,r[1]-p,r[2]+p,r[3]+p]};})];
+  for(const item of allObstacles){const r=item.box;for(let x=Math.floor(r[0]/spatialSize);x<=Math.floor(r[2]/spatialSize);x++)for(let y=Math.floor(r[1]/spatialSize);y<=Math.floor(r[3]/spatialSize);y++){const k=key(x,y);if(!obstacleBins.has(k))obstacleBins.set(k,[]);obstacleBins.get(k).push(item);}}
+  const routeAlternatives=new Map();
+  function metroRouteScore(l){const segs=metroSegs(l);let score=0;
+    for(const [u,v] of segs){const dx=Math.abs(u[0]-v[0]),dy=Math.abs(u[1]-v[1]);score+=(dx+dy)*0.01;if(dx>1e-7&&dy>1e-7)score+=10000;}
+    for(const s of syms)if(s.id!==l.p1.sym&&s.id!==l.p2.sym&&segs.some(([u,v])=>metroSegmentHitsBox(u,v,metroBox(s))))score+=Number(options.symbolCollisionWeight)||100;
+    for(const label of labels)if(segs.some(([u,v])=>metroSegmentHitsBox(u,v,metroLabelBox(label,options))))score+=8;
+    for(const other of links)if(other!==l)for(const [u,v] of segs)for(const [c,d] of metroSegs(other)){const h=Math.abs(u[1]-v[1])<1e-7,j=Math.abs(c[1]-d[1])<1e-7;if(h!==j){const H=h?[u,v]:[c,d],V=h?[c,d]:[u,v];if(V[0][0]>Math.min(H[0][0],H[1][0])+1e-7&&V[0][0]<Math.max(H[0][0],H[1][0])-1e-7&&H[0][1]>Math.min(V[0][1],V[1][1])+1e-7&&H[0][1]<Math.max(V[0][1],V[1][1])-1e-7)score+=Number(options.crossingWeight)||2;}else if(h&&Math.abs(u[1]-c[1])<1e-7&&Math.min(Math.max(u[0],v[0]),Math.max(c[0],d[0]))>Math.max(Math.min(u[0],v[0]),Math.min(c[0],d[0]))+1e-7)score+=1;else if(!h&&Math.abs(u[0]-c[0])<1e-7&&Math.min(Math.max(u[1],v[1]),Math.max(c[1],d[1]))>Math.max(Math.min(u[1],v[1]),Math.min(c[1],d[1]))+1e-7)score+=1;}
+    return score;}
+  function compressedRoute(start,finish,l){
+    // Rectilinear visibility graph: each axis uses exact ports and obstacle edges.
+    // Every edge is checked against the expanded obstacles, including outside the corridor.
+    const limit=Math.max(500,Number(options.maxCompressedNodes)||20000), eps=Math.max(0.005,step*0.04);
+    for(const margin of [2,5,12]){
+      const left=Math.max(bounds?.[0]??-Infinity,Math.min(start[0],finish[0])-margin),right=Math.min(bounds?.[2]??Infinity,Math.max(start[0],finish[0])+margin),bottom=Math.max(bounds?.[1]??-Infinity,Math.min(start[1],finish[1])-margin),top=Math.min(bounds?.[3]??Infinity,Math.max(start[1],finish[1])+margin);
+      if(left>Math.min(start[0],finish[0])||right<Math.max(start[0],finish[0])||bottom>Math.min(start[1],finish[1])||top<Math.max(start[1],finish[1]))continue;
+      const relevant=allObstacles.filter(o=>o.id!==l.p1.sym&&o.id!==l.p2.sym&&o.box[2]>=left&&o.box[0]<=right&&o.box[3]>=bottom&&o.box[1]<=top);
+      if(relevant.some(o=>[start,finish].some(p=>p[0]>o.box[0]&&p[0]<o.box[2]&&p[1]>o.box[1]&&p[1]<o.box[3])))continue;
+      const xs=[start[0],finish[0],left,right],ys=[start[1],finish[1],bottom,top];
+      for(const o of relevant){const r=o.box;for(const x of [r[0]-eps,r[2]+eps])if(x>left&&x<right)xs.push(x);for(const y of [r[1]-eps,r[3]+eps])if(y>bottom&&y<top)ys.push(y);}
+      const unique=a=>[...new Set(a.map(v=>Math.round(v*1000000)/1000000))].sort((x,y)=>x-y),X=unique(xs),Y=unique(ys),ix=v=>X.indexOf(Math.round(v*1000000)/1000000),iy=v=>Y.indexOf(Math.round(v*1000000)/1000000),A=[ix(start[0]),iy(start[1])],B=[ix(finish[0]),iy(finish[1])];
+      function isBlocked(a,b){const x0=Math.floor(Math.min(a[0],b[0])/spatialSize),x1=Math.floor(Math.max(a[0],b[0])/spatialSize),y0=Math.floor(Math.min(a[1],b[1])/spatialSize),y1=Math.floor(Math.max(a[1],b[1])/spatialSize);for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(const o of obstacleBins.get(key(x,y))||[])if(o.id!==l.p1.sym&&o.id!==l.p2.sym&&metroSegmentHitsBox(a,b,o.box))return true;return false;}
+      const heap=[];function push(n){heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].f<=n.f)break;heap[i]=heap[p];i=p;}heap[i]=n;}function pop(){const n=heap[0],last=heap.pop();if(heap.length){let i=0;while(true){let j=i*2+1;if(j>=heap.length)break;if(j+1<heap.length&&heap[j+1].f<heap[j].f)j++;if(heap[j].f>=last.f)break;heap[i]=heap[j];i=j;}heap[i]=last;}return n;}
+      const best=new Map();for(let d=0;d<4;d++)push({x:A[0],y:A[1],d,g:0,f:(Math.abs(start[0]-finish[0])+Math.abs(start[1]-finish[1]))/step,prev:null});let end=null,count=0;
+      while(heap.length&&count++<limit){const n=pop(),k=key(n.x,n.y)+','+n.d;if(best.has(k)&&best.get(k)<=n.g)continue;best.set(k,n.g);if(n.x===B[0]&&n.y===B[1]){end=n;break;}
+        for(let d=0;d<4;d++){const x=n.x+dirs[d][0],y=n.y+dirs[d][1];if(x<0||x>=X.length||y<0||y>=Y.length)continue;const a=[X[n.x],Y[n.y]],b=[X[x],Y[y]];if(isBlocked(a,b))continue;const len=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]),mx=Math.round((a[0]+b[0])/2/step),my=Math.round((a[1]+b[1])/2/step),occ=occupied.get(key(mx,my))||0,parallel=occ&(d%2?2:1),cross=occ&(d%2?1:2),g=n.g+len/step+(d===n.d?0:2.2)+(parallel?(Number(options.lanePenalty)||7):0)+(cross?(Number(options.routeCrossingPenalty)||3):0),h=(Math.abs(b[0]-finish[0])+Math.abs(b[1]-finish[1]))/step;push({x,y,d,g,f:g+h,prev:n});}
+      }
+      if(end){const path=[];for(let n=end;n;n=n.prev)path.push([X[n.x],Y[n.y]]);return path.reverse();}
+    }
+    return null;
+  }
+  function route(l){
+    const a=l.p1.pos,b=l.p2.pos,sa=map.get(l.p1.sym),sb=map.get(l.p2.sym),oldKnees=(l.knees||[]).map(p=>[...p]);
+    function direction(s,p,t){if(s?.stype==='Busbar'){const box=metroBox(s);if(box[2]-box[0]>box[3]-box[1])return [0,t[1]>=p[1]?1:-1];return [t[0]>=p[0]?1:-1,0];}if(s?.stype==='Branch'){const dx=p[0]-s.pos[0],dy=p[1]-s.pos[1];if(Math.abs(dx)>Math.abs(dy))return [dx>=0?1:-1,0];if(Math.abs(dy)>1e-7)return [0,dy>=0?1:-1];}return Math.abs(t[0]-p[0])>=Math.abs(t[1]-p[1])?[t[0]>=p[0]?1:-1,0]:[0,t[1]>=p[1]?1:-1];}
+    const obstacles=allObstacles.filter(item=>item.id!==l.p1.sym&&item.id!==l.p2.sym).map(item=>item.box);
+    function chooseStub(s,p,t,isStart) {const d=direction(s,p,t),choices=[d];if(s?.stype==='Busbar')choices.push([-d[0],-d[1]]);else if(s?.stype!=='Branch')for(const dir of dirs)if(dir[0]!==d[0]||dir[1]!==d[1])choices.push(dir);let best=null;
+      for(const dir of choices)for(const length of [Math.max(step*2,0.7),step,step*0.5,step*3,step*4]) {const point=[p[0]+dir[0]*length,p[1]+dir[1]*length],grid=[Math.round(point[0]/step)*step,Math.round(point[1]/step)*step],corner=isStart?(dir[0]?[grid[0],point[1]]:[point[0],grid[1]]):(dir[0]?[point[0],grid[1]]:[grid[0],point[1]]);let hits=0;for(const r of obstacles){if(metroSegmentHitsBox(p,point,r))hits++;if(metroSegmentHitsBox(point,corner,r))hits++;if(metroSegmentHitsBox(corner,grid,r))hits++;if(grid[0]>r[0]&&grid[0]<r[2]&&grid[1]>r[1]&&grid[1]<r[3])hits++;}if(options.constrainBounds&&bounds&&(grid[0]<bounds[0]||grid[0]>bounds[2]||grid[1]<bounds[1]||grid[1]>bounds[3]))hits+=5;const score=hits*1000+Math.abs(point[0]-t[0])+Math.abs(point[1]-t[1]);if(!best||score<best.score)best={dir,point,score};}
+      return best;
+    }
+    const as=chooseStub(sa,a,b,true),bs=chooseStub(sb,b,a,false),da=as.dir,db=bs.dir,pa=as.point,pb=bs.point;
+    const A=[Math.round(pa[0]/step),Math.round(pa[1]/step)],B=[Math.round(pb[0]/step),Math.round(pb[1]/step)];
+    const minX=options.constrainBounds&&bounds?Math.ceil(bounds[0]/step):Math.min(A[0],B[0])-20,maxX=options.constrainBounds&&bounds?Math.floor(bounds[2]/step):Math.max(A[0],B[0])+20,minY=options.constrainBounds&&bounds?Math.ceil(bounds[1]/step):Math.min(A[1],B[1])-20,maxY=options.constrainBounds&&bounds?Math.floor(bounds[3]/step):Math.max(A[1],B[1])+20;
+    const blocked=(x,y,px,py)=>{const a=[px*step,py*step],b=[x*step,y*step],minX=Math.floor(Math.min(a[0],b[0])/spatialSize),maxX=Math.floor(Math.max(a[0],b[0])/spatialSize),minY=Math.floor(Math.min(a[1],b[1])/spatialSize),maxY=Math.floor(Math.max(a[1],b[1])/spatialSize);for(let bx=minX;bx<=maxX;bx++)for(let by=minY;by<=maxY;by++)for(const item of obstacleBins.get(key(bx,by))||[])if(item.id!==l.p1.sym&&item.id!==l.p2.sym&&metroSegmentHitsBox(a,b,item.box))return true;return false;};
+    const heap=[];function push(n){heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].f<=n.f)break;heap[i]=heap[p];i=p;}heap[i]=n;}function pop(){const top=heap[0],last=heap.pop();if(heap.length){let i=0;while(true){let c=i*2+1;if(c>=heap.length)break;if(c+1<heap.length&&heap[c+1].f<heap[c].f)c++;if(heap[c].f>=last.f)break;heap[i]=heap[c];i=c;}heap[i]=last;}return top;}
+    const best=new Map();for(let d=0;d<4;d++)push({x:A[0],y:A[1],d,g:0,f:Math.abs(A[0]-B[0])+Math.abs(A[1]-B[1]),prev:null});let end=null,count=0;
+    while(heap.length&&count++<(options.maxRouteNodes||45000)){const n=pop(),k=key(n.x,n.y)+','+n.d;if(best.has(k)&&best.get(k)<=n.g)continue;best.set(k,n.g);if(n.x===B[0]&&n.y===B[1]){end=n;break;}for(let d=0;d<4;d++){const x=n.x+dirs[d][0],y=n.y+dirs[d][1];if(x<minX||x>maxX||y<minY||y>maxY||blocked(x,y,n.x,n.y))continue;const occ=occupied.get(key(x,y))||0, parallel=occ&(d%2?2:1),cross=occ&(d%2?1:2),g=n.g+1+(d===n.d?0:2.2)+(parallel?(Number(options.lanePenalty)||7):0)+(cross?(Number(options.routeCrossingPenalty)||3):0),h=Math.abs(x-B[0])+Math.abs(y-B[1]);push({x,y,d,g,f:g+h,prev:n});}}
+    let cells=[],compressed=null;if(end){for(let n=end;n;n=n.prev)cells.push([n.x,n.y]);cells.reverse();for(let i=1;i<cells.length;i++){const c=cells[i],p=cells[i-1],bit=c[0]===p[0]?2:1;occupied.set(key(c[0],c[1]),(occupied.get(key(c[0],c[1]))||0)|bit);}}else {gridFailures++;if(options.compressedFallback)compressed=compressedRoute(pa,pb,l);if(compressed)compressedSuccesses++;else {fallbackCount++;cells=[[...A],[B[0],A[1]],[...B]];}}
+    const pts=[a,pa];function connect(p,preferX){const last=pts[pts.length-1];if(Math.abs(last[0]-p[0])>1e-8&&Math.abs(last[1]-p[1])>1e-8)pts.push(preferX?[p[0],last[1]]:[last[0],p[1]]);pts.push(p);}
+    if(compressed){for(let i=1;i<compressed.length;i++)connect(compressed[i],true);}else {connect([A[0]*step,A[1]*step],!!da[0]);for(let i=1;i<cells.length;i++)connect([cells[i][0]*step,cells[i][1]*step],true);}connect(pb,!db[0]);connect(b,true);
+    const clean=[];for(const p of pts){const pt=p.map(x=>Math.round(x*100000)/100000);if(clean.length&&Math.abs(clean[clean.length-1][0]-pt[0])+Math.abs(clean[clean.length-1][1]-pt[1])<1e-7)continue;while(clean.length>=2){const u=clean[clean.length-2],v=clean[clean.length-1];if((Math.abs(u[0]-v[0])<1e-7&&Math.abs(v[0]-pt[0])<1e-7)||(Math.abs(u[1]-v[1])<1e-7&&Math.abs(v[1]-pt[1])<1e-7))clean.pop();else break;}clean.push(pt);}l.knees=clean.slice(1,-1);
+    if(options.retainBetterRoutes&&options.preservePositions&&options.preserveBusPorts){
+      const movedA=sa&&(sa.pos[0]!==old.get(sa.id)[0]||sa.pos[1]!==old.get(sa.id)[1]),movedB=sb&&(sb.pos[0]!==old.get(sb.id)[0]||sb.pos[1]!==old.get(sb.id)[1]);let oldCandidate=oldKnees;
+      if(movedA||movedB){const previousA=movedA?[a[0]-sa.pos[0]+old.get(sa.id)[0],a[1]-sa.pos[1]+old.get(sa.id)[1]]:a,previousB=movedB?[b[0]-sb.pos[0]+old.get(sb.id)[0],b[1]-sb.pos[1]+old.get(sb.id)[1]]:b;const p=[a];function append(q,preferX){const last=p[p.length-1];if(Math.abs(last[0]-q[0])>1e-7&&Math.abs(last[1]-q[1])>1e-7)p.push(preferX?[q[0],last[1]]:[last[0],q[1]]);p.push(q);}if(movedA){append(pa,!!da[0]);append(previousA,!!da[0]);}for(const q of oldKnees)append(q,true);append(previousB,true);if(movedB)append(pb,!db[0]);append(b,true);oldCandidate=p.slice(1,-1);}
+      const candidate=l.knees,cost=metroRouteScore(l);l.knees=oldCandidate;const segments=metroSegs(l),perpendicular=(s,seg)=>{if(s?.stype!=='Busbar'||!seg)return true;const box=metroBox(s),horizontal=box[2]-box[0]>box[3]-box[1];return Math.abs(horizontal?seg[0][0]-seg[1][0]:seg[0][1]-seg[1][1])<1e-7;},inside=(!options.constrainBounds||!bounds||segments.every(([u,v])=>[u,v].every(p=>p[0]>=bounds[0]-1e-7&&p[0]<=bounds[2]+1e-7&&p[1]>=bounds[1]-1e-7&&p[1]<=bounds[3]+1e-7)))&&perpendicular(sa,segments[0])&&perpendicular(sb,segments[segments.length-1]);if(!inside||metroRouteScore(l)>cost)l.knees=candidate;routeAlternatives.set(l,inside?[oldCandidate,candidate]:[candidate]);
+    }
+  }
+  for(const l of links)route(l);
+  if(options.refineRoutes)for(let pass=0;pass<2;pass++)for(const [l,alternatives] of routeAlternatives){let chosen=l.knees,best=metroRouteScore(l);for(const k of alternatives){l.knees=k;const score=metroRouteScore(l);if(score<best-1e-8){chosen=k;best=score;}}l.knees=chosen;}
+  for(const l of links){const obstacles=allObstacles.filter(item=>item.id!==l.p1.sym&&item.id!==l.p2.sym);if(metroSegs(l).some(([u,v])=>obstacles.some(item=>metroSegmentHitsBox(u,v,item.box))))routingFailures++;}
+  Object.defineProperty(doc,'_metroRoutingFailures',{value:routingFailures,writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(doc,'_metroFallbackCount',{value:fallbackCount,writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(doc,'_metroGridFailures',{value:gridFailures,writable:true,configurable:true,enumerable:false});
+  Object.defineProperty(doc,'_metroCompressedSuccesses',{value:compressedSuccesses,writable:true,configurable:true,enumerable:false});
+  const metrics=measureMetroLayout(doc,options);metrics.runtimeMs=Date.now()-started;return metrics;
 }
 
 /* Part 2: Symbol -> Port -> Link -> KneePoint Geometry & PSS(R)E-like SVG Renderer */
@@ -763,23 +1794,20 @@ function getPortWorldPos(sym,portSpec){
     const len=Math.max(0.4,Number(sym.len)||2.0);
     const ratio=portSpec?.offsetRatio!==undefined?Number(portSpec.offsetRatio):computeBusbarPortRatio(sym,portSpec?.pos);
     if(portSpec)portSpec.offsetRatio=ratio;
-    const horiz=isBusbarHorizontal(sym);
+    const horiz=isBusbarHorizontal(sym),offset=Math.round(ratio*len*10)/10,edge=(portSpec?.busSide||-1)*(Number(sym.width)||.05)/2;
+    if(portSpec)portSpec.offsetRatio=offset/len;
     return horiz
-      ?[Number((sx+ratio*len).toFixed(4)),Number(sy.toFixed(4))]
-      :[Number(sx.toFixed(4)),Number((sy+ratio*len).toFixed(4))];
+      ?[Number((sx+offset).toFixed(4)),Number((sy+edge).toFixed(4))]
+      :[Number((sx+edge).toFixed(4)),Number((sy+offset).toFixed(4))];
   }
+  const idx=Number(portSpec?.idx??0),a=(Number(sym.rot)||0)*Math.PI/180;
+  let dx=0,dy=0;
   if(sym.stype==='Branch'){
-    const idx=Number(portSpec?.idx??0);
-    const rotRad=((Number(sym.rot)||0)*Math.PI)/180;
-    const step=0.18;
-    if(sym.psse==='TWTransformer'&&idx===2){
-      return [Number((sx+Math.cos(rotRad)*step).toFixed(4)),Number((sy-Math.sin(rotRad)*step).toFixed(4))];
-    }
-    const sign=idx===0?1:-1;
-    const dx=Math.sin(rotRad)*step*sign,dy=Math.cos(rotRad)*step*sign;
-    return [Number((sx+dx).toFixed(4)),Number((sy+dy).toFixed(4))];
-  }
-  return [Number(sx.toFixed(4)),Number(sy.toFixed(4))];
+    const step=sym.psse==='Transformer'||sym.psse==='TWTransformer'||sym.sdef===10 ? .2 : .116;
+    dx=idx===0?-step:step;
+    if(sym.psse==='TWTransformer'&&idx===2){dx=0;dy=-.2;}
+  }else if(sym.stype==='Radial')dy=({2:.082,4:.099,5:.13})[sym.sdef]||0;
+  return [Number((sx+Math.cos(a)*dx-Math.sin(a)*dy).toFixed(4)),Number((sy+Math.sin(a)*dx+Math.cos(a)*dy).toFixed(4))];
 }
 
 function ensureLinkPortAttachments(gaSld){
@@ -792,6 +1820,7 @@ function ensureLinkPortAttachments(gaSld){
       if(!side||side.sym===undefined)continue;
       const sym=symMap.get(side.sym);
       if(!sym)continue;
+      if(sym.stype==='Busbar'&&side.busSide===undefined){const axis=isBusbarHorizontal(sym)?1:0;side.busSide=(side.pos?.[axis]??sym.pos[axis])-sym.pos[axis]>=0?1:-1;}
       if(sym.stype==='Busbar'&&side.offsetRatio===undefined){
         side.offsetRatio=computeBusbarPortRatio(sym,side.pos||sym.pos);
       }
@@ -1447,6 +2476,62 @@ function getStationBusIndices(stationId){
   return {name:stName||stationId,indices};
 }
 
+function prepareNativeDiagram(doc){
+  if(doc._rawMainList)return;
+  let next=Math.max(...doc.components.map(c=>c.id))+1;
+  for(const sym of doc.components.filter(c=>c.t==='Symbol'&&c.stype==='Branch')){
+    const parts=String(sym.map||'').trim().split(/\s+/);
+    if(parts[0]==='LI'&&Number(parts[1])>Number(parts[2])){
+      [parts[1],parts[2]]=[parts[2],parts[1]];sym.map=parts.join(' ')+' ';
+      for(const l of doc.components.filter(c=>c.t==='Link'))for(const p of [l.p1,l.p2])if(p.sym===sym.id&&p.idx!==undefined)p.idx=p.idx===0?1:0;
+    }
+    const slot=parts[0]==='TR'?4:3;
+    if(!doc.components.some(c=>c.t==='Label'&&c.owner===sym.id&&c.lpos===slot))doc.components.push({id:next++,t:'Label',owner:sym.id,lpos:slot,layer:sym.layer,color:sym.color,pos:[sym.pos[0]+.2,sym.pos[1]+.2],rot:0,text:parts.at(-1)||'1',fh:8,readOnlyText:true});
+  }
+}
+
+function orthogonalizeLink(link){
+  if(!link?.p1?.pos||!link?.p2?.pos)return;
+  const points=[link.p1.pos,...(link.knees||[]),link.p2.pos],out=[points[0]];
+  for(const next of points.slice(1)){const prev=out.at(-1);if(Math.abs(prev[0]-next[0])>1e-5&&Math.abs(prev[1]-next[1])>1e-5)out.push([prev[0],next[1]]);out.push(next);}
+  link.knees=out.slice(1,-1);
+}
+
+function alignNativePorts(doc){
+  const byId=new Map(doc.components.map(c=>[c.id,c]));
+  for(const s of doc.components){if(s.t==='Symbol'&&s.stype==='Busbar'){s.len=Math.max(.4,Math.round(s.len*10)/10);s.width=Math.max(.05,Math.round((s.width||.05)/.05)*.05);recomputeBusbarEnds(s);}}
+  for(const l of doc.components.filter(c=>c.t==='Link'))for(const [key,first] of [['p1',true],['p2',false]]){
+    const p=l[key],sym=byId.get(p.sym);if(!sym)continue;
+    const neighbor=first?(l.knees?.[0]||l.p2.pos):(l.knees?.at(-1)||l.p1.pos);
+    if(sym.stype==='Busbar'){
+      const horiz=isBusbarHorizontal(sym),normal=neighbor[horiz?1:0]-sym.pos[horiz?1:0];
+      p.busSide=normal>=0?1:-1;
+      p.offsetRatio=computeBusbarPortRatio(sym,p.pos);
+    }
+    const old=[...p.pos];p.pos=getPortWorldPos(sym,p);
+    if(l.knees?.length){const k=first?l.knees[0]:l.knees.at(-1);if(Math.abs(k[0]-old[0])<1e-3)k[0]=p.pos[0];if(Math.abs(k[1]-old[1])<1e-3)k[1]=p.pos[1];}
+  }
+  for(const link of doc.components.filter(c=>c.t==='Link'))orthogonalizeLink(link);
+}
+
+function optimizeGeneratedLayout(doc){
+  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+  const measureText=label=>{const size=Number(label.fh)||9;ctx.font=size+'px Arial';return {width:Math.max(...String(label.text||'').split('\n').map(line=>ctx.measureText(line).width))/SLD_SCALE,height:size*1.2*String(label.text||'').split('\n').length/SLD_SCALE};};
+  // Preserve the station/voltage arrangement produced by the graph builder;
+  // compact local clearance and A* rerouting are reversible geometry changes.
+  const options={preservePositions:true,preserveBusPorts:true,retainBetterRoutes:true,constrainBounds:true,resolveSymbolCollisions:true,crossingWeight:25,routeCrossingPenalty:10,refineRoutes:true,compressedFallback:doc.components.length>300,maxCompressedNodes:10000,maxRouteNodes:2500,measureText:label=>{const m=measureText(label);return {width:Math.max(.25,m.width),height:Math.max(.22,m.height)};}};
+  prepareNativeDiagram(doc);
+  alignNativePorts(doc);
+  const baseline=structuredClone(doc);
+  const before=measureMetroLayout(doc,options);
+  const applied=applyMetroLayout(doc,options);
+  alignNativePorts(doc);
+  const after={...measureMetroLayout(doc,options),runtimeMs:applied.runtimeMs};
+  doc.layoutMetrics={before,after};
+  Object.defineProperty(doc,'_layoutBaseline',{value:baseline,enumerable:false,configurable:true});
+  return doc;
+}
+
 function buildTmGaSld(stationId,orientation='horizontal'){
   const n=network(),m=model();
   if(!n||!m)return null;
@@ -1667,7 +2752,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     comps.push({
       id:idSeq++,t:'Label',owner:cid,layer:lyr,color:0xdce7f3,
       pos:[Number((fx+(isHoriz?0:0.65)).toFixed(4)),Number((fy+(isHoriz?0.36:0)).toFixed(4))],
-      rot:0,text:`→ ${otherName.slice(0,18)} (${b2}) ckt ${ckt}`,fh:8
+      rot:0,text:`> ${otherName.slice(0,18)} (${b2}) ckt ${ckt}`,fh:8
     });
     const p2Spec={sym:cid,idx:0};p2Spec.pos=getPortWorldPos(fSym,p2Spec);
     comps.push({
@@ -1720,7 +2805,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   };
   ensureLinkPortAttachments(gaDoc);
   resolveGaSldOverlaps(gaDoc);
-  return gaDoc;
+  return optimizeGeneratedLayout(gaDoc);
 }
 
 function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal'){
@@ -1732,7 +2817,7 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
 
   const isHoriz=orientation!=='vertical';
   const selectedIdx=new Set(selected.map(o=>o.i));
-  const allBranches=n.branches.filter(b=>b.kind!=='three-winding-leg'&&b.status===1&&(selectedIdx.has(b.from)||selectedIdx.has(b.to)));
+  const allBranches=n.branches.filter(b=>b.kind!=='three-winding-leg'&&(selectedIdx.has(b.from)||selectedIdx.has(b.to)));
 
   // Group buses by primary representative bus per substation (plus keep all selected buses mapped)
   const groups=new Map(),byBusIdx=new Map();
@@ -1851,10 +2936,10 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
   // Route inter-substation links with orthogonal 90° lanes
   let laneIdx=0;
   for(const pair of pairs.values()){
-    const s1=groupSymMap.get(pair.g1),s2=groupSymMap.get(pair.g2);
+   for(const br of pair.branches){
+    const s1=groupSymMap.get(byBusIdx.get(br.from)),s2=groupSymMap.get(byBusIdx.get(br.to));
     if(!s1||!s2)continue;
-    const g1=groups.get(pair.g1),g2=groups.get(pair.g2);
-    const br=pair.branches[0];
+    const g1=groups.get(byBusIdx.get(br.from)),g2=groups.get(byBusIdx.get(br.to));
     const fBus=n.buses[br.from],tBus=n.buses[br.to];
     const b1=fBus?.externalNumber||fBus?.connectionKey||'0',b2=tBus?.externalNumber||tBus?.connectionKey||'0';
     const ckt=String(br.windingId||'1').trim();
@@ -1870,13 +2955,10 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
     const brSym={
       id:cid,t:'Symbol',stype:'Branch',psse:br.kind==='transformer'?'Transformer':'Branch',
       sdef:br.kind==='transformer'?10:32,layer:lyr,
-      map:`${br.kind==='transformer'?'TR':'LI'} ${b1} ${b2} ${ckt} `,
+      sourceId:br.id,map:`${br.kind==='transformer'?'TR':'LI'} ${b1} ${b2} ${ckt} `,
       pos:[mx,my],rot:0,color:colBgr
     };
     comps.push(brSym);
-    if(pair.branches.length>1){
-      comps.push({id:idSeq++,t:'Label',owner:cid,layer:lyr,color:0xdce7f3,pos:[Number((mx+0.28).toFixed(4)),Number((my+0.18).toFixed(4))],rot:0,text:`${pair.branches.length}x devre`,fh:7.5});
-    }
     const bp0={sym:cid,idx:0};bp0.pos=getPortWorldPos(brSym,bp0);
     const bp1={sym:cid,idx:1};bp1.pos=getPortWorldPos(brSym,bp1);
     comps.push({
@@ -1889,8 +2971,10 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
     });
   }
 
+   }
+
   // Place boundary feeders on right column
-  const extList=[...external.values()].sort((a,b)=>a.name.localeCompare(b.name,'tr')).slice(0,18);
+  const extList=[...external.values()].sort((a,b)=>a.name.localeCompare(b.name,'tr'));
   const extX=Number(((cols/2+0.95)*cellX).toFixed(3));
   extList.forEach((ext,eIdx)=>{
     const extY=Number((((extList.length-1)/2-eIdx)*1.45).toFixed(3));
@@ -1907,18 +2991,19 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
       pos:[extX,Number((extY+0.28).toFixed(4))],rot:0,
       text:`[SINIR] ${ext.name.slice(0,18)} (${bNum})`,fh:7.8
     });
-    for(const inGId of ext.innerGroups){
+    for(const br of ext.branches){
+      const inGId=byBusIdx.get(br.from)||byBusIdx.get(br.to);
+      const insideFrom=byBusIdx.has(br.from);
       const sIn=groupSymMap.get(inGId);if(!sIn)continue;
       const p1Spec=allocSymPort(sIn,groups.get(inGId)?.deg||3);
       const p2Spec=allocSymPort(extSym,ext.innerGroups.size+1);
-      const br=ext.branches[0];
       const fB=n.buses[br.from]?.externalNumber||br.terminalFrom,tB=n.buses[br.to]?.externalNumber||br.terminalTo;
       const brId=idSeq++;
       const mx=Number(((p1Spec.pos[0]+p2Spec.pos[0])/2).toFixed(4)),my=Number(((p1Spec.pos[1]+p2Spec.pos[1])/2).toFixed(4));
-      const bSym={id:brId,t:'Symbol',stype:'Branch',psse:'Branch',sdef:32,layer:3,map:`LI ${fB} ${tB} 1 `,pos:[mx,my],rot:0,color:hexToBgr('#eebc69')};
+      const bSym={id:brId,t:'Symbol',stype:'Branch',psse:'Branch',sdef:32,layer:3,sourceId:br.id,map:`${br.kind==='transformer'?'TR':'LI'} ${fB} ${tB} ${br.windingId||'1'} `,pos:[mx,my],rot:0,color:hexToBgr('#eebc69')};
       comps.push(bSym);
-      const bp0={sym:brId,idx:0};bp0.pos=getPortWorldPos(bSym,bp0);
-      const bp1={sym:brId,idx:1};bp1.pos=getPortWorldPos(bSym,bp1);
+      const bp0={sym:brId,idx:insideFrom?0:1};bp0.pos=getPortWorldPos(bSym,bp0);
+      const bp1={sym:brId,idx:insideFrom?1:0};bp1.pos=getPortWorldPos(bSym,bp1);
       comps.push({id:idSeq++,t:'Link',layer:3,color:hexToBgr('#eebc69'),lwidth:0.018,lstyle:1,p1:p1Spec,p2:bp0,knees:buildOrthogonalKnees(p1Spec.pos,bp0.pos,sIn,bSym)});
       comps.push({id:idSeq++,t:'Link',layer:3,color:hexToBgr('#eebc69'),lwidth:0.018,lstyle:1,p1:p2Spec,p2:bp1,knees:buildOrthogonalKnees(p2Spec.pos,bp1.pos,extSym,bSym)});
     }
@@ -1935,7 +3020,7 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
   };
   ensureLinkPortAttachments(gaDoc);
   resolveGaSldOverlaps(gaDoc);
-  return gaDoc;
+  return optimizeGeneratedLayout(gaDoc);
 }
 
 /* Part 4: Document Lifecycle, Live Drag Engine, 4-Tab Diagram Settings Modal & Strict Native Export */
@@ -1955,6 +3040,25 @@ function getSldDb(){
   });
 }
 
+function portableGaSld(doc){
+  if(!doc)return null;
+  const {rawBytes,_rawMainList,_rawLayers,_rawGroups,_rawViews,...rest}=doc;
+  return {...rest,modelHash:hash(),components:doc.components.map(c=>{const {_rawObj,_rawKnees,...item}=c;return item;})};
+}
+function nativeFingerprint(bytes){
+  let h=2166136261;for(const b of bytes)h=Math.imul(h^b,16777619);
+  return bytes.length+':'+(h>>>0).toString(16);
+}
+function nativeToBase64(bytes){let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);}
+function projectNative(d){const b=state.nativeBytes.get(d.id);return b?{base64:nativeToBase64(b),fingerprint:nativeFingerprint(b),modelHash:d.modelHash}:null;}
+function restoreProjectNative(record){
+  if(!record)return null;
+  if(record.modelHash!==hash())throw Error('Native modelHash uyuşmazlığı');
+  const b=Uint8Array.from(atob(record.base64),c=>c.charCodeAt(0));
+  if(nativeFingerprint(b)!==record.fingerprint)throw Error('Native veri özeti uyuşmazlığı');
+  parseSldBinary(b);return b;
+}
+
 async function saveToDb(docs,activeId,nativeMap,globalSettings,h){
   const db=await getSldDb();
   if(!db)return;
@@ -1962,13 +3066,13 @@ async function saveToDb(docs,activeId,nativeMap,globalSettings,h){
   const docStore=tx.objectStore('docs'),blobStore=tx.objectStore('blobs');
   for(const d of docs){
     docStore.put({
-      id:d.id,name:d.name,origin:d.origin,modelHash:h,stationId:d.stationId,owner:d.owner,
+      id:d.id,name:d.name,origin:d.origin,modelHash:d.modelHash,stationId:d.stationId,owner:d.owner,
       voltageFilter:d.voltageFilter,svg:d.svg,notice:d.notice,gaSld:d.gaSld,settings:d.settings,
       structModified:d.structModified,createdAt:d.createdAt,modifiedAt:d.modifiedAt,
       dirty:d.dirty,isActive:d.id===activeId
     });
     const bin=nativeMap.get(d.id);
-    if(bin)blobStore.put(bin,d.id);
+    if(bin)blobStore.put({bytes:bin,fingerprint:nativeFingerprint(bin),modelHash:d.modelHash},d.id);
   }
 }
 
@@ -1996,15 +3100,21 @@ async function restore(){
     const db=await getSldDb();
     if(db){
       const tx=db.transaction(['docs','blobs'],'readonly');
-      const docsReq=tx.objectStore('docs').getAll();
-      const docs=await new Promise(r=>{docsReq.onsuccess=()=>r(docsReq.result||[]);docsReq.onerror=()=>r([]);});
-      const validDocs=docs.filter(d=>d&&d.modelHash===h);
+      const reqValue=req=>new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+      const [docs,blobKeys,blobValues]=await Promise.all([reqValue(tx.objectStore('docs').getAll()),reqValue(tx.objectStore('blobs').getAllKeys()),reqValue(tx.objectStore('blobs').getAll())]);
+      if(h!==hash())return;
+      const blobMap=new Map(blobKeys.map((key,i)=>[key,blobValues[i]]));
+      const validDocs=docs.filter(d=>d&&d.modelHash===h&&d.gaSld);
+      state.docs=[];state.doc=null;state.nativeBytes.clear();
       if(validDocs.length>0){
-        state.docs=validDocs;
         for(const d of validDocs){
-          const blobReq=tx.objectStore('blobs').get(d.id);
-          const bin=await new Promise(r=>{blobReq.onsuccess=()=>r(blobReq.result);blobReq.onerror=()=>r(null);});
-          if(bin)state.nativeBytes.set(d.id,bin);
+          const record=blobMap.get(d.id);
+          if(record){
+            if(record.modelHash!==h||!record.bytes||nativeFingerprint(record.bytes)!==record.fingerprint){toast('Kayıtlı native veri/model özeti uyuşmuyor; sekme atlandı.','error');continue;}
+            try{parseSldBinary(record.bytes);}catch{continue;}
+            state.nativeBytes.set(d.id,record.bytes);
+          }
+          state.docs.push(d);
         }
         const actDoc=state.docs.find(d=>d.isActive)||state.docs[0];
         if(actDoc)activate(actDoc.id);
@@ -2016,7 +3126,7 @@ async function restore(){
     const j=JSON.parse(localStorage.getItem(KEY)||'null');
     if(j?.globalSettings)state.globalSettings=Object.assign(defaultDiagramSettings(),j.globalSettings);
     if(j?.modelHash===h&&Array.isArray(j.documents)){
-      state.docs=j.documents.filter(d=>d&&typeof d.id==='string').slice(0,30);
+      state.docs=j.documents.filter(d=>d&&typeof d.id==='string'&&d.gaSld&&d.modelHash===h).slice(0,30);
       state.doc=state.docs.find(d=>d.id===j.active)??state.docs[0]??null;
     }
   }catch(e){}
@@ -2282,33 +3392,13 @@ function newOwner(ownerOverride=''){
   });
 }
 
-function setBusOrientation(orient){
+function setBusOrientation(orient,recordHistory=true){
+  if(recordHistory&&state.doc?.gaSld)commit();
   const norm=orient==='vertical'?'vertical':'horizontal';
   state.globalSettings.layout.busOrientation=norm;
   if(state.doc?.settings)state.doc.settings.layout.busOrientation=norm;
   applyStageVisualSettings();
   if(!state.doc||!state.doc.gaSld)return;
-  commit();
-  if(state.doc.origin==='TM_AUTO'&&state.doc.stationId&&network()){
-    const rebuilt=buildTmGaSld(state.doc.stationId,norm);
-    if(rebuilt){
-      state.doc.gaSld=rebuilt;
-      refreshGaSldCanvas(false);
-      fit();
-      toast(`TM şeması ${norm==='horizontal'?'YATAY':'DİKEY'} bara düzenine geçirildi.`,'ok');
-      return;
-    }
-  }
-  if(state.doc.origin==='OWNER_AUTO'&&state.doc.owner&&network()){
-    const rebuilt=buildOwnerGaSld(state.doc.owner,state.doc.voltageFilter||'all',norm);
-    if(rebuilt){
-      state.doc.gaSld=rebuilt;
-      refreshGaSldCanvas(false);
-      fit();
-      toast(`OWNER şeması ${norm==='horizontal'?'YATAY':'DİKEY'} bara düzenine geçirildi.`,'ok');
-      return;
-    }
-  }
   // For NATIVE_SLD or custom selection, rotate selected busbars or all busbars to match requested orientation
   const targetRot=norm==='horizontal'?90:0;
   const selComp=state.selection?.dataset?.sldId?findGaSldComp(state.selection.dataset.sldId):null;
@@ -2316,7 +3406,7 @@ function setBusOrientation(orient){
     resizeOrRotateBusbar(selComp,selComp.len,selComp.width,targetRot,state.doc.gaSld);
   }else{
     for(const c of state.doc.gaSld.components){
-      if(c.t==='Symbol'&&c.stype==='Busbar'){
+      if(c.t==='Symbol'&&c.stype==='Busbar'&&!c.locked&&!c.manual){
         resizeOrRotateBusbar(c,c.len,c.width,targetRot,state.doc.gaSld);
       }
     }
@@ -2427,6 +3517,7 @@ function selectNode(el,additive=false){
     }
   }
   updateContextBar(el);
+  updateTextLod();
 }
 
 function updateLiveSvgForMovedSymbol(sym){
@@ -2493,7 +3584,7 @@ function handleKneeOrRouteToolClick(p,el){
     const kIdx=Number(el.dataset.kneeIdx);
     if(lk&&Array.isArray(lk.knees)&&lk.knees[kIdx]!==undefined){
       commit();
-      lk.knees.splice(kIdx,1);
+      lk.knees.splice(kIdx,1);orthogonalizeLink(lk);
       refreshGaSldCanvas(true);
       toast(`Knee-point silindi (Bağ #${lk.id}).`,'ok');
     }
@@ -2525,9 +3616,9 @@ function handleKneeOrRouteToolClick(p,el){
     const [x1,y1]=pts[bestIdx],[x2,y2]=pts[bestIdx+1];
     const isHoriz=Math.abs(x2-x1)>=Math.abs(y2-y1);
     if(isHoriz){
-      lk.knees.splice(bestIdx,0,[kx,y1],[kx,ky]);
+      lk.knees.splice(bestIdx,0,[kx,y1],[kx,ky],[x2,ky]);
     }else{
-      lk.knees.splice(bestIdx,0,[x1,ky],[kx,ky]);
+      lk.knees.splice(bestIdx,0,[x1,ky],[kx,ky],[kx,y2]);
     }
     refreshGaSldCanvas(true);
     toast(`90° Dik Knee-point çifti eklendi (Bağ #${lk.id} · toplam ${lk.knees.length}).`,'ok');
@@ -2564,6 +3655,18 @@ function ungroupSelected(){
   else{toast('Seçili grupta çözülecek eleman bulunamadı.','warn');}
 }
 
+function focusBusNeighborhood(startId,depth){
+  const comps=state.doc?.gaSld?.components||[],byId=new Map(comps.map(c=>[c.id,c])),adj=new Map();
+  for(const l of comps.filter(c=>c.t==='Link'))for(const [a,b] of [[l.p1?.sym,l.p2?.sym],[l.p2?.sym,l.p1?.sym]]){if(!adj.has(a))adj.set(a,[]);adj.get(a).push(b);}
+  const seen=new Set([startId]),queue=[[startId,0]];
+  for(let i=0;i<queue.length;i++){const [id,d]=queue[i];for(const next of adj.get(id)||[]){if(seen.has(next))continue;const c=byId.get(next),isBus=c?.stype==='Busbar'||c?.stype==='Node'&&/^BU\s/.test(c.map||'');const nd=d+(isBus?1:0);if(nd>depth)continue;seen.add(next);queue.push([next,nd]);}}
+  const nodes=$$('.ga-studio-sld-symbol',state.svg).filter(el=>seen.has(Number(el.dataset.sldId)));
+  selectNode(null);for(const el of nodes){el.classList.add('ga-studio-multi-selected');state.multiSelect.add(el);}
+  const boxes=nodes.map(el=>el.getBBox());
+  if(boxes.length){const x=Math.min(...boxes.map(b=>b.x))-70,y=Math.min(...boxes.map(b=>b.y))-70,x2=Math.max(...boxes.map(b=>b.x+b.width))+70,y2=Math.max(...boxes.map(b=>b.y+b.height))+70;state.svg.setAttribute('viewBox',`${x} ${y} ${x2-x} ${y2-y}`);}
+  return [...seen].filter(id=>byId.get(id)?.stype==='Busbar'||/^BU\s/.test(byId.get(id)?.map||''));
+}
+
 function showBusbarPopup(busComp,clientX,clientY){
   hideBusbarPopup();
   const popup=E('div','ga-studio-bus-popup');
@@ -2573,26 +3676,32 @@ function showBusbarPopup(busComp,clientX,clientY){
   popup.append(E('strong','',`Bara #${busComp.id} Biçimlendir`),E('hr'));
   const btnFlat=E('button','','━ Düz Bara (Standart)');
   btnFlat.onclick=()=>{
-    commit();busComp.stype='Busbar';busComp.len=busComp.len&&busComp.len>4?busComp.len:16.0;busComp.width=0.4;
+    commit();busComp.stype='Busbar';busComp.psse='Busbar';busComp.sdef=1;busComp.len=busComp.savedBarLen||4;busComp.width=0.4;
     recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
     toast(`Bara #${busComp.id} Düz Bara olarak ayarlandı.`,'ok');
   };
   const btnDot=E('button','','● Nokta / Daire Bara');
   btnDot.onclick=()=>{
-    commit();busComp.stype='Busbar';busComp.len=0.4;busComp.width=0.4;
+    commit();busComp.savedBarLen=busComp.len;busComp.stype='Node';busComp.psse='BusNode';busComp.sdef=0;delete busComp.len;delete busComp.width;delete busComp.ends;
+    translateGaSldSymbol(busComp,0,0,state.doc.gaSld);
     recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
     toast(`Bara #${busComp.id} Nokta/Daire Bara olarak ayarlandı.`,'ok');
   };
   const btnShort=E('button','','─ Kısa Bara');
   btnShort.onclick=()=>{
-    commit();busComp.stype='Busbar';busComp.len=4.0;busComp.width=0.4;
+    commit();busComp.stype='Busbar';busComp.psse='Busbar';busComp.sdef=1;busComp.len=4.0;busComp.width=0.4;
     recomputeBusbarEnds(busComp);refreshGaSldCanvas(true);hideBusbarPopup();
     toast(`Bara #${busComp.id} Kısa Bara olarak ayarlandı.`,'ok');
   };
   const btnClose=E('button','','Kapat');
   btnClose.onclick=()=>hideBusbarPopup();
+  const connected=state.doc.gaSld.components.filter(c=>c.t==='Link'&&(c.p1?.sym===busComp.id||c.p2?.sym===busComp.id));
+  popup.append(E('span','',`${busComp.map||'Bara'} · ${connected.length} bağlı port`));
+  for(const depth of [1,2,Infinity]){const b=E('button','',`${depth===Infinity?'N':depth} kademe gerçek komşu bara`);b.onclick=()=>{focusBusNeighborhood(busComp.id,depth);hideBusbarPopup();};popup.append(b);}
   popup.append(btnFlat,btnDot,btnShort,E('hr'),btnClose);
-  document.body.append(popup);
+  popup.setAttribute('popover','manual');
+  state.host.append(popup);popup.showPopover();
+  popup.style.top=Math.max(8,Math.min(clientY+10,innerHeight-popup.getBoundingClientRect().height-8))+'px';
   state.busPopup=popup;
 }
 
@@ -2600,12 +3709,42 @@ function hideBusbarPopup(){
   if(state.busPopup){state.busPopup.remove();state.busPopup=null;}
 }
 
+function updateTextLod(){
+  const svg=state.svg;if(!svg)return;
+  const scale=Math.abs(svg.getScreenCTM()?.a||1), occupied=new Map();
+  const groups=$$('.ga-studio-sld-label',svg);
+  const symbolMap=new Map((state.doc?.gaSld?.components||[]).filter(c=>c.t==='Symbol').map(c=>[c.id,c]));
+  const labels=new Map((state.doc?.gaSld?.components||[]).filter(c=>c.t==='Label').map(c=>[c.id,c]));
+  groups.sort((a,b)=>Number(symbolMap.get(labels.get(Number(b.dataset.sldId))?.owner)?.stype==='Busbar')-Number(symbolMap.get(labels.get(Number(a.dataset.sldId))?.owner)?.stype==='Busbar'));
+  for(const g of groups){
+    const text=$('text',g);if(!text)continue;
+    const base=Number(text.dataset.baseFont||text.getAttribute('font-size')||9);text.dataset.baseFont=String(base);
+    const c=labels.get(Number(g.dataset.sldId)), selected=g===state.selection||state.selection?.dataset?.sldId===String(c?.owner);
+    const overview=base*scale<10.5;
+    g.style.display='';
+    if(overview&&!selected&&symbolMap.get(c?.owner)?.stype!=='Busbar'){g.style.display='none';continue;}
+    text.setAttribute('font-size',String(overview?11/scale:base));
+    const box=text.getBoundingClientRect(), keys=[];let collision=false;
+    for(let x=Math.floor(box.left/80);x<=Math.floor(box.right/80);x++)for(let y=Math.floor(box.top/30);y<=Math.floor(box.bottom/30);y++){
+      const k=x+':'+y;keys.push(k);
+      for(const b of occupied.get(k)||[])if(box.left<b.right+3&&box.right>b.left-3&&box.top<b.bottom+3&&box.bottom>b.top-3)collision=true;
+    }
+    if(overview&&collision&&!selected){g.style.display='none';continue;}
+    for(const k of keys){if(!occupied.has(k))occupied.set(k,[]);occupied.get(k).push(box);}
+  }
+}
+
 function bindSvg(){
   const svg=state.svg;if(!svg)return;
-  svg.removeAttribute('width');svg.removeAttribute('height');
+  svg.removeAttribute('width');svg.removeAttribute('height');svg.setAttribute('tabindex','0');
   svg.style.width='100%';svg.style.height='100%';svg.style.touchAction='none';
+  state.lodObserver?.disconnect();
+  state.lodObserver=new MutationObserver(()=>updateTextLod());
+  state.lodObserver.observe(svg,{attributes:true,attributeFilter:['viewBox']});
+  requestAnimationFrame(updateTextLod);
 
   svg.addEventListener('pointerdown',e=>{
+    svg.focus({preventScroll:true});
     if(e.button!==0)return;
     const p=toPoint(e),el=target(e);
     if(state.mode==='route90'||state.mode==='knee'){
@@ -2645,12 +3784,17 @@ function bindSvg(){
         d.changed=true;
       }
     }else if(d.mode==='move'&&Math.abs(dx)+Math.abs(dy)>0.02){
-      const targets=state.multiSelect.size>1?[...state.multiSelect]:[d.el];
+      let targets=state.multiSelect.size>1?[...state.multiSelect]:[d.el];
+      const groupId=findGaSldComp(d.el?.dataset?.sldId)?.groupId;
+      if(groupId)targets=$$('[data-sld-id]',state.svg).filter(el=>findGaSldComp(el.dataset.sldId)?.groupId===groupId);
+      const movingIds=new Set(targets.map(el=>Number(el.dataset.sldId)));
+      targets=targets.filter(el=>{const c=findGaSldComp(el.dataset.sldId);return c?.t!=='Label'||!movingIds.has(c.owner);});
       const sdx=dx/SLD_SCALE,sdy=-dy/SLD_SCALE;
       for(const item of targets){
         if(state.doc?.gaSld&&item?.dataset?.sldId){
           const c=findGaSldComp(item.dataset.sldId);
-          if(c){
+          if(c&&!c.locked){
+            c.manual=true;
             if(c.t==='Symbol'){
               translateGaSldSymbol(c,sdx,sdy,state.doc.gaSld);
               updateLiveSvgForMovedSymbol(c);
@@ -2694,6 +3838,8 @@ function bindSvg(){
     svg.setAttribute('viewBox',`${p.x-(p.x-vb.x)*nw/vb.w} ${p.y-(p.y-vb.y)*nh/vb.h} ${nw} ${nh}`);
     snapshot();
   },{passive:false});
+
+  svg.addEventListener('contextmenu',e=>{const el=target(e),c=findGaSldComp(el?.dataset?.sldId);if(c&&/^BU\s/.test(c.map||'')){e.preventDefault();showBusbarPopup(c,e.clientX,e.clientY);}});
 
   svg.addEventListener('dblclick',e=>{
     const el=target(e);
@@ -2806,7 +3952,8 @@ function rotateSelected(){
 function resolveOverlaps(){
   if(!state.doc?.gaSld)return 0;
   commit();
-  const moved=resolveGaSldOverlaps(state.doc.gaSld);
+  const metrics=optimizeGeneratedLayout(state.doc.gaSld).layoutMetrics;
+  const moved=metrics.before.labelCollisions-metrics.after.labelCollisions;
   refreshGaSldCanvas(true);
   toast(`Etiket ve sembol çakışma azaltma tamamlandı (${moved} çakışma düzeltildi).`,'ok');
   return moved;
@@ -2883,7 +4030,7 @@ async function exportNativeSldAs(){
 function exportGaSldJson(){
   if(!state.doc?.gaSld)return;
   ensureLinkPortAttachments(state.doc.gaSld);
-  exportFile(JSON.stringify(state.doc.gaSld,null,2),basename()+'.gasld.json','application/json;charset=utf-8');
+  exportFile(JSON.stringify(portableGaSld(state.doc.gaSld),null,2),basename()+'.gasld.json','application/json;charset=utf-8');
   toast(`${basename()}.gasld.json indirildi.`,'ok');
 }
 
@@ -2921,12 +4068,14 @@ function exportProject(){
     source:{modelHash:hash(),sourceSha256:network()?.sourceSha256,name:network()?.sourceName},
     active:state.doc?.id,
     globalSettings:state.globalSettings,
-    documents:state.docs.map(d=>({id:d.id,name:d.name,origin:d.origin,modelHash:d.modelHash,stationId:d.stationId,owner:d.owner,voltageFilter:d.voltageFilter,svg:d.svg,gaSld:d.gaSld,settings:d.settings}))
+    documents:state.docs.map(d=>({id:d.id,name:d.name,origin:d.origin,modelHash:d.modelHash,stationId:d.stationId,owner:d.owner,voltageFilter:d.voltageFilter,svg:d.svg,gaSld:portableGaSld(d.gaSld),native:projectNative(d),settings:d.settings}))
   };
   exportFile(JSON.stringify(work,null,2),'GridAnalyzer_SLD_Proje.json','application/json;charset=utf-8');
 }
 
 function importProject(json){
+  const inputHash=json?.source?.modelHash??json?.modelHash;
+  if(inputHash&&inputHash!==hash())throw Error('Proje modelHash uyuşmazlığı; farklı SAV ile eşleştirme reddedildi.');
   if(json?.format==='ga-sld-v1'&&Array.isArray(json.components)){
     ensureLinkPortAttachments(json);
     createDoc({name:json.name||json.title||'SLD_Diagram.sld',origin:'NATIVE_SLD',gaSld:json,notice:'ga-sld-v1 diyagramı içe aktarıldı.'});
@@ -2940,7 +4089,10 @@ function importProject(json){
   for(const d of json.documents.slice(0,30)){
     if(d.gaSld){
       ensureLinkPortAttachments(d.gaSld);
-      createDoc({name:d.name||'Aktarılan',origin:d.origin||'NATIVE_SLD',gaSld:d.gaSld,settings:d.settings,owner:d.owner,stationId:d.stationId});
+      const rawBytes=restoreProjectNative(d.native);
+      let restored=d.gaSld;
+      if(rawBytes){const parsed=parseSldBinary(rawBytes);restored={...parsed,...d.gaSld,components:d.gaSld.components};}
+      createDoc({name:d.name||'Aktarılan',origin:d.origin||'NATIVE_SLD',gaSld:restored,rawBytes,settings:d.settings,owner:d.owner,stationId:d.stationId});
       count++;
     }
   }
@@ -2950,8 +4102,7 @@ function importProject(json){
 async function importOne(file){
   const suffix=file.name.split('.').pop()?.toLowerCase();
   if(suffix==='json'){
-    try{importProject(JSON.parse(await file.text()));}catch(e){toast('JSON Hatası: '+e.message,'error');}
-    return {ok:true};
+    try{importProject(JSON.parse(await file.text()));return {ok:true};}catch(e){toast('JSON Hatası: '+e.message,'error');return {ok:false,error:e.message};}
   }
   if(suffix==='sld'){
     const bytes=new Uint8Array(await file.arrayBuffer());
@@ -3182,14 +4333,15 @@ function openDiagramSettingsModal(){
     backdrop.classList.remove('is-open');
   };
   state.refs.settingsApplyBtn.onclick=()=>{
+    if(state.doc){state.doc.settings=structuredClone(originalBackup);commit();}
     const prevOrient=originalBackup.layout.busOrientation;
     state.globalSettings=structuredClone(working);
     if(state.doc){
       state.doc.settings=structuredClone(working);
       if(working.layout.busOrientation!==prevOrient){
-        setBusOrientation(working.layout.busOrientation);
+        setBusOrientation(working.layout.busOrientation,false);
       }else{
-        if(working.layout.autoResolveOverlaps)resolveGaSldOverlaps(state.doc.gaSld);
+        if(working.layout.autoResolveOverlaps&&!originalBackup.layout.autoResolveOverlaps)optimizeGeneratedLayout(state.doc.gaSld);
         refreshGaSldCanvas(true);
       }
     }
@@ -3239,7 +4391,7 @@ function openObjectInspectorModal(el=state.selection){
 
     let inTxt=null;
     if(sldComp.t==='Label'){
-      const fTxt=E('label','ga-studio-field','Etiket Metni');inTxt=E('textarea');inTxt.rows=3;inTxt.value=sldComp.text||'';fTxt.append(inTxt);
+      const fTxt=E('label','ga-studio-field','Etiket Metni');inTxt=E('textarea');inTxt.rows=3;inTxt.value=sldComp.text||'';inTxt.disabled=!!sldComp.readOnlyText;fTxt.append(inTxt);
       editGrp.append(grid,fTxt);
     }else{
       editGrp.append(grid);
@@ -3253,6 +4405,7 @@ function openObjectInspectorModal(el=state.selection){
 
     state.refs.inspectorApplyBtn.onclick=()=>{
       commit();
+      sldComp.manual=true;
       const nx=nval(inX.value,sldComp.pos[0]),ny=nval(inY.value,sldComp.pos[1]);
       const dx=nx-sldComp.pos[0],dy=ny-sldComp.pos[1];
       if(sldComp.t==='Symbol'){
@@ -3375,6 +4528,26 @@ function createModals(host){
   host.append(sb,ib);
 }
 
+function closeStudioPopover(drop,menu){
+  if(menu.matches(':popover-open'))menu.hidePopover();
+  drop.classList.remove('is-open');
+  drop.querySelector('button')?.setAttribute('aria-expanded','false');
+}
+function bindStudioPopover(drop,button,menu){
+  menu.setAttribute('popover','manual');menu.setAttribute('role','menu');
+  button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');
+  button.onclick=e=>{
+    e.stopPropagation();
+    if(menu.matches(':popover-open')){closeStudioPopover(drop,menu);return;}
+    drop.classList.add('is-open');menu.showPopover();
+    const b=button.getBoundingClientRect(),m=menu.getBoundingClientRect();
+    menu.style.left=Math.max(8,Math.min(b.left,innerWidth-m.width-8))+'px';
+    menu.style.top=Math.max(8,Math.min(b.bottom+4,innerHeight-m.height-8))+'px';
+    button.setAttribute('aria-expanded','true');
+  };
+  menu.addEventListener('keydown',e=>{if(e.key==='Escape'){closeStudioPopover(drop,menu);button.focus();}});
+}
+
 function controls(){
   const host=E('section','ga-sld-studio');host.id='ga-sld-studio';state.host=host;
 
@@ -3422,16 +4595,17 @@ function controls(){
   // Alignment dropdown
   const alignDrop=E('div','ga-studio-dropdown');
   const alignBtn=E('button','ga-studio-button',' align Hizala ▾');alignBtn.type='button';
-  alignBtn.onclick=(e)=>{e.stopPropagation();alignDrop.classList.toggle('is-open');};
+
   const alignMenu=E('div','ga-studio-menu');
   [
     ['Sola Hizala','left'],['Yatay Ortala','center-x'],['Üste Hizala','top'],
     ['Dikey Ortala','center-y'],['Yatay Eşit Dağıt','distribute-x'],['Dikey Eşit Dağıt','distribute-y']
   ].forEach(([lbl,m])=>{
-    const mb=E('button','',lbl);mb.onclick=()=>{alignDrop.classList.remove('is-open');alignSelected(m);};
+    const mb=E('button','',lbl);mb.onclick=()=>{closeStudioPopover(alignDrop,alignMenu);alignSelected(m);};
     alignMenu.append(mb);
   });
   alignDrop.append(alignBtn,alignMenu);
+  bindStudioPopover(alignDrop,alignBtn,alignMenu);
   line.append(alignDrop);
 
   act('↻ 90° Döndür',rotateSelected,'Seçili barayı veya sembolü 90° döndür (R)');
@@ -3449,13 +4623,14 @@ function controls(){
   // Secondary export & layers dropdown
   const moreDrop=E('div','ga-studio-dropdown');
   const moreBtn=E('button','ga-studio-button','Diğer / Dışa Aktar ▾');moreBtn.type='button';
-  moreBtn.onclick=(e)=>{e.stopPropagation();moreDrop.classList.toggle('is-open');};
+
   const moreMenu=E('div','ga-studio-menu');
-  const addMenuBtn=(lbl,fn)=>{const b=E('button','',lbl);b.onclick=()=>{moreDrop.classList.remove('is-open');fn();};moreMenu.append(b);};
+  const addMenuBtn=(lbl,fn)=>{const b=E('button','',lbl);b.onclick=()=>{closeStudioPopover(moreDrop,moreMenu);fn();};moreMenu.append(b);};
   addMenuBtn('🗂 Katman Görünürlüğü (Layers)...',openLayersModal);
   addMenuBtn('✎ Seçili Nesne Özellikleri...',()=>openObjectInspectorModal(state.selection));
   addMenuBtn('👥 Seçilileri Grupla',groupSelected);
   addMenuBtn('🔓 Grubu Çöz',ungroupSelected);
+  addMenuBtn('📌 Seçiliyi Kilitle / Kilidi Aç',()=>{const c=findGaSldComp(state.selection?.dataset?.sldId);if(c){commit();c.locked=!c.locked;if(!c.locked)c.manual=false;snapshot();toast(c.locked?'Nesne kilitlendi.':'Nesne kilidi açıldı.','ok');}});
   moreMenu.append(E('hr'));
   addMenuBtn('💾 PSS®E Native .sld Farklı Kaydet...',exportNativeSldAs);
   addMenuBtn('📄 .gasld.json İndir',exportGaSldJson);
@@ -3465,11 +4640,12 @@ function controls(){
   moreMenu.append(E('hr'));
   addMenuBtn('⧉ Aktif Sekmeyi Kopyala',()=>duplicateDoc());
   moreDrop.append(moreBtn,moreMenu);
+  bindStudioPopover(moreDrop,moreBtn,moreMenu);
   line.append(moreDrop);
 
   document.addEventListener('click',()=>{
-    alignDrop.classList.remove('is-open');
-    moreDrop.classList.remove('is-open');
+    closeStudioPopover(alignDrop,alignMenu);
+    closeStudioPopover(moreDrop,moreMenu);
   });
 
   // Full-width Workspace (Zero Left/Right Side Panels!)
@@ -3503,7 +4679,8 @@ function controls(){
 
   host.addEventListener('keydown',e=>{
     if(e.target.closest('input,textarea,select'))return;
-    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='g'){e.preventDefault();e.shiftKey?ungroupSelected():groupSelected();}
+    else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}
     else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}
     else if(e.key==='r'||e.key==='R'){e.preventDefault();rotateSelected();}
     else if(e.key==='f'||e.key==='F'){e.preventDefault();fit();}
@@ -3555,11 +4732,14 @@ window.GASldStudio={
   setBusOrientation,
   validateSldBinary,
   parseSldBinary,
+  serializeSldBinary,
+  measureMetroLayout,
+  applyMetroLayout,
   patchSldBinary,
   importOne,
   translateSymbolById:(id,dx,dy)=>{
     const c=findGaSldComp(id);if(!c)return false;
-    commit();translateGaSldSymbol(c,dx,dy,state.doc.gaSld);refreshGaSldCanvas(true);return true;
+    commit();c.manual=true;translateGaSldSymbol(c,dx,dy,state.doc.gaSld);refreshGaSldCanvas(true);return true;
   },
   exportNativeSld,
   exportGaSldJson,

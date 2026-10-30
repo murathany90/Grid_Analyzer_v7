@@ -79,3 +79,8 @@
 .psse-module .ga-studio-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:#0f2030;border-top:1px solid #31495e}
 .psse-module .ga-studio-modal-foot-right{display:flex;align-items:center;gap:6px}
 
+
+.psse-module .ga-studio-menu[popover]{position:fixed;inset:auto;margin:0;max-height:calc(100dvh - 16px);overflow-y:auto;color:#eaf2fa;z-index:100010}
+.psse-module .ga-studio-menu[popover]:popover-open{display:block}
+
+.psse-module .ga-studio-bus-popup[popover]{margin:0;inset:auto;max-height:calc(100dvh - 16px);overflow:auto}

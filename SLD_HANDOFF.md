@@ -1,9 +1,12 @@
 # SLD_HANDOFF
-- **Branch:** `fix/psse-sld-roundtrip-ui-v2`
-- **Native CArchive Serializer:** Köprüsüz `serializeSldBinary()` tamamlandı; PSS®E 36.5 (v2.0.51.1 & v2.0.49.3) tam binary yazımı sağlandı.
-- **Geometrik Parite (T1-T3):** Kayseri #100 taşıma (0.2,-0.2)->(1.7,0.55), ortogonal knee ekleme, Sincan TM (73 sym/77 link/427 label) ve Ankara 708 (416 sym/218 link/1704 label) %100 parite ile PSS®E 36.5 GUI'de test edilip doğrulandı.
-- **0 Symbol / 0 Link Parser Hatası:** `CSldLayer` (21/22 ObList) ve `CSldPointNode` v51 yapı farkları çözüldü, tüm nesneler eksiksiz okunuyor.
-- **UI & Ayarlar (T4):** Modal gövde yüksekliği 480px sabitlendi, Dışa Aktar menüsü z-index:100000 ile öne alındı, showBusId varsayılanı false yapıldı, Grupla/Grubu Çöz (Ctrl+G) ve bara popup eklendi.
-- **Oturum Kalıcılığı:** IndexedDB (`GridAnalyzer_SLD_Store`) ile gaSld, native byte'lar ve modelHash tam saklanıyor.
-- **Güvenlik (T5):** `psse_sld_converter.py` HTTP bridge için 50 MB payload sınırı eklendi.
-- **Build & Test:** `python tools/psse-sld/generate_studio_bundle.py && npx tsc --noEmit && npm run build:portable`
+- Development: `fix/psse-sld-v3-acceptance`; permanent target: `feature/psse-map-ui-data-fixes-v2`.
+- Browser codec generated from TS; immutable CArchive edits preserve local ports, knees, layers and group membership.
+- Native v49 bus-tail offsets, map circuit bytes, font/label slots and v51 geometry fields corrected.
+- New native layer indexes prevent the blank PSS/E canvas; authored labels use slot -1 and explicit circuit slots.
+- Menu uses browser top layer; settings Apply/Cancel, group drag, true point nodes, Undo/Redo and reload are covered.
+- OWNER draws individual parallel circuits and all boundary feeders; SAV records remain read-only.
+- Metro router uses orthogonal A*, compressed visibility fallback, label packing, pins and measurable diagnostics.
+- Remaining dense edge/obstacle collisions and fallback attempts are reported; zero-collision routing is not claimed.
+- Real private fixtures/evidence stay under Downloads; none is committed or packaged.
+- Run `python tools/psse-sld/generate_studio_bundle.py`, typecheck, lint, tests, build and browser acceptance.
+- Licensed GUI reopen: Sincan 51/55/85 and OWNER 247/296/247 Symbol/Link/Label; zero coordinate differences (1e-4 tolerance).

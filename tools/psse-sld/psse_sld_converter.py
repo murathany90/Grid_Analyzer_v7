@@ -11,6 +11,7 @@ import argparse
 import base64
 import json
 import re
+import secrets
 import shutil
 import struct
 import subprocess
@@ -25,7 +26,8 @@ DUMP_PY = HERE / "psse_sld_dump.py"
 BUILD_PY = HERE / "psse_sld_build.py"
 DEFAULT_PSSE_EXE = Path(r"C:\Program Files\PTI\PSSE36\36.5\PSSBIN\psse36.exe")
 CONTROL1_DIR = Path(r"C:\Program Files\PTI\PSSE36\36.5\control1")
-BRIDGE_TOKEN = "ga-psse-365-local-bridge-v1"
+BRIDGE_TOKEN = secrets.token_urlsafe(32)
+ALLOWED_ORIGINS = {"null", "http://127.0.0.1:18765", "http://localhost:18765"}
 MAX_PAYLOAD = 50 * 1024 * 1024  # 50 MB payload limit for security
 
 
@@ -270,17 +272,11 @@ def patch_sld_binary(base_bytes: bytes, spec: dict) -> bytes:
 class BridgeHandler(BaseHTTPRequestHandler):
     def _check_origin_and_token(self, require_token: bool = False) -> tuple[bool, str]:
         origin = self.headers.get("Origin")
-        if origin and origin != "null":
-            if not (
-                origin.startswith("http://127.0.0.1")
-                or origin.startswith("http://localhost")
-                or origin.startswith("https://127.0.0.1")
-                or origin.startswith("https://localhost")
-            ):
-                return False, f"Yetkisiz Origin: {origin}"
+        if origin is not None and origin not in ALLOWED_ORIGINS:
+            return False, f"Yetkisiz Origin: {origin}"
         if require_token:
             tok = self.headers.get("X-GA-Bridge-Token")
-            if tok != BRIDGE_TOKEN:
+            if not tok or not secrets.compare_digest(tok, BRIDGE_TOKEN):
                 return False, "Eksik veya geçersiz X-GA-Bridge-Token başlığı."
         return True, "ok"
 
@@ -291,7 +287,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-GA-Bridge-Token")
 
     def do_OPTIONS(self):
-        self.send_response(204)
+        ok, _ = self._check_origin_and_token()
+        self.send_response(204 if ok else 403)
         self._cors()
         self.end_headers()
 
@@ -309,7 +306,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 "ok": True,
                 "psseInstalled": DEFAULT_PSSE_EXE.exists(),
                 "psseExe": str(DEFAULT_PSSE_EXE),
-                "bridgeVersion": "2.0.0",
+                "bridgeVersion": "3.0.0",
+                "sessionToken": BRIDGE_TOKEN,
             }
             body = json.dumps(payload).encode("utf-8")
             self.send_response(200)
