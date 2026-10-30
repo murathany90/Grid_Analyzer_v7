@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {createHostAdapter} from '../src/core/host-adapter.js';
@@ -22,6 +23,6 @@ test('source labels are valid UTF-8 and contain no replacement characters',async
 test('portable build embeds scripts/styles/workers and forbids external connections',async()=>{
   const html=await fs.readFile('dist/Grid_Analyzer_PSSE_Portable.html','utf8');assert(!/<script[^>]+src=/i.test(html));assert(!/<link[^>]+href=/i.test(html));assert(html.includes("connect-src 'none'"));assert(!html.includes('20261014_1200_SN3_TR0.sav'));assert(html.length<2_000_000);
 });
-test('original V12 and its backup are byte-identical',async()=>{
+test('original V12 and its backup are byte-identical',{skip:!existsSync('psse_modu/v12_guncel.html')||!existsSync('backups/v12_guncel.original.html')?'Optional local historical V12 source/backup not supplied':false},async()=>{
   const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex'),source=await fs.readFile('psse_modu/v12_guncel.html'),backup=await fs.readFile('backups/v12_guncel.original.html');assert.equal(hash(source),hash(backup));
 });

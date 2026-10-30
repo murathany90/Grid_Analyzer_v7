@@ -22,9 +22,10 @@ cssAst.walkRules(rule=>{
   });
 });
 const moduleCss=cssAst.toString();
-css='html,body{margin:0;width:100%;height:100%;overflow:hidden}'+moduleCss;
+// The existing host/module UI CSS stays byte-identical; the native editor is standalone-only.
+css='html,body{margin:0;width:100%;height:100%;overflow:hidden}'+moduleCss+'\n'+await fs.readFile('../tools/psse-sld/studio_style.css','utf8');
 const app=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');
-const html=`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="ga-build-sha" content="${buildIdentity.gitSha}"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob: 'wasm-unsafe-eval'; worker-src blob:; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Grid Analyzer PSS/E Studio</title><style>${css}</style></head><body><div id="psse-host"></div><script>globalThis.__GA_PSSE_BUILD__=${JSON.stringify(buildIdentity)};${app}</script></body></html>`;
+const html=`<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="ga-build-sha" content="${buildIdentity.gitSha}"><meta name="ga-studio-native-sld" content="1"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' blob: 'wasm-unsafe-eval'; worker-src blob:; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Grid Analyzer PSS/E Studio</title><style>${css}</style></head><body><div id="psse-host"></div><script>globalThis.__GA_PSSE_BUILD__=${JSON.stringify(buildIdentity)};${app}</script></body></html>`;
 await fs.mkdir('dist',{recursive:true});await fs.mkdir('evidence',{recursive:true});
 await fs.writeFile('dist/Grid_Analyzer_PSSE_Portable.html',html);await fs.writeFile('evidence/build-metafile.json',JSON.stringify(result.metafile,null,2));
 await esbuild.build({absWorkingDir:root,entryPoints:['src/modules/psse/index.js'],bundle:true,outfile:'dist/psse-module.js',format:'esm',target:'chrome110',minify:true,legalComments:'inline',plugins:[workerPlugin],loader:{'.b64':'text','.txt':'text'}});

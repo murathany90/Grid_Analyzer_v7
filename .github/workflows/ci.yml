@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/psse-ac-dc-busbranch-v1, fix/psse-v1-real-model-parity, feature/psse-map-ui-data-fixes-v2, fix/psse-sld-v3-acceptance, integration/psse-sld-v3-to-map-ui]
+    branches: [main, feature/psse-ac-dc-busbranch-v1, fix/psse-v1-real-model-parity, feature/psse-map-ui-data-fixes-v2, fix/psse-sld-v3-acceptance, integration/psse-sld-v3-to-map-ui, fix/psse-studio-native-sld]
   pull_request:
     branches: [main]
 
@@ -101,6 +101,22 @@ jobs:
             exit 1
           fi
           echo "COMMITTED_PORTABLE_BYTES OK ($built_sha)"
+      - name: Build and gate the standalone PSS/E Studio
+        timeout-minutes: 2
+        working-directory: psse-studio
+        run: |
+          npm run build
+          npm run test:integration
+      - name: Upload standalone PSS/E Studio
+        uses: actions/upload-artifact@v4
+        with:
+          name: psse-studio-portable
+          path: |
+            psse-studio/dist/Grid_Analyzer_PSSE_Portable.html
+            psse-studio/dist/psse-module.js
+            psse-studio/dist/psse-module.css
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload portable build
         timeout-minutes: 2
         uses: actions/upload-artifact@v4
