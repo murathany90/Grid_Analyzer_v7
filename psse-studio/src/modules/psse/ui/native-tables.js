@@ -12,6 +12,9 @@ export function nativeIndex(model,network){
   const at=(name,i,component)=>{const a=arrays[name];if(!a||i==null||i<0)return null;let v=a.type==='CHAR'?characters(name).charAt(i):a.values[i];if(component!=null)v=v?.[component];return v==null||v===''?null:v;};
   const text=(name,i,width)=>characters(name).slice(i*width,(i+1)*width).replace(/\0/g,'').trim();
   const dictionaries=Object.fromEntries([['area','Numare','Arnam'],['zone','Numzon','Zoname'],['owner','Numown','Owname']].map(([kind,nums,names])=>[kind,new Map(values(nums).map((id,i)=>[Number(id),{id:Number(id),name:text(names,i,12),index:i}]))]));
+  for(const [kind,table,idField,nameField]of [['area','AREA','iarea','arname'],['zone','ZONE','izone','zoname'],['owner','OWNER','iowner','owname']])for(const [i,row]of (model.sourceTables?.[table]??[]).entries()){
+    if(row[idField]!=null&&!dictionaries[kind].get(Number(row[idField]))?.name)dictionaries[kind].set(Number(row[idField]),{id:Number(row[idField]),name:String(row[nameField]??''),index:i,source:row});
+  }
   const busPosition=new Map(network.buses.map((b,i)=>[b,i])),fixedShunts=new Map();
   for(const s of network.shunts)if(s.selection==='FIXED'&&s.status===1){if(!fixedShunts.has(s.bus))fixedShunts.set(s.bus,[]);fixedShunts.get(s.bus).push(s);}
   index={model,network,eq,buses,arrays,values,at,text,dictionaries,busPosition,fixedShunts,networkBuses:new Map(network.buses.filter(b=>b.sourceEquipmentId).map(b=>[b.sourceEquipmentId,b])),flows:null,groups:new Map()};byNetwork.set(network,index);return index;
@@ -156,12 +159,12 @@ export function installNativeTables(ctx){
   const previousField=ctx.tableField,previousDataset=ctx.liveDataset;
   ctx.nativeResultSource='saved';
   ctx.tableField=(e,label)=>nativeField(nativeIndex(ctx.sources(),ctx.ga.psseNetwork),e,label,previousField);
-  ctx.liveDataset=(cfg,section)=>{
+  const computeDataset=(cfg,section)=>{
     const model=ctx.sources(),base=ctx.ga.psseNetwork,headers=cfg.columns,saved=ctx.nativeResultSource!=='ga',result=saved?null:ctx.result(),network=section==='nd'||saved?base:ctx.ga.engine?.fs(base,ctx.ga.psseScenario)??base,index=nativeIndex(model,network);
     if(section==='nd'){
       const data=['Plant','Area','Owner','Zone'].includes(cfg.name)?{headers,rows:[],source:'NATIVE_SAV',note:''}:previousDataset(cfg,section);if(cfg.name==='Swith. Dev. Ratings')data.rows.length=Math.min(data.rows.length,index.values('Swdrate').length/12);
       if(['Machine','AC Line','2 Winding'].includes(cfg.name)){const kind=cfg.name==='Machine'?'generator':cfg.name==='AC Line'?'line':'transformer',items=model.equipment.filter(e=>e.kind===kind);for(let row=0;row<items.length;row++)for(let slot=1;slot<=4;slot++){if(!items[row].fields.owners?.[slot-1]){const column=headers.findIndex(h=>key(h)==='fraction'+slot);if(column>=0)data.rows[row][column]=1;}}}
-      if(['Area','Owner','Zone'].includes(cfg.name)){const kind=cfg.name.toLowerCase();data.rows=[...index.dictionaries[kind].values()].map(d=>headers.map(h=>{const k=key(h);if(k===kind+'num')return d.id;if(k===kind+'name')return d.name;if(cfg.name==='Area'){const i=d.index;return k==='areaswingbus'?index.at('Iswing',i):k==='desiredinterchangemw'?index.at('Desint',i)*network.baseMva:k==='tolerancemw'?index.at('Destol',i)*network.baseMva:null;}return null;}));}
+      if(['Area','Owner','Zone'].includes(cfg.name)){const kind=cfg.name.toLowerCase();data.rows=[...index.dictionaries[kind].values()].map(d=>headers.map(h=>{const k=key(h);if(k===kind+'num')return d.id;if(k===kind+'name')return d.name;if(cfg.name==='Area'){const i=d.index;return k==='areaswingbus'?d.source?.isw??index.at('Iswing',i):k==='desiredinterchangemw'?d.source?.pdes??(number(index.at('Desint',i))!=null?index.at('Desint',i)*network.baseMva:null):k==='tolerancemw'?d.source?.ptol??(number(index.at('Destol',i))!=null?index.at('Destol',i)*network.baseMva:null):null;}return null;}));}
       if(cfg.name==='Plant'){
         const byBus=new Map();for(const g of network.generators){if(!byBus.has(g.bus))byBus.set(g.bus,[]);byBus.get(g.bus).push(g);}
         data.rows=[...byBus].map(([busId,gs])=>{const b=network.buses[busId],source=index.eq.get(gs[0].sourceEquipmentId),f=source.fields,bus=index.eq.get(b.sourceEquipmentId);return headers.map(h=>{const k=key(h),sum=prop=>gs.filter(g=>g.status===1).reduce((sum,g)=>sum+(g[prop]??0),0);return k==='busnumber'?b.externalNumber:k==='busname'?bus.name:k==='pgenmw'?sum('pMw'):k==='qgenmvar'?sum('qMvar'):k==='qmaxmvar'?(number(index.at('Qmax',f.plantIndex-1))!=null?index.at('Qmax',f.plantIndex-1)*network.baseMva:sum('qMaxMvar')):k==='qminmvar'?(number(index.at('Qmin',f.plantIndex-1))!=null?index.at('Qmin',f.plantIndex-1)*network.baseMva:sum('qMinMvar')):k==='voltagekv'?(()=>{const reg=index.buses.get(Number(f.ireg))?.fields;return reg?.vm!=null?reg.vm*reg.baskv:null;})():nativeField(index,source,h,previousField);});});
@@ -216,4 +219,11 @@ export function installNativeTables(ctx){
     }));
     return {headers,rows,source,availability:nativeColumnAvailability(headers,records,rows),note:cfg.name==='Load'?`${network.loads.length} kaynak yükü; servis dışı kayıtlar dahil.`:saved?'SAV kayıtlı durum; akışlar kayıtlı gerilim/admitans ve Zflow kaynağından türetilir.':''};
   };
+  const datasets=new WeakMap();
+  ctx.liveDataset=(cfg,section)=>{
+    const stamp=[ctx.sources(),ctx.ga.psseNetwork,ctx.ga.psseScenario,ctx.result(),ctx.nativeResultSource,ctx.ga.settings?.value?.rateIndex,section];
+    const cached=datasets.get(cfg);if(cached&&stamp.every((v,i)=>v===cached.stamp[i]))return cached.value;
+    const value=computeDataset(cfg,section);datasets.set(cfg,{stamp,value});return value;
+  };
+
 }

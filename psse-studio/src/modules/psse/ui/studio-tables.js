@@ -1,7 +1,12 @@
 import {comparisonCsv} from '../../../shared/export/csv.js';
 // Migrated V12 studio. Private per-instance bindings; no DGS controller.
 export function define(ctx) {
-const sourceIndices=new WeakMap(),fieldKeys=new WeakMap();
+const sourceIndices=new WeakMap(),fieldKeys=new WeakMap(),searchRows=new WeakMap();
+ctx.filterTableRows=(rows,query)=>{
+  const needle=String(query??'').toLocaleLowerCase('tr-TR');if(!needle)return rows;
+  let text=searchRows.get(rows);if(!text){text=rows.map(r=>r.map(v=>String(v??'')).join('\u0000').toLocaleLowerCase('tr-TR'));searchRows.set(rows,text);}
+  return rows.filter((_,i)=>text[i].includes(needle));
+};
 ctx.sourceIndex=()=>{
   const model=ctx.sources();if(!model)return {equipment:new Map(),stations:new Map()};
   let index=sourceIndices.get(model);if(!index){index={equipment:new Map(model.equipment.map(e=>[e.id,e])),stations:new Map(model.equipment.filter(e=>e.kind==='substation').map(e=>[Number(e.fields?.isub??e.fields?.isubst??e.fields?.number??e.fields?.id),e]))};sourceIndices.set(model,index);}return index;
@@ -436,7 +441,9 @@ ctx.liveDataset = function liveDataset(cfg, section) {
       headers,
       rows: items.map(e => headers.map(t => {
         const v = ctx.tableField(e, t);
-        return v === null || v === void 0 ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+        // Keep the source field's type: numeric equipment data is numeric in XLSX;
+        // circuit IDs, names and leading-zero text remain strings.
+        return v === null || v === void 0 ? "" : typeof v === "object" ? JSON.stringify(v) : v;
       })),
       source: "NATIVE_SAV",
       note: `${cfg.name}: ${items.length} native ekipman; alanlar kaynak SAV tipine g\xF6re e\u015Flenmi\u015Ftir. Eksik alanlar bo\u015F b\u0131rak\u0131l\u0131r.`
@@ -536,7 +543,7 @@ ctx.renderTable = function renderTable() {
   ctx.currentHeaders = selection.headers;
   ctx.currentRows = selection.rows;
   const needle = (ctx.query || "").toLocaleLowerCase("tr-TR");
-  let visible = needle ? ctx.currentRows.filter(r => r.some(v => String(v ?? "").toLocaleLowerCase("tr-TR").includes(needle))) : ctx.currentRows;
+  let visible = ctx.filterTableRows(ctx.currentRows,needle);
   const maxPage = Math.max(0, Math.ceil(visible.length / ctx.pageSize) - 1);
   ctx.page = Math.min(ctx.page, maxPage);
   const start = ctx.page * ctx.pageSize,
@@ -588,8 +595,9 @@ ctx.renderTable = function renderTable() {
 };
 ctx.exportVisible = function exportVisible() {
   const d = ctx.selectData();
-  const rows = ctx.query ? d.rows.filter(r => r.some(v => String(v ?? "").toLocaleLowerCase("tr-TR").includes(ctx.query.toLocaleLowerCase("tr-TR")))) : d.rows;
-  const cv = x => '"' + String(x ?? "").replaceAll('"', '""') + '"';
+  const rows = ctx.filterTableRows(d.rows,ctx.query);
+  const turkish=ctx.$$('#csv-locale')?.value==='tr';
+  const cv = x => '"' + (turkish&&typeof x==='number'?String(x).replace('.',','):String(x??'')).replaceAll('"','""') + '"';
   const csv = "\uFEFF" + [d.headers, ...rows].map(r => r.map(cv).join(";")).join("\r\n");
   ctx.download(`PSSE_${ctx.main.toUpperCase()}_${ctx.tabIndex + 1}_${ctx.origin}.csv`, csv, "text/csv;charset=utf-8");
 };
@@ -1398,7 +1406,7 @@ ctx.init = function init() {
     <nav class="psse-mainnav"><button data-main="nd" class="nav-btn selected">Network Data </button><button data-main="nr" class="nav-btn">Network Results </button><button data-main="others" class="nav-btn">Network Others </button><button data-main="solve" class="nav-btn">PSS/GA POWER FLOW SOLVE </button><button data-main="gares" class="nav-btn">GA Sonu\xE7lar\u0131 </button></nav>
     <div class="state-line"><span id="view-caption">Network Data</span><span id="notice">PSS/E kolon \u015Fablonlar\u0131 haz\u0131rlan\u0131yor...</span></div>
     <nav id="subtabs" class="subtabs"></nav><section id="table-section" class="work-area">
-      <div class="table-toolbar"><span class="source-label">SOURCE_INPUT / GA_CALCULATED</span><label>Tabloda ara<input id="filter" placeholder="TM, bara, alan veya sat\u0131r de\u011Feri..."></label><button class="btn" id="export-csv">CSV</button><button class="btn primary" id="export-xlsx">Excel indir (.xlsx)</button><span data-notice="table" class="toolbar-info"></span></div>
+      <div class="table-toolbar"><span class="source-label">SOURCE_INPUT / GA_CALCULATED</span><label>Tabloda ara<input id="filter" placeholder="TM, bara, alan veya sat\u0131r de\u011Feri..."></label><select id="csv-locale" aria-label="CSV sayı biçimi"><option value="invariant">CSV: kaynak hassasiyeti (.)</option><option value="tr">CSV: Türkçe Excel (,)</option></select><button class="btn" id="export-csv">CSV</button><button class="btn primary" id="export-xlsx">Excel indir (.xlsx)</button><span data-notice="table" class="toolbar-info"></span></div>
       <div class="table-wrap"><table id="grid"><thead id="grid-head"></thead><tbody id="grid-body"></tbody></table></div>
       <footer class="grid-footer"><button class="btn" data-page="prev">\u2039 \xD6nceki</button><span data-page="index">Sayfa 1</span><span data-page="current">0</span><button class="btn" data-page="next">Sonraki \u203A</button></footer>
     </section><section id="others-section" class="work-area" hidden><div id="others-content"></div></section><section id="solve-section" class="work-area" hidden><div id="solve-content"></div></section>

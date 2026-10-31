@@ -213,7 +213,7 @@ ctx.py = function py(e2) {
   y2.placeholder = "Hat / TM ara";y2.maxLength=80;
   te2.className="ga-map-toolbar-row ga-map-scope-row";ne2.className="ga-map-toolbar-row ga-map-tools-row";l2.classList.add("ga-map-toolbar");
   te2.append(v11YtmMenu, v11VoltageMenu, ctx.ly(`Hat yerle\u015fimi`, ee2), ctx.ly(`LF g\u00f6r\u00fcn\u00fcm\u00fc`, K2),ctx.ly(`Analiz`,J2), ctx.ly(`Kaynak`, O2), le2);
-  ne2.append(ctx.ly(`Metrik`, q2), V2, H2, U2, pe2, ue2, de2, N2, P2, se2);
+  ne2.append(ctx.ly(`Metrik`, q2), ae2, V2, H2, U2, pe2, ue2, de2, N2, P2, se2);
   l2.append(te2,ne2);
   let me2 = ctx.Q(`details`, `ga-psse-map-details`);
   me2.append(ctx.Q(`summary`, ``, `Teknik ayr\u0131nt\u0131lar`), c2, u2, f2, p2), h2.append(g2, _2, m2, G2), d2.append(h2, v2), me2.remove(), s2.append(l2, d2);
@@ -497,7 +497,10 @@ ctx.py = function py(e2) {
   function Re2() {
     return ctx.sy.filter(e3 => !x2.get(e3.id).checked);
   }
-  function v13IncidentYtm(branch,network){return v11AllowsArea(ctx.hv(network.buses[branch.from],Y2.model,ke2))||v11AllowsArea(ctx.hv(network.buses[branch.to],Y2.model,ke2));}
+  function v13IncidentYtm(branch,network){
+    const admits=bus=>v11AllowsArea(ctx.hv(bus,Y2.model,ke2))&&(!T2.value||String(ctx.gv(bus,Y2.model,ke2))===T2.value)&&(!E2.value||String(Ae2.get(bus.connectionKey)?.isub)===E2.value);
+    return admits(network.buses[branch.from])||admits(network.buses[branch.to]);
+  }
   function ze2() {
     return Ee2 === `saved` || K2.value === `base` ? Y2.base : Y2.network;
   }
@@ -506,8 +509,8 @@ ctx.py = function py(e2) {
       t3 = Re2(),
       n3 = t3.length === 0,
       r3 = w2.value,
-      i3 = ``,
-      a3 = `all`,
+      i3 = T2.value,
+      a3 = D2.value,
       o3 = /* @__PURE__ */new Set();
     e3.buses.forEach((e4, s3) => {
       if (e4.source) {
@@ -515,7 +518,7 @@ ctx.py = function py(e2) {
           let n4 = ctx.cy(e4.baseKv);
           if (n4 === `unknown` || t3.some(e5 => e5.id === n4)) return;
         }
-        !v11AllowsArea(ctx.hv(e4, Y2.model, ke2)) || i3 && ctx.gv(e4, Y2.model, ke2) !== i3 || ctx.wv(e4.status, a3) && (E2.value && Ae2.get(e4.connectionKey)?.isub !== E2.value || o3.add(s3));
+        !v11AllowsArea(ctx.hv(e4, Y2.model, ke2)) || i3 && String(ctx.gv(e4, Y2.model, ke2)) !== i3 || ctx.wv(e4.status, a3) && (E2.value && String(Ae2.get(e4.connectionKey)?.isub) !== E2.value || o3.add(s3));
       }
     });
     o3=expandIncidentAcScope(e3,o3);
@@ -535,8 +538,8 @@ ctx.py = function py(e2) {
       return;
     }
     const area = !v11AreaAll,
-      owner = ``,
-      site = ``;
+      owner = T2.value,
+      site = E2.value;
     let stations = De2.stations;
     if (area || owner) {
       const selected = new Set([...Be2()].map(i=>ze2().buses[i].connectionKey)),

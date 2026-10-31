@@ -3,11 +3,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {chromium} from 'playwright';
+import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const artifact=process.env.PSSE_PORTABLE??root+'dist/Grid_Analyzer_PSSE_Portable.html';
 test('standalone Studio gate: latest host, native editor and immutable offline round-trip',async()=>{
  const html=await fs.readFile(artifact,'utf8');
  assert(html.includes('name="ga-studio-native-sld" content="1"'),'Build is missing the standalone native SLD integration marker');
+ const begin=html.indexOf('globalThis.__GA_PSSE_BUILD__=')+'globalThis.__GA_PSSE_BUILD__='.length,end=html.indexOf(';',begin),identity=JSON.parse(html.slice(begin,end));
+ assert.match(identity.sourceSha256,/^[a-f0-9]{64}$/);assert.equal(identity.schema,2);
+ const style=html.slice(html.indexOf('<style>')+7,html.indexOf('</style>')),app=html.slice(end+1,html.lastIndexOf('</script>'));
+ assert.equal(identity.bundleSha256,crypto.createHash('sha256').update(app+'\0'+style).digest('hex'));
+ assert.equal(identity.dirty,!!execFileSync('git',['status','--porcelain','--untracked-files=normal'],{cwd:root,encoding:'utf8'}).trim(),'dirty must include sibling SLD source changes');
  const browser=await chromium.launch({headless:true}),page=await browser.newPage({viewport:{width:1366,height:768},offline:true});
  const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
  try{
@@ -34,6 +41,12 @@ test('standalone Studio gate: latest host, native editor and immutable offline r
   const dl=page.waitForEvent('download');await page.getByRole('button',{name:'💾 Native .sld Kaydet',exact:true}).click();assert((await dl).suggestedFilename().endsWith('.sld'));
   const after=await page.evaluate(()=>{const c=psseStudio.controller;return {source:c.psseInspection.source.sha256,network:c.psseNetwork.modelHash,buses:c.psseNetwork.buses.length,branches:c.psseNetwork.branches.length};});assert.deepEqual(after,before);
   await page.locator('[data-route=map]').click();assert.equal(await page.locator('.ga-v11-voltage input[type=checkbox]').count(),5);
+  const rawx={network:{owner:{fields:['iowner','owname'],data:[[1,'Public Owner']]},area:{fields:['iarea','isw','pdes','ptol','arname'],data:[[1,1,0,10,'Public Area']]},caseid:{fields:['ic','sbase','rev','basfrq','title1','title2'],data:[0,100,36,50,'Public RAWX fixture','']},bus:{fields:['ibus','name','baskv','ide','area','zone','owner','vm','va'],data:[[1,'Public 1',154,3,1,1,1,1,0],[2,'Public 2',154,1,1,1,1,1,0]]},acline:{fields:['ibus','jbus','ckt','rpu','xpu','bpu','stat'],data:[[1,2,'01',.01,.1,0,1]]}}};
+  await page.locator('#pse-file').setInputFiles({name:'public-two-bus.rawx',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(rawx))});
+  await page.waitForFunction(()=>psseStudio.controller.psseInspection?.source.format==='RAWX'&&!psseStudio.controller.busy);
+  assert.equal(await page.evaluate(()=>psseStudio.controller.psseNetwork.buses.length),2);
+  assert.equal(await page.evaluate(()=>psseStudio.controller.psseInspection.equipment.find(e=>e.kind==='line').fields.ckt),'01');
+  await page.locator('[data-route=model]').click();assert((await page.locator('#grid-body').innerText()).includes('Public Owner'));assert((await page.locator('#grid-body').innerText()).includes('Public Area'));
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
  }finally{await browser.close();}
 });

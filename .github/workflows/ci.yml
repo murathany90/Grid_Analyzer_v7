@@ -105,8 +105,9 @@ jobs:
         timeout-minutes: 2
         working-directory: psse-studio
         run: |
-          npm run build
-          npm run test:integration
+          npm run build -- --out-dir=../dist
+          PSSE_PORTABLE="$PWD/../dist/Grid_Analyzer_PSSE_Portable.html" npm run test:integration
+          cmp dist/Grid_Analyzer_PSSE_Portable.html ../dist/Grid_Analyzer_PSSE_Portable.html
       - name: Upload standalone PSS/E Studio
         uses: actions/upload-artifact@v4
         with:

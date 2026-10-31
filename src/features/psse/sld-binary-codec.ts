@@ -76,6 +76,9 @@ export interface GaSldDocument {
   _rawViews?: any[];
   _u1?: number;
   _u2?: number;
+  /** Optional CArchive selection object; shares the archive's object graph. */
+  _rawSelected?: any;
+  selectedObjectId?: number;
 }
 
 const CP1254_HIGH: Record<number, string> = {
@@ -719,6 +722,7 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
   const u1 = reader.u32(); // u1
   const rawLayers = reader.readObList(); // layers
   const u2 = reader.u16(); // u2
+  const rawSelected = u2 ? reader.readObject() : null;
   const rawGroups = reader.readObList(); // groups
   const rawViews = reader.readObList(); // views
 
@@ -888,6 +892,8 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
     _rawViews: rawViews,
     _u1: u1,
     _u2: u2,
+    _rawSelected: rawSelected,
+    selectedObjectId: (Array.isArray(rawSelected) ? rawSelected[2] : rawSelected)?.id,
   };
 }
 
@@ -927,6 +933,12 @@ function assertSldGeometry(doc: GaSldDocument): void {
 }
 
 function assertSldRoundTrip(expected: GaSldDocument, actual: GaSldDocument): void {
+  const selected = (d: GaSldDocument) => {
+    const o = Array.isArray(d._rawSelected) ? d._rawSelected[2] : d._rawSelected;
+    return o?.id ?? d.selectedObjectId ?? null;
+  };
+  if (JSON.stringify(selected(expected)) !== JSON.stringify(selected(actual))) throw new Error('SLD selected object changed during export');
+  if (expected._rawLayers && JSON.stringify(expected.layers) !== JSON.stringify(actual.layers)) throw new Error('SLD layers changed during export');
   const byId = new Map(actual.components.map(c => [c.id, c]));
   if (expected.components.length !== actual.components.length) throw new Error('SLD component count changed during export');
   const close = (a: number | undefined, b: number | undefined) => a === undefined || (b !== undefined && Math.abs(a - b) <= 1e-4);
@@ -952,13 +964,17 @@ function assertSldRoundTrip(expected: GaSldDocument, actual: GaSldDocument): voi
 function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
   const unwrap = (o: any): any => Array.isArray(o) && (o[0] === 'NEW' || o[0] === 'REF') ? o[2] : o;
   const objects = new Map<number, any>(), seen = new Set<any>();
-  function visit(value: any): void {
-    if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) return;
-    seen.add(value);
-    if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
-    for (const child of Object.values(value)) visit(child);
+  function visit(root: any): void {
+    const pending = [root];
+    while (pending.length) {
+      const value = pending.pop();
+      if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) continue;
+      seen.add(value);
+      if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
+      pending.push(...Object.values(value));
+    }
   }
-  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawGroups); visit(doc._rawViews);
+  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawSelected); visit(doc._rawGroups); visit(doc._rawViews);
   let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
   for (const c of doc.components) {
     const o = objects.get(c.id);
@@ -1035,10 +1051,33 @@ function registerArchiveLayers(layers: any[], components: any[]): void {
   }
 }
 
+function cloneArchiveGraph<T>(source: T): T {
+  // Native archives contain deep cycles. Iterative cloning preserves aliases
+  // without relying on the engine's structuredClone recursion limit.
+  const copies = new Map<any, any>(), pending: any[] = [];
+  const copy = (value: any): any => {
+    if (!value || typeof value !== 'object') return value;
+    if (copies.has(value)) return copies.get(value);
+    if (ArrayBuffer.isView(value)) {
+      const bytes = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+      const result = value instanceof DataView ? new DataView(bytes) : new (value.constructor as any)(bytes);
+      copies.set(value, result); return result;
+    }
+    const result = Array.isArray(value) ? [] : {};
+    copies.set(value, result); pending.push([value, result]); return result;
+  };
+  const result = copy(source);
+  for (let i = 0; i < pending.length; i++) {
+    const [from, to] = pending[i];
+    for (const key of Object.keys(from)) Object.defineProperty(to, key, {value: copy(from[key]), enumerable: true, writable: true, configurable: true});
+  }
+  return result;
+}
+
 export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1'): Uint8Array {
   // CArchive contains cycles and shared references. Clone the entire graph once;
   // serializing an immutable edit must never modify the parsed source document.
-  doc = structuredClone(doc);
+  doc = cloneArchiveGraph(doc);
   assertSldGeometry(doc);
   const isV51 = !targetVersion.startsWith('2.0.49.');
 
@@ -1062,6 +1101,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     writer.u32(doc._u1 ?? 1);
     writer.writeObList(doc._rawLayers.map((w: any) => (Array.isArray(w) ? w[2] : w)));
     writer.u16(doc._u2 ?? 0);
+    if (doc._u2) writer.writeObject(Array.isArray(doc._rawSelected) ? doc._rawSelected[2] : doc._rawSelected);
     writer.writeObList(doc._rawGroups ? doc._rawGroups.map((w: any) => (Array.isArray(w) ? w[2] : w)) : []);
     writer.writeObList(doc._rawViews ? doc._rawViews.map((w: any) => (Array.isArray(w) ? w[2] : w)) : []);
 
@@ -1415,7 +1455,10 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
   writer.writeObList(mainList);
   writer.u32(1); // u1
   writer.writeObList(layers);
-  writer.u16(0); // u2
+  const selected = doc.selectedObjectId === undefined ? null : allComponents.find(o => o.id === doc.selectedObjectId);
+  if (doc.selectedObjectId !== undefined && !selected) throw new Error('Selected SLD object is absent from the archive graph');
+  writer.u16(selected ? 1 : 0);
+  if (selected) writer.writeObject(selected);
   writer.writeObList(groups);
   writer.writeObList(views);
 

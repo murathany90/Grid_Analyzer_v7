@@ -51,7 +51,7 @@ test('grid search routes around a symbol blocking the direct path',()=>{
 test('labels are routing obstacles and forced fallback is exposed',()=>{
  const make=()=>({components:[{id:1,t:'Symbol',stype:'Radial',pos:[0,0]},{id:2,t:'Symbol',stype:'Radial',pos:[8,0]},{id:3,t:'Label',pos:[3,0.5],text:'obstacle',locked:true},{id:4,t:'Link',p1:{sym:1,pos:[0,0]},p2:{sym:2,pos:[8,0]},knees:[]}]});
  const options={preservePositions:true,measureText:()=>({width:2,height:1})},d=make();let m=context.applyMetroLayout(d,options);assert.equal(m.edgeLabelCollisions,0);assert.equal(m.routingFailures,0);assert.equal(m.fallbackCount,0);
- const fallback=make();m=context.applyMetroLayout(fallback,{...options,maxRouteNodes:1});assert.equal(m.fallbackCount,1);assert.equal(m.routingFailures,1);assert.equal(m.edgeLabelCollisions,1);
+ const fallback=make();m=context.applyMetroLayout(fallback,{...options,maxRouteNodes:1});assert.equal(m.fallbackCount,1);assert.equal(m.routingFailures,0);assert.equal(m.edgeLabelCollisions,0);assert.equal(m.nonOrthogonalSegments,0);
 });
 test('busbar ports grow and distribute in stable destination order, pinned bars stay intact',()=>{
  const d={components:[{id:1,t:'Symbol',stype:'Busbar',pos:[0,0],rot:90,len:1,ends:[[-0.5,0],[0.5,0]]},{id:2,t:'Symbol',stype:'Busbar',pos:[0,10],rot:90,len:1,ends:[[-0.5,10],[0.5,10]],manual:true},...Array.from({length:6},(_,i)=>({id:10+i,t:'Symbol',stype:'Radial',pos:[i*2-5,5]})),...Array.from({length:6},(_,i)=>({id:20+i,t:'Link',p1:{sym:1,idx:i,pos:[0,0]},p2:{sym:10+i,idx:0,pos:[i*2-5,5]},knees:[]})),{id:40,t:'Link',p1:{sym:2,idx:3,pos:[0.1,10]},p2:{sym:10,idx:1,pos:[-5,5]},knees:[]}]};

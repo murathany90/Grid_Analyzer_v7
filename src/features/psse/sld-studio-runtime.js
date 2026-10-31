@@ -68,6 +68,8 @@ function defaultDiagramSettings(){
       zoomMin:25,
       zoomMax:18000,
       zoomStep:16,
+      detailLabelZoom:25,
+      flowLabelZoom:20,
       lineWidthScale:1.0,
       hideCrowdedLabels:false,
       antiAliasing:true,
@@ -93,7 +95,10 @@ function toast(msg,kind='info'){if(!state.host)return;const t=$('.ga-studio-feed
 function model(){return controller()?.psseInspection??null;}
 function network(){return controller()?.psseNetwork??null;}
 function hash(){return network()?.modelHash??'standalone';}
-function sourceRows(){const m=model();return new Map((m?.equipment||[]).map(e=>[e.id,e]));}
+const modelIndexes=new WeakMap();
+function modelIndex(){const m=model(),n=network();if(!m||!n)return buildSldModelIndex(null,null);let byNetwork=modelIndexes.get(m);if(!byNetwork){byNetwork=new WeakMap();modelIndexes.set(m,byNetwork);}let index=byNetwork.get(n);if(!index){index=buildSldModelIndex(m,n);byNetwork.set(n,index);}return index;}
+function sourceRows(){return modelIndex().equipment;}
+
 
 /* GENERATED CODEC START */
 /**
@@ -112,6 +117,9 @@ function sourceRows(){const m=model();return new Map((m?.equipment||[]).map(e=>[
  * - CSldGroup, CSldSavedView.
  * - Mandatory pre-export round-trip validation within 1e-4 tolerance.
  */
+
+
+
 
 
 
@@ -817,6 +825,7 @@ function parseSldBinary(bytes            )                {
   const u1 = reader.u32(); // u1
   const rawLayers = reader.readObList(); // layers
   const u2 = reader.u16(); // u2
+  const rawSelected = u2 ? reader.readObject() : null;
   const rawGroups = reader.readObList(); // groups
   const rawViews = reader.readObList(); // views
 
@@ -986,6 +995,8 @@ function parseSldBinary(bytes            )                {
     _rawViews: rawViews,
     _u1: u1,
     _u2: u2,
+    _rawSelected: rawSelected,
+    selectedObjectId: (Array.isArray(rawSelected) ? rawSelected[2] : rawSelected)?.id,
   };
 }
 
@@ -1025,6 +1036,12 @@ function assertSldGeometry(doc               )       {
 }
 
 function assertSldRoundTrip(expected               , actual               )       {
+  const selected = (d               ) => {
+    const o = Array.isArray(d._rawSelected) ? d._rawSelected[2] : d._rawSelected;
+    return o?.id ?? d.selectedObjectId ?? null;
+  };
+  if (JSON.stringify(selected(expected)) !== JSON.stringify(selected(actual))) throw new Error('SLD selected object changed during export');
+  if (expected._rawLayers && JSON.stringify(expected.layers) !== JSON.stringify(actual.layers)) throw new Error('SLD layers changed during export');
   const byId = new Map(actual.components.map(c => [c.id, c]));
   if (expected.components.length !== actual.components.length) throw new Error('SLD component count changed during export');
   const close = (a                    , b                    ) => a === undefined || (b !== undefined && Math.abs(a - b) <= 1e-4);
@@ -1050,13 +1067,17 @@ function assertSldRoundTrip(expected               , actual               )     
 function synchronizeArchiveGeometry(doc               , isV51         )       {
   const unwrap = (o     )      => Array.isArray(o) && (o[0] === 'NEW' || o[0] === 'REF') ? o[2] : o;
   const objects = new Map             (), seen = new Set     ();
-  function visit(value     )       {
-    if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) return;
-    seen.add(value);
-    if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
-    for (const child of Object.values(value)) visit(child);
+  function visit(root     )       {
+    const pending = [root];
+    while (pending.length) {
+      const value = pending.pop();
+      if (!value || typeof value !== 'object' || seen.has(value) || ArrayBuffer.isView(value)) continue;
+      seen.add(value);
+      if (value._class && Number.isInteger(value.id)) objects.set(value.id, value);
+      pending.push(...Object.values(value));
+    }
   }
-  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawGroups); visit(doc._rawViews);
+  visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawSelected); visit(doc._rawGroups); visit(doc._rawViews);
   let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
   for (const c of doc.components) {
     const o = objects.get(c.id);
@@ -1133,10 +1154,33 @@ function registerArchiveLayers(layers       , components       )       {
   }
 }
 
+function cloneArchiveGraph   (source   )    {
+  // Native archives contain deep cycles. Iterative cloning preserves aliases
+  // without relying on the engine's structuredClone recursion limit.
+  const copies = new Map          (), pending        = [];
+  const copy = (value     )      => {
+    if (!value || typeof value !== 'object') return value;
+    if (copies.has(value)) return copies.get(value);
+    if (ArrayBuffer.isView(value)) {
+      const bytes = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength);
+      const result = value instanceof DataView ? new DataView(bytes) : new (value.constructor       )(bytes);
+      copies.set(value, result); return result;
+    }
+    const result = Array.isArray(value) ? [] : {};
+    copies.set(value, result); pending.push([value, result]); return result;
+  };
+  const result = copy(source);
+  for (let i = 0; i < pending.length; i++) {
+    const [from, to] = pending[i];
+    for (const key of Object.keys(from)) Object.defineProperty(to, key, {value: copy(from[key]), enumerable: true, writable: true, configurable: true});
+  }
+  return result;
+}
+
 function serializeSldBinary(doc               , targetVersion = '2.0.51.1')             {
   // CArchive contains cycles and shared references. Clone the entire graph once;
   // serializing an immutable edit must never modify the parsed source document.
-  doc = structuredClone(doc);
+  doc = cloneArchiveGraph(doc);
   assertSldGeometry(doc);
   const isV51 = !targetVersion.startsWith('2.0.49.');
 
@@ -1160,6 +1204,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
     writer.u32(doc._u1 ?? 1);
     writer.writeObList(doc._rawLayers.map((w     ) => (Array.isArray(w) ? w[2] : w)));
     writer.u16(doc._u2 ?? 0);
+    if (doc._u2) writer.writeObject(Array.isArray(doc._rawSelected) ? doc._rawSelected[2] : doc._rawSelected);
     writer.writeObList(doc._rawGroups ? doc._rawGroups.map((w     ) => (Array.isArray(w) ? w[2] : w)) : []);
     writer.writeObList(doc._rawViews ? doc._rawViews.map((w     ) => (Array.isArray(w) ? w[2] : w)) : []);
 
@@ -1513,7 +1558,10 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
   writer.writeObList(mainList);
   writer.u32(1); // u1
   writer.writeObList(layers);
-  writer.u16(0); // u2
+  const selected = doc.selectedObjectId === undefined ? null : allComponents.find(o => o.id === doc.selectedObjectId);
+  if (doc.selectedObjectId !== undefined && !selected) throw new Error('Selected SLD object is absent from the archive graph');
+  writer.u16(selected ? 1 : 0);
+  if (selected) writer.writeObject(selected);
   writer.writeObList(groups);
   writer.writeObList(views);
 
@@ -1567,6 +1615,7 @@ function patchSldBinary(baseBytes            , doc               )             {
   return serializeSldBinary(docWithBytes, targetVersion);
 }
 
+
 /* Deterministic, topology-preserving metro layout for ga-sld-v1 documents.
  * Mutates geometry only. Set preservePositions to route an already arranged drawing.
  * Symbol locks: locked, manual, layoutLocked, or options.lockedIds (Set/array).
@@ -1585,8 +1634,16 @@ function metroBox(s, pad=0) {
   return [s.pos[0]-w/2-pad,s.pos[1]-h/2-pad,s.pos[0]+w/2+pad,s.pos[1]+h/2+pad];
 }
 function metroOverlap(a,b) { return a[0]<b[2]-1e-8 && a[2]>b[0]+1e-8 && a[1]<b[3]-1e-8 && a[3]>b[1]+1e-8; }
+function arrangeMetroStations(items,columns){
+  const byId=new Map(items.map(g=>[g.id,g])),seen=new Set(),order=[];
+  for(const seed of items){if(seen.has(seed.id))continue;const queue=[seed.id];seen.add(seed.id);for(let i=0;i<queue.length;i++){const id=queue[i];order.push(byId.get(id));for(const next of [...byId.get(id).adj].sort())if(byId.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}}
+  const positions=new Map(order.map((g,i)=>[g.id,[i%columns,Math.floor(i/columns)]]));
+  const cost=ids=>{let total=0;const edges=new Set();for(const id of ids)for(const neighbor of byId.get(id).adj){const key=[id,neighbor].sort().join('|');if(edges.has(key)||!positions.has(neighbor))continue;edges.add(key);const a=positions.get(id),b=positions.get(neighbor);total+=(a[0]-b[0])**2+(a[1]-b[1])**2;}return total;};
+  for(let pass=0;pass<5;pass++){let changed=false;for(let i=0;i<order.length;i++)for(let j=i+1;j<order.length;j++){const a=order[i].id,b=order[j].id,pa=positions.get(a),pb=positions.get(b),before=cost([a,b]);positions.set(a,pb);positions.set(b,pa);if(cost([a,b])<before-1e-7){[order[i],order[j]]=[order[j],order[i]];changed=true;}else{positions.set(a,pa);positions.set(b,pb);}}if(!changed)break;}
+  const rows=[];for(let i=0;i<order.length;i+=columns)rows.push(order.slice(i,i+columns));return rows;
+}
 function metroLabelBox(c,opt) {
-  const lines=String(c.text||'').split(/\r?\n/), measured=opt.measureText && opt.measureText(c);
+  const lines=String(c.text||'').split(/\r?\n/),cache=opt._measurements||(opt._measurements=new Map()),key=(c.fh||9)+'|'+c.text;let measured=cache.get(key);if(!measured&&opt.measureText){measured=opt.measureText(c);cache.set(key,measured);}
   const h=measured && Number(measured.height)>0?Number(measured.height):Math.max(0.22,(Number(c.fh)||9)*0.027)*lines.length*1.15;
   const w=measured && Number(measured.width)>0?Number(measured.width):Math.max(0.25,Math.max(...lines.map(x=>x.length))*Math.max(0.025,(Number(c.fh)||9)*0.014));
   return [c.pos[0],c.pos[1]-h,c.pos[0]+w,c.pos[1]];
@@ -1637,6 +1694,7 @@ function applyMetroLayout(doc, options={}) {
   const comps=doc.components, syms=comps.filter(c=>c.t==='Symbol'&&c.pos).sort((a,b)=>a.id-b.id), links=comps.filter(c=>c.t==='Link'&&c.p1?.pos&&c.p2?.pos).sort((a,b)=>a.id-b.id), labels=comps.filter(c=>c.t==='Label'&&c.pos&&c.text&&c.vis!==false).sort((a,b)=>a.id-b.id), map=new Map(syms.map(s=>[s.id,s])), adj=new Map(syms.map(s=>[s.id,[]]));
   for(const l of links)if(adj.has(l.p1.sym)&&adj.has(l.p2.sym)&&l.p1.sym!==l.p2.sym){adj.get(l.p1.sym).push(l.p2.sym);adj.get(l.p2.sym).push(l.p1.sym);}
   for(const a of adj.values())a.sort((x,y)=>x-y);
+  const locked=new Set(options.lockedIds||[]);for(const l of links)if(metroIsLocked(l,options)){locked.add(l.p1.sym);locked.add(l.p2.sym);}options={...options,lockedIds:locked};
   const old=new Map(syms.map(s=>[s.id,[...s.pos]]));
   const originalBounds=[...syms.map(s=>metroBox(s)),...labels.map(l=>metroLabelBox(l,options)),...links.flatMap(l=>metroSegs(l).map(([a,b])=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])]))];
   const bounds=originalBounds.length?[Math.min(...originalBounds.map(r=>r[0])),Math.min(...originalBounds.map(r=>r[1])),Math.max(...originalBounds.map(r=>r[2])),Math.max(...originalBounds.map(r=>r[3]))]:null;
@@ -1684,9 +1742,25 @@ function applyMetroLayout(doc, options={}) {
   }
   for(const s of syms)if(!metroIsLocked(s,options)&&s.ends){const dx=s.pos[0]-old.get(s.id)[0],dy=s.pos[1]-old.get(s.id)[1];if(dx||dy)s.ends=s.ends.map(p=>[p[0]+dx,p[1]+dy]);}
   for(const l of labels){const s=map.get(l.owner);if(!metroIsLocked(l,options)&&!(s&&metroIsLocked(s,options))&&s){l.pos=[l.pos[0]+s.pos[0]-old.get(s.id)[0],l.pos[1]+s.pos[1]-old.get(s.id)[1]];}}
-  const placedLabels=labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options)));
-  const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*0.3,y*0.3]);
-  for(const l of labels){if(placedLabels.includes(l))continue;const original=[...l.pos];let best=[...original],bestScore=Infinity;for(const [dx,dy] of offsets){l.pos=[original[0]+dx,original[1]+dy];const b=metroLabelBox(l,options);if(options.constrainBounds&&bounds&&(b[0]<bounds[0]||b[1]<bounds[1]||b[2]>bounds[2]||b[3]>bounds[3]))continue;let score=0;for(const x of placedLabels)if(metroOverlap(b,metroLabelBox(x,options)))score++;for(const s of syms)if(metroOverlap(b,metroBox(s,0.05)))score++;if(score<bestScore){bestScore=score;best=[...l.pos];if(!score)break;}}l.pos=best;placedLabels.push(l);}
+  // AABB broad phase: cache text sizes and inspect only occupied nearby cells.
+  const labelBins=new Map(),cellSize=2,labelKey=(x,y)=>x+','+y;
+  const cellsFor=box=>{const keys=[];for(let x=Math.floor(box[0]/cellSize);x<=Math.floor(box[2]/cellSize);x++)for(let y=Math.floor(box[1]/cellSize);y<=Math.floor(box[3]/cellSize);y++)keys.push(labelKey(x,y));return keys;};
+  const addBox=box=>{for(const k of cellsFor(box)){if(!labelBins.has(k))labelBins.set(k,[]);labelBins.get(k).push(box);}};
+  const nearby=box=>new Set(cellsFor(box).flatMap(k=>labelBins.get(k)||[]));
+  for(const symbol of syms)addBox(metroBox(symbol,.05));
+  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
+  for(const label of placedLabels)addBox(metroLabelBox(label,options));
+  const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*.3,y*.3]);
+  for(const label of labels){
+    if(placedLabels.has(label))continue;const original=[...label.pos],owner=map.get(label.owner),bar=owner?.stype==='Busbar';
+    let best=original,bestScore=Infinity;
+    for(const [dx,dy]of offsets){if(bar&&(dx!==0||dy<0))continue;label.pos=[original[0]+dx,original[1]+dy];const box=metroLabelBox(label,options);
+      if(options.constrainBounds&&bounds&&(box[0]<bounds[0]||box[1]<bounds[1]||box[2]>bounds[2]||box[3]>bounds[3]))continue;
+      let score=0;for(const other of nearby(box))if(metroOverlap(box,other))score++;
+      if(score<bestScore){bestScore=score;best=[...label.pos];if(!score)break;}
+    }
+    label.pos=best;addBox(metroLabelBox(label,options));
+  }
   // Translate endpoint coordinates by the exact displacement of their owning symbol.
   for(const l of links)for(const p of [l.p1,l.p2]){const s=map.get(p.sym),o=old.get(p.sym);if(s&&o&&(s.pos[0]!==o[0]||s.pos[1]!==o[1]))p.pos=[p.pos[0]+s.pos[0]-o[0],p.pos[1]+s.pos[1]-o[1]];}
   // Keep the electrical port index/reference; only redistribute unlocked busbar geometry.
@@ -1728,6 +1802,7 @@ function applyMetroLayout(doc, options={}) {
     return null;
   }
   function route(l){
+    if(metroIsLocked(l,options))return;
     const a=l.p1.pos,b=l.p2.pos,sa=map.get(l.p1.sym),sb=map.get(l.p2.sym),oldKnees=(l.knees||[]).map(p=>[...p]);
     function direction(s,p,t){if(s?.stype==='Busbar'){const box=metroBox(s);if(box[2]-box[0]>box[3]-box[1])return [0,t[1]>=p[1]?1:-1];return [t[0]>=p[0]?1:-1,0];}if(s?.stype==='Branch'){const dx=p[0]-s.pos[0],dy=p[1]-s.pos[1];if(Math.abs(dx)>Math.abs(dy))return [dx>=0?1:-1,0];if(Math.abs(dy)>1e-7)return [0,dy>=0?1:-1];}return Math.abs(t[0]-p[0])>=Math.abs(t[1]-p[1])?[t[0]>=p[0]?1:-1,0]:[0,t[1]>=p[1]?1:-1];}
     const obstacles=allObstacles.filter(item=>item.id!==l.p1.sym&&item.id!==l.p2.sym).map(item=>item.box);
@@ -1742,7 +1817,9 @@ function applyMetroLayout(doc, options={}) {
     const heap=[];function push(n){heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].f<=n.f)break;heap[i]=heap[p];i=p;}heap[i]=n;}function pop(){const top=heap[0],last=heap.pop();if(heap.length){let i=0;while(true){let c=i*2+1;if(c>=heap.length)break;if(c+1<heap.length&&heap[c+1].f<heap[c].f)c++;if(heap[c].f>=last.f)break;heap[i]=heap[c];i=c;}heap[i]=last;}return top;}
     const best=new Map();for(let d=0;d<4;d++)push({x:A[0],y:A[1],d,g:0,f:Math.abs(A[0]-B[0])+Math.abs(A[1]-B[1]),prev:null});let end=null,count=0;
     while(heap.length&&count++<(options.maxRouteNodes||45000)){const n=pop(),k=key(n.x,n.y)+','+n.d;if(best.has(k)&&best.get(k)<=n.g)continue;best.set(k,n.g);if(n.x===B[0]&&n.y===B[1]){end=n;break;}for(let d=0;d<4;d++){const x=n.x+dirs[d][0],y=n.y+dirs[d][1];if(x<minX||x>maxX||y<minY||y>maxY||blocked(x,y,n.x,n.y))continue;const occ=occupied.get(key(x,y))||0, parallel=occ&(d%2?2:1),cross=occ&(d%2?1:2),g=n.g+1+(d===n.d?0:2.2)+(parallel?(Number(options.lanePenalty)||7):0)+(cross?(Number(options.routeCrossingPenalty)||3):0),h=Math.abs(x-B[0])+Math.abs(y-B[1]);push({x,y,d,g,f:g+h,prev:n});}}
-    let cells=[],compressed=null;if(end){for(let n=end;n;n=n.prev)cells.push([n.x,n.y]);cells.reverse();for(let i=1;i<cells.length;i++){const c=cells[i],p=cells[i-1],bit=c[0]===p[0]?2:1;occupied.set(key(c[0],c[1]),(occupied.get(key(c[0],c[1]))||0)|bit);}}else {gridFailures++;if(options.compressedFallback)compressed=compressedRoute(pa,pb,l);if(compressed)compressedSuccesses++;else {fallbackCount++;cells=[[...A],[B[0],A[1]],[...B]];}}
+    let cells=[],compressed=null;if(end){for(let n=end;n;n=n.prev)cells.push([n.x,n.y]);cells.reverse();for(let i=1;i<cells.length;i++){const c=cells[i],p=cells[i-1],bit=c[0]===p[0]?2:1;occupied.set(key(c[0],c[1]),(occupied.get(key(c[0],c[1]))||0)|bit);}}else {gridFailures++;if(options.compressedFallback)compressed=compressedRoute(pa,pb,l);if(compressed)compressedSuccesses++;else {fallbackCount++;const candidates=[[[...A],[B[0],A[1]],[...B]],[[...A],[A[0],B[1]],[...B]]];
+        const clearance=2;for(const r of obstacles){for(const y of [Math.floor(r[1]/step)-clearance,Math.ceil(r[3]/step)+clearance])candidates.push([[...A],[A[0],y],[B[0],y],[...B]]);for(const x of [Math.floor(r[0]/step)-clearance,Math.ceil(r[2]/step)+clearance])candidates.push([[...A],[x,A[1]],[x,B[1]],[...B]]);}
+        let best=Infinity;for(const candidate of candidates){let score=0;for(let i=1;i<candidate.length;i++){const a=candidate[i-1].map(v=>v*step),b=candidate[i].map(v=>v*step);score+=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);for(const r of obstacles)if(metroSegmentHitsBox(a,b,r))score+=10000;}if(score<best){best=score;cells=candidate;}}}}
     const pts=[a,pa];function connect(p,preferX){const last=pts[pts.length-1];if(Math.abs(last[0]-p[0])>1e-8&&Math.abs(last[1]-p[1])>1e-8)pts.push(preferX?[p[0],last[1]]:[last[0],p[1]]);pts.push(p);}
     if(compressed){for(let i=1;i<compressed.length;i++)connect(compressed[i],true);}else {connect([A[0]*step,A[1]*step],!!da[0]);for(let i=1;i<cells.length;i++)connect([cells[i][0]*step,cells[i][1]*step],true);}connect(pb,!db[0]);connect(b,true);
     const clean=[];for(const p of pts){const pt=p.map(x=>Math.round(x*100000)/100000);if(clean.length&&Math.abs(clean[clean.length-1][0]-pt[0])+Math.abs(clean[clean.length-1][1]-pt[1])<1e-7)continue;while(clean.length>=2){const u=clean[clean.length-2],v=clean[clean.length-1];if((Math.abs(u[0]-v[0])<1e-7&&Math.abs(v[0]-pt[0])<1e-7)||(Math.abs(u[1]-v[1])<1e-7&&Math.abs(v[1]-pt[1])<1e-7))clean.pop();else break;}clean.push(pt);}l.knees=clean.slice(1,-1);
@@ -1760,6 +1837,57 @@ function applyMetroLayout(doc, options={}) {
   Object.defineProperty(doc,'_metroGridFailures',{value:gridFailures,writable:true,configurable:true,enumerable:false});
   Object.defineProperty(doc,'_metroCompressedSuccesses',{value:compressedSuccesses,writable:true,configurable:true,enumerable:false});
   const metrics=measureMetroLayout(doc,options);metrics.runtimeMs=Date.now()-started;return metrics;
+}
+
+/* Read-only indexes over source identities. Name candidates are explicitly
+ * distinguished from a source isub relationship and never topology proof. */
+function buildSldModelIndex(model,network){
+  const equipment=new Map((model?.equipment||[]).map(e=>[e.id,e]));
+  const names=(numbers,text)=>{
+    const ids=model?.binaryArrays?.[numbers]?.values||[],packed=(model?.binaryArrays?.[text]?.values||[]).join('');
+    const result=new Map(ids.map((id,i)=>[String(id),packed.slice(i*12,(i+1)*12).replace(/\0/g,'').trim()]));
+    const [table,idField,nameField]=numbers==='Numown'?['OWNER','iowner','owname']:['AREA','iarea','arname'];
+    for(const row of model?.sourceTables?.[table]||[])if(row[idField]!=null&&row[nameField]&&!result.get(String(row[idField])))result.set(String(row[idField]),String(row[nameField]));
+    return result;
+  };
+  const ownerNames=names('Numown','Owname'),areaNames=names('Numare','Arnam');
+  const stationById=new Map(),stationsByName=new Map(),stationBuses=new Map(),busStation=new Map(),busByNumber=new Map(),branchByMap=new Map(),devices=new Map();
+  const normalized=s=>String(s??'').trim().toLocaleUpperCase('tr-TR');
+  for(const e of equipment.values())if(e.kind==='substation'){
+    const id=String(e.fields?.isub??e.id.replace(/^substation:/,''));stationById.set(id,e);stationBuses.set(id,{indices:[],provenance:'SOURCE_ISUB'});
+    const name=normalized(e.name);if(!stationsByName.has(name))stationsByName.set(name,[]);stationsByName.get(name).push(id);
+  }
+  const sourceStations=new Map();for(const row of model?.sourceTables?.SUBSTATION_NODE||[])if(row.ibus!=null&&row.isub!=null){const key=String(row.ibus);if(!sourceStations.has(key))sourceStations.set(key,new Set());sourceStations.get(key).add(String(row.isub));}
+  const pending=[];
+  for(let i=0;i<(network?.buses||[]).length;i++){
+    const b=network.buses[i],source=equipment.get(b.sourceEquipmentId);if(!b.source||!source)continue;
+    busByNumber.set(String(b.externalNumber),b);busByNumber.set(String(b.connectionKey),b);
+    const explicit=sourceStations.get(String(b.externalNumber));
+    let id=source.fields?.isub==null?explicit?.size===1?[...explicit][0]:'':String(source.fields.isub),provenance='SOURCE_ISUB';
+    if(!id){const matches=stationsByName.get(normalized(source.name))||[];if(matches.length===1)pending.push({id:matches[0],i,source});}
+    if(stationById.has(id)){const group=stationBuses.get(id);group.indices.push(i);if(provenance!=='SOURCE_ISUB')group.provenance=provenance;busStation.set(i,id);}
+  }
+  const adjacent=new Map();for(const branch of network?.branches||[])for(const [a,b]of [[branch.from,branch.to],[branch.to,branch.from]]){if(!adjacent.has(a))adjacent.set(a,new Set());adjacent.get(a).add(b);}
+  for(const candidate of pending){
+    const {id,i,source}=candidate,group=stationBuses.get(id),anchors=group.indices.map(j=>equipment.get(network.buses[j].sourceEquipmentId));
+    const peers=anchors.length?anchors:pending.filter(p=>p.id===id).map(p=>p.source);
+    const owners=new Set(peers.map(e=>e.fields.owner)),areas=new Set(peers.map(e=>e.fields.area));
+    const connected=group.indices.some(j=>adjacent.get(i)?.has(j));
+    if(!connected&&(!owners.has(source.fields.owner)||!areas.has(source.fields.area)||(!anchors.length&&(owners.size>1||areas.size>1))))continue;
+    group.indices.push(i);group.provenance=connected?'INFERRED_NAME_AND_CONNECTION':'INFERRED_EXACT_SOURCE_NAME';busStation.set(i,id);
+  }
+  for(const b of network?.branches||[]){
+    const source=equipment.get(b.sourceEquipmentId),kind=source?.kind==='switch'?'SYS':source?.kind==='transformer'?'TR':'LI';
+    const circuit=String(source?.fields?.ckt??b.windingId??'1').trim();
+    for(const [from,to]of [[b.from,b.to],[b.to,b.from]]){
+      const key=[kind,network.buses[from]?.externalNumber,network.buses[to]?.externalNumber,circuit].join(' ');
+      if(!branchByMap.has(key))branchByMap.set(key,[]);branchByMap.get(key).push(b);
+    }
+  }
+  for(const [kind,items,idField]of [['ME',network?.generators,'machid'],['LO',network?.loads,'loadid'],['FXS',network?.shunts,'shntid']])for(const d of items||[]){
+    const source=equipment.get(d.sourceEquipmentId),key=[kind,network.buses[d.bus]?.externalNumber,String(source?.fields?.[idField]??d.sourceId??'1').trim()].join(' ');devices.set(key,d);
+  }
+  return {equipment,ownerNames,areaNames,stationById,stationBuses,busStation,busByNumber,branchByMap,devices,matches:new Map()};
 }
 
 /* Part 2: Symbol -> Port -> Link -> KneePoint Geometry & PSS(R)E-like SVG Renderer */
@@ -1959,47 +2087,46 @@ function layerColor(layerNum,layers=[],cfg=activeSettings()?.coloring){
 }
 
 function matchSavEquipment(mapStr){
-  if(!mapStr)return null;
-  const n=network(),m=model();if(!n)return null;
-  const parts=String(mapStr).trim().split(/\s+/);
-  const kind=parts[0],b1=parts[1],b2=parts[2],ckt=(parts[3]||'1').trim();
-  if(kind==='BU'&&b1){
-    const bus=n.buses.find(b=>String(b.externalNumber)===b1||b.connectionKey===b1||b.id===`bus:${b1}`);
-    if(bus)return {type:'bus',bus,id:bus.id,sourceEquipmentId:bus.sourceEquipmentId};
-  }else if((kind==='LI'||kind==='TR'||kind==='SYS')&&b1&&b2){
-    const br=n.branches.find(b=>{
-      const f=String(n.buses[b.from]?.externalNumber??b.terminalFrom),t=String(n.buses[b.to]?.externalNumber??b.terminalTo);
-      const matchEnds=(f===b1&&t===b2)||(f===b2&&t===b1);
-      return matchEnds&&(String(b.windingId||'1').trim()===ckt||!parts[3]);
-    });
-    if(br)return {type:'branch',branch:br,id:br.id,sourceEquipmentId:br.sourceEquipmentId};
-  }else if(kind==='ME'&&b1){
-    const gen=(n.generators||[]).find(g=>String(n.buses[g.bus]?.externalNumber)===b1);
-    if(gen)return {type:'generator',generator:gen,id:gen.id,sourceEquipmentId:gen.sourceEquipmentId};
-  }else if(kind==='LO'&&b1){
-    const ld=(n.loads||[]).find(l=>String(n.buses[l.bus]?.externalNumber)===b1);
-    if(ld)return {type:'load',load:ld,id:ld.id,sourceEquipmentId:ld.sourceEquipmentId};
-  }else if((kind==='FXS'||kind==='SWS')&&b1){
-    const sh=(n.shunts||[]).find(s=>String(n.buses[s.bus]?.externalNumber)===b1);
-    if(sh)return {type:'shunt',shunt:sh,id:sh.id,sourceEquipmentId:sh.sourceEquipmentId};
+  if(!mapStr||!network())return null;const index=modelIndex(),key=String(mapStr).trim().replace(/\s+/g,' ');
+  if(index.matches.has(key))return index.matches.get(key);
+  const [kind,b1,b2,ckt]=key.split(' ');let found=null;
+  if(kind==='BU'){const bus=index.busByNumber.get(b1);if(bus)found={type:'bus',bus,id:bus.id,sourceEquipmentId:bus.sourceEquipmentId};}
+  else if(['LI','TR','SYS'].includes(kind)){
+    const candidates=index.branchByMap.get([kind,b1,b2,ckt??'1'].join(' '))||[];
+    if(candidates.length===1){const branch=candidates[0];found={type:'branch',branch,id:branch.id,sourceEquipmentId:branch.sourceEquipmentId};}
+  }else{
+    const canonical=kind==='GE'?'ME':kind==='SWS'?'FXS':kind;
+    const device=index.devices.get([canonical,b1,b2??'1'].join(' '));
+    if(device)found={type:canonical==='ME'?'generator':canonical==='LO'?'load':'shunt',[canonical==='ME'?'generator':canonical==='LO'?'load':'shunt']:device,id:device.id,sourceEquipmentId:device.sourceEquipmentId};
   }
-  if(m){
-    const eq=m.equipment.find(e=>String(e.fields?.ibus)===b1||(String(e.fields?.i)===b1&&String(e.fields?.j)===b2));
-    if(eq)return {type:eq.kind,equipment:eq,id:eq.id,sourceEquipmentId:eq.id};
-  }
-  return null;
+  index.matches.set(key,found);return found;
+}
+
+function studioTooltipText(component,match){
+  const index=modelIndex(),n=network();if(!match)return `${component.map||component.stype||component.t} (${component.id})\nKaynak ekipman eşleşmesi yok`;
+  const source=index.equipment.get(match.sourceEquipmentId),bus=match.bus||n?.buses[match.generator?.bus??match.load?.bus??match.shunt?.bus??match.branch?.from],busSource=index.equipment.get(bus?.sourceEquipmentId),f=busSource?.fields||{};
+  const lines=[`${source?.name||busSource?.name||match.type} (${match.type==='bus'?source?.fields?.ibus:source?.id??match.id})`];
+  if(bus?.baseKv!=null)lines.push(`${num(bus.baseKv,1)} kV`);if(source?.status!=null)lines.push(source.status===1?'Serviste':'Servis dışı');
+  const station=bus?index.busStation.get(n.buses.indexOf(bus)):null;
+  if(station)lines.push(`TM: ${index.stationById.get(station)?.name||station} (${station})${index.stationBuses.get(station)?.provenance==='SOURCE_ISUB'?'':' · aday eşleşme'}`);
+  if(f.area!=null)lines.push(`YTM: ${index.areaNames.get(String(f.area))||'AREA'} (${f.area})`);
+  if(f.owner!=null)lines.push(`OWNER: ${index.ownerNames.get(String(f.owner))||'OWNER'} (${f.owner})`);
+  if(match.branch){const to=n.buses[match.branch.to];lines.push(`${index.equipment.get(to?.sourceEquipmentId)?.name||'Bara'} (${to?.externalNumber}) · Devre ${source?.fields?.ckt??match.branch.windingId}`);const r=getCalculationResults().branchMap.get(match.branch.id);if(r)lines.push(`${num(r.pFromMw,2)} MW · ${num(r.qFromMvar,2)} MVAr`);}
+  if(match.generator)lines.push(`${num(match.generator.pMw,2)} MW · ${num(match.generator.qMvar,2)} MVAr`);
+  return lines.join('\n');
 }
 
 function getCalculationResults(cfg=activeSettings()){
   const c=controller(),calc=c?.psseCalculation,sc=c?.psseScenario;
   const useCalc=cfg?.coloring?.resultLayer==='GA_PSSE_CALCULATED';
   const valid=Boolean(calc&&calc.status==='CONVERGED'&&calc.scenarioHash===sc?.hash);
+  const saved=!useCalc?window.GridAnalyzerPSSE?.getSavedResults?.():null;
   return {
-    valid:useCalc?valid:Boolean(valid),
+    valid:useCalc?valid:Boolean(saved),
     useCalc,
     calc,
-    busMap:new Map((valid?calc.busResults:[]).map(r=>[String(r.connectionKey),r])),
-    branchMap:new Map((valid?calc.branchResults:[]).map(r=>[r.id,r])),
+    busMap:!useCalc&&saved?saved.busMap:new Map((valid?calc.busResults:[]).map(r=>[String(r.connectionKey),r])),
+    branchMap:!useCalc&&saved?saved.branchMap:new Map((valid?calc.branchResults:[]).map(r=>[r.id,r])),
     scenarioOps:new Map((sc?.operations||[]).map(o=>[o.equipmentId,o.value]))
   };
 }
@@ -2075,7 +2202,8 @@ function renderGaSldToSvg(gaSld,customSettings=null){
   for(const l of layers)getLayerGroup(l.n);
 
   const {valid,busMap,branchMap,scenarioOps}=getCalculationResults(cfg);
-  const eqRows=sourceRows();
+  const eqRows=sourceRows(),flowLabelled=new Set();
+  const fontMult=(Number(lay.fontScale)||100)/100;
 
   // Collect horizontal link segments for crossing jumper arcs
   const horizSegments=[];
@@ -2145,11 +2273,22 @@ function renderGaSldToSvg(gaSld,customSettings=null){
       const kx=Number((kp[0]*SLD_SCALE).toFixed(2)),ky=Number((-kp[1]*SLD_SCALE).toFixed(2));
       g.append(S('circle',{cx:kx,cy:ky,r:kr,class:'ga-studio-knee','data-link-id':c.id,'data-knee-idx':idx}));
     });
+    if(ann.branchFlowMode!=='hide'&&match?.branch&&!flowLabelled.has(match.branch.id)){
+      const result=branchMap.get(match.branch.id);
+      if(result){
+        flowLabelled.add(match.branch.id);const segments=pts.slice(1).map((p,i)=>({a:pts[i],b:p,length:Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]),horizontal:Math.abs(p[1]-pts[i][1])<.1}));
+        segments.sort((a,b)=>Number(b.horizontal)-Number(a.horizontal)||b.length-a.length);const segment=segments[0];
+        if(segment){const x=(segment.a[0]+segment.b[0])/2+(segment.horizontal?0:16),y=(segment.a[1]+segment.b[1])/2;
+          const values=ann.branchFlowMode==='pq'?[[result.pFromMw,'MW',-7],[result.qFromMvar,'MVAr',12]]:ann.branchFlowMode==='mva'?[[Math.hypot(result.pFromMw,result.qFromMvar),'MVA',-7]]:ann.branchFlowMode==='current'?[[result.iFromA,'A',-7]]:[[result.loadingFromPct,'%',-7]];
+          for(const [value,unit,offset]of values)if(Number.isFinite(value)){const text=S('text',{x,y:y+offset,'font-size':8*fontMult,'text-anchor':'middle',class:'ga-studio-pf-badge','data-flow-unit':unit,'data-flow-y':y,'data-flow-x':(segment.a[0]+segment.b[0])/2,'data-flow-vertical':segment.horizontal?'0':'1'});text.textContent=`${num(value,dec)} ${unit}`;g.append(text);}
+        }
+      }
+    }
+    const tip=S('title');tip.textContent=studioTooltipText(c,match);g.append(tip);
     lg.append(g);
   }
 
   // 2) Render Symbols
-  const fontMult=(Number(lay.fontScale)||100)/100;
   for(const c of comps){
     if(c.t!=='Symbol'||!c.pos)continue;
     const lg=getLayerGroup(c.layer??1);
@@ -2297,32 +2436,9 @@ function renderGaSldToSvg(gaSld,customSettings=null){
       g.append(S('circle',{cx:x,cy:y,r:3.6,fill:stroke,stroke:'#0d1e2e','stroke-width':1.2,class:'ga-sld-sym-inner'}));
     }
 
-    if(ann.branchFlowMode!=='hide'&&match?.branch){
-      const br=match.branch,r=branchMap.get(br.id);
-      if(r){
-        const pct=Math.max(nval(r.loadingFromPct,0),nval(r.loadingToPct,0));
-        let fTxt='';
-        const dirPrefix=ann.flowDirectionMode==='sign'||ann.flowDirectionMode==='both'?(nval(r.pFromMw,0)>=0?'+':''):'';
-        if(ann.branchFlowMode==='pq')fTxt=`${dirPrefix}${num(r.pFromMw,dec)} MW · ${num(r.qFromMvar,dec)} MVAr`;
-        else if(ann.branchFlowMode==='mva')fTxt=`${num(r.sFromMva,dec)} MVA`;
-        else if(ann.branchFlowMode==='current')fTxt=`${num(r.iFromA,dec)} A`;
-        else if(ann.branchFlowMode==='loading')fTxt=`%${num(pct,dec)} yük`;
-        if(fTxt){
-          const pfTxt=S('text',{
-            x:x+11,
-            y:y-6,
-            fill:pct>=100?'#ff7b7b':pct>=80?'#f7c266':'#8be9c1',
-            'font-size':(7.5*fontMult).toFixed(1),
-            class:'ga-studio-pf-badge'
-          });
-          pfTxt.textContent=fTxt;
-          g.append(pfTxt);
-        }
-      }
-    }
 
     const tip=S('title');
-    tip.textContent=`[${psse}] id=${c.id} · map="${c.map||'—'}" · katman=${c.layer??1}${match?` · SAV=${match.id}`:' · (SAV eşleşmesi yok)'}`;
+    tip.textContent=studioTooltipText(c,match);
     g.append(tip);
     lg.append(g);
   }
@@ -2332,6 +2448,10 @@ function renderGaSldToSvg(gaSld,customSettings=null){
     for(const c of comps){
       if(c.t!=='Label'||!c.pos||!c.text||c.vis===false)continue;
       const ownerSym=c.owner!==undefined?symMap.get(c.owner):null;
+      if(ownerSym?.stype==='Branch'&&/MW|MVAr/i.test(c.text||'')){
+        const bound=matchSavEquipment(ownerSym.map);
+        if(ann.branchFlowMode==='hide'||bound?.branch&&branchMap.has(bound.branch.id))continue;
+      }
       if(ownerSym&&ownerSym.stype==='Busbar'){
         if(!ann.showBusId&&!ann.showBusName)continue;
       }else if(ownerSym&&ownerSym.stype==='Branch'){
@@ -2446,35 +2566,8 @@ function resolveGaSldOverlaps(gaSld){
 }
 
 function getStationBusIndices(stationId){
-  const n=network(),m=model();if(!n||!m)return {name:stationId,indices:[]};
-  const eqMap=sourceRows();
-  const indices=[];
-  let stName='';
-  const subEq=eqMap.get(`substation:${stationId}`)||eqMap.get(stationId);
-  if(subEq?.name)stName=subEq.name;
-  n.buses.forEach((b,idx)=>{
-    if(!b.source)return;
-    const eq=eqMap.get(b.sourceEquipmentId);
-    const isub=String(eq?.fields?.isub??'');
-    const bName=String(eq?.name||b.connectionKey||'').trim();
-    const prefix=bName.split(/[\s_-]+/)[0];
-    if(isub===stationId||`substation:${isub}`===stationId||prefix===stationId||b.id===stationId){
-      indices.push(idx);
-      if(!stName&&bName)stName=prefix;
-    }
-  });
-  // Fallback: if station dropdown in native view matched buses, read from native station view
-  if(!indices.length){
-    const nativeSvgEl=$('.ga-psse-sld-svg',state.root);
-    if(nativeSvgEl){
-      for(const g of $$('.ga-sld-bus[data-bus-id]',nativeSvgEl)){
-        const bid=g.dataset.busId;
-        const idx=n.buses.findIndex(b=>b.id===bid);
-        if(idx>=0)indices.push(idx);
-      }
-    }
-  }
-  return {name:stName||stationId,indices};
+  const id=String(stationId).replace(/^substation:/,''),index=modelIndex(),group=index.stationBuses.get(id);
+  const area=state.refs.ytm?.value||'';return {name:index.stationById.get(id)?.name||id,indices:(group?.indices||[]).filter(i=>!area||String(index.equipment.get(network().buses[i].sourceEquipmentId)?.fields.area)===area),provenance:group?.provenance||'UNRESOLVED'};
 }
 
 function prepareNativeDiagram(doc){
@@ -2500,7 +2593,7 @@ function orthogonalizeLink(link){
 
 function alignNativePorts(doc){
   const byId=new Map(doc.components.map(c=>[c.id,c]));
-  for(const s of doc.components){if(s.t==='Symbol'&&s.stype==='Busbar'){s.len=Math.max(.4,Math.round(s.len*10)/10);s.width=Math.max(.05,Math.round((s.width||.05)/.05)*.05);recomputeBusbarEnds(s);}}
+  for(const s of doc.components){if(s.t==='Symbol'&&s.stype==='Busbar'&&!s.locked&&!s.manual&&!s.layoutLocked){s.len=Math.max(.4,Math.round(s.len*10)/10);s.width=Math.max(.05,Math.round((s.width||.05)/.05)*.05);recomputeBusbarEnds(s);}}
   for(const l of doc.components.filter(c=>c.t==='Link'))for(const [key,first] of [['p1',true],['p2',false]]){
     const p=l[key],sym=byId.get(p.sym);if(!sym)continue;
     const neighbor=first?(l.knees?.[0]||l.p2.pos):(l.knees?.at(-1)||l.p1.pos);
@@ -2512,18 +2605,22 @@ function alignNativePorts(doc){
     const old=[...p.pos];p.pos=getPortWorldPos(sym,p);
     if(l.knees?.length){const k=first?l.knees[0]:l.knees.at(-1);if(Math.abs(k[0]-old[0])<1e-3)k[0]=p.pos[0];if(Math.abs(k[1]-old[1])<1e-3)k[1]=p.pos[1];}
   }
-  for(const link of doc.components.filter(c=>c.t==='Link'))orthogonalizeLink(link);
+  for(const link of doc.components.filter(c=>c.t==='Link'&&!c.manual&&!c.locked))orthogonalizeLink(link);
 }
 
 function optimizeGeneratedLayout(doc){
   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-  const measureText=label=>{const size=Number(label.fh)||9;ctx.font=size+'px Arial';return {width:Math.max(...String(label.text||'').split('\n').map(line=>ctx.measureText(line).width))/SLD_SCALE,height:size*1.2*String(label.text||'').split('\n').length/SLD_SCALE};};
+  const measureText=label=>{const size=Math.max(6,Math.min(18,(Number(label.fh)||9)*.82*(Number(activeSettings().layout.fontScale)||100)/100));ctx.font=size+'px Arial';return {width:Math.max(...String(label.text||'').split('\n').map(line=>ctx.measureText(line).width))/SLD_SCALE,height:size*1.2*String(label.text||'').split('\n').length/SLD_SCALE};};
   // Preserve the station/voltage arrangement produced by the graph builder;
   // compact local clearance and A* rerouting are reversible geometry changes.
-  const options={preservePositions:true,preserveBusPorts:true,retainBetterRoutes:true,constrainBounds:true,resolveSymbolCollisions:true,crossingWeight:25,routeCrossingPenalty:10,refineRoutes:true,compressedFallback:doc.components.length>300,maxCompressedNodes:10000,maxRouteNodes:2500,measureText:label=>{const m=measureText(label);return {width:Math.max(.25,m.width),height:Math.max(.22,m.height)};}};
+  const options={preservePositions:!doc.scope?.provenance,preserveBusPorts:false,retainBetterRoutes:false,constrainBounds:false,resolveSymbolCollisions:true,crossingWeight:25,routeCrossingPenalty:10,refineRoutes:true,compressedFallback:doc.components.length>300,maxCompressedNodes:12000,maxRouteNodes:6000,gridSize:doc.components.length>300?.65:.35,measureText:label=>{const m=measureText(label);return {width:Math.max(.25,m.width),height:Math.max(.22,m.height)};}};
   prepareNativeDiagram(doc);
+  const symbols=new Map(doc.components.filter(c=>c.t==='Symbol').map(c=>[c.id,c]));
+  for(const label of doc.components.filter(c=>c.t==='Label')){const owner=symbols.get(label.owner);if(owner?.stype==='Busbar'&&!label.locked&&!label.manual&&!owner.locked&&!owner.manual){
+    label.text=String(label.text).split(/\r?\n/)[0];const size=measureText(label);label.pos=[owner.pos[0]-size.width/2,owner.pos[1]+.32];
+  }}
   alignNativePorts(doc);
-  const baseline=structuredClone(doc);
+  const baseline=cloneArchiveGraph(doc);
   const before=measureMetroLayout(doc,options);
   const applied=applyMetroLayout(doc,options);
   alignNativePorts(doc);
@@ -2537,7 +2634,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   const n=network(),m=model();
   if(!n||!m)return null;
   const eqMap=sourceRows();
-  const {name:stName,indices}=getStationBusIndices(stationId);
+  const {name:stName,indices,provenance}=getStationBusIndices(stationId);
   if(!indices.length)return null;
 
   const isHoriz=orientation!=='vertical';
@@ -2799,6 +2896,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   const gaDoc={
     format:'ga-sld-v1',
     name:`${stName}_TM.sld`,
+    scope:{provenance,sourceBusIds:indices.map(i=>n.buses[i].sourceEquipmentId)},
     title:`${stName} TM (${indices.length} Bara · ${isHoriz?'Yatay':'Dikey'} Yerleşim)`,
     fileVersion:'2.0.51.1',
     layers:defaultSldLayers(),
@@ -2823,7 +2921,7 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
   // Group buses by primary representative bus per substation (plus keep all selected buses mapped)
   const groups=new Map(),byBusIdx=new Map();
   for(const o of selected){
-    const gid=String(o.e.fields.isub??'')||String(o.e.name||o.b.connectionKey).trim().split(/[\s_-]+/)[0];
+    const gid=String(o.e.fields.isub??modelIndex().busStation.get(o.i)??o.b.connectionKey);
     if(!groups.has(gid)){
       groups.set(gid,{
         id:gid,
@@ -2865,26 +2963,9 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
   // Layered barycenter layout for crossing minimization
   const items=[...groups.values()].sort((a,b)=>(b.maxKv-a.maxKv)||(b.deg-a.deg)||a.name.localeCompare(b.name,'tr'));
   const cols=Math.min(7,Math.max(3,Math.ceil(Math.sqrt(items.length*1.35))));
-  const rows=[];
-  for(let r=0;r<Math.ceil(items.length/cols);r++){
-    rows.push(items.slice(r*cols,(r+1)*cols));
-  }
-  // 2-pass barycenter ordering across rows to minimize edge crossings
-  const colPos=new Map();
-  rows.forEach(row=>row.forEach((g,cIdx)=>colPos.set(g.id,cIdx)));
-  for(let pass=0;pass<3;pass++){
-    for(let r=1;r<rows.length;r++){
-      rows[r].sort((a,b)=>{
-        const na=[...a.adj].filter(id=>colPos.has(id)),nb=[...b.adj].filter(id=>colPos.has(id));
-        const ba=na.length?na.reduce((s,id)=>s+colPos.get(id),0)/na.length:colPos.get(a.id);
-        const bb=nb.length?nb.reduce((s,id)=>s+colPos.get(id),0)/nb.length:colPos.get(b.id);
-        return ba-bb;
-      });
-      rows[r].forEach((g,cIdx)=>colPos.set(g.id,cIdx));
-    }
-  }
+  const rows=arrangeMetroStations(items,cols);
 
-  const cellX=4.6,cellY=3.5;
+  const cellX=Math.max(7,...items.map(g=>2.4+(g.deg+1)*.55))+2,cellY=6.5;
   const comps=[];
   let idSeq=100;
   const groupSymMap=new Map();
@@ -2910,7 +2991,7 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
       const repBus=g.buses[0].b;
       const busNum=repBus.externalNumber||repBus.connectionKey;
       const lyr=layerForKv(g.maxKv);
-      const barLen=Number(Math.max(2.2,Math.min(3.6,1.6+g.deg*0.22)).toFixed(2));
+      const barLen=Number(Math.max(2.4,1.2+g.deg*.55).toFixed(2));
       const cid=idSeq++;
       const sym={
         id:cid,t:'Symbol',stype:'Busbar',psse:'Busbar',sdef:1,layer:lyr,
@@ -2997,7 +3078,7 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
       const insideFrom=byBusIdx.has(br.from);
       const sIn=groupSymMap.get(inGId);if(!sIn)continue;
       const p1Spec=allocSymPort(sIn,groups.get(inGId)?.deg||3);
-      const p2Spec=allocSymPort(extSym,ext.innerGroups.size+1);
+      const p2Spec=allocSymPort(extSym,ext.branches.length+1);
       const fB=n.buses[br.from]?.externalNumber||br.terminalFrom,tB=n.buses[br.to]?.externalNumber||br.terminalTo;
       const brId=idSeq++;
       const mx=Number(((p1Spec.pos[0]+p2Spec.pos[0])/2).toFixed(4)),my=Number(((p1Spec.pos[1]+p2Spec.pos[1])/2).toFixed(4));
@@ -3014,7 +3095,8 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
   const gaDoc={
     format:'ga-sld-v1',
     name:`OWNER_${ownerCode}_${(op?.name||'BOLGE').replace(/\W+/g,'_')}.sld`,
-    title:`OWNER ${ownerCode} (${op?.name||'Bölge'}) · ${selected.length} Bara · ${items.length} TM · ${extList.length} Sınır Fideri`,
+    scope:{ownerId:String(ownerCode),sourceBusIds:selected.map(o=>o.e.id),stationMappings:items.map(g=>({id:g.id,provenance:modelIndex().stationBuses.get(g.id)?.provenance||'UNRESOLVED'}))},
+    title:`OWNER ${ownerCode} (${op?.name||'Bölge'}) · ${selected.length} Bara · ${items.length} TM/bara grubu · ${extList.length} Sınır Fideri`,
     fileVersion:'2.0.51.1',
     layers:defaultSldLayers(),
     components:comps
@@ -3043,7 +3125,7 @@ function getSldDb(){
 
 function portableGaSld(doc){
   if(!doc)return null;
-  const {rawBytes,_rawMainList,_rawLayers,_rawGroups,_rawViews,...rest}=doc;
+  const {rawBytes,_rawMainList,_rawLayers,_rawSelected,_rawGroups,_rawViews,...rest}=doc;
   return {...rest,modelHash:hash(),components:doc.components.map(c=>{const {_rawObj,_rawKnees,...item}=c;return item;})};
 }
 function nativeFingerprint(bytes){
@@ -3331,34 +3413,36 @@ function newTm(stationOverride=''){
     toast('Seçilen TM için SAV modelinde aktif bara bulunamadı.','warn');
     return null;
   }
-  const optText=state.refs.tm?.selectedOptions?.[0]?.textContent?.split(' · ')[0]||gaSld.name.replace(/_TM\.sld$/,'');
+  const optText=modelIndex().stationById.get(String(stationId))?.name||gaSld.name.replace(/_TM\.sld$/,'');
   return createDoc({
     name:`${optText} TM`,
     stationId,
     origin:'TM_AUTO',
     gaSld,
-    notice:`${optText} TM şeması SAV modelinden (${orient==='vertical'?'Dikey':'Yatay'} bara düzeniyle) oluşturuldu.`
+    notice:`${optText} TM şeması oluşturuldu. ${gaSld.scope?.provenance==='SOURCE_ISUB'?'Kaynak isub ilişkisi.':'Kaynakta bara-isub ilişkisi yok; tam kaynak adına göre aday eşleşme, kesin topolojik kanıt değildir.'}`
   });
 }
 
 function ownerOptions(){
   const m=model(),buses=network()?.buses||[];if(!m)return[];
   const eq=new Map(m.equipment.filter(e=>e.kind==='bus').map(e=>[e.id,e]));
-  const ow=new Map(m.equipment.filter(e=>e.kind==='owner').map(e=>[String(e.fields.iowner),e.name]));
+  const ow=modelIndex().ownerNames;
   const counts=new Map();
   for(const b of buses){
     if(!b.source)continue;
     const e=eq.get(b.sourceEquipmentId),code=String(e?.fields.owner??'');
     if(code)counts.set(code,(counts.get(code)||0)+1);
   }
-  return [...counts].map(([code,count])=>({code,count,name:ow.get(code)||({'723':'YURTDISI'}[code])||`OWNER ${code}`})).sort((a,b)=>Number(a.code)-Number(b.code));
+  return [...counts].map(([code,count])=>({code,count,name:ow.get(code)||`OWNER ${code}`})).sort((a,b)=>Number(a.code)-Number(b.code));
 }
 
 function populateStations(){
-  const source=currentStation(),sel=state.refs.tm;if(!sel||!source)return;
-  const old=sel.value||source.value;
-  sel.replaceChildren(...[...source.options].map(o=>new Option(o.textContent,o.value)));
-  if([...sel.options].some(o=>o.value===old))sel.value=old;else sel.value=source.value;
+  const sel=state.refs.tm,ytm=state.refs.ytm;if(!sel)return;const index=modelIndex(),n=network();if(!n)return;
+  if(ytm){const old=ytm.value;ytm.replaceChildren(new Option('Tüm YTM / AREA',''),...[...index.areaNames].sort((a,b)=>Number(a[0])-Number(b[0])).map(([id,name])=>new Option(`${name} (${id})`,id)));ytm.value=old;}
+  const area=ytm?.value||'',old=sel.value;
+  const options=[...index.stationById].map(([id,station])=>{const group=index.stationBuses.get(id),indices=group.indices.filter(i=>!area||String(index.equipment.get(n.buses[i].sourceEquipmentId)?.fields.area)===area);return {id,station,group,indices};}).filter(o=>o.indices.length).sort((a,b)=>a.station.name.localeCompare(b.station.name,'tr'));
+  sel.replaceChildren(new Option('Trafo Merkezi / Santral Seç',''),...options.map(o=>new Option(`${o.station.name} (${o.id}) · ${o.indices.length} bara${o.group.provenance==='SOURCE_ISUB'?'':' · isub yok: aday'}`,o.id)));
+  if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 
 function populateOwner(){
@@ -3382,7 +3466,7 @@ function newOwner(ownerOverride=''){
     return null;
   }
   const op=ownerOptions().find(o=>o.code===owner);
-  const display=state.refs.owner?.selectedOptions?.[0]?.textContent?.split(' (')[0]||op?.name||`OWNER ${owner}`;
+  const display=op?.name||`OWNER ${owner}`;
   return createDoc({
     name:`${display} (${owner})`,
     origin:'OWNER_AUTO',
@@ -3404,6 +3488,7 @@ function setBusOrientation(orient,recordHistory=true){
   const targetRot=norm==='horizontal'?90:0;
   const selComp=state.selection?.dataset?.sldId?findGaSldComp(state.selection.dataset.sldId):null;
   if(selComp&&selComp.stype==='Busbar'){
+    if(selComp.locked||selComp.layoutLocked||activeSettings().advanced.lockLayout){toast('Kilitli nesne korunuyor.','warn');return;}
     resizeOrRotateBusbar(selComp,selComp.len,selComp.width,targetRot,state.doc.gaSld);
   }else{
     for(const c of state.doc.gaSld.components){
@@ -3580,12 +3665,17 @@ function updateLiveSvgForMovedSymbol(sym){
 
 function handleKneeOrRouteToolClick(p,el){
   if(!state.doc?.gaSld)return;
+  if(activeSettings().advanced.lockLayout)return;
   if(el?.classList?.contains('ga-studio-knee')&&state.mode==='knee'){
     const lk=findGaSldComp(Number(el.dataset.linkId));
     const kIdx=Number(el.dataset.kneeIdx);
+    if(lk?.locked||lk?.layoutLocked)return;
     if(lk&&Array.isArray(lk.knees)&&lk.knees[kIdx]!==undefined){
-      commit();
-      lk.knees.splice(kIdx,1);orthogonalizeLink(lk);
+      commit();lk.manual=true;
+      // Removing just one corner recreates it during orthogonal repair. Collapse
+      // its adjacent channel instead, leaving at most one necessary elbow.
+      const first=Math.max(0,Math.min(kIdx,lk.knees.length-2));
+      lk.knees.splice(first,Math.min(2,lk.knees.length));orthogonalizeLink(lk);
       refreshGaSldCanvas(true);
       toast(`Knee-point silindi (Bağ #${lk.id}).`,'ok');
     }
@@ -3598,7 +3688,8 @@ function handleKneeOrRouteToolClick(p,el){
   }
   const lk=findGaSldComp(Number(linkEl.dataset.sldId));
   if(!lk||!lk.p1?.pos||!lk.p2?.pos)return;
-  commit();
+  if(lk.locked||lk.layoutLocked)return;
+  commit();lk.manual=true;
   if(state.mode==='route90'){
     const s1=findGaSldComp(lk.p1.sym),s2=findGaSldComp(lk.p2.sym);
     lk.knees=buildOrthogonalKnees(lk.p1.pos,lk.p2.pos,s1,s2);
@@ -3713,6 +3804,13 @@ function hideBusbarPopup(){
 function updateTextLod(){
   const svg=state.svg;if(!svg)return;
   const scale=Math.abs(svg.getScreenCTM()?.a||1), occupied=new Map();
+  const cfg=activeSettings(),detailZoom=Number(cfg.advanced.detailLabelZoom??25),flowZoom=Number(cfg.advanced.flowLabelZoom??20);
+  for(const text of $$('.ga-studio-pf-badge',svg)){
+    text.style.display=scale*100<flowZoom?'none':'';text.style.fontSize=Math.max(8,8/scale)+'px';
+    if(!text.hasAttribute('data-flow-unit'))continue;
+    text.setAttribute('y',Number(text.dataset.flowY)+(text.dataset.flowUnit==='MVAr'?12:-6)/scale);
+    text.setAttribute('x',Number(text.dataset.flowX)+(text.dataset.flowVertical==='1'?text.getBBox().width/2+6/scale:0));
+  }
   const groups=$$('.ga-studio-sld-label',svg);
   const symbolMap=new Map((state.doc?.gaSld?.components||[]).filter(c=>c.t==='Symbol').map(c=>[c.id,c]));
   const labels=new Map((state.doc?.gaSld?.components||[]).filter(c=>c.t==='Label').map(c=>[c.id,c]));
@@ -3723,8 +3821,9 @@ function updateTextLod(){
     const c=labels.get(Number(g.dataset.sldId)), selected=g===state.selection||state.selection?.dataset?.sldId===String(c?.owner);
     const overview=base*scale<10.5;
     g.style.display='';
-    if(overview&&!selected&&symbolMap.get(c?.owner)?.stype!=='Busbar'){g.style.display='none';continue;}
+    if(scale*100<detailZoom&&!selected&&symbolMap.get(c?.owner)?.stype!=='Busbar'){g.style.display='none';continue;}
     text.setAttribute('font-size',String(overview?11/scale:base));
+    const owner=symbolMap.get(c?.owner);if(owner?.stype==='Busbar'&&!c?.manual&&!c?.locked&&state.doc?.gaSld?.scope){const x=owner.pos[0]*SLD_SCALE-text.getBBox().width/2;text.setAttribute('x',x);for(const span of text.querySelectorAll('tspan'))span.setAttribute('x',x);}
     const box=text.getBoundingClientRect(), keys=[];let collision=false;
     for(let x=Math.floor(box.left/80);x<=Math.floor(box.right/80);x++)for(let y=Math.floor(box.top/30);y<=Math.floor(box.bottom/30);y++){
       const k=x+':'+y;keys.push(k);
@@ -3744,7 +3843,14 @@ function bindSvg(){
   state.lodObserver.observe(svg,{attributes:true,attributeFilter:['viewBox']});
   requestAnimationFrame(updateTextLod);
 
-  svg.addEventListener('pointerdown',e=>{
+  let tooltip=state.refs.tooltip;if(!tooltip){tooltip=E('div','ga-studio-tooltip');tooltip.hidden=true;tooltip.setAttribute('role','tooltip');state.host.append(tooltip);state.refs.tooltip=tooltip;}
+  svg.addEventListener('pointerleave',()=>tooltip.hidden=true);
+  svg.addEventListener('pointermove',e=>{if(state.drag){tooltip.hidden=true;return;}const el=e.target.closest('[data-sld-id]'),component=el?findGaSldComp(el.dataset.sldId):null;if(!component){tooltip.hidden=true;return;}
+    const related=component.t==='Link'?findGaSldComp(component.p1?.sym):component.t==='Label'?findGaSldComp(component.owner):component;
+    const branch=component.t==='Link'?[findGaSldComp(component.p1?.sym),findGaSldComp(component.p2?.sym)].find(s=>s?.stype==='Branch'):null;
+    tooltip.textContent=studioTooltipText(component,matchSavEquipment((branch||related)?.map));tooltip.hidden=false;tooltip.style.left=Math.max(8,Math.min(e.clientX+14,innerWidth-tooltip.offsetWidth-8))+'px';tooltip.style.top=Math.max(8,Math.min(e.clientY+14,innerHeight-tooltip.offsetHeight-8))+'px';
+  });
+  svg.addEventListener('pointerdown',e=>{tooltip.hidden=true;
     svg.focus({preventScroll:true});
     if(e.button!==0)return;
     const p=toPoint(e),el=target(e);
@@ -3759,7 +3865,7 @@ function bindSvg(){
       svg.setPointerCapture(e.pointerId);e.preventDefault();return;
     }
     if(el)selectNode(el,e.shiftKey);else if(!e.shiftKey)selectNode(null);
-    const canMove=el&&!locked&&el.dataset?.sldType!=='Link';
+  const canMove=el&&!locked&&el.dataset?.sldType!=='Link'&&(state.mode!=='label'||el.dataset?.sldType==='Label');
     const mode=canMove?'move':'pan';
     if(mode==='move')commit();
     state.drag={id:e.pointerId,p,prev:p,el,mode,vb:bounds(),changed:false};
@@ -3777,7 +3883,13 @@ function bindSvg(){
     }else if(d.mode==='knee'&&state.doc?.gaSld){
       const lk=findGaSldComp(d.linkId);
       if(lk&&lk.knees&&lk.knees[d.kneeIdx]){
-        lk.knees[d.kneeIdx]=[Number((p.x/SLD_SCALE).toFixed(4)),Number((-p.y/SLD_SCALE).toFixed(4))];
+        if(lk.locked||lk.layoutLocked)return;
+        lk.manual=true;
+        const old=[...lk.knees[d.kneeIdx]],point=[Number((p.x/SLD_SCALE).toFixed(4)),Number((-p.y/SLD_SCALE).toFixed(4))];
+        const previous=lk.knees[d.kneeIdx-1],next=lk.knees[d.kneeIdx+1];
+        for(const neighbor of [previous,next])if(neighbor){if(Math.abs(neighbor[0]-old[0])<1e-6)neighbor[0]=point[0];else if(Math.abs(neighbor[1]-old[1])<1e-6)neighbor[1]=point[1];}
+        lk.knees[d.kneeIdx]=point;orthogonalizeLink(lk);
+        d.kneeIdx=lk.knees.findIndex(k=>k[0]===point[0]&&k[1]===point[1]);
         d.el.setAttribute('cx',String(p.x));d.el.setAttribute('cy',String(p.y));
         const pts=[lk.p1.pos,...lk.knees,lk.p2.pos].map(pt=>[Number((pt[0]*SLD_SCALE).toFixed(2)),Number((-pt[1]*SLD_SCALE).toFixed(2))]);
         const path=d.el.closest('.ga-studio-sld-link')?.querySelector('path.ga-sld-line');
@@ -3912,10 +4024,11 @@ function toggleFullscreen(){
 function alignSelected(mode){
   const items=[...state.multiSelect];
   if(items.length<2){toast('Hizalama için Shift+Tık ile en az 2 nesne seçin.','warn');return;}
-  commit();
+  if(activeSettings().advanced.lockLayout)return;
   if(state.doc?.gaSld){
-    const comps=items.map(el=>findGaSldComp(el.dataset?.sldId)).filter(c=>c&&c.pos);
+    const comps=items.map(el=>findGaSldComp(el.dataset?.sldId)).filter(c=>c&&c.pos&&!c.locked&&!c.layoutLocked);
     if(comps.length<2)return;
+    commit();comps.forEach(c=>c.manual=true);
     if(mode==='left'){const v=Math.min(...comps.map(c=>c.pos[0]));comps.forEach(c=>{const dx=v-c.pos[0];if(c.t==='Symbol')translateGaSldSymbol(c,dx,0);else c.pos[0]=v;});}
     else if(mode==='center-x'){const v=comps.reduce((s,c)=>s+c.pos[0],0)/comps.length;comps.forEach(c=>{const dx=Number((v-c.pos[0]).toFixed(4));if(c.t==='Symbol')translateGaSldSymbol(c,dx,0);else c.pos[0]=Number(v.toFixed(4));});}
     else if(mode==='top'){const v=Math.max(...comps.map(c=>c.pos[1]));comps.forEach(c=>{const dy=v-c.pos[1];if(c.t==='Symbol')translateGaSldSymbol(c,0,dy);else c.pos[1]=v;});}
@@ -3938,7 +4051,9 @@ function rotateSelected(){
   if(!state.selection||!state.doc?.gaSld)return;
   const c=findGaSldComp(state.selection.dataset?.sldId);
   if(!c)return;
+  if(c.locked||c.layoutLocked||activeSettings().advanced.lockLayout){toast('Kilitli nesne korunuyor.','warn');return;}
   commit();
+  c.manual=true;
   const nextRot=((Number(c.rot||0)+90)%360);
   if(c.stype==='Busbar'){
     resizeOrRotateBusbar(c,c.len,c.width,nextRot,state.doc.gaSld);
@@ -3952,6 +4067,7 @@ function rotateSelected(){
 
 function resolveOverlaps(){
   if(!state.doc?.gaSld)return 0;
+  if(activeSettings().advanced.lockLayout)return 0;
   commit();
   const metrics=optimizeGeneratedLayout(state.doc.gaSld).layoutMetrics;
   const moved=metrics.before.labelCollisions-metrics.after.labelCollisions;
@@ -4106,14 +4222,14 @@ async function importOne(file){
     try{importProject(JSON.parse(await file.text()));return {ok:true};}catch(e){toast('JSON Hatası: '+e.message,'error');return {ok:false,error:e.message};}
   }
   if(suffix==='sld'){
+    try{
     const bytes=new Uint8Array(await file.arrayBuffer());
     const check=validateSldBinary(bytes);
     if(!check.valid){
-      const errMsg=`Geçersiz .sld dosyası reddedildi (${file.name}): ${check.reason}`;
+      const errMsg=`Geçersiz .sld dosyası reddedildi (${file.name}): ${check.reason}. Önceki diyagram açık bırakıldı.`;
       toast(errMsg,'error');
       return {ok:false,error:errMsg};
     }
-    try{
       const gaSld=await parseSldBinary(bytes,file.name);
       createDoc({
         name:file.name,
@@ -4125,7 +4241,7 @@ async function importOne(file){
       toast(`${file.name} başarıyla doğrulandı ve açıldı (${gaSld.components.length} bileşen).`,'ok');
       return {ok:true,gaSld};
     }catch(e){
-      const errMsg=`SLD çözümleme hatası (${file.name}): ${e.message}`;
+      const errMsg=`SLD çözümleme hatası (${file.name}): ${e.message}. Önceki diyagram açık bırakıldı.`;
       toast(errMsg,'error');
       return {ok:false,error:errMsg};
     }
@@ -4138,7 +4254,7 @@ async function importOne(file){
 /* 4-Tab PSS(R)E Diagram Settings Modal */
 function openDiagramSettingsModal(){
   const backdrop=state.refs.settingsModal;if(!backdrop)return;
-  const working=structuredClone(activeSettings());
+  const working=structuredClone(activeSettings());working.advanced={...defaultDiagramSettings().advanced,...working.advanced};
   let activeTab='annotations';
 
   const body=$('.ga-studio-modal-body',backdrop);
@@ -4183,7 +4299,7 @@ function openDiagramSettingsModal(){
       l.append(inp);return l;
     };
     const mkColor=(label,obj,key)=>{
-      const row=E('div','ga-studio-color-row');
+      const row=E('label','ga-studio-color-row');
       row.append(E('span','',label));
       const inp=E('input');inp.type='color';inp.value=String(obj[key]||'#4b9dde');
       inp.oninput=()=>{obj[key]=inp.value;previewLive();};
@@ -4306,6 +4422,8 @@ function openDiagramSettingsModal(){
         mkNumber('Knee-Point Tutamaç Boyutu (px)',working.advanced,'kneeSize',2.5,8,0.5),
         mkNumber('Hat Çizgi Kalınlığı Çarpanı',working.advanced,'lineWidthScale',0.5,2.5,0.1),
         mkNumber('Zoom Adımı (%)',working.advanced,'zoomStep',5,40,2),
+        mkNumber('Ayrıntı etiketleri görünürlük eşiği (zoom %)',working.advanced,'detailLabelZoom',0,500,5),
+        mkNumber('MW / MVAr görünürlük eşiği (zoom %)',working.advanced,'flowLabelZoom',0,500,5),
         mkCheck('Anti-aliasing (Yumuşak vektör çizimi)',working.advanced,'antiAliasing'),
         mkCheck('Sıkışık etiketleri uzaklaşınca gizle',working.advanced,'hideCrowdedLabels'),
         mkCheck('Diyagram yerleşimini kilitle (Sürüklemeyi kapat)',working.advanced,'lockLayout')
@@ -4331,7 +4449,7 @@ function openDiagramSettingsModal(){
     else state.globalSettings=originalBackup;
     if(state.doc?.gaSld)refreshGaSldCanvas(true);
     applyStageVisualSettings();
-    backdrop.classList.remove('is-open');
+    closeStudioModal(backdrop);
   };
   state.refs.settingsApplyBtn.onclick=()=>{
     if(state.doc){state.doc.settings=structuredClone(originalBackup);commit();}
@@ -4347,12 +4465,12 @@ function openDiagramSettingsModal(){
       }
     }
     save();
-    backdrop.classList.remove('is-open');
+    closeStudioModal(backdrop);
     toast('Diyagram ayarları uygulandı ve kaydedildi.','ok');
   };
 
   renderTabContent();
-  backdrop.classList.add('is-open');
+  openStudioModal(backdrop);
 }
 
 /* Contextual Object Inspector Modal (replaces permanent right panel) */
@@ -4423,7 +4541,7 @@ function openObjectInspectorModal(el=state.selection){
       }
       sldComp.color=hexToBgr(inCol.value);
       refreshGaSldCanvas(true);
-      backdrop.classList.remove('is-open');
+      closeStudioModal(backdrop);
       toast('Nesne geometrisi güncellendi.','ok');
     };
   }else if(sldComp.t==='Link'){
@@ -4435,19 +4553,19 @@ function openObjectInspectorModal(el=state.selection){
       const s1=findGaSldComp(sldComp.p1?.sym),s2=findGaSldComp(sldComp.p2?.sym);
       if(sldComp.p1?.pos&&sldComp.p2?.pos)sldComp.knees=buildOrthogonalKnees(sldComp.p1.pos,sldComp.p2.pos,s1,s2);
       refreshGaSldCanvas(true);
-      backdrop.classList.remove('is-open');
+      closeStudioModal(backdrop);
     };
     const btnClearKnees=E('button','ga-studio-button','Tüm Knee-Point Noktalarını Temizle');
     btnClearKnees.onclick=()=>{
-      commit();sldComp.knees=[];refreshGaSldCanvas(true);backdrop.classList.remove('is-open');
+      commit();sldComp.knees=[];refreshGaSldCanvas(true);closeStudioModal(backdrop);
     };
     grid.append(btnOrtho,btnClearKnees);
     editGrp.append(grid);
-    state.refs.inspectorApplyBtn.onclick=()=>backdrop.classList.remove('is-open');
+    state.refs.inspectorApplyBtn.onclick=()=>closeStudioModal(backdrop);
   }
 
   body.append(editGrp);
-  backdrop.classList.add('is-open');
+  openStudioModal(backdrop);
 }
 
 function openLayersModal(){
@@ -4471,13 +4589,13 @@ function openLayersModal(){
     grid.append(lbl);
   }
   grp.append(grid);body.append(grp);
-  state.refs.inspectorApplyBtn.onclick=()=>backdrop.classList.remove('is-open');
-  backdrop.classList.add('is-open');
+  state.refs.inspectorApplyBtn.onclick=()=>closeStudioModal(backdrop);
+  openStudioModal(backdrop);
 }
 
 function createModals(host){
   // 1) 4-Tab Diagram Settings Modal
-  const sb=E('div','ga-studio-modal-backdrop');
+  const sb=E('dialog','ga-studio-modal-backdrop');
   const sm=E('div','ga-studio-modal');
   const sh=E('div','ga-studio-modal-head');
   sh.append(E('strong','','⚙ PSS®E Diyagram Ayarları (Diagram Properties)'));
@@ -4510,15 +4628,15 @@ function createModals(host){
   state.refs.settingsApplyBtn=btnApply;
 
   // 2) Compact Object Inspector / Layer Modal
-  const ib=E('div','ga-studio-modal-backdrop');
+  const ib=E('dialog','ga-studio-modal-backdrop');
   const im=E('div','ga-studio-modal');
   const ih=E('div','ga-studio-modal-head');
   ih.append(E('strong','','Nesne / Katman Özellikleri'));
-  const iClose=E('button','ga-studio-button','✕');iClose.onclick=()=>ib.classList.remove('is-open');
+  const iClose=E('button','ga-studio-button','✕');iClose.onclick=()=>closeStudioModal(ib);
   ih.append(iClose);
   const ibody=E('div','ga-studio-modal-body');
   const ifoot=E('div','ga-studio-modal-foot');
-  const iCancel=E('button','ga-studio-button','Kapat');iCancel.onclick=()=>ib.classList.remove('is-open');
+  const iCancel=E('button','ga-studio-button','Kapat');iCancel.onclick=()=>closeStudioModal(ib);
   const iApply=E('button','ga-studio-button is-native-btn','✓ Kaydet');
   ifoot.append(iCancel,iApply);
   im.append(ih,ibody,ifoot);
@@ -4526,9 +4644,23 @@ function createModals(host){
   state.refs.inspectorModal=ib;
   state.refs.inspectorApplyBtn=iApply;
 
+  for(const modal of [sb,ib]){
+    modal.setAttribute('aria-label',modal===sb?'Diyagram Ayarları':'Nesne / Katman Özellikleri');
+    modal.addEventListener('cancel',e=>{e.preventDefault();modal===sb?state.refs.settingsCancelBtn.click():closeStudioModal(modal);});
+    modal.addEventListener('click',e=>{if(e.target===modal)modal===sb?state.refs.settingsCancelBtn.click():closeStudioModal(modal);});
+    modal.addEventListener('close',()=>modal.classList.remove('is-open'));
+  }
   host.append(sb,ib);
 }
 
+function openStudioModal(modal){
+  for(const menu of $$('.ga-studio-menu:popover-open,.ga-studio-bus-popup:popover-open',state.host)){
+    menu.hidePopover();const drop=menu.closest('.ga-studio-dropdown');
+    if(drop){drop.classList.remove('is-open');$('button',drop)?.setAttribute('aria-expanded','false');}
+  }
+  modal.classList.add('is-open');if(!modal.open)modal.showModal();
+}
+function closeStudioModal(modal){modal.classList.remove('is-open');if(modal.open)modal.close();}
 function closeStudioPopover(drop,menu){
   if(menu.matches(':popover-open'))menu.hidePopover();
   drop.classList.remove('is-open');
@@ -4539,6 +4671,7 @@ function bindStudioPopover(drop,button,menu){
   button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');
   button.onclick=e=>{
     e.stopPropagation();
+    if($('.ga-studio-modal-backdrop[open]',state.host))return;
     if(menu.matches(':popover-open')){closeStudioPopover(drop,menu);return;}
     drop.classList.add('is-open');menu.showPopover();
     const b=button.getBoundingClientRect(),m=menu.getBoundingClientRect();
@@ -4563,6 +4696,7 @@ function controls(){
   const btn=(text,fn,cls='',tip='')=>{const b=E('button','ga-studio-button '+cls,text);b.type='button';if(tip)b.title=tip;b.onclick=fn;toolbar.append(b);return b;};
   const sep=()=>toolbar.append(E('span','ga-studio-sep'));
 
+  const ytm=E('select','ga-studio-select');ytm.setAttribute('aria-label','SLD editörü YTM / AREA');ytm.onchange=()=>populateStations();state.refs.ytm=ytm;toolbar.append(ytm);
   const tm=E('select','ga-studio-select');tm.title='SAV modelinden Trafo Merkezi (TM) seçin';tm.setAttribute('aria-label','SLD editörü trafo merkezi');state.refs.tm=tm;toolbar.append(tm);
   btn('⚡ TM Çiz',()=>newTm(),'is-native-btn','Seçili Trafo Merkezini SAV modelinden tek tıkla çiz');
 
@@ -4679,7 +4813,7 @@ function controls(){
   state.refs.file=file;host.append(file);
 
   host.addEventListener('keydown',e=>{
-    if(e.target.closest('input,textarea,select'))return;
+    if(e.target.closest('input,textarea,select,dialog'))return;
     if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='g'){e.preventDefault();e.shiftKey?ungroupSelected():groupSelected();}
     else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}
     else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}
@@ -4698,7 +4832,7 @@ function syncModel(){
     else renderEmptyStage();
   }
   if(n&&state.refs.owner.options.length<2)populateOwner();
-  if(n&&(!state.refs.tm.options.length||state.refs.tm.options.length!==currentStation()?.options.length))populateStations();
+  if(n&&state.refs.tm.options.length<2)populateStations();
   updateHeaderBadges();
 }
 

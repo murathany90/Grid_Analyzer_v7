@@ -16,8 +16,16 @@ function metroBox(s, pad=0) {
   return [s.pos[0]-w/2-pad,s.pos[1]-h/2-pad,s.pos[0]+w/2+pad,s.pos[1]+h/2+pad];
 }
 function metroOverlap(a,b) { return a[0]<b[2]-1e-8 && a[2]>b[0]+1e-8 && a[1]<b[3]-1e-8 && a[3]>b[1]+1e-8; }
+function arrangeMetroStations(items,columns){
+  const byId=new Map(items.map(g=>[g.id,g])),seen=new Set(),order=[];
+  for(const seed of items){if(seen.has(seed.id))continue;const queue=[seed.id];seen.add(seed.id);for(let i=0;i<queue.length;i++){const id=queue[i];order.push(byId.get(id));for(const next of [...byId.get(id).adj].sort())if(byId.has(next)&&!seen.has(next)){seen.add(next);queue.push(next);}}}
+  const positions=new Map(order.map((g,i)=>[g.id,[i%columns,Math.floor(i/columns)]]));
+  const cost=ids=>{let total=0;const edges=new Set();for(const id of ids)for(const neighbor of byId.get(id).adj){const key=[id,neighbor].sort().join('|');if(edges.has(key)||!positions.has(neighbor))continue;edges.add(key);const a=positions.get(id),b=positions.get(neighbor);total+=(a[0]-b[0])**2+(a[1]-b[1])**2;}return total;};
+  for(let pass=0;pass<5;pass++){let changed=false;for(let i=0;i<order.length;i++)for(let j=i+1;j<order.length;j++){const a=order[i].id,b=order[j].id,pa=positions.get(a),pb=positions.get(b),before=cost([a,b]);positions.set(a,pb);positions.set(b,pa);if(cost([a,b])<before-1e-7){[order[i],order[j]]=[order[j],order[i]];changed=true;}else{positions.set(a,pa);positions.set(b,pb);}}if(!changed)break;}
+  const rows=[];for(let i=0;i<order.length;i+=columns)rows.push(order.slice(i,i+columns));return rows;
+}
 function metroLabelBox(c,opt) {
-  const lines=String(c.text||'').split(/\r?\n/), measured=opt.measureText && opt.measureText(c);
+  const lines=String(c.text||'').split(/\r?\n/),cache=opt._measurements||(opt._measurements=new Map()),key=(c.fh||9)+'|'+c.text;let measured=cache.get(key);if(!measured&&opt.measureText){measured=opt.measureText(c);cache.set(key,measured);}
   const h=measured && Number(measured.height)>0?Number(measured.height):Math.max(0.22,(Number(c.fh)||9)*0.027)*lines.length*1.15;
   const w=measured && Number(measured.width)>0?Number(measured.width):Math.max(0.25,Math.max(...lines.map(x=>x.length))*Math.max(0.025,(Number(c.fh)||9)*0.014));
   return [c.pos[0],c.pos[1]-h,c.pos[0]+w,c.pos[1]];
@@ -68,6 +76,7 @@ function applyMetroLayout(doc, options={}) {
   const comps=doc.components, syms=comps.filter(c=>c.t==='Symbol'&&c.pos).sort((a,b)=>a.id-b.id), links=comps.filter(c=>c.t==='Link'&&c.p1?.pos&&c.p2?.pos).sort((a,b)=>a.id-b.id), labels=comps.filter(c=>c.t==='Label'&&c.pos&&c.text&&c.vis!==false).sort((a,b)=>a.id-b.id), map=new Map(syms.map(s=>[s.id,s])), adj=new Map(syms.map(s=>[s.id,[]]));
   for(const l of links)if(adj.has(l.p1.sym)&&adj.has(l.p2.sym)&&l.p1.sym!==l.p2.sym){adj.get(l.p1.sym).push(l.p2.sym);adj.get(l.p2.sym).push(l.p1.sym);}
   for(const a of adj.values())a.sort((x,y)=>x-y);
+  const locked=new Set(options.lockedIds||[]);for(const l of links)if(metroIsLocked(l,options)){locked.add(l.p1.sym);locked.add(l.p2.sym);}options={...options,lockedIds:locked};
   const old=new Map(syms.map(s=>[s.id,[...s.pos]]));
   const originalBounds=[...syms.map(s=>metroBox(s)),...labels.map(l=>metroLabelBox(l,options)),...links.flatMap(l=>metroSegs(l).map(([a,b])=>[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1])]))];
   const bounds=originalBounds.length?[Math.min(...originalBounds.map(r=>r[0])),Math.min(...originalBounds.map(r=>r[1])),Math.max(...originalBounds.map(r=>r[2])),Math.max(...originalBounds.map(r=>r[3]))]:null;
@@ -115,9 +124,25 @@ function applyMetroLayout(doc, options={}) {
   }
   for(const s of syms)if(!metroIsLocked(s,options)&&s.ends){const dx=s.pos[0]-old.get(s.id)[0],dy=s.pos[1]-old.get(s.id)[1];if(dx||dy)s.ends=s.ends.map(p=>[p[0]+dx,p[1]+dy]);}
   for(const l of labels){const s=map.get(l.owner);if(!metroIsLocked(l,options)&&!(s&&metroIsLocked(s,options))&&s){l.pos=[l.pos[0]+s.pos[0]-old.get(s.id)[0],l.pos[1]+s.pos[1]-old.get(s.id)[1]];}}
-  const placedLabels=labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options)));
-  const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*0.3,y*0.3]);
-  for(const l of labels){if(placedLabels.includes(l))continue;const original=[...l.pos];let best=[...original],bestScore=Infinity;for(const [dx,dy] of offsets){l.pos=[original[0]+dx,original[1]+dy];const b=metroLabelBox(l,options);if(options.constrainBounds&&bounds&&(b[0]<bounds[0]||b[1]<bounds[1]||b[2]>bounds[2]||b[3]>bounds[3]))continue;let score=0;for(const x of placedLabels)if(metroOverlap(b,metroLabelBox(x,options)))score++;for(const s of syms)if(metroOverlap(b,metroBox(s,0.05)))score++;if(score<bestScore){bestScore=score;best=[...l.pos];if(!score)break;}}l.pos=best;placedLabels.push(l);}
+  // AABB broad phase: cache text sizes and inspect only occupied nearby cells.
+  const labelBins=new Map(),cellSize=2,labelKey=(x,y)=>x+','+y;
+  const cellsFor=box=>{const keys=[];for(let x=Math.floor(box[0]/cellSize);x<=Math.floor(box[2]/cellSize);x++)for(let y=Math.floor(box[1]/cellSize);y<=Math.floor(box[3]/cellSize);y++)keys.push(labelKey(x,y));return keys;};
+  const addBox=box=>{for(const k of cellsFor(box)){if(!labelBins.has(k))labelBins.set(k,[]);labelBins.get(k).push(box);}};
+  const nearby=box=>new Set(cellsFor(box).flatMap(k=>labelBins.get(k)||[]));
+  for(const symbol of syms)addBox(metroBox(symbol,.05));
+  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
+  for(const label of placedLabels)addBox(metroLabelBox(label,options));
+  const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*.3,y*.3]);
+  for(const label of labels){
+    if(placedLabels.has(label))continue;const original=[...label.pos],owner=map.get(label.owner),bar=owner?.stype==='Busbar';
+    let best=original,bestScore=Infinity;
+    for(const [dx,dy]of offsets){if(bar&&(dx!==0||dy<0))continue;label.pos=[original[0]+dx,original[1]+dy];const box=metroLabelBox(label,options);
+      if(options.constrainBounds&&bounds&&(box[0]<bounds[0]||box[1]<bounds[1]||box[2]>bounds[2]||box[3]>bounds[3]))continue;
+      let score=0;for(const other of nearby(box))if(metroOverlap(box,other))score++;
+      if(score<bestScore){bestScore=score;best=[...label.pos];if(!score)break;}
+    }
+    label.pos=best;addBox(metroLabelBox(label,options));
+  }
   // Translate endpoint coordinates by the exact displacement of their owning symbol.
   for(const l of links)for(const p of [l.p1,l.p2]){const s=map.get(p.sym),o=old.get(p.sym);if(s&&o&&(s.pos[0]!==o[0]||s.pos[1]!==o[1]))p.pos=[p.pos[0]+s.pos[0]-o[0],p.pos[1]+s.pos[1]-o[1]];}
   // Keep the electrical port index/reference; only redistribute unlocked busbar geometry.
@@ -159,6 +184,7 @@ function applyMetroLayout(doc, options={}) {
     return null;
   }
   function route(l){
+    if(metroIsLocked(l,options))return;
     const a=l.p1.pos,b=l.p2.pos,sa=map.get(l.p1.sym),sb=map.get(l.p2.sym),oldKnees=(l.knees||[]).map(p=>[...p]);
     function direction(s,p,t){if(s?.stype==='Busbar'){const box=metroBox(s);if(box[2]-box[0]>box[3]-box[1])return [0,t[1]>=p[1]?1:-1];return [t[0]>=p[0]?1:-1,0];}if(s?.stype==='Branch'){const dx=p[0]-s.pos[0],dy=p[1]-s.pos[1];if(Math.abs(dx)>Math.abs(dy))return [dx>=0?1:-1,0];if(Math.abs(dy)>1e-7)return [0,dy>=0?1:-1];}return Math.abs(t[0]-p[0])>=Math.abs(t[1]-p[1])?[t[0]>=p[0]?1:-1,0]:[0,t[1]>=p[1]?1:-1];}
     const obstacles=allObstacles.filter(item=>item.id!==l.p1.sym&&item.id!==l.p2.sym).map(item=>item.box);
@@ -173,7 +199,9 @@ function applyMetroLayout(doc, options={}) {
     const heap=[];function push(n){heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].f<=n.f)break;heap[i]=heap[p];i=p;}heap[i]=n;}function pop(){const top=heap[0],last=heap.pop();if(heap.length){let i=0;while(true){let c=i*2+1;if(c>=heap.length)break;if(c+1<heap.length&&heap[c+1].f<heap[c].f)c++;if(heap[c].f>=last.f)break;heap[i]=heap[c];i=c;}heap[i]=last;}return top;}
     const best=new Map();for(let d=0;d<4;d++)push({x:A[0],y:A[1],d,g:0,f:Math.abs(A[0]-B[0])+Math.abs(A[1]-B[1]),prev:null});let end=null,count=0;
     while(heap.length&&count++<(options.maxRouteNodes||45000)){const n=pop(),k=key(n.x,n.y)+','+n.d;if(best.has(k)&&best.get(k)<=n.g)continue;best.set(k,n.g);if(n.x===B[0]&&n.y===B[1]){end=n;break;}for(let d=0;d<4;d++){const x=n.x+dirs[d][0],y=n.y+dirs[d][1];if(x<minX||x>maxX||y<minY||y>maxY||blocked(x,y,n.x,n.y))continue;const occ=occupied.get(key(x,y))||0, parallel=occ&(d%2?2:1),cross=occ&(d%2?1:2),g=n.g+1+(d===n.d?0:2.2)+(parallel?(Number(options.lanePenalty)||7):0)+(cross?(Number(options.routeCrossingPenalty)||3):0),h=Math.abs(x-B[0])+Math.abs(y-B[1]);push({x,y,d,g,f:g+h,prev:n});}}
-    let cells=[],compressed=null;if(end){for(let n=end;n;n=n.prev)cells.push([n.x,n.y]);cells.reverse();for(let i=1;i<cells.length;i++){const c=cells[i],p=cells[i-1],bit=c[0]===p[0]?2:1;occupied.set(key(c[0],c[1]),(occupied.get(key(c[0],c[1]))||0)|bit);}}else {gridFailures++;if(options.compressedFallback)compressed=compressedRoute(pa,pb,l);if(compressed)compressedSuccesses++;else {fallbackCount++;cells=[[...A],[B[0],A[1]],[...B]];}}
+    let cells=[],compressed=null;if(end){for(let n=end;n;n=n.prev)cells.push([n.x,n.y]);cells.reverse();for(let i=1;i<cells.length;i++){const c=cells[i],p=cells[i-1],bit=c[0]===p[0]?2:1;occupied.set(key(c[0],c[1]),(occupied.get(key(c[0],c[1]))||0)|bit);}}else {gridFailures++;if(options.compressedFallback)compressed=compressedRoute(pa,pb,l);if(compressed)compressedSuccesses++;else {fallbackCount++;const candidates=[[[...A],[B[0],A[1]],[...B]],[[...A],[A[0],B[1]],[...B]]];
+        const clearance=2;for(const r of obstacles){for(const y of [Math.floor(r[1]/step)-clearance,Math.ceil(r[3]/step)+clearance])candidates.push([[...A],[A[0],y],[B[0],y],[...B]]);for(const x of [Math.floor(r[0]/step)-clearance,Math.ceil(r[2]/step)+clearance])candidates.push([[...A],[x,A[1]],[x,B[1]],[...B]]);}
+        let best=Infinity;for(const candidate of candidates){let score=0;for(let i=1;i<candidate.length;i++){const a=candidate[i-1].map(v=>v*step),b=candidate[i].map(v=>v*step);score+=Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);for(const r of obstacles)if(metroSegmentHitsBox(a,b,r))score+=10000;}if(score<best){best=score;cells=candidate;}}}}
     const pts=[a,pa];function connect(p,preferX){const last=pts[pts.length-1];if(Math.abs(last[0]-p[0])>1e-8&&Math.abs(last[1]-p[1])>1e-8)pts.push(preferX?[p[0],last[1]]:[last[0],p[1]]);pts.push(p);}
     if(compressed){for(let i=1;i<compressed.length;i++)connect(compressed[i],true);}else {connect([A[0]*step,A[1]*step],!!da[0]);for(let i=1;i<cells.length;i++)connect([cells[i][0]*step,cells[i][1]*step],true);}connect(pb,!db[0]);connect(b,true);
     const clean=[];for(const p of pts){const pt=p.map(x=>Math.round(x*100000)/100000);if(clean.length&&Math.abs(clean[clean.length-1][0]-pt[0])+Math.abs(clean[clean.length-1][1]-pt[1])<1e-7)continue;while(clean.length>=2){const u=clean[clean.length-2],v=clean[clean.length-1];if((Math.abs(u[0]-v[0])<1e-7&&Math.abs(v[0]-pt[0])<1e-7)||(Math.abs(u[1]-v[1])<1e-7&&Math.abs(v[1]-pt[1])<1e-7))clean.pop();else break;}clean.push(pt);}l.knees=clean.slice(1,-1);
