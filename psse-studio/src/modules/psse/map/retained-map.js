@@ -206,6 +206,7 @@ ctx.py = function py(e2) {
   ue2.dataset.psseLightningToggle = ``;
   let de2 = ctx.$(`\u21BB`, () => void e2.runPsseCalculation(`NR_POLAR`).catch(t3 => e2.setMessage(t3 instanceof Error ? t3.message : `PSS/E hesab\u0131 tamamlanamad\u0131.`)), `Yeniden hesapla`),
     fe2 = ctx.$(`Bul`, () => {
+      searchMap();
       b2.options.length > 1 ? (b2.selectedIndex = 1, b2.dispatchEvent(new Event(`change`))) : e2.setMessage(`E\u015Fle\u015Fme bulunamad\u0131.`);
     }),
     pe2 = ctx.Q(`div`, `ga-map-search`);
@@ -454,22 +455,19 @@ ctx.py = function py(e2) {
   function Fe2(e3) {
     return Y2 ? ctx.Lv(Y2.model, Y2.base).branch(e3) : `Hat`;
   }
+  let searchIndex=null,searchTimer=0;
   function Ie2() {
     if (!Y2) {
       ctx.uy(b2, [], `Ara / se\xE7`);
       return;
     }
-    let e3 = ctx.lv(y2.value),
-      t3 = ctx.Lv(Y2.model, Y2.base),
-      n3 = Y2.network.buses.filter(n4 => !e3 || ctx.lv(t3.busSearchText(n4)).includes(e3)),
-      r3 = e3 ? Y2.network.branches.filter(n4 => n4.kind === `line` && String(n4.sourceEquipmentId).startsWith(`line:`) && ctx.lv(`${Fe2(n4)} ${t3.branchTitle(n4)}`).includes(e3)) : [],
-      i3 = [...n3.map(e4 => ({
-        value: `bus:${e4.id}`,
-        label: `${t3.bus(e4)} \xB7 ${ctx.bv(e4.baseKv)}`
-      })), ...r3.map(e4 => ({
-        value: `branch:${e4.id}`,
-        label: Fe2(e4)
-      }))];
+    if(searchIndex?.model!==Y2.model||searchIndex?.base!==Y2.base||searchIndex?.scenario!==Y2.scenario){
+      const names=ctx.Lv(Y2.model,Y2.base);
+      searchIndex={model:Y2.model,base:Y2.base,scenario:Y2.scenario,
+        buses:Y2.network.buses.map(bus=>({value:`bus:${bus.id}`,label:`${names.bus(bus)} · ${ctx.bv(bus.baseKv)}`,text:ctx.lv(names.busSearchText(bus))})),
+        branches:Y2.network.branches.filter(branch=>branch.kind==='line'&&String(branch.sourceEquipmentId).startsWith('line:')).map(branch=>({value:`branch:${branch.id}`,label:names.branch(branch),text:ctx.lv(`${names.branch(branch)} ${names.branchTitle(branch)}`)}))};
+    }
+    const e3=ctx.lv(y2.value),i3=[...searchIndex.buses.filter(row=>!e3||row.text.includes(e3)),...(e3?searchIndex.branches.filter(row=>row.text.includes(e3)):[])];
     ctx.uy(b2, i3.slice(0, 60), `Ara / se\xE7`), b2.title = i3.length > 60 ? `\u0130lk 60 sonu\xE7 g\xF6steriliyor; toplam ${i3.length}. Daha \xF6zg\xFCl arama yaz\u0131n.` : `${i3.length} e\u015Fle\u015Fme`;
   }
   function Le2(t3) {
@@ -1296,13 +1294,18 @@ ctx.py = function py(e2) {
   for (let z3 of [T2, E2]) z3.onchange = () => {
     v9FitScope(), ct2();
   };
-  y2.addEventListener(`input`, () => {
+  const searchMap=() => {
+    ctx.window.clearTimeout(searchTimer);searchTimer=0;
     Ie2();
     let e3 = ctx.lv(y2.value),
       t3 = Y2?.network.buses.filter(t4 => [t4.id, t4.connectionKey, t4.externalNumber].some(t5 => ctx.lv(t5) === e3)) ?? [];
     if(t3.length === 1){Ke2(t3[0]);ct2();}
+    b2.setAttribute('aria-busy','false');
+  };
+  y2.addEventListener(`input`, () => {
+    ctx.window.clearTimeout(searchTimer);b2.setAttribute('aria-busy','true');searchTimer=ctx.window.setTimeout(searchMap,140);
   }), y2.addEventListener(`keydown`, e3 => {
-    e3.key === `Enter` && (e3.preventDefault(), fe2.click());
+    if(e3.key === `Enter`){e3.preventDefault();fe2.click();}
   }), b2.onchange = () => {
     if (!b2.value || !Y2) return;
     let [e3, ...t3] = b2.value.split(`:`),
@@ -1422,7 +1425,7 @@ ctx.py = function py(e2) {
     element: s2,
     render: renderCached,
     dispose: () => {
-      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ge2.dispose(), he2.dispose(), tooltip.dispose(), flowLayer.dispose(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
+      dt2(), ft2.abort(), ctx.window.clearTimeout(ht2), ctx.window.clearTimeout(searchTimer), ge2.dispose(), he2.dispose(), tooltip.dispose(), flowLayer.dispose(), vt2?.disconnect(), ctx.window.cancelAnimationFrame(_t2), ctx.window.cancelAnimationFrame(v10Frame), ctx.window.removeEventListener(`resize`, gt2), ctx.document.removeEventListener(`fullscreenchange`, yt2);
     }
   };
 };

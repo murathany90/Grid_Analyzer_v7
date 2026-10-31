@@ -48,7 +48,15 @@ try{
    const filter=page.locator('.ga-psse-map .ga-psse-filter-menu');await filter.locator('summary').click();
    const owner=filter.getByLabel('BM / Bus OWNER filtresi',{exact:true}),before=await page.locator('.ga-psse-geo-link').count();
    await owner.selectOption('708');assert(await page.locator('.ga-psse-geo-link').count()<before);await owner.selectOption('');await filter.locator('summary').click();
-   entry.mapSearch=await page.evaluate(()=>{const input=document.querySelector('.ga-map-search input'),samples=[];for(const q of ['SINCAN','ANKARA','393221','']){const start=performance.now();input.value=q;input.dispatchEvent(new Event('input',{bubbles:true}));samples.push(performance.now()-start);}samples.sort((a,b)=>a-b);return {p50:samples[Math.floor(samples.length*.5)],p95:samples.at(-1)};});
+   entry.mapSearch={samples:[]};
+   for(const query of ['SINCAN','ANKARA','393221','__NOT_FOUND__','']){
+    const start=performance.now(),cpuMs=await page.evaluate(q=>{const input=document.querySelector('.ga-map-search input'),start=performance.now();input.value=q;input.dispatchEvent(new Event('input',{bubbles:true}));return performance.now()-start;},query);
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Arama eşleşmeleri"]').getAttribute('aria-busy')==='false');
+    const count=await page.getByLabel('Arama eşleşmeleri',{exact:true}).locator('option').count();if(query==='__NOT_FOUND__')assert.equal(count,1);else assert(count>1);
+    if(query==='SINCAN')assert.match(await page.getByLabel('Arama eşleşmeleri',{exact:true}).textContent(),/SINCAN|SİNCAN/i);
+    entry.mapSearch.samples.push({query,cpuMs,settledMs:performance.now()-start,count});
+   }
+   await page.locator('.ga-map-search input').fill('SINCAN');await page.locator('.ga-map-search input').press('Enter');assert.equal(await page.getByLabel('Arama eşleşmeleri',{exact:true}).getAttribute('aria-busy'),'false');
    await page.locator('[data-route=analysis]').click();await page.locator('[data-solve]').click();await page.waitForFunction(()=>!psseStudio.controller.busy&&!!psseStudio.controller.psseCalculation,null,{timeout:60000});
    entry.calculation=await page.evaluate(()=>({status:psseStudio.controller.psseCalculation.status,coverage:psseStudio.controller.psseCalculation.physicsCoverage}));
    assert.equal(entry.calculation.status,'CONVERGED');assert.equal(entry.calculation.coverage,'PARTIAL');
