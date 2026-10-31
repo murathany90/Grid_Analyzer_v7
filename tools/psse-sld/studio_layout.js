@@ -130,7 +130,7 @@ function applyMetroLayout(doc, options={}) {
   const addBox=box=>{for(const k of cellsFor(box)){if(!labelBins.has(k))labelBins.set(k,[]);labelBins.get(k).push(box);}};
   const nearby=box=>new Set(cellsFor(box).flatMap(k=>labelBins.get(k)||[]));
   for(const symbol of syms)addBox(metroBox(symbol,.05));
-  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
+  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(!options.moveLabelsOfPinnedSymbols&&map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
   for(const label of placedLabels)addBox(metroLabelBox(label,options));
   const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*.3,y*.3]);
   for(const label of labels){

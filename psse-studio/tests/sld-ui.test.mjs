@@ -20,6 +20,35 @@ const open=async()=>{
 const button=(page,name)=>page.getByRole('button',{name,exact:true}).first();
 const settings=page=>page.getByRole('dialog',{name:'Diyagram Ayarları',exact:true});
 
+test('live symbol/knee drag keeps arrows, handles and paths together before release; cancellation releases capture',async()=>{
+ const {browser,page,errors}=await open();
+ const geometry=()=>page.evaluate(()=>{
+  const l=GASldStudio.getActiveDoc().gaSld.components.find(c=>c.id===10),g=document.querySelector('.ga-studio-sld-link[data-sld-id="10"]');
+  const pts=[l.p1.pos,...(l.knees||[]),l.p2.pos].map(p=>[+(p[0]*90).toFixed(2),+(-p[1]*90).toFixed(2)]);
+  let length=0,expected='';for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);if(len>length){length=len;expected=`translate(${((a[0]+b[0])/2).toFixed(1)} ${((a[1]+b[1])/2).toFixed(1)}) rotate(${(Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI).toFixed(1)})`;}}
+  return {arrow:g.querySelector('path:not(.ga-sld-line)')?.getAttribute('transform'),expected,arrows:g.querySelectorAll('path:not(.ga-sld-line)').length,knees:[...g.querySelectorAll('.ga-studio-knee')].map(e=>[+e.getAttribute('cx'),+e.getAttribute('cy')]),expectedKnees:pts.slice(1,-1)};
+ });
+ try{
+  const point=await page.locator('.ga-studio-sld-symbol[data-sld-id="2"] line').evaluate(e=>{const p=e.ownerSVGElement.createSVGPoint();p.x=450;p.y=-360;const q=p.matrixTransform(e.getScreenCTM());return {x:q.x,y:q.y};});
+  const before=await geometry();assert.equal(before.arrow,before.expected);
+  await page.mouse.move(point.x,point.y);await page.mouse.down();await page.mouse.move(point.x+110,point.y-55,{steps:5});
+  const live=await geometry();assert.notEqual(live.expected,before.expected);assert.equal(live.arrow,live.expected,'arrow stayed at old coordinates during symbol drag');assert.deepEqual(live.knees,live.expectedKnees);
+  await page.mouse.up();
+  const hit=await page.locator('.ga-sld-line').evaluate(e=>{const p=e.getPointAtLength(e.getTotalLength()*.4),q=p.matrixTransform(e.getScreenCTM());return {x:q.x,y:q.y};});await page.mouse.move(hit.x,hit.y);const box=await page.locator('.ga-studio-knee').first().boundingBox();assert(box);
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+70,box.y+35,{steps:4});
+  const kneeLive=await geometry();assert.equal(kneeLive.arrow,kneeLive.expected,'arrow stayed at old coordinates during knee drag');assert.deepEqual(kneeLive.knees,kneeLive.expectedKnees);await page.mouse.up();
+  for(const action of [()=>GASldStudio.undo(),()=>GASldStudio.redo(),()=>GASldStudio.fit()]){await page.evaluate(action);const x=await geometry();assert.equal(x.arrow,x.expected);assert.equal(x.arrows,1);}
+  const ids=await page.evaluate(()=>[...document.querySelectorAll('svg.ga-studio-drawing [data-sld-id]')].map(e=>e.dataset.sldId));assert.equal(new Set(ids).size,ids.length);
+  const roundtrip=await page.evaluate(()=>{const d=GASldStudio.getActiveDoc().gaSld,r=GASldStudio.parseSldBinary(GASldStudio.serializeSldBinary(d)),byId=new Map(r.components.map(c=>[c.id,c]));return d.components.filter(c=>c.t==='Link').every(c=>['p1','p2'].every(k=>c[k].sym===byId.get(c.id)[k].sym&&c[k].pos.every((v,i)=>Math.abs(v-byId.get(c.id)[k].pos[i])<=1e-4)));});assert(roundtrip);
+  await page.evaluate(()=>{GASldStudio.getSettings().layout.showFlowArrows=false;GASldStudio.translateSymbolById(1,0,0);});assert.equal(await page.locator('.ga-sld-flow-arrow').count(),0);
+  const cancelPoint=await page.locator('.ga-studio-sld-symbol[data-sld-id="2"] line').evaluate(e=>{const p=e.ownerSVGElement.createSVGPoint();p.x=(e.x1.baseVal.value+e.x2.baseVal.value)/2;p.y=(e.y1.baseVal.value+e.y2.baseVal.value)/2;const q=p.matrixTransform(e.getScreenCTM());return {x:q.x,y:q.y};});
+  await page.evaluate(()=>document.querySelector('svg.ga-studio-drawing').addEventListener('gotpointercapture',e=>globalThis.testPointerId=e.pointerId));await page.mouse.move(cancelPoint.x,cancelPoint.y);await page.mouse.down();await page.mouse.move(cancelPoint.x+12,cancelPoint.y+8);
+  assert(await page.evaluate(()=>document.querySelector('svg.ga-studio-drawing').hasPointerCapture(testPointerId)));
+  const cancelled=await page.evaluate(()=>{const svg=document.querySelector('svg.ga-studio-drawing'),id=testPointerId;svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:id,bubbles:true}));return !svg.hasPointerCapture(id);});assert(cancelled);await page.mouse.up();
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
 test('SLD modal tabs, Apply/Cancel/defaults, ESC/focus, top-layer and unclipped menus at 768/1366/1702',async()=>{
  const {browser,page,errors}=await open();
  try{

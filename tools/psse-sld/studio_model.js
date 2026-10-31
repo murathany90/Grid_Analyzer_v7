@@ -44,7 +44,16 @@ function buildSldModelIndex(model,network){
     }
   }
   for(const [kind,items,idField]of [['ME',network?.generators,'machid'],['LO',network?.loads,'loadid'],['FXS',network?.shunts,'shntid']])for(const d of items||[]){
-    const source=equipment.get(d.sourceEquipmentId),key=[kind,network.buses[d.bus]?.externalNumber,String(source?.fields?.[idField]??d.sourceId??'1').trim()].join(' ');devices.set(key,d);
+    const source=equipment.get(d.sourceEquipmentId),code=kind==='FXS'&&source?.fields?.subtype==='switched'?'SWS':kind,key=[code,network.buses[d.bus]?.externalNumber,String(source?.fields?.[idField]??d.sourceId??'1').trim()].join(' ');devices.set(key,d);
   }
   return {equipment,ownerNames,areaNames,stationById,stationBuses,busStation,busByNumber,branchByMap,devices,matches:new Map()};
+}
+
+// Delete only source-proven inactive equipment. An open SYS is an operating state.
+function removeSldPassiveComponents(doc,classify){
+  const removed=new Set(doc.components.filter(c=>c.t==='Symbol'&&classify(c)==='PASSIVE').map(c=>c.id));
+  for(const c of doc.components)if(c.t==='Link'&&(removed.has(c.p1?.sym)||removed.has(c.p2?.sym)))removed.add(c.id);
+  let changed=true;while(changed){changed=false;for(const c of doc.components)if(c.t==='Label'&&removed.has(c.owner)&&!removed.has(c.id)){removed.add(c.id);changed=true;}}
+  doc.components=doc.components.filter(c=>!removed.has(c.id));
+  return removed;
 }

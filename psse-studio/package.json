@@ -7,7 +7,8 @@
     "build": "node scripts/build.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/browser.mjs",
-    "test:integration": "node --test tests/standalone-sld.test.mjs tests/sld-codec.test.mjs tests/sld-ui.test.mjs tests/data-types.test.mjs tests/sld-model.test.mjs",
+    "test:integration": "node --test tests/standalone-sld.test.mjs tests/sld-codec.test.mjs tests/sld-ui.test.mjs tests/data-types.test.mjs tests/sld-model.test.mjs tests/sld-results.test.mjs",
+    "test:sld:pilots": "node tests/sld-v4-pilots.mjs",
     "verify": "npm run build && npm test && npm run test:browser",
     "benchmark": "node tests/benchmark.mjs"
   },

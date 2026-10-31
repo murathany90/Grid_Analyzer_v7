@@ -84,7 +84,7 @@ const state={
   root:null,host:null,tabs:null,doc:null,docs:[],modelHash:null,drag:null,
   selection:null,multiSelect:new Set(),mode:'select',
   dirty:false,undo:[],redo:[],svg:null,stage:null,
-  refs:{},nativeBytes:new Map(),
+  refs:{},nativeBytes:new Map(),boundSvgs:new WeakSet(),
   restoreAttemptedFor:null,bridgeOnline:false,
   globalSettings:defaultDiagramSettings()
 };
@@ -116,6 +116,12 @@ function sourceRows(){return modelIndex().equipment;}
  * - CSldGroup, CSldSavedView.
  * - Mandatory pre-export round-trip validation within 1e-4 tolerance.
  */
+
+
+
+
+
+
 
 
 
@@ -757,7 +763,7 @@ class SldArchiveWriter {
       this.u32(obj.lbl_bg ?? 16777215);
       this.u32(obj.lbl_position ?? 0);
       this.bytes(obj.lbl_font_info || new Uint8Array(36));
-      this.cstringRaw(encodeCp1254(obj.lbl_font_name || 'Arial'));
+      this.cstringRaw(encodeCp1254(obj.lbl_font_name ?? 'Arial'));
       this.bytes(obj.lbl_font_tail || new Uint8Array(8));
     } else if (clsName === 'CSldPort') {
       this.writeObject(obj.owner);
@@ -882,6 +888,7 @@ function parseSldBinary(bytes            )                {
         stype,
         psse: dec.psse,
         sdef: o.sdef ?? dec.sdef,
+        displayIndex: o.sym_flag ?? 0,
         layer: o.layer ?? 4,
         color: o.color ?? 0,
         map: dec.map,
@@ -926,7 +933,8 @@ function parseSldBinary(bytes            )                {
         t: 'Link',
         layer: o.layer ?? 4,
         color: o.color ?? 0,
-        lwidth: 1,
+        lwidth: new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength).getFloat32(0,true),
+        lstyle: new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength).getInt32(4,true),
         p1: { sym: s1Obj ? s1Obj.id : 0, pos: p1Pos, idx: p1Obj ? p1Obj.port_idx ?? 0 : 0 },
         p2: { sym: s2Obj ? s2Obj.id : 0, pos: p2Pos, idx: p2Obj ? p2Obj.port_idx ?? 0 : 0 },
       };
@@ -951,7 +959,10 @@ function parseSldBinary(bytes            )                {
         pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
         rot: Number((o.rot ?? 0.0).toFixed(4)),
         text: o.text || '',
-        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) || 9 : 9,
+        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) / 10 : 0,
+        font: o.lbl_font_name || '',
+        fw: new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).getInt32(24,true),
+        gaResult: readGaResultAnnotation(o.comp_annots),
         lpos: o.lbl_position | 0,
         vis: o.lbl_vis !== 0,
         owner: ownerObj ? ownerObj.id : undefined,
@@ -1015,6 +1026,19 @@ function archivePortLocal(owner     , pos          )                            
   return { dx: co * x + si * y, dy: -si * x + co * y };
 }
 
+// Independently measured with PSS/E 36.5 Slider SetLineStyle/SetLineWidth;
+// see tests/fixtures/native-sld-fields.json. 0/1 are legacy Studio aliases.
+function nativeSldLineStyle(value         = -1)         {
+  if(value===0)return -1;if(value===1)return 63736;
+  if(![-1,63736,34952,63520,63624].includes(value))throw new Error(`Unsupported native SLD line style ${value}`);
+  return value;
+}
+function writeArchiveLinkStyle(o     ,c                )       {
+  const dv=new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength);
+  if(c.lwidth!==undefined)dv.setFloat32(0,c.lwidth,true);
+  if(c.lstyle!==undefined)dv.setInt32(4,nativeSldLineStyle(c.lstyle),true);
+}
+
 function assertSldGeometry(doc               )       {
   const ids = new Set        ();
   const symbols = new Set(doc.components.filter(c => c.t === 'Symbol').map(c => c.id));
@@ -1030,6 +1054,7 @@ function assertSldGeometry(doc               )       {
       }
       if (!(c.knees || []).every(point)) throw new Error(`Invalid Link #${c.id} knee`);
     } else if (!point(c.pos)) throw new Error(`Invalid ${c.t} #${c.id} position`);
+    if(c.t==='Label'&&c.owner!==undefined&&!doc.components.some(o=>o.id===c.owner))throw new Error(`Invalid label owner ${c.owner}`);
     if (c.len !== undefined && (!Number.isFinite(c.len) || c.len <= 0)) throw new Error(`Invalid bus length #${c.id}`);
   }
 }
@@ -1048,11 +1073,12 @@ function assertSldRoundTrip(expected               , actual               )     
   for (const c of expected.components) {
     const r = byId.get(c.id);
     if (!r || r.t !== c.t || !point(c.pos, r.pos) || !close(c.rot, r.rot)) throw new Error(`SLD geometry mismatch #${c.id}`);
-    if (c.t === 'Symbol' && (!close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
-    if (c.t === 'Label' && c.text !== r.text) throw new Error(`SLD label mismatch #${c.id}`);
+    if (c.t === 'Symbol' && ((c.sdef!==undefined&&c.sdef!==r.sdef) || (c.displayIndex!==undefined&&c.displayIndex!==r.displayIndex) || !close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
+    if (c.t === 'Label' && (c.text !== r.text || (c.fh !== undefined && Math.abs(Math.round(c.fh*10)/10-r.fh )>1e-4) || (c.font !== undefined && c.font !== r.font) || (c.vis !== undefined && c.vis !== r.vis) || JSON.stringify(c.gaResult)!==JSON.stringify(r.gaResult))) throw new Error(`SLD label/font/provenance mismatch #${c.id}`);
     if (c.groupId !== r.groupId) throw new Error(`SLD group mismatch #${c.id}`);
     if (c.t === 'Symbol' && (c.map || '').trim().replace(/\s+/g, ' ') !== (r.map || '').trim().replace(/\s+/g, ' ')) throw new Error(`SLD equipment map mismatch #${c.id}`);
     if (c.t === 'Link') {
+      if((c.lstyle!==undefined&&nativeSldLineStyle(c.lstyle)!==r.lstyle)||!close(c.lwidth,r.lwidth))throw new Error(`SLD native link style/width mismatch #${c.id}`);
       for (const key of ['p1', 'p2']         ) {
         if (c[key]?.sym !== r[key]?.sym || !point(c[key]?.pos, r[key]?.pos) || (c[key]?.idx !== undefined && c[key]?.idx !== r[key]?.idx)) {
           throw new Error(`SLD endpoint mismatch #${c.id}.${key}`);
@@ -1061,6 +1087,47 @@ function assertSldRoundTrip(expected               , actual               )     
       if ((c.knees || []).length !== (r.knees || []).length || !(c.knees || []).every((p, i) => point(p, r.knees?.[i]))) throw new Error(`SLD knee mismatch #${c.id}`);
     }
   }
+}
+
+function readGaResultAnnotation(annots               = [])                             {
+  const marker=annots.map(decodeCp1254).find(s=>s.startsWith('GA_RESULT_V1:'));
+  if(!marker)return undefined;
+  try { const value=JSON.parse(marker.slice(13));return value?.schema==='ga.sld.result.v1'?value:undefined; } catch { return undefined; }
+}
+function createArchiveLabel(l                ,ownerObj     ,isV51         )      {
+  const pos=l.pos || [ownerObj?.x || 0,ownerObj?.y || 0];
+  const fontInfo = new Uint8Array(36);
+  const fontDv = new DataView(fontInfo.buffer);
+  fontDv.setInt32(8, Math.round((l.fh ?? 9)*10), true); // native font height
+  fontDv.setInt32(24, l.fw ?? 400, true); // native font weight
+  const postMap=new Uint8Array(isV51 ? 37 : 33);postMap[9]|=0x80;
+  return {
+    _class: 'CSldLabel',
+    id: l.id,
+    rot: l.rot ?? 0.0,
+    layer: l.layer ?? (ownerObj?.layer ?? 4),
+    flag0: 0,
+    f1: 1,
+    f2: 1,
+    f3: 1,
+    color: l.color ?? 0xffffff,
+    comp_pre_map: new Uint8Array(12),
+    map_raw: new Uint8Array(0),
+    comp_annots: l.gaResult ? [encodeCp1254('GA_RESULT_V1:'+JSON.stringify(l.gaResult))] : [],
+    comp_post_map: postMap,
+    x: pos[0],
+    y: pos[1],
+    comp_post_xy: new Uint8Array(16),
+    labels: [],
+    text: l.text || '',
+    owner: ownerObj || null,
+    lbl_vis: l.vis === false ? 0 : 1,
+    lbl_bg: 0xffffff,
+    lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
+    lbl_font_info: fontInfo,
+    lbl_font_name: l.font ?? 'Arial',
+    lbl_font_tail: new Uint8Array(8),
+  };
 }
 
 function synchronizeArchiveGeometry(doc               , isV51         )       {
@@ -1078,6 +1145,21 @@ function synchronizeArchiveGeometry(doc               , isV51         )       {
   }
   visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawSelected); visit(doc._rawGroups); visit(doc._rawViews);
   let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
+  const keep=new Set(doc.components.map(c=>c.id));
+  const known=(o     )=>o&&['CSldBusbar','CSldPointNode','CSldRadial','CSldBranch','CSldTwoWindingTransformer','CSldThreeWindingTransformer','CSldLink','CSldLabel'].includes(o._class);
+  const retained=(w     )=>{const o=unwrap(w);return !known(o)||keep.has(o.id);};
+  doc._rawMainList=doc._rawMainList .filter(w=>retained(w)&&!(unwrap(w)?._class==='CSldKneePoint'&&!keep.has(unwrap(unwrap(w).owner)?.id)));
+  for(const wrapped of doc._rawLayers ){const layer=unwrap(wrapped);layer.layer_lists=layer.layer_lists.map((list       )=>list.filter(retained));}
+  for(const o of objects.values()){
+    if(o.labels)o.labels=o.labels.filter(retained);
+    if(o.ports)o.ports=o.ports.map(unwrap).filter((p     )=>!p.link||keep.has(unwrap(p.link)?.id));
+  }
+  if(doc._rawSelected&&!retained(doc._rawSelected)){doc._rawSelected=null;doc.selectedObjectId=undefined;doc._u2=0;}
+  for(const c of doc.components)if(!objects.has(c.id)&&c.t==='Label'){
+    const owner=c.owner===undefined?null:objects.get(c.owner);
+    if(c.owner!==undefined&&!keep.has(c.owner))throw new Error(`Invalid label owner ${c.owner}`);
+    const label=createArchiveLabel(c,owner,isV51);objects.set(c.id,label);doc._rawMainList .push(label);if(owner)owner.labels.push(label);
+  }
   for (const c of doc.components) {
     const o = objects.get(c.id);
     if (!o) throw new Error(`Unsupported archive structural edit #${c.id}`);
@@ -1085,6 +1167,8 @@ function synchronizeArchiveGeometry(doc               , isV51         )       {
     for (const k of ['rot', 'color', 'layer']         ) if (c[k] !== undefined) o[k] = c[k];
     if (c.t === 'Symbol') {
       if(c.sdef !== undefined)o.sdef=c.sdef;
+      if(c.displayIndex!==undefined)o.sym_flag=c.displayIndex;
+      if(c.map!==undefined&&c.map.trim().replace(/\s+/g,' ')!==decodeMapStruct(o.map_raw).map.trim().replace(/\s+/g,' '))o.map_raw=encodeMapStruct(c.map,c.stype==='Busbar');
       o.ports = (o.ports || []).map(unwrap);
       if (c.stype === 'Node' && o._class === 'CSldBusbar') {
         o._class = 'CSldPointNode'; o.sym_tail = new Uint8Array(isV51 ? 12 : 10);
@@ -1096,11 +1180,22 @@ function synchronizeArchiveGeometry(doc               , isV51         )       {
       }
     } else if (c.t === 'Label') {
       o.text = c.text || '';
+      const fontView=new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength);
+      if((c.fh!==undefined&&Math.round(c.fh*10)!==fontView.getInt32(8,true))||(c.font!==undefined&&c.font!==o.lbl_font_name)||(c.fw!==undefined&&c.fw!==fontView.getInt32(24,true)))o.comp_post_map[9]|=0x80;
+      if(c.fh!==undefined)new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).setInt32(8,Math.round(c.fh*10),true);
+      if(c.fw!==undefined)new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).setInt32(24,c.fw,true);
+      if(c.font!==undefined)o.lbl_font_name=c.font;
+      if(c.vis!==undefined)o.lbl_vis=c.vis?1:0;
+      if(c.lpos!==undefined)o.lbl_position=c.lpos;
+      o.comp_annots=(o.comp_annots||[]).filter((b            )=>!decodeCp1254(b).startsWith('GA_RESULT_V1:'));
+      if(c.gaResult)o.comp_annots.push(encodeCp1254('GA_RESULT_V1:'+JSON.stringify(c.gaResult)));
+
       if (c.owner !== undefined) o.owner = objects.get(c.owner) || null;
     }
   }
   for (const c of doc.components.filter(c => c.t === 'Link')) {
     const o = objects.get(c.id);
+    writeArchiveLinkStyle(o,c);
     for (const key of ['p1', 'p2']         ) {
       const ep = c[key] , owner = objects.get(ep.sym);
       const port = unwrap(o[key]) || { _class: 'CSldPort', port_tail: new Uint8Array(16) };
@@ -1291,7 +1386,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
       comp_post_xy: new Uint8Array(16),
       labels: [],
       sdef: c.sdef ?? (stype === 'Busbar' ? 1 : 0),
-      sym_flag: 0,
+      sym_flag: c.displayIndex ?? (c.sdef===10?1:c.sdef===5?1:c.sdef===3&&c.sourceStatus!==undefined?(c.sourceStatus===0?4:3):0),
       ports: [],
       bus_tail: busTail,
       sym_tail: new Uint8Array(isV51 ? 12 : 10),
@@ -1299,6 +1394,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
     carchiveObjs.set(cid, obj);
   });
 
+  let nextKneeId=Math.max(0,...doc.components.map(c=>c.id))+1;
   // Build Link objects & Port objects
   for (const l of linkList) {
     const lid = l.id;
@@ -1313,27 +1409,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
     const color = l.color ?? 0x00ff00;
     const layer = l.layer ?? 4;
 
-    const linkPreKnees = new Uint8Array(66);
-    // Standard link handle radius signature
-    linkPreKnees[0] = 0xcd;
-    linkPreKnees[1] = 0xcc;
-    linkPreKnees[2] = 0x4c;
-    linkPreKnees[3] = 0x3d;
-    linkPreKnees[4] = 0xff;
-    linkPreKnees[5] = 0xff;
-    linkPreKnees[6] = 0xff;
-    linkPreKnees[7] = 0xff;
-    linkPreKnees[16] = 0x01;
-    linkPreKnees[46] = 0xff;
-    linkPreKnees[47] = 0xff;
-    linkPreKnees[48] = 0xff;
-    linkPreKnees[49] = 0xff;
-    linkPreKnees[58] = 0xe0;
-    linkPreKnees[59] = 0x51;
-    linkPreKnees[60] = 0xb8;
-    linkPreKnees[61] = 0xbe;
-    linkPreKnees[62] = 0x3f;
-
+    const linkPreKnees = new Uint8Array([0,0,128,63,255,255,255,255,0,0,0,0,255,255,255,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,0,0,0,0,0,0,0,0,0,0,0,224,81,184,190,63,0,0,0,0]);
     const linkTail = new Uint8Array(32);
     linkTail[1] = 0x01;
 
@@ -1361,13 +1437,14 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
       p2: null,
       link_tail: linkTail,
     };
+    writeArchiveLinkStyle(linkObj,l);
     carchiveObjs.set(lid, linkObj);
 
     // Knees
     const knees = l.knees || [];
     for (let kidx = 0; kidx < knees.length; kidx++) {
       const kp = knees[kidx];
-      const kneeId = 90000 + lid * 10 + kidx;
+      const kneeId = nextKneeId++;
       const kObj      = {
         _class: 'CSldKneePoint',
         id: kneeId,
@@ -1435,7 +1512,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
       const count = c?.stype === 'Branch' ? (c.psse === 'TWTransformer' ? 3 : 2) : c?.stype === 'Radial' ? 1 : 0;
       for (let idx = 0; idx < count; idx++) {
         if (ports.some(p => p.port_idx === idx)) continue;
-        const half = c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
+        const half = c?.psse === 'SwitchingDev' || c?.sdef === 3 ? .04 : c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
         ports.push({ _class: 'CSldPort', owner: sObj, link: null, port_idx: idx,
           dx: c?.stype === 'Branch' ? (idx === 0 ? -half : idx === 1 ? half : 0) : 0,
           dy: c?.stype === 'Radial' ? ({ 2: .082, 4: .099, 5: .13 }                          )[c.sdef || 0] || 0 : idx === 2 ? -.2 : 0,
@@ -1452,37 +1529,7 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
     if (!ownerObj && ownerId !== 0) throw new Error(`Invalid label owner ${ownerId}`);
     for (const l of lblList) {
       const pos = l.pos || [ownerObj?.x || 0, ownerObj?.y || 0];
-      const fontInfo = new Uint8Array(36);
-      const fontDv = new DataView(fontInfo.buffer);
-      fontDv.setInt32(8, Math.round(l.fh || 9), true); // native font height
-      fontDv.setInt32(24, 400, true); // native font weight
-      const lblObj      = {
-        _class: 'CSldLabel',
-        id: l.id,
-        rot: l.rot ?? 0.0,
-        layer: l.layer ?? (ownerObj?.layer ?? 4),
-        flag0: 0,
-        f1: 1,
-        f2: 1,
-        f3: 1,
-        color: l.color ?? 0xffffff,
-        comp_pre_map: new Uint8Array(12),
-        map_raw: new Uint8Array(0),
-        comp_annots: [],
-        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
-        x: pos[0],
-        y: pos[1],
-        comp_post_xy: new Uint8Array(16),
-        labels: [],
-        text: l.text || '',
-        owner: ownerObj || null,
-        lbl_vis: l.vis === false ? 0 : 1,
-        lbl_bg: 0xffffff,
-        lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
-        lbl_font_info: fontInfo,
-        lbl_font_name: 'Arial',
-        lbl_font_tail: new Uint8Array(8),
-      };
+      const lblObj=createArchiveLabel(l,ownerObj,isV51);
       if(ownerObj)ownerObj.labels.push(lblObj);else unownedLabels.push(lblObj);
     }
   });
@@ -1522,8 +1569,8 @@ function serializeSldBinary(doc               , targetVersion = '2.0.51.1')     
     layers.push({
       _class: 'CSldLayer',
       layer_hdr: layerHdr,
-      name: activeNames[lIdx],
-      vis: 1,
+      name: doc.layers.find(l=>l.n===lIdx)?.desc ?? activeNames[lIdx],
+      vis: /^(Hidden|Invisible)$/.test(doc.layers.find(l=>l.n===lIdx)?.vis||'')?0:1,
       layer_lists: Array.from({ length: isV51 ? 22 : 21 }, () => []),
     });
   }
@@ -1747,7 +1794,7 @@ function applyMetroLayout(doc, options={}) {
   const addBox=box=>{for(const k of cellsFor(box)){if(!labelBins.has(k))labelBins.set(k,[]);labelBins.get(k).push(box);}};
   const nearby=box=>new Set(cellsFor(box).flatMap(k=>labelBins.get(k)||[]));
   for(const symbol of syms)addBox(metroBox(symbol,.05));
-  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
+  const placedLabels=new Set(labels.filter(l=>metroIsLocked(l,options)||(!options.moveLabelsOfPinnedSymbols&&map.has(l.owner)&&metroIsLocked(map.get(l.owner),options))));
   for(const label of placedLabels)addBox(metroLabelBox(label,options));
   const offsets=[[0,0]];for(let ring=1;ring<=14;ring++)for(let x=-ring;x<=ring;x++)for(let y=-ring;y<=ring;y++)if(Math.max(Math.abs(x),Math.abs(y))===ring)offsets.push([x*.3,y*.3]);
   for(const label of labels){
@@ -1884,9 +1931,18 @@ function buildSldModelIndex(model,network){
     }
   }
   for(const [kind,items,idField]of [['ME',network?.generators,'machid'],['LO',network?.loads,'loadid'],['FXS',network?.shunts,'shntid']])for(const d of items||[]){
-    const source=equipment.get(d.sourceEquipmentId),key=[kind,network.buses[d.bus]?.externalNumber,String(source?.fields?.[idField]??d.sourceId??'1').trim()].join(' ');devices.set(key,d);
+    const source=equipment.get(d.sourceEquipmentId),code=kind==='FXS'&&source?.fields?.subtype==='switched'?'SWS':kind,key=[code,network.buses[d.bus]?.externalNumber,String(source?.fields?.[idField]??d.sourceId??'1').trim()].join(' ');devices.set(key,d);
   }
   return {equipment,ownerNames,areaNames,stationById,stationBuses,busStation,busByNumber,branchByMap,devices,matches:new Map()};
+}
+
+// Delete only source-proven inactive equipment. An open SYS is an operating state.
+function removeSldPassiveComponents(doc,classify){
+  const removed=new Set(doc.components.filter(c=>c.t==='Symbol'&&classify(c)==='PASSIVE').map(c=>c.id));
+  for(const c of doc.components)if(c.t==='Link'&&(removed.has(c.p1?.sym)||removed.has(c.p2?.sym)))removed.add(c.id);
+  let changed=true;while(changed){changed=false;for(const c of doc.components)if(c.t==='Label'&&removed.has(c.owner)&&!removed.has(c.id)){removed.add(c.id);changed=true;}}
+  doc.components=doc.components.filter(c=>!removed.has(c.id));
+  return removed;
 }
 
 /* Part 2: Symbol -> Port -> Link -> KneePoint Geometry & PSS(R)E-like SVG Renderer */
@@ -1931,7 +1987,7 @@ function getPortWorldPos(sym,portSpec){
   const idx=Number(portSpec?.idx??0),a=(Number(sym.rot)||0)*Math.PI/180;
   let dx=0,dy=0;
   if(sym.stype==='Branch'){
-    const step=sym.psse==='Transformer'||sym.psse==='TWTransformer'||sym.sdef===10 ? .2 : .116;
+    const step=sym.psse==='SwitchingDev'||sym.sdef===3 ? .04 : sym.psse==='Transformer'||sym.psse==='TWTransformer'||sym.sdef===10 ? .2 : .116;
     dx=idx===0?-step:step;
     if(sym.psse==='TWTransformer'&&idx===2){dx=0;dy=-.2;}
   }else if(sym.stype==='Radial')dy=({2:.082,4:.099,5:.13})[sym.sdef]||0;
@@ -2094,7 +2150,7 @@ function matchSavEquipment(mapStr){
     const candidates=index.branchByMap.get([kind,b1,b2,ckt??'1'].join(' '))||[];
     if(candidates.length===1){const branch=candidates[0];found={type:'branch',branch,id:branch.id,sourceEquipmentId:branch.sourceEquipmentId};}
   }else{
-    const canonical=kind==='GE'?'ME':kind==='SWS'?'FXS':kind;
+    const canonical=kind==='GE'?'ME':kind;
     const device=index.devices.get([canonical,b1,b2??'1'].join(' '));
     if(device)found={type:canonical==='ME'?'generator':canonical==='LO'?'load':'shunt',[canonical==='ME'?'generator':canonical==='LO'?'load':'shunt']:device,id:device.id,sourceEquipmentId:device.sourceEquipmentId};
   }
@@ -2116,18 +2172,43 @@ function studioTooltipText(component,match){
 }
 
 function getCalculationResults(cfg=activeSettings()){
-  const c=controller(),calc=c?.psseCalculation,sc=c?.psseScenario;
+  const c=controller(),calc=c?.psseCalculation,sc=c?.psseScenario,n=network(),m=model();
   const useCalc=cfg?.coloring?.resultLayer==='GA_PSSE_CALCULATED';
-  const valid=Boolean(calc&&calc.status==='CONVERGED'&&calc.scenarioHash===sc?.hash);
-  const saved=!useCalc?window.GridAnalyzerPSSE?.getSavedResults?.():null;
-  return {
-    valid:useCalc?valid:Boolean(saved),
-    useCalc,
-    calc,
-    busMap:!useCalc&&saved?saved.busMap:new Map((valid?calc.busResults:[]).map(r=>[String(r.connectionKey),r])),
-    branchMap:!useCalc&&saved?saved.branchMap:new Map((valid?calc.branchResults:[]).map(r=>[r.id,r])),
-    scenarioOps:new Map((sc?.operations||[]).map(o=>[o.equipmentId,o.value]))
-  };
+  const profile=c?.lastPsseSolveProfile;
+  const valid=Boolean(!c?.busy&&calc&&calc.status==='CONVERGED'&&calc.physicsCoverage!=='BLOCKED'&&c?.engine?.Wo?.(calc,{sourceSha256:m?.source.sha256,network:n,effectiveNetwork:c.engine.fs(n,sc),scenario:sc,...(profile?.method===calc.method?{optionsHash:c.engine.Ro({...calc.method==='LOSSLESS_DC'?c.engine.ps:c.engine.ds,...profile.options})}:{})}));
+  const saved=!useCalc?window.GridAnalyzerPSSE?.getSavedResults?.():null,dc=useCalc&&valid&&calc.method==='LOSSLESS_DC';
+  const busRows=useCalc&&valid?calc.busResults||[]:[],branchRows=useCalc&&valid?calc.branchResults||[]:[];
+  return {valid:useCalc?valid:Boolean(saved),useCalc,calc,dc,
+    busMap:saved?saved.busMap:new Map(busRows.map(r=>[String(r.connectionKey),dc?{...r,vmPu:null,kv:null}:r])),
+    branchMap:saved?saved.branchMap:new Map(branchRows.map(r=>[r.id,dc?{...r,qFromMvar:null,qToMvar:null,iFromA:null,iToA:null,loadingFromPct:null,loadingToPct:null}:r])),
+    scenarioOps:new Map((sc?.operations||[]).map(o=>[o.equipmentId,o.value]))};
+}
+function sourceEquipmentState(sym){
+  const match=matchSavEquipment(sym.map),source=sourceRows().get(match?.sourceEquipmentId||sym.sourceId);
+  if(!source)return 'UNKNOWN';
+  if(source.kind==='switch')return source.fields?.stat===0?'OPEN':source.fields?.stat===1?'CLOSED':'UNKNOWN';
+  if(source.kind==='bus')return source.fields?.ide===4||source.status===0?'PASSIVE':source.status===1?'ACTIVE':'UNKNOWN';
+  return source.status===0?'PASSIVE':source.status===1?'ACTIVE':'UNKNOWN';
+}
+function cleanPassiveEquipment(){
+  if(!state.doc?.gaSld)return;
+  const doc=cloneArchiveGraph(state.doc.gaSld),removed=removeSldPassiveComponents(doc,sourceEquipmentState);
+  createDoc({name:`${state.doc.name} (pasifler temizlendi)`,origin:state.doc.origin,gaSld:doc,settings:structuredClone(activeSettings()),notice:`${removed.size} kaynak kanıtlı nesne/bağ/etiket kopyadan temizlendi.`});
+}
+function embedCalculatedResults(){
+  const cfg=structuredClone(activeSettings());cfg.coloring.resultLayer='GA_PSSE_CALCULATED';
+  const results=getCalculationResults(cfg),doc=state.doc?.gaSld;
+  if(!doc||!results.valid){toast('Güncel CONVERGED GA sonucu yok; native sonuç etiketi yazılmadı.','warn');return false;}
+  commit();const previous=new Map(doc.components.filter(c=>c.gaResult?.schema==='ga.sld.result.v1').map(c=>[c.gaResult.key,c]));
+  doc.components=doc.components.filter(c=>c.gaResult?.schema!=='ga.sld.result.v1');
+  let next=Math.max(0,...doc.components.map(c=>c.id),...[...previous.values()].map(c=>c.id))+1;
+  const provenance={schema:'ga.sld.result.v1',resultId:results.calc.id,sourceSha256:model().source.sha256,scenarioHash:controller().psseScenario.hash,method:results.calc.method};
+  const add=(owner,key,values)=>{const text=values.filter(([v])=>Number.isFinite(v)).map(([v,u])=>`${num(v,2)} ${u}`).join(' · ');if(!text)return;const prior=previous.get(key);doc.components.push({id:prior?.id??next++,t:'Label',owner:owner.id,layer:owner.layer,color:owner.color,pos:prior?.pos||[owner.pos[0]+.25,owner.pos[1]-.35],rot:0,fh:9,text:`GA ${text}`,gaResult:{...provenance,key}});};
+  for(const symbol of doc.components.filter(c=>c.t==='Symbol')){
+    const match=matchSavEquipment(symbol.map);if(match?.bus){const r=results.busMap.get(String(match.bus.connectionKey));if(r)add(symbol,`bus:${symbol.id}`,results.dc?[[r.vaDeg,'°']]:[[r.vmPu,'pu'],[Number.isFinite(r.vmPu)?r.vmPu*match.bus.baseKv:null,'kV'],[r.vaDeg,'°']]);}
+    if(match?.branch){const r=results.branchMap.get(match.branch.id);if(r)add(symbol,`branch:${symbol.id}`,results.dc?[[r.pFromMw,'MW']]:[[r.pFromMw,'MW'],[r.qFromMvar,'MVAr'],[r.loadingFromPct,'%']]);}
+  }
+  state.doc.settings.coloring.resultLayer='GA_PSSE_CALCULATED';refreshGaSldCanvas(true);toast('GA sonuçları provenanslı native Label kayıtlarına işlendi.','ok');return true;
 }
 
 function buildPathWithCrossings(pts,horizSegments){
@@ -2155,6 +2236,38 @@ function buildPathWithCrossings(pts,horizSegments){
     d+=` L ${x2} ${y2}`;
   }
   return d;
+}
+
+// Single geometry source for initial paint and every live pointer update.
+function linkSvgPoints(link){return [link.p1.pos,...(link.knees||[]),link.p2.pos].map(p=>[Number((p[0]*SLD_SCALE).toFixed(2)),Number((-p[1]*SLD_SCALE).toFixed(2))]);}
+function updateLinkSvgGeometry(link,g,cfg,horizontal){
+  const pts=linkSvgPoints(link),path=$('.ga-sld-line',g);
+  path.setAttribute('d',buildPathWithCrossings(pts,horizontal));
+  const segments=pts.slice(1).map((b,i)=>{const a=pts[i];return {a,b,length:Math.hypot(b[0]-a[0],b[1]-a[1]),horizontal:Math.abs(b[1]-a[1])<.1};});
+  for(const {a,b}of segments)if(Math.abs(a[1]-b[1])<.5&&Math.abs(a[0]-b[0])>12)horizontal.push({y:a[1],x1:Math.min(a[0],b[0]),x2:Math.max(a[0],b[0])});
+  const longest=segments.reduce((best,s)=>!best||s.length>best.length?s:best,null);
+  let arrow=$('.ga-sld-flow-arrow',g);
+  if(cfg.layout.showFlowArrows&&cfg.annotations.flowDirectionMode!=='hide'&&longest?.length>28){
+    if(!arrow){arrow=S('path',{class:'ga-sld-flow-arrow','data-link-id':link.id,d:'M -4 -2.8 L 4 0 L -4 2.8 Z',opacity:'.82','pointer-events':'none'});g.append(arrow);}
+    const {a,b}=longest;arrow.setAttribute('fill',path.getAttribute('stroke'));
+    arrow.setAttribute('transform',`translate(${((a[0]+b[0])/2).toFixed(1)} ${((a[1]+b[1])/2).toFixed(1)}) rotate(${(Math.atan2(b[1]-a[1],b[0]-a[0])*180/Math.PI).toFixed(1)})`);
+  }else arrow?.remove();
+  const circles=$$('.ga-studio-knee',g),knees=link.knees||[];
+  circles.slice(knees.length).forEach(e=>e.remove());
+  knees.forEach((p,i)=>{const e=circles[i]||S('circle',{r:Number(cfg.advanced.kneeSize||4),class:'ga-studio-knee','data-link-id':link.id,'data-knee-idx':i});e.setAttribute('cx',+(p[0]*SLD_SCALE).toFixed(2));e.setAttribute('cy',+(-p[1]*SLD_SCALE).toFixed(2));if(!e.parentNode)g.append(e);});
+  const anchor=[...segments].sort((a,b)=>Number(b.horizontal)-Number(a.horizontal)||b.length-a.length)[0];
+  if(anchor)for(const text of $$('.ga-studio-pf-badge',g)){
+    const x=(anchor.a[0]+anchor.b[0])/2,y=(anchor.a[1]+anchor.b[1])/2;
+    text.dataset.flowX=x;text.dataset.flowY=y;text.dataset.flowVertical=anchor.horizontal?'0':'1';
+    text.setAttribute('x',x+(anchor.horizontal?0:16));text.setAttribute('y',y+Number(text.dataset.flowOffset||0));
+  }
+}
+function updateLiveLinkGeometry(){
+  const horizontal=[];
+  for(const link of state.doc.gaSld.components)if(link.t==='Link'&&link.p1?.pos&&link.p2?.pos){
+    const g=$(`.ga-studio-sld-link[data-sld-id="${link.id}"]`,state.svg);if(g)updateLinkSvgGeometry(link,g,activeSettings(),horizontal);
+  }
+  updateTextLod();
 }
 
 function renderGaSldToSvg(gaSld,customSettings=null){
@@ -2200,7 +2313,7 @@ function renderGaSldToSvg(gaSld,customSettings=null){
   };
   for(const l of layers)getLayerGroup(l.n);
 
-  const {valid,busMap,branchMap,scenarioOps}=getCalculationResults(cfg);
+  const {valid,useCalc,dc,busMap,branchMap,scenarioOps}=getCalculationResults(cfg);
   const eqRows=sourceRows(),flowLabelled=new Set();
   const fontMult=(Number(lay.fontScale)||100)/100;
 
@@ -2211,13 +2324,8 @@ function renderGaSldToSvg(gaSld,customSettings=null){
   for(const c of comps){
     if(c.t!=='Link'||!c.p1?.pos||!c.p2?.pos)continue;
     const lg=getLayerGroup(c.layer??2);
-    const pts=[c.p1.pos,...(c.knees||[]),c.p2.pos].map(p=>[Number((p[0]*SLD_SCALE).toFixed(2)),Number((-p[1]*SLD_SCALE).toFixed(2))]);
-    const d=buildPathWithCrossings(pts,horizSegments);
-    for(let i=0;i<pts.length-1;i++){
-      if(Math.abs(pts[i][1]-pts[i+1][1])<0.5&&Math.abs(pts[i][0]-pts[i+1][0])>12){
-        horizSegments.push({y:pts[i][1],x1:Math.min(pts[i][0],pts[i+1][0]),x2:Math.max(pts[i][0],pts[i+1][0])});
-      }
-    }
+    const pts=linkSvgPoints(c);
+    const d=''; // Geometry, arrows, knees and badges share updateLinkSvgGeometry.
     const s1=symMap.get(c.p1.sym),s2=symMap.get(c.p2.sym);
     const ownerSym=(s1?.stype==='Branch'||s1?.stype==='Radial')?s1:((s2?.stype==='Branch'||s2?.stype==='Radial')?s2:(s1||s2));
     const match=ownerSym?matchSavEquipment(ownerSym.map):null;
@@ -2240,7 +2348,8 @@ function renderGaSldToSvg(gaSld,customSettings=null){
     if(col.highlightUnbound&&ownerSym&&!match&&network()?.buses?.length){
       stroke=col.unboundColor||'#7f93a8';
     }
-    const isOut=match?.branch?.status===0||(match?.sourceEquipmentId&&scenarioOps.get(match.sourceEquipmentId)===0);
+    const sourceState=ownerSym?sourceEquipmentState(ownerSym):'UNKNOWN';
+    const isOut=sourceState==='PASSIVE';
     const sw=Math.max(1.1,Math.min(5.5,(c.lwidth||0.02)*SLD_SCALE*0.8*(adv.lineWidthScale||1)));
     const g=S('g',{
       class:'ga-studio-sld-link',
@@ -2255,34 +2364,18 @@ function renderGaSldToSvg(gaSld,customSettings=null){
     if((c.lstyle&&c.lstyle>0)||(isOut&&col.dashedOutOfService))path.setAttribute('stroke-dasharray','5 3');
     g.append(path);
 
-    // Optional directional flow arrow at midpoint of longest segment
-    if(lay.showFlowArrows&&ann.flowDirectionMode!=='hide'&&pts.length>=2){
-      let bestLen=0,mx=0,my=0,ang=0;
-      for(let i=0;i<pts.length-1;i++){
-        const dx=pts[i+1][0]-pts[i][0],dy=pts[i+1][1]-pts[i][1],segL=Math.hypot(dx,dy);
-        if(segL>bestLen){bestLen=segL;mx=(pts[i][0]+pts[i+1][0])/2;my=(pts[i][1]+pts[i+1][1])/2;ang=(Math.atan2(dy,dx)*180)/Math.PI;}
-      }
-      if(bestLen>28){
-        g.append(S('path',{d:'M -4 -2.8 L 4 0 L -4 2.8 Z',fill:stroke,opacity:'.82',transform:`translate(${mx.toFixed(1)} ${my.toFixed(1)}) rotate(${ang.toFixed(1)})`}));
-      }
-    }
-
-    const kr=Number(adv.kneeSize||4.0);
-    (c.knees||[]).forEach((kp,idx)=>{
-      const kx=Number((kp[0]*SLD_SCALE).toFixed(2)),ky=Number((-kp[1]*SLD_SCALE).toFixed(2));
-      g.append(S('circle',{cx:kx,cy:ky,r:kr,class:'ga-studio-knee','data-link-id':c.id,'data-knee-idx':idx}));
-    });
     if(ann.branchFlowMode!=='hide'&&match?.branch&&!flowLabelled.has(match.branch.id)){
       const result=branchMap.get(match.branch.id);
       if(result){
         flowLabelled.add(match.branch.id);const segments=pts.slice(1).map((p,i)=>({a:pts[i],b:p,length:Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]),horizontal:Math.abs(p[1]-pts[i][1])<.1}));
         segments.sort((a,b)=>Number(b.horizontal)-Number(a.horizontal)||b.length-a.length);const segment=segments[0];
         if(segment){const x=(segment.a[0]+segment.b[0])/2+(segment.horizontal?0:16),y=(segment.a[1]+segment.b[1])/2;
-          const values=ann.branchFlowMode==='pq'?[[result.pFromMw,'MW',-7],[result.qFromMvar,'MVAr',12]]:ann.branchFlowMode==='mva'?[[Math.hypot(result.pFromMw,result.qFromMvar),'MVA',-7]]:ann.branchFlowMode==='current'?[[result.iFromA,'A',-7]]:[[result.loadingFromPct,'%',-7]];
-          for(const [value,unit,offset]of values)if(Number.isFinite(value)){const text=S('text',{x,y:y+offset,'font-size':8*fontMult,'text-anchor':'middle',class:'ga-studio-pf-badge','data-flow-unit':unit,'data-flow-y':y,'data-flow-x':(segment.a[0]+segment.b[0])/2,'data-flow-vertical':segment.horizontal?'0':'1'});text.textContent=`${num(value,dec)} ${unit}`;g.append(text);}
+          const values=ann.branchFlowMode==='pq'?[[result.pFromMw,'MW',-7],[result.qFromMvar,'MVAr',12]]:ann.branchFlowMode==='mva'?(dc?[]:[[Math.hypot(result.pFromMw,result.qFromMvar),'MVA',-7]]):ann.branchFlowMode==='current'?[[result.iFromA,'A',-7]]:[[result.loadingFromPct,'%',-7]];
+          for(const [value,unit,offset]of values)if(Number.isFinite(value)){const text=S('text',{x,y:y+offset,'font-size':8*fontMult,'text-anchor':'middle',class:'ga-studio-pf-badge','data-flow-unit':unit,'data-flow-offset':offset,'data-flow-y':y,'data-flow-x':(segment.a[0]+segment.b[0])/2,'data-flow-vertical':segment.horizontal?'0':'1'});text.textContent=`${num(value,dec)} ${unit}`;g.append(text);}
         }
       }
     }
+    updateLinkSvgGeometry(c,g,cfg,horizSegments);
     const tip=S('title');tip.textContent=studioTooltipText(c,match);g.append(tip);
     lg.append(g);
   }
@@ -2295,7 +2388,7 @@ function renderGaSldToSvg(gaSld,customSettings=null){
     const rot=Number(c.rot||0);
     const stype=c.stype||'Node',psse=c.psse||stype;
     const match=matchSavEquipment(c.map);
-    const isOut=match?.sourceEquipmentId&&scenarioOps.has(match.sourceEquipmentId)?Number(scenarioOps.get(match.sourceEquipmentId))===0:(match?.branch?.status===0||match?.bus?.status===0);
+    const sourceState=sourceEquipmentState(c),isOut=sourceState==='PASSIVE',isOpen=sourceState==='OPEN';
     let stroke=bgrToHex(c.color,layerColor(c.layer,layers,col));
     if(col.colorMode==='voltage'){
       if(match?.bus?.baseKv)stroke=kvColor(match.bus.baseKv,col);
@@ -2353,14 +2446,16 @@ function renderGaSldToSvg(gaSld,customSettings=null){
       g.append(bar);
       if(ann.busVoltageMode!=='hide'&&match?.bus){
         const b=match.bus,calcBus=busMap.get(String(b.connectionKey));
-        const vm=valid&&calcBus?calcBus.vmPu:b.initialVm;
-        const va=valid&&calcBus?calcBus.vaDeg:(b.initialVa??0);
-        const kvVal=(b.baseKv&&Number.isFinite(vm))?(b.baseKv*vm):b.baseKv;
+        const vm=useCalc?(valid&&calcBus?calcBus.vmPu:null):b.initialVm;
+        const va=useCalc?(valid&&calcBus?calcBus.vaDeg:null):b.initialVaDeg;
+        const kvVal=(b.baseKv&&Number.isFinite(vm))?(b.baseKv*vm):null;
         let vText='';
         if(ann.busVoltageMode==='pu')vText=`${num(vm,Math.max(2,dec))} pu`;
         else if(ann.busVoltageMode==='kv')vText=`${num(kvVal,dec)} kV`;
         else if(ann.busVoltageMode==='pu_ang')vText=`${num(vm,Math.max(2,dec))} pu ∠${num(va,dec)}°`;
         else vText=`${num(vm,Math.max(2,dec))} pu · ${num(kvVal,dec)} kV`;
+        if(useCalc&&!valid)vText='';
+        if(dc)vText=Number.isFinite(va)?`∠${num(va,dec)}°`:'';
         const badge=S('text',{
           x,
           y:y+(Math.abs(y2-y1)>Math.abs(x2-x1)?-10:15),
@@ -2376,25 +2471,25 @@ function renderGaSldToSvg(gaSld,customSettings=null){
       const r=9.5;
       const symG=S('g',{transform:`translate(${x} ${y}) rotate(${-rot})`,class:'ga-sld-sym-inner'});
       symG.append(
-        S('circle',{cx:0,cy:-r*0.65,r,fill:adv.bgColor||'#102336',stroke,'stroke-width':2,class:'ga-sld-xfmr-coil'}),
-        S('circle',{cx:0,cy:r*0.65,r,fill:adv.bgColor||'#102336',stroke,'stroke-width':2,class:'ga-sld-xfmr-coil'})
+        S('circle',{cx:-r*0.65,cy:0,r,fill:adv.bgColor||'#102336',stroke,'stroke-width':2,class:'ga-sld-xfmr-coil'}),
+        S('circle',{cx:r*0.65,cy:0,r,fill:adv.bgColor||'#102336',stroke,'stroke-width':2,class:'ga-sld-xfmr-coil'})
       );
       if(psse==='TWTransformer'){
-        symG.append(S('circle',{cx:r*0.95,cy:0,r:r*0.85,fill:adv.bgColor||'#102336',stroke:'#e6b85c','stroke-width':1.8}));
+        symG.append(S('circle',{cx:0,cy:r*0.95,r:r*0.85,fill:adv.bgColor||'#102336',stroke:'#e6b85c','stroke-width':1.8}));
       }
       g.append(symG);
     }else if(psse==='SwitchingDev'){
-      const swCol=isOut?(col.switchOpen||'#fa8080'):(col.switchClosed||stroke);
+      const swCol=isOpen?(col.switchOpen||'#fa8080'):(col.switchClosed||stroke);
       const symG=S('g',{transform:`translate(${x} ${y}) rotate(${-rot})`,class:'ga-sld-sym-inner'});
-      symG.append(S('rect',{x:-6.5,y:-6.5,width:13,height:13,rx:1.5,fill:isOut?(adv.bgColor||'#102336'):swCol,stroke:swCol,'stroke-width':1.8}));
-      if(isOut)symG.append(S('line',{x1:-5,y1:-5,x2:5,y2:5,stroke:swCol,'stroke-width':1.6}));
+      symG.append(S('rect',{x:-6.5,y:-6.5,width:13,height:13,rx:1.5,fill:isOpen?(adv.bgColor||'#102336'):swCol,stroke:swCol,'stroke-width':1.8}));
+      if(isOpen)symG.append(S('line',{x1:-5,y1:-5,x2:5,y2:5,stroke:swCol,'stroke-width':1.6}));
       g.append(symG);
     }else if(psse==='Machine'){
       const symG=S('g',{transform:`translate(${x} ${y})`,class:'ga-sld-sym-inner'});
       symG.append(S('circle',{cx:0,cy:0,r:11.5,fill:adv.bgColor||'#102336',stroke:'#53cf9d','stroke-width':2}));
       const t=S('text',{x:0,y:4,'text-anchor':'middle',fill:'#d9fbee','font-size':10,'font-weight':'700'});t.textContent='G';
       symG.append(t);g.append(symG);
-      if(ann.showRadialResults&&match?.generator){
+      if(!useCalc&&ann.showRadialResults&&match?.generator){
         const eq=eqRows.get(match.generator.sourceEquipmentId);
         const pg=eq?.operating?.pg?.value??match.generator.pgMw,qg=eq?.operating?.qg?.value??match.generator.qgMvar;
         if(Number.isFinite(pg)||Number.isFinite(qg)){
@@ -2407,7 +2502,7 @@ function renderGaSldToSvg(gaSld,customSettings=null){
       const symG=S('g',{transform:`translate(${x} ${y}) rotate(${-rot})`,class:'ga-sld-sym-inner'});
       symG.append(S('path',{d:'M -9 -8 H 9 L 0 11 Z',fill:adv.bgColor||'#142c42',stroke:'#eab863','stroke-width':1.8}));
       g.append(symG);
-      if(ann.showRadialResults&&match?.load){
+      if(!useCalc&&ann.showRadialResults&&match?.load){
         const eq=eqRows.get(match.load.sourceEquipmentId);
         const pl=eq?.operating?.pl?.value??match.load.pMw,ql=eq?.operating?.ql?.value??match.load.qMvar;
         if(Number.isFinite(pl)||Number.isFinite(ql)){
@@ -2427,7 +2522,7 @@ function renderGaSldToSvg(gaSld,customSettings=null){
     }else if(stype==='Branch'){
       const symG=S('g',{transform:`translate(${x} ${y}) rotate(${-rot})`,class:'ga-sld-sym-inner'});
       symG.append(
-        S('line',{x1:0,y1:-8,x2:0,y2:8,stroke,'stroke-width':2.2}),
+        S('line',{x1:-10.44,y1:0,x2:10.44,y2:0,stroke,'stroke-width':2.2}),
         S('circle',{cx:0,cy:0,r:3.2,fill:stroke})
       );
       g.append(symG);
@@ -2446,6 +2541,7 @@ function renderGaSldToSvg(gaSld,customSettings=null){
   if(lay.showLabels!==false){
     for(const c of comps){
       if(c.t!=='Label'||!c.pos||!c.text||c.vis===false)continue;
+      if(c.gaResult&&(!valid||!useCalc||c.gaResult.resultId!==controller()?.psseCalculation?.id))continue;
       const ownerSym=c.owner!==undefined?symMap.get(c.owner):null;
       if(ownerSym?.stype==='Branch'&&/MW|MVAr/i.test(c.text||'')){
         const bound=matchSavEquipment(ownerSym.map);
@@ -2574,10 +2670,6 @@ function prepareNativeDiagram(doc){
   let next=Math.max(...doc.components.map(c=>c.id))+1;
   for(const sym of doc.components.filter(c=>c.t==='Symbol'&&c.stype==='Branch')){
     const parts=String(sym.map||'').trim().split(/\s+/);
-    if(parts[0]==='LI'&&Number(parts[1])>Number(parts[2])){
-      [parts[1],parts[2]]=[parts[2],parts[1]];sym.map=parts.join(' ')+' ';
-      for(const l of doc.components.filter(c=>c.t==='Link'))for(const p of [l.p1,l.p2])if(p.sym===sym.id&&p.idx!==undefined)p.idx=p.idx===0?1:0;
-    }
     const slot=parts[0]==='TR'?4:3;
     if(!doc.components.some(c=>c.t==='Label'&&c.owner===sym.id&&c.lpos===slot))doc.components.push({id:next++,t:'Label',owner:sym.id,lpos:slot,layer:sym.layer,color:sym.color,pos:[sym.pos[0]+.2,sym.pos[1]+.2],rot:0,text:parts.at(-1)||'1',fh:8,readOnlyText:true});
   }
@@ -2612,11 +2704,11 @@ function optimizeGeneratedLayout(doc){
   const measureText=label=>{const size=Math.max(6,Math.min(18,(Number(label.fh)||9)*.82*(Number(activeSettings().layout.fontScale)||100)/100));ctx.font=size+'px Arial';return {width:Math.max(...String(label.text||'').split('\n').map(line=>ctx.measureText(line).width))/SLD_SCALE,height:size*1.2*String(label.text||'').split('\n').length/SLD_SCALE};};
   // Preserve the station/voltage arrangement produced by the graph builder;
   // compact local clearance and A* rerouting are reversible geometry changes.
-  const options={preservePositions:!doc.scope?.provenance,preserveBusPorts:false,retainBetterRoutes:false,constrainBounds:false,resolveSymbolCollisions:true,crossingWeight:25,routeCrossingPenalty:10,refineRoutes:true,compressedFallback:doc.components.length>300,maxCompressedNodes:12000,maxRouteNodes:6000,gridSize:doc.components.length>300?.65:.35,measureText:label=>{const m=measureText(label);return {width:Math.max(.25,m.width),height:Math.max(.22,m.height)};}};
+  const options={preservePositions:true,preserveBusPorts:Boolean(doc.scope?.provenance),retainBetterRoutes:true,constrainBounds:false,resolveSymbolCollisions:true,lockedIds:doc.scope?.provenance?doc.components.filter(c=>c.t==='Symbol'&&(c.stype==='Busbar'||['Transformer','TWTransformer'].includes(c.psse))).map(c=>c.id):[],crossingWeight:25,routeCrossingPenalty:10,refineRoutes:true,moveLabelsOfPinnedSymbols:Boolean(doc.scope?.provenance),compressedFallback:true,maxCompressedNodes:12000,maxRouteNodes:6000,gridSize:doc.components.length>300?.65:.35,measureText:label=>{const m=measureText(label);return {width:Math.max(.25,m.width),height:Math.max(.22,m.height)};}};
   prepareNativeDiagram(doc);
   const symbols=new Map(doc.components.filter(c=>c.t==='Symbol').map(c=>[c.id,c]));
   for(const label of doc.components.filter(c=>c.t==='Label')){const owner=symbols.get(label.owner);if(owner?.stype==='Busbar'&&!label.locked&&!label.manual&&!owner.locked&&!owner.manual){
-    label.text=String(label.text).split(/\r?\n/)[0];const size=measureText(label);label.pos=[owner.pos[0]-size.width/2,owner.pos[1]+.32];
+    const size=measureText(label);label.pos=[owner.pos[0]-size.width/2,owner.pos[1]+.32];
   }}
   alignNativePorts(doc);
   const baseline=cloneArchiveGraph(doc);
@@ -2627,6 +2719,31 @@ function optimizeGeneratedLayout(doc){
   doc.layoutMetrics={before,after};
   Object.defineProperty(doc,'_layoutBaseline',{value:baseline,enumerable:false,configurable:true});
   return doc;
+}
+
+function arrangeTmTransformerColumns(doc){
+  const symbols=new Map(doc.components.filter(c=>c.t==='Symbol').map(c=>[c.id,c])),links=doc.components.filter(c=>c.t==='Link'),used=[];
+  for(const t of [...symbols.values()].filter(c=>['Transformer','TWTransformer'].includes(c.psse))){
+    const attached=links.filter(l=>l.p1.sym===t.id||l.p2.sym===t.id).map(l=>({link:l,port:l.p1.sym===t.id?l.p1:l.p2,bus:symbols.get(l.p1.sym===t.id?l.p2.sym:l.p1.sym)})).filter(a=>a.bus?.stype==='Busbar');
+    if(!attached.length)continue;
+    const buses=attached.map(a=>a.bus).sort((a,b)=>(a.sourceKv||0)-(b.sourceKv||0));let x=buses[0].pos[0];while(used.some(v=>Math.abs(v-x)<.7))x=Number((x+.8).toFixed(4));used.push(x);
+    let y=(Math.min(...buses.map(b=>b.pos[1]))+Math.max(...buses.map(b=>b.pos[1])))/2;
+    while([...symbols.values()].some(b=>b.stype==='Busbar'&&!buses.includes(b)&&Math.abs(b.pos[1]-y)<.5&&Math.abs(b.pos[0]-x)<b.len/2+.35))y+=.7;
+    const first=attached.find(a=>a.port.idx===0);t.rot=first?.bus.pos[1]>=y?270:90;translateGaSldSymbol(t,x-t.pos[0],y-t.pos[1],doc);
+    for(const {link,port,bus}of attached){const bp=link.p1.sym===bus.id?link.p1:link.p2;
+      if(Math.abs(x-bus.pos[0])<bus.len*.45)bp.offsetRatio=(x-bus.pos[0])/bus.len;
+      bp.busSide=y>bus.pos[1]?1:-1;bp.pos=getPortWorldPos(bus,bp);port.pos=getPortWorldPos(t,port);link.knees=buildOrthogonalKnees(link.p1.pos,link.p2.pos,bus,t);
+    }
+  }
+  for(const device of [...symbols.values()].filter(s=>s.stype==='Branch'&&!['Transformer','TWTransformer'].includes(s.psse))){
+    const ls=links.filter(l=>l.p1.sym===device.id||l.p2.sym===device.id),buses=ls.map(l=>symbols.get(l.p1.sym===device.id?l.p2.sym:l.p1.sym)).filter(s=>s?.stype==='Busbar');
+    if(buses.length!==2)continue;const [left,right]=[...buses].sort((a,b)=>a.pos[0]-b.pos[0]);
+    const x=((left.pos[0]+left.len/2)+(right.pos[0]-right.len/2))/2;let y=(left.pos[1]+right.pos[1])/2;
+    if([...symbols.values()].some(b=>b.stype==='Busbar'&&!buses.includes(b)&&Math.abs(b.pos[1]-y)<.1&&b.pos[0]>left.pos[0]&&b.pos[0]<right.pos[0]))y+=.8;
+    device.rot=0;translateGaSldSymbol(device,x-device.pos[0],y-device.pos[1],doc);
+    for(const l of ls){const bp=l.p1.sym===device.id?l.p2:l.p1,bus=symbols.get(bp.sym),dp=l.p1.sym===device.id?l.p1:l.p2;bp.offsetRatio=bus===left?.46:-.46;bp.pos=getPortWorldPos(bus,bp);dp.pos=getPortWorldPos(device,dp);l.knees=buildOrthogonalKnees(l.p1.pos,l.p2.pos,bus,device);}
+  }
+
 }
 
 function buildTmGaSld(stationId,orientation='horizontal'){
@@ -2675,7 +2792,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   const tiers=new Map();
   for(const idx of indices){
     const kv=n.buses[idx].baseKv||0;
-    const key=kv>=300?400:kv>=180?220:kv>=100?154:kv>36?66:36;
+    const key=kv; // Distinct source voltage levels, including 33.6 / 34.5 kV.
     if(!tiers.has(key))tiers.set(key,[]);
     tiers.get(key).push(idx);
   }
@@ -2690,12 +2807,10 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     if(!busSym)return {sym:undefined,offsetRatio:0,pos:[0,0]};
     const used=portUseByBusIdx.get(busIdx)||[];
     const total=Math.max(2,busDeg.get(busIdx)||2);
-    let ratio=hintRatio!==null?hintRatio:(-0.42+(used.length/(total))*0.84);
-    while(used.some(u=>Math.abs(u-ratio)<0.055))ratio+=0.065;
-    ratio=Math.max(-0.46,Math.min(0.46,Number(ratio.toFixed(4))));
+    const ratio=Number((-.44+used.length*.88/Math.max(1,total-1)).toFixed(6));
     used.push(ratio);
     portUseByBusIdx.set(busIdx,used);
-    const spec={sym:busSym.id,offsetRatio:ratio};
+    const spec={sym:busSym.id,idx:used.length-1,offsetRatio:ratio};
     spec.pos=getPortWorldPos(busSym,spec);
     return spec;
   };
@@ -2704,20 +2819,21 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   let tierCursor=isHoriz?4.2:-5.5;
   for(const [kvKey,busIndices] of sortedTiers){
     busIndices.sort((a,b)=>(n.buses[a].externalNumber??a)-(n.buses[b].externalNumber??b));
-    const count=busIndices.length;
+    const lengths=busIndices.map(i=>Math.max(3.4,(busDeg.get(i)||2)*.8+1.8));
+    const totalSpan=lengths.reduce((a,b)=>a+b,0)+Math.max(0,lengths.length-1)*2.2;
+    let barCursor=-totalSpan/2;
     busIndices.forEach((bIdx,posIdx)=>{
       const bus=n.buses[bIdx],eq=eqMap.get(bus.sourceEquipmentId);
       const deg=busDeg.get(bIdx)||2;
-      const barLen=Number(Math.max(3.4,Math.min(9.5,deg*0.65+1.8)).toFixed(2));
+      const barLen=Number(lengths[posIdx].toFixed(2));
+      const along=barCursor+barLen/2;barCursor+=barLen+2.2;
       let cx,cy;
       if(isHoriz){
-        const span=barLen+2.2;
-        cx=Number(((posIdx-(count-1)/2)*span).toFixed(3));
+        cx=Number(along.toFixed(3));
         cy=Number(tierCursor.toFixed(3));
       }else{
-        const span=barLen+2.2;
         cx=Number(tierCursor.toFixed(3));
-        cy=Number((-(posIdx-(count-1)/2)*span).toFixed(3));
+        cy=Number((-along).toFixed(3));
       }
       const cid=idSeq++;
       const lyr=layerForKv(bus.baseKv||kvKey);
@@ -2725,7 +2841,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
       const bName=(eq?.name||bus.connectionKey||'').trim();
       const sym={
         id:cid,t:'Symbol',stype:'Busbar',psse:'Busbar',sdef:1,layer:lyr,
-        map:`BU ${busNum}`,
+        map:`BU ${busNum}`,sourceId:bus.sourceEquipmentId,sourceStatus:bus.status,sourceKv:bus.baseKv,
         pos:[cx,cy],
         rot:isHoriz?90:0,
         len:barLen,
@@ -2740,7 +2856,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
       comps.push({
         id:idSeq++,t:'Label',owner:cid,layer:lyr,color:0xffffff,
         pos:lblPos,rot:0,
-        text:`${busNum}\n${bName.slice(0,22)} (${num(bus.baseKv,0)} kV)`,
+        text:`${busNum} ${bName.slice(0,22)} · ${num(bus.baseKv,1)} kV`,
         fh:9
       });
     });
@@ -2767,29 +2883,30 @@ function buildTmGaSld(stationId,orientation='horizontal'){
       const isTr=br.kind==='transformer';
       const fBus=n.buses[br.from],tBus=n.buses[br.to];
       const b1=fBus.externalNumber||fBus.connectionKey,b2=tBus.externalNumber||tBus.connectionKey;
-      const ckt=String(br.windingId||'1').trim();
+      const source=eqMap.get(br.sourceEquipmentId),ckt=String(source?.fields?.ckt??br.windingId??'1').trim();
+      const kind=source?.kind==='switch'?'SYS':br.kind==='transformer'?'TR':'LI',psse=kind==='SYS'?'SwitchingDev':kind==='TR'?'Transformer':'Branch',sdef=kind==='SYS'?3:kind==='TR'?10:32;
       const lyr=layerForKv(Math.max(fBus.baseKv||0,tBus.baseKv||0));
       const colBgr=hexToBgr(kvColor(Math.max(fBus.baseKv||0,tBus.baseKv||0)));
       const cid=idSeq++;
       const brSym={
-        id:cid,t:'Symbol',stype:'Branch',psse:isTr?'Transformer':'Branch',sdef:isTr?10:32,layer:lyr,
-        map:`${isTr?'TR':'LI'} ${b1} ${b2} ${ckt} `,
+        id:cid,t:'Symbol',stype:'Branch',psse,sdef,layer:lyr,
+        map:`${kind} ${b1} ${b2} ${ckt} `,sourceId:br.sourceEquipmentId,sourceStatus:source?.status,sourceFields:{STAT:source?.fields?.stat,STYPE:source?.fields?.stype},
         pos:[mx,my],rot:isHoriz?0:90,color:colBgr
       };
       comps.push(brSym);
       comps.push({
         id:idSeq++,t:'Label',owner:cid,layer:lyr,color:0xdce7f3,
         pos:[Number((mx+(isHoriz?0.45:0)).toFixed(4)),Number((my+(isHoriz?0.05:0.35)).toFixed(4))],
-        rot:0,text:`${isTr?'TR':'HAT'} ckt ${ckt}`,fh:8
+        rot:0,text:`${kind==='SYS'?'SYS':isTr?'TR':'HAT'} ckt ${ckt}`,fh:8
       });
       const brPort0={sym:cid,idx:0};brPort0.pos=getPortWorldPos(brSym,brPort0);
       const brPort1={sym:cid,idx:1};brPort1.pos=getPortWorldPos(brSym,brPort1);
       comps.push({
-        id:idSeq++,t:'Link',layer:lyr,color:colBgr,lwidth:0.022,lstyle:br.status===0?1:0,
+        id:idSeq++,t:'Link',layer:lyr,color:colBgr,lwidth:0.022,lstyle:source?.kind!=='switch'&&br.status===0?1:0,
         p1:p1Spec,p2:brPort0,knees:buildOrthogonalKnees(p1Spec.pos,brPort0.pos,sFrom,brSym)
       });
       comps.push({
-        id:idSeq++,t:'Link',layer:lyr,color:colBgr,lwidth:0.022,lstyle:br.status===0?1:0,
+        id:idSeq++,t:'Link',layer:lyr,color:colBgr,lwidth:0.022,lstyle:source?.kind!=='switch'&&br.status===0?1:0,
         p1:p2Spec,p2:brPort1,knees:buildOrthogonalKnees(p2Spec.pos,brPort1.pos,sTo,brSym)
       });
     });
@@ -2808,7 +2925,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     const cid=idSeq++;
     const trSym={
       id:cid,t:'Symbol',stype:'Branch',psse:'TWTransformer',sdef:11,layer:4,
-      map:bNums.length>=2?`TR ${bNums[0]} ${bNums[1]} ${bNums[2]||''} ${ckt} `:'',
+      map:`TR ${eq?.fields?.ibus??bNums[0]} ${eq?.fields?.jbus??bNums[1]} ${eq?.fields?.kbus??bNums[2]} ${ckt} `,sourceId:grp.sourceEquipmentId,sourceStatus:eq?.status,
       pos:[cx,cy],rot:0,color:hexToBgr('#e6b85c')
     };
     comps.push(trSym);
@@ -2834,16 +2951,17 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     const otherEq=eqMap.get(otherBus?.sourceEquipmentId);
     const otherName=(otherEq?.name||otherBus?.connectionKey||'DIŞ BARA').trim();
     const b1=ownBus.externalNumber||ownBus.connectionKey,b2=otherBus?.externalNumber||otherBus?.connectionKey||'0';
-    const ckt=String(br.windingId||'1').trim();
+    const source=eqMap.get(br.sourceEquipmentId),ckt=String(source?.fields?.ckt??br.windingId??'1').trim();
+      const kind=source?.kind==='switch'?'SYS':br.kind==='transformer'?'TR':'LI',psse=kind==='SYS'?'SwitchingDev':kind==='TR'?'Transformer':'Branch',sdef=kind==='SYS'?3:kind==='TR'?10:32;
     const p1Spec=allocBusPort(ownIdx);
     const fx=isHoriz?p1Spec.pos[0]:Number((ownSym.pos[0]+1.85).toFixed(4));
     const fy=isHoriz?Number((ownSym.pos[1]+1.55).toFixed(4)):p1Spec.pos[1];
     const cid=idSeq++;
     const lyr=ownSym.layer||2;
     const fSym={
-      id:cid,t:'Symbol',stype:'Branch',psse:'Branch',sdef:32,layer:lyr,
-      map:`LI ${b1} ${b2} ${ckt} `,
-      pos:[fx,fy],rot:isHoriz?0:90,color:ownSym.color
+      id:cid,t:'Symbol',stype:'Branch',psse,sdef,layer:lyr,
+      map:`${kind} ${b1} ${b2} ${ckt} `,sourceId:br.sourceEquipmentId,sourceStatus:source?.status,sourceFields:{STAT:source?.fields?.stat,STYPE:source?.fields?.stype},
+      pos:[fx,fy],rot:isHoriz?90:0,color:ownSym.color
     };
     comps.push(fSym);
     comps.push({
@@ -2853,7 +2971,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     });
     const p2Spec={sym:cid,idx:0};p2Spec.pos=getPortWorldPos(fSym,p2Spec);
     comps.push({
-      id:idSeq++,t:'Link',layer:lyr,color:ownSym.color,lwidth:0.02,lstyle:br.status===0?1:0,
+      id:idSeq++,t:'Link',layer:lyr,color:ownSym.color,lwidth:0.02,lstyle:source?.kind!=='switch'&&br.status===0?1:0,
       p1:p1Spec,p2:p2Spec,knees:buildOrthogonalKnees(p1Spec.pos,p2Spec.pos,ownSym,fSym)
     });
   });
@@ -2863,14 +2981,16 @@ function buildTmGaSld(stationId,orientation='horizontal'){
     const busSym=busSymByIdx.get(bIdx),bus=n.buses[bIdx];
     if(!busSym)continue;
     const busNum=bus.externalNumber||bus.connectionKey;
-    const gens=(n.generators||[]).filter(g=>g.bus===bIdx).slice(0,4);
-    const loads=(n.loads||[]).filter(l=>l.bus===bIdx).slice(0,4);
-    const shunts=(n.shunts||[]).filter(s=>s.bus===bIdx).slice(0,4);
-    const radials=[
-      ...gens.map(g=>({psse:'Machine',sdef:4,map:`ME ${busNum} 1 `,txt:`G (${busNum})`,col:'#53cf9d'})),
-      ...loads.map(l=>({psse:'Load',sdef:2,map:`LO ${busNum} 1 `,txt:`YÜK (${busNum})`,col:'#eab863'})),
-      ...shunts.map(s=>({psse:'FixedShunt',sdef:5,map:`FXS ${busNum} 1 `,txt:`ŞÖNT ${num(s.bMvar,1)} MVAr`,col:'#c79bf2'}))
-    ];
+    const gens=(n.generators||[]).filter(g=>g.bus===bIdx);
+    const loads=(n.loads||[]).filter(l=>l.bus===bIdx);
+    const shunts=(n.shunts||[]).filter(s=>s.bus===bIdx);
+    const radial=(device,psse,sdef,code,idField,col)=>{
+      const source=eqMap.get(device.sourceEquipmentId),circuit=String(source?.fields?.[idField]??'1').trim();
+      return {psse,sdef,map:`${code} ${busNum} ${circuit} `,sourceId:device.sourceEquipmentId,sourceStatus:source?.status,txt:`${code} ${circuit} · eşdeğer`,col};
+    };
+    const radials=[...gens.map(d=>radial(d,'Machine',4,'ME','machid','#53cf9d')),
+      ...loads.map(d=>radial(d,'Load',2,'LO','loadid','#eab863')),
+      ...shunts.map(d=>radial(d,d.selection!=='FIXED'?'SwitchedShunt':'FixedShunt',d.selection!=='FIXED'?13:5,d.selection!=='FIXED'?'SWS':'FXS','shntid','#c79bf2'))];
     radials.forEach((rad)=>{
       const p1Spec=allocBusPort(bIdx);
       const rx=isHoriz?p1Spec.pos[0]:Number((busSym.pos[0]-1.45).toFixed(4));
@@ -2878,7 +2998,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
       const cid=idSeq++;
       const rSym={
         id:cid,t:'Symbol',stype:'Radial',psse:rad.psse,sdef:rad.sdef,layer:busSym.layer||2,
-        map:rad.map,pos:[rx,ry],rot:0,color:hexToBgr(rad.col)
+        map:rad.map,sourceId:rad.sourceId,sourceStatus:rad.sourceStatus,pos:[rx,ry],rot:0,color:hexToBgr(rad.col)
       };
       comps.push(rSym);
       comps.push({
@@ -2903,6 +3023,7 @@ function buildTmGaSld(stationId,orientation='horizontal'){
   };
   ensureLinkPortAttachments(gaDoc);
   resolveGaSldOverlaps(gaDoc);
+  arrangeTmTransformerColumns(gaDoc);
   return optimizeGeneratedLayout(gaDoc);
 }
 
@@ -3023,7 +3144,8 @@ function buildOwnerGaSld(ownerCode,voltageFilter='all',orientation='horizontal')
     const g1=groups.get(byBusIdx.get(br.from)),g2=groups.get(byBusIdx.get(br.to));
     const fBus=n.buses[br.from],tBus=n.buses[br.to];
     const b1=fBus?.externalNumber||fBus?.connectionKey||'0',b2=tBus?.externalNumber||tBus?.connectionKey||'0';
-    const ckt=String(br.windingId||'1').trim();
+    const source=eqMap.get(br.sourceEquipmentId),ckt=String(source?.fields?.ckt??br.windingId??'1').trim();
+      const kind=source?.kind==='switch'?'SYS':br.kind==='transformer'?'TR':'LI',psse=kind==='SYS'?'SwitchingDev':kind==='TR'?'Transformer':'Branch',sdef=kind==='SYS'?3:kind==='TR'?10:32;
     const kv=Math.max(fBus?.baseKv||154,tBus?.baseKv||154);
     const lyr=layerForKv(kv),colBgr=hexToBgr(kvColor(kv));
 
@@ -3320,6 +3442,8 @@ function activate(id){
 }
 
 function updateHeaderBadges(){
+  if(state.refs.solveButton)state.refs.solveButton.disabled=Boolean(controller()?.busy);
+  if(state.refs.resultSource){const r=getCalculationResults();state.refs.resultSource.textContent=r.useCalc?`GA_PSSE_CALCULATED · ${controller()?.busy?'BUSY':r.valid?(r.dc?'DC · MW/açı':'CONVERGED'):r.calc?.status==='CONVERGED'?'STALE':r.calc?.status||'NOT_RUN'}`:'SOURCE_SAVED · kaynak';}
   const host=state.refs.badges;if(!host)return;
   host.replaceChildren();
   const n=network();
@@ -3607,59 +3731,18 @@ function selectNode(el,additive=false){
 
 function updateLiveSvgForMovedSymbol(sym){
   if(!state.svg||!state.doc?.gaSld||!sym)return;
-  const sx=Number((sym.pos[0]*SLD_SCALE).toFixed(2)),sy=Number((-sym.pos[1]*SLD_SCALE).toFixed(2));
-  const symEl=$(`.ga-studio-sld-symbol[data-sld-id="${sym.id}"]`,state.svg);
-  if(symEl){
-    symEl.setAttribute('data-sld-x',String(sym.pos[0]));
-    symEl.setAttribute('data-sld-y',String(sym.pos[1]));
-    if(sym.stype==='Busbar'&&sym.ends?.length===2){
-      const line=$('line.ga-sld-busbar',symEl);
-      if(line){
-        line.setAttribute('x1',String(Number((sym.ends[0][0]*SLD_SCALE).toFixed(2))));
-        line.setAttribute('y1',String(Number((-sym.ends[0][1]*SLD_SCALE).toFixed(2))));
-        line.setAttribute('x2',String(Number((sym.ends[1][0]*SLD_SCALE).toFixed(2))));
-        line.setAttribute('y2',String(Number((-sym.ends[1][1]*SLD_SCALE).toFixed(2))));
-      }
-      const badge=$('.ga-studio-pf-badge',symEl);
-      if(badge){badge.setAttribute('x',String(sx));badge.setAttribute('y',String(sy+15));}
-    }else{
-      const inner=$('.ga-sld-sym-inner',symEl);
-      if(inner){
-        if(inner.tagName.toLowerCase()==='circle'){
-          inner.setAttribute('cx',String(sx));inner.setAttribute('cy',String(sy));
-        }else{
-          inner.setAttribute('transform',`translate(${sx} ${sy}) rotate(${-(sym.rot||0)})`);
-        }
-      }
-    }
+  // Translate the complete painted symbol, including every result badge.
+  const el=$(`.ga-studio-sld-symbol[data-sld-id="${sym.id}"]`,state.svg);
+  if(el){
+    if(!el.hasAttribute('data-drag-x')){el.dataset.dragX=el.dataset.sldX;el.dataset.dragY=el.dataset.sldY;}
+    el.setAttribute('transform',`translate(${(sym.pos[0]-Number(el.dataset.dragX))*SLD_SCALE} ${-(sym.pos[1]-Number(el.dataset.dragY))*SLD_SCALE})`);
+    el.dataset.sldX=sym.pos[0];el.dataset.sldY=sym.pos[1];
   }
-  for(const c of state.doc.gaSld.components){
-    if(c.t==='Label'&&c.owner===sym.id&&c.pos){
-      const lblEl=$(`.ga-studio-sld-label[data-sld-id="${c.id}"]`,state.svg);
-      if(lblEl){
-        const lx=Number((c.pos[0]*SLD_SCALE).toFixed(2)),ly=Number((-c.pos[1]*SLD_SCALE).toFixed(2));
-        const txt=$('text',lblEl);
-        if(txt){
-          txt.setAttribute('x',String(lx));txt.setAttribute('y',String(ly));
-          $$('tspan',txt).forEach(ts=>ts.setAttribute('x',String(lx)));
-        }
-      }
-    }else if(c.t==='Link'&&(c.p1?.sym===sym.id||c.p2?.sym===sym.id)){
-      const lkEl=$(`.ga-studio-sld-link[data-sld-id="${c.id}"]`,state.svg);
-      if(lkEl&&c.p1?.pos&&c.p2?.pos){
-        const pts=[c.p1.pos,...(c.knees||[]),c.p2.pos].map(p=>[Number((p[0]*SLD_SCALE).toFixed(2)),Number((-p[1]*SLD_SCALE).toFixed(2))]);
-        const path=$('path.ga-sld-line',lkEl);
-        if(path)path.setAttribute('d','M '+pts.map(p=>`${p[0]} ${p[1]}`).join(' L '));
-        const circles=$$('circle.ga-studio-knee',lkEl);
-        (c.knees||[]).forEach((kp,kIdx)=>{
-          if(circles[kIdx]){
-            circles[kIdx].setAttribute('cx',String(Number((kp[0]*SLD_SCALE).toFixed(2))));
-            circles[kIdx].setAttribute('cy',String(Number((-kp[1]*SLD_SCALE).toFixed(2))));
-          }
-        });
-      }
-    }
+  for(const c of state.doc.gaSld.components)if(c.t==='Label'&&c.owner===sym.id&&c.pos){
+    const label=$(`.ga-studio-sld-label[data-sld-id="${c.id}"]`,state.svg),text=label&&$('text',label);
+    if(text){const x=c.pos[0]*SLD_SCALE,y=-c.pos[1]*SLD_SCALE;text.setAttribute('x',x);text.setAttribute('y',y);$$('tspan',text).forEach(t=>t.setAttribute('x',x));}
   }
+  updateLiveLinkGeometry();
 }
 
 function handleKneeOrRouteToolClick(p,el){
@@ -3803,6 +3886,8 @@ function hideBusbarPopup(){
 function updateTextLod(){
   const svg=state.svg;if(!svg)return;
   const scale=Math.abs(svg.getScreenCTM()?.a||1), occupied=new Map();
+  const title=$('[data-diagram-title]',svg),vb=svg.viewBox.baseVal;
+  if(title){title.setAttribute('font-size',14/scale);title.setAttribute('x',vb.x+16/scale);title.setAttribute('y',vb.y+20/scale);}
   const cfg=activeSettings(),detailZoom=Number(cfg.advanced.detailLabelZoom??25),flowZoom=Number(cfg.advanced.flowLabelZoom??20);
   for(const text of $$('.ga-studio-pf-badge',svg)){
     text.style.display=scale*100<flowZoom?'none':'';text.style.fontSize=Math.max(8,8/scale)+'px';
@@ -3834,7 +3919,8 @@ function updateTextLod(){
 }
 
 function bindSvg(){
-  const svg=state.svg;if(!svg)return;
+  const svg=state.svg;if(!svg||state.boundSvgs.has(svg))return;
+  state.boundSvgs.add(svg);
   svg.removeAttribute('width');svg.removeAttribute('height');svg.setAttribute('tabindex','0');
   svg.style.width='100%';svg.style.height='100%';svg.style.touchAction='none';
   state.lodObserver?.disconnect();
@@ -3889,10 +3975,8 @@ function bindSvg(){
         for(const neighbor of [previous,next])if(neighbor){if(Math.abs(neighbor[0]-old[0])<1e-6)neighbor[0]=point[0];else if(Math.abs(neighbor[1]-old[1])<1e-6)neighbor[1]=point[1];}
         lk.knees[d.kneeIdx]=point;orthogonalizeLink(lk);
         d.kneeIdx=lk.knees.findIndex(k=>k[0]===point[0]&&k[1]===point[1]);
-        d.el.setAttribute('cx',String(p.x));d.el.setAttribute('cy',String(p.y));
-        const pts=[lk.p1.pos,...lk.knees,lk.p2.pos].map(pt=>[Number((pt[0]*SLD_SCALE).toFixed(2)),Number((-pt[1]*SLD_SCALE).toFixed(2))]);
-        const path=d.el.closest('.ga-studio-sld-link')?.querySelector('path.ga-sld-line');
-        if(path)path.setAttribute('d','M '+pts.map(pt=>`${pt[0]} ${pt[1]}`).join(' L '));
+        updateLiveLinkGeometry();
+        d.el=$(`.ga-studio-knee[data-link-id="${lk.id}"][data-knee-idx="${d.kneeIdx}"]`,svg);
         d.changed=true;
       }
     }else if(d.mode==='move'&&Math.abs(dx)+Math.abs(dy)>0.02){
@@ -3930,6 +4014,7 @@ function bindSvg(){
   const end=()=>{
     if(!state.drag)return;
     const d=state.drag;state.drag=null;
+    if(svg.hasPointerCapture(d.id))svg.releasePointerCapture(d.id);
     if(d.changed){
       if(state.doc?.gaSld)refreshGaSldCanvas(true);
       else snapshot();
@@ -3937,6 +4022,7 @@ function bindSvg(){
   };
   svg.addEventListener('pointerup',end);
   svg.addEventListener('pointercancel',end);
+  svg.addEventListener('lostpointercapture',end);
 
   svg.addEventListener('wheel',e=>{
     e.preventDefault();
@@ -4715,6 +4801,12 @@ function controls(){
   sep();
   btn('⚙ Diyagram Ayarları',openDiagramSettingsModal,'is-settings-btn','PSS®E benzeri 4 sekmeli Diyagram Ayarları penceresini aç');
 
+  const solveButton=btn('Son Ayarlarla Solve',()=>void controller()?.runLastPsseCalculation?.(),'','Bu kaynak/model/senaryonun son gerçek çözüm ayarlarını kullan');state.refs.solveButton=solveButton;
+  btn('Pasifleri Kesikli Göster',()=>{const cfg=activeSettings();cfg.coloring.dashedOutOfService=!cfg.coloring.dashedOutOfService;refreshGaSldCanvas(true);});
+  btn('Pasif Teçhizatı Temizle',cleanPassiveEquipment,'','Kaynakta kesin pasif nesneleri yeni şema sekmesinden temizle');
+  btn('GA Sonuçlarını Native .sld’ye İşle',embedCalculatedResults);
+  const resultSource=E('span','ga-studio-badge');resultSource.setAttribute('aria-label','SLD sonuç kaynağı');toolbar.append(resultSource);state.refs.resultSource=resultSource;
+
   // Secondary Row: Geometric Editing Tools ONLY (Zero creation buttons!) + Zoom + Dropdown
   const line=E('div','ga-studio-toolbar');
   const tool=(label,mode,tip='')=>{const b=E('button','ga-studio-button ga-studio-tool',label);b.type='button';b.dataset.gaTool=mode;if(tip)b.title=tip;b.onclick=()=>setMode(mode);line.append(b);return b;};
@@ -4832,6 +4924,8 @@ function syncModel(){
   }
   if(n&&state.refs.owner.options.length<2)populateOwner();
   if(n&&state.refs.tm.options.length<2)populateStations();
+  const resultKey=[controller()?.busy,controller()?.psseCalculation?.id,controller()?.psseCalculation?.status,controller()?.psseScenario?.hash].join('|');
+  if(state.resultKey!==resultKey){state.resultKey=resultKey;if(state.doc?.gaSld&&!state.drag)refreshGaSldCanvas(true);}
   updateHeaderBadges();
 }
 
@@ -4854,7 +4948,7 @@ const watcher=new MutationObserver(()=>{if(!document.body.contains(state.root)||
 function boot(){
   mount();
   watcher.observe(document.body,{childList:true,subtree:true});
-  setInterval(()=>{if($('.ga-psse-sld')!==state.root)mount();else if(state.root)syncModel();},1250);
+  controller()?.subscribe?.(()=>{if(state.root)syncModel();});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 
@@ -4878,6 +4972,7 @@ window.GASldStudio={
   exportNativeSld,
   exportGaSldJson,
   resolveOverlaps,
+  cleanPassiveEquipment,embedCalculatedResults,
   newTM:newTm,
   newOWNER:newOwner,
   undo,

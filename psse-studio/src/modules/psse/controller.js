@@ -63,6 +63,7 @@ export class PsseController {
     options=normalizeSolverOptions(method,options);
     this.psseRequestOptions.set(method,{sourceSha256:this.psseInspection.source.sha256,options:{...options}});
     const model=this.psseInspection,network=this.psseNetwork,scenario=this.psseScenario,job=++this.job;
+    this.lastPsseSolveProfile={sourceSha256:model.source.sha256,modelHash:network.modelHash,scenarioHash:scenario.hash,method,options:{...options}};
     this.psseBaseCalculation=this.engine.Go(this.psseBaseCalculation,this.psseCalculation,network,model.source.sha256);this.psseCalculation=null;this.busy=true;this.status=`${method} · hesaplanıyor`;this.notify();
     try{
       const result=await this.psseCalculationWorker.request({model,network,scenario,method,options,progress:p=>{if(job===this.job){this.status=`${method} · ${p.phase} · ${p.iteration+1}`;this.notify();}}});
@@ -73,6 +74,12 @@ export class PsseController {
       this.metrics.push({action:'calculate',method,status:resultStatus(result),ms:result.elapsedMs,id:result.id});
     }catch(error){if(job===this.job){this.psseWorkerError={method,phase:'CALCULATION',message:error.message};this.status=`${method} · ${error.message}`;this.host.onError?.(error);}}
     finally{if(job===this.job){this.busy=false;this.notify();}}
+  }
+  async runLastPsseCalculation(){
+    const p=this.lastPsseSolveProfile;
+    if(!p||p.sourceSha256!==this.psseInspection?.source.sha256||p.modelHash!==this.psseNetwork?.modelHash||p.scenarioHash!==this.psseScenario?.hash){this.setView('analysis');this.setMessage('Bu model/senaryo için önce Analizler üzerinden yöntem ve seçenekleri seçin.');return false;}
+    if(this.busy)return false;
+    await this.runPsseCalculation(p.method,{...p.options});return true;
   }
   clearModel(){this.cancel(true);this.psseInspection=this.psseNetwork=this.psseScenario=this.psseCalculation=this.psseBaseCalculation=null;this.scenarios=null;this.modelMode='NONE';this.status='Model temizlendi';this.notify();}
   dispose(){this.cancel(true);this.listeners.clear();this.psseRequestOptions.clear();this._calculation=this._baseCalculation=null;this.psseInspection=this.psseNetwork=this.psseScenario=this.psseAttachments=this.scenarios=null;this.engine.fs=()=>null;}

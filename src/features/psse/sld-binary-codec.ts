@@ -46,6 +46,8 @@ export interface GaSldComponent {
   stype?: 'Busbar' | 'Branch' | 'Radial' | 'Node';
   psse?: string;
   sdef?: number;
+  displayIndex?: number;
+  sourceStatus?: number;
   len?: number;
   width?: number;
   ends?: [[number, number], [number, number]];
@@ -56,7 +58,11 @@ export interface GaSldComponent {
   lwidth?: number;
   lstyle?: number;
   text?: string;
+  /** Font height in points. Slider stores integer tenths of a point (80 = 8 pt); zero inherits. */
   fh?: number;
+  font?: string;
+  fw?: number;
+  gaResult?: { schema: string; key: string; resultId: string; sourceSha256: string; scenarioHash: string; method: string };
   lpos?: number;
   owner?: number;
   vis?: boolean;
@@ -655,7 +661,7 @@ export class SldArchiveWriter {
       this.u32(obj.lbl_bg ?? 16777215);
       this.u32(obj.lbl_position ?? 0);
       this.bytes(obj.lbl_font_info || new Uint8Array(36));
-      this.cstringRaw(encodeCp1254(obj.lbl_font_name || 'Arial'));
+      this.cstringRaw(encodeCp1254(obj.lbl_font_name ?? 'Arial'));
       this.bytes(obj.lbl_font_tail || new Uint8Array(8));
     } else if (clsName === 'CSldPort') {
       this.writeObject(obj.owner);
@@ -780,6 +786,7 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
         stype,
         psse: dec.psse,
         sdef: o.sdef ?? dec.sdef,
+        displayIndex: o.sym_flag ?? 0,
         layer: o.layer ?? 4,
         color: o.color ?? 0,
         map: dec.map,
@@ -824,7 +831,8 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
         t: 'Link',
         layer: o.layer ?? 4,
         color: o.color ?? 0,
-        lwidth: 1,
+        lwidth: new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength).getFloat32(0,true),
+        lstyle: new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength).getInt32(4,true),
         p1: { sym: s1Obj ? s1Obj.id : 0, pos: p1Pos, idx: p1Obj ? p1Obj.port_idx ?? 0 : 0 },
         p2: { sym: s2Obj ? s2Obj.id : 0, pos: p2Pos, idx: p2Obj ? p2Obj.port_idx ?? 0 : 0 },
       };
@@ -849,7 +857,10 @@ export function parseSldBinary(bytes: Uint8Array): GaSldDocument {
         pos: [Number(o.x.toFixed(6)), Number(o.y.toFixed(6))],
         rot: Number((o.rot ?? 0.0).toFixed(4)),
         text: o.text || '',
-        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) || 9 : 9,
+        fh: o.lbl_font_info?.length >= 12 ? new DataView(o.lbl_font_info.buffer, o.lbl_font_info.byteOffset, o.lbl_font_info.byteLength).getInt32(8, true) / 10 : 0,
+        font: o.lbl_font_name || '',
+        fw: new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).getInt32(24,true),
+        gaResult: readGaResultAnnotation(o.comp_annots),
         lpos: o.lbl_position | 0,
         vis: o.lbl_vis !== 0,
         owner: ownerObj ? ownerObj.id : undefined,
@@ -913,6 +924,19 @@ function archivePortLocal(owner: any, pos: number[]): { dx: number; dy: number }
   return { dx: co * x + si * y, dy: -si * x + co * y };
 }
 
+// Independently measured with PSS/E 36.5 Slider SetLineStyle/SetLineWidth;
+// see tests/fixtures/native-sld-fields.json. 0/1 are legacy Studio aliases.
+function nativeSldLineStyle(value: number = -1): number {
+  if(value===0)return -1;if(value===1)return 63736;
+  if(![-1,63736,34952,63520,63624].includes(value))throw new Error(`Unsupported native SLD line style ${value}`);
+  return value;
+}
+function writeArchiveLinkStyle(o: any,c: GaSldComponent): void {
+  const dv=new DataView(o.link_pre_knees.buffer,o.link_pre_knees.byteOffset,o.link_pre_knees.byteLength);
+  if(c.lwidth!==undefined)dv.setFloat32(0,c.lwidth,true);
+  if(c.lstyle!==undefined)dv.setInt32(4,nativeSldLineStyle(c.lstyle),true);
+}
+
 function assertSldGeometry(doc: GaSldDocument): void {
   const ids = new Set<number>();
   const symbols = new Set(doc.components.filter(c => c.t === 'Symbol').map(c => c.id));
@@ -928,6 +952,7 @@ function assertSldGeometry(doc: GaSldDocument): void {
       }
       if (!(c.knees || []).every(point)) throw new Error(`Invalid Link #${c.id} knee`);
     } else if (!point(c.pos)) throw new Error(`Invalid ${c.t} #${c.id} position`);
+    if(c.t==='Label'&&c.owner!==undefined&&!doc.components.some(o=>o.id===c.owner))throw new Error(`Invalid label owner ${c.owner}`);
     if (c.len !== undefined && (!Number.isFinite(c.len) || c.len <= 0)) throw new Error(`Invalid bus length #${c.id}`);
   }
 }
@@ -946,11 +971,12 @@ function assertSldRoundTrip(expected: GaSldDocument, actual: GaSldDocument): voi
   for (const c of expected.components) {
     const r = byId.get(c.id);
     if (!r || r.t !== c.t || !point(c.pos, r.pos) || !close(c.rot, r.rot)) throw new Error(`SLD geometry mismatch #${c.id}`);
-    if (c.t === 'Symbol' && (!close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
-    if (c.t === 'Label' && c.text !== r.text) throw new Error(`SLD label mismatch #${c.id}`);
+    if (c.t === 'Symbol' && ((c.sdef!==undefined&&c.sdef!==r.sdef) || (c.displayIndex!==undefined&&c.displayIndex!==r.displayIndex) || !close(c.len, r.len) || (c.stype && c.stype !== r.stype))) throw new Error(`SLD symbol mismatch #${c.id}`);
+    if (c.t === 'Label' && (c.text !== r.text || (c.fh !== undefined && Math.abs(Math.round(c.fh*10)/10-r.fh!)>1e-4) || (c.font !== undefined && c.font !== r.font) || (c.vis !== undefined && c.vis !== r.vis) || JSON.stringify(c.gaResult)!==JSON.stringify(r.gaResult))) throw new Error(`SLD label/font/provenance mismatch #${c.id}`);
     if (c.groupId !== r.groupId) throw new Error(`SLD group mismatch #${c.id}`);
     if (c.t === 'Symbol' && (c.map || '').trim().replace(/\s+/g, ' ') !== (r.map || '').trim().replace(/\s+/g, ' ')) throw new Error(`SLD equipment map mismatch #${c.id}`);
     if (c.t === 'Link') {
+      if((c.lstyle!==undefined&&nativeSldLineStyle(c.lstyle)!==r.lstyle)||!close(c.lwidth,r.lwidth))throw new Error(`SLD native link style/width mismatch #${c.id}`);
       for (const key of ['p1', 'p2'] as const) {
         if (c[key]?.sym !== r[key]?.sym || !point(c[key]?.pos, r[key]?.pos) || (c[key]?.idx !== undefined && c[key]?.idx !== r[key]?.idx)) {
           throw new Error(`SLD endpoint mismatch #${c.id}.${key}`);
@@ -959,6 +985,47 @@ function assertSldRoundTrip(expected: GaSldDocument, actual: GaSldDocument): voi
       if ((c.knees || []).length !== (r.knees || []).length || !(c.knees || []).every((p, i) => point(p, r.knees?.[i]))) throw new Error(`SLD knee mismatch #${c.id}`);
     }
   }
+}
+
+function readGaResultAnnotation(annots: Uint8Array[] = []): GaSldComponent['gaResult'] {
+  const marker=annots.map(decodeCp1254).find(s=>s.startsWith('GA_RESULT_V1:'));
+  if(!marker)return undefined;
+  try { const value=JSON.parse(marker.slice(13));return value?.schema==='ga.sld.result.v1'?value:undefined; } catch { return undefined; }
+}
+function createArchiveLabel(l: GaSldComponent,ownerObj: any,isV51: boolean): any {
+  const pos=l.pos || [ownerObj?.x || 0,ownerObj?.y || 0];
+  const fontInfo = new Uint8Array(36);
+  const fontDv = new DataView(fontInfo.buffer);
+  fontDv.setInt32(8, Math.round((l.fh ?? 9)*10), true); // native font height
+  fontDv.setInt32(24, l.fw ?? 400, true); // native font weight
+  const postMap=new Uint8Array(isV51 ? 37 : 33);postMap[9]|=0x80;
+  return {
+    _class: 'CSldLabel',
+    id: l.id,
+    rot: l.rot ?? 0.0,
+    layer: l.layer ?? (ownerObj?.layer ?? 4),
+    flag0: 0,
+    f1: 1,
+    f2: 1,
+    f3: 1,
+    color: l.color ?? 0xffffff,
+    comp_pre_map: new Uint8Array(12),
+    map_raw: new Uint8Array(0),
+    comp_annots: l.gaResult ? [encodeCp1254('GA_RESULT_V1:'+JSON.stringify(l.gaResult))] : [],
+    comp_post_map: postMap,
+    x: pos[0],
+    y: pos[1],
+    comp_post_xy: new Uint8Array(16),
+    labels: [],
+    text: l.text || '',
+    owner: ownerObj || null,
+    lbl_vis: l.vis === false ? 0 : 1,
+    lbl_bg: 0xffffff,
+    lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
+    lbl_font_info: fontInfo,
+    lbl_font_name: l.font ?? 'Arial',
+    lbl_font_tail: new Uint8Array(8),
+  };
 }
 
 function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
@@ -976,6 +1043,21 @@ function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
   }
   visit(doc._rawMainList); visit(doc._rawLayers); visit(doc._rawSelected); visit(doc._rawGroups); visit(doc._rawViews);
   let nextId = Math.max(0, ...objects.keys(), ...doc.components.map(c => c.id)) + 1;
+  const keep=new Set(doc.components.map(c=>c.id));
+  const known=(o: any)=>o&&['CSldBusbar','CSldPointNode','CSldRadial','CSldBranch','CSldTwoWindingTransformer','CSldThreeWindingTransformer','CSldLink','CSldLabel'].includes(o._class);
+  const retained=(w: any)=>{const o=unwrap(w);return !known(o)||keep.has(o.id);};
+  doc._rawMainList=doc._rawMainList!.filter(w=>retained(w)&&!(unwrap(w)?._class==='CSldKneePoint'&&!keep.has(unwrap(unwrap(w).owner)?.id)));
+  for(const wrapped of doc._rawLayers!){const layer=unwrap(wrapped);layer.layer_lists=layer.layer_lists.map((list: any[])=>list.filter(retained));}
+  for(const o of objects.values()){
+    if(o.labels)o.labels=o.labels.filter(retained);
+    if(o.ports)o.ports=o.ports.map(unwrap).filter((p: any)=>!p.link||keep.has(unwrap(p.link)?.id));
+  }
+  if(doc._rawSelected&&!retained(doc._rawSelected)){doc._rawSelected=null;doc.selectedObjectId=undefined;doc._u2=0;}
+  for(const c of doc.components)if(!objects.has(c.id)&&c.t==='Label'){
+    const owner=c.owner===undefined?null:objects.get(c.owner);
+    if(c.owner!==undefined&&!keep.has(c.owner))throw new Error(`Invalid label owner ${c.owner}`);
+    const label=createArchiveLabel(c,owner,isV51);objects.set(c.id,label);doc._rawMainList!.push(label);if(owner)owner.labels.push(label);
+  }
   for (const c of doc.components) {
     const o = objects.get(c.id);
     if (!o) throw new Error(`Unsupported archive structural edit #${c.id}`);
@@ -983,6 +1065,8 @@ function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
     for (const k of ['rot', 'color', 'layer'] as const) if (c[k] !== undefined) o[k] = c[k];
     if (c.t === 'Symbol') {
       if(c.sdef !== undefined)o.sdef=c.sdef;
+      if(c.displayIndex!==undefined)o.sym_flag=c.displayIndex;
+      if(c.map!==undefined&&c.map.trim().replace(/\s+/g,' ')!==decodeMapStruct(o.map_raw).map.trim().replace(/\s+/g,' '))o.map_raw=encodeMapStruct(c.map,c.stype==='Busbar');
       o.ports = (o.ports || []).map(unwrap);
       if (c.stype === 'Node' && o._class === 'CSldBusbar') {
         o._class = 'CSldPointNode'; o.sym_tail = new Uint8Array(isV51 ? 12 : 10);
@@ -994,11 +1078,22 @@ function synchronizeArchiveGeometry(doc: GaSldDocument, isV51: boolean): void {
       }
     } else if (c.t === 'Label') {
       o.text = c.text || '';
+      const fontView=new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength);
+      if((c.fh!==undefined&&Math.round(c.fh*10)!==fontView.getInt32(8,true))||(c.font!==undefined&&c.font!==o.lbl_font_name)||(c.fw!==undefined&&c.fw!==fontView.getInt32(24,true)))o.comp_post_map[9]|=0x80;
+      if(c.fh!==undefined)new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).setInt32(8,Math.round(c.fh*10),true);
+      if(c.fw!==undefined)new DataView(o.lbl_font_info.buffer,o.lbl_font_info.byteOffset,o.lbl_font_info.byteLength).setInt32(24,c.fw,true);
+      if(c.font!==undefined)o.lbl_font_name=c.font;
+      if(c.vis!==undefined)o.lbl_vis=c.vis?1:0;
+      if(c.lpos!==undefined)o.lbl_position=c.lpos;
+      o.comp_annots=(o.comp_annots||[]).filter((b: Uint8Array)=>!decodeCp1254(b).startsWith('GA_RESULT_V1:'));
+      if(c.gaResult)o.comp_annots.push(encodeCp1254('GA_RESULT_V1:'+JSON.stringify(c.gaResult)));
+
       if (c.owner !== undefined) o.owner = objects.get(c.owner) || null;
     }
   }
   for (const c of doc.components.filter(c => c.t === 'Link')) {
     const o = objects.get(c.id);
+    writeArchiveLinkStyle(o,c);
     for (const key of ['p1', 'p2'] as const) {
       const ep = c[key]!, owner = objects.get(ep.sym);
       const port = unwrap(o[key]) || { _class: 'CSldPort', port_tail: new Uint8Array(16) };
@@ -1189,7 +1284,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       comp_post_xy: new Uint8Array(16),
       labels: [],
       sdef: c.sdef ?? (stype === 'Busbar' ? 1 : 0),
-      sym_flag: 0,
+      sym_flag: c.displayIndex ?? (c.sdef===10?1:c.sdef===5?1:c.sdef===3&&c.sourceStatus!==undefined?(c.sourceStatus===0?4:3):0),
       ports: [],
       bus_tail: busTail,
       sym_tail: new Uint8Array(isV51 ? 12 : 10),
@@ -1197,6 +1292,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     carchiveObjs.set(cid, obj);
   });
 
+  let nextKneeId=Math.max(0,...doc.components.map(c=>c.id))+1;
   // Build Link objects & Port objects
   for (const l of linkList) {
     const lid = l.id;
@@ -1211,27 +1307,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     const color = l.color ?? 0x00ff00;
     const layer = l.layer ?? 4;
 
-    const linkPreKnees = new Uint8Array(66);
-    // Standard link handle radius signature
-    linkPreKnees[0] = 0xcd;
-    linkPreKnees[1] = 0xcc;
-    linkPreKnees[2] = 0x4c;
-    linkPreKnees[3] = 0x3d;
-    linkPreKnees[4] = 0xff;
-    linkPreKnees[5] = 0xff;
-    linkPreKnees[6] = 0xff;
-    linkPreKnees[7] = 0xff;
-    linkPreKnees[16] = 0x01;
-    linkPreKnees[46] = 0xff;
-    linkPreKnees[47] = 0xff;
-    linkPreKnees[48] = 0xff;
-    linkPreKnees[49] = 0xff;
-    linkPreKnees[58] = 0xe0;
-    linkPreKnees[59] = 0x51;
-    linkPreKnees[60] = 0xb8;
-    linkPreKnees[61] = 0xbe;
-    linkPreKnees[62] = 0x3f;
-
+    const linkPreKnees = new Uint8Array([0,0,128,63,255,255,255,255,0,0,0,0,255,255,255,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,255,255,0,0,0,0,0,0,0,0,0,0,0,224,81,184,190,63,0,0,0,0]);
     const linkTail = new Uint8Array(32);
     linkTail[1] = 0x01;
 
@@ -1259,13 +1335,14 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       p2: null,
       link_tail: linkTail,
     };
+    writeArchiveLinkStyle(linkObj,l);
     carchiveObjs.set(lid, linkObj);
 
     // Knees
     const knees = l.knees || [];
     for (let kidx = 0; kidx < knees.length; kidx++) {
       const kp = knees[kidx];
-      const kneeId = 90000 + lid * 10 + kidx;
+      const kneeId = nextKneeId++;
       const kObj: any = {
         _class: 'CSldKneePoint',
         id: kneeId,
@@ -1333,7 +1410,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
       const count = c?.stype === 'Branch' ? (c.psse === 'TWTransformer' ? 3 : 2) : c?.stype === 'Radial' ? 1 : 0;
       for (let idx = 0; idx < count; idx++) {
         if (ports.some(p => p.port_idx === idx)) continue;
-        const half = c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
+        const half = c?.psse === 'SwitchingDev' || c?.sdef === 3 ? .04 : c?.psse === 'Transformer' || c?.psse === 'TWTransformer' || c?.sdef === 10 ? 0.2 : 0.116;
         ports.push({ _class: 'CSldPort', owner: sObj, link: null, port_idx: idx,
           dx: c?.stype === 'Branch' ? (idx === 0 ? -half : idx === 1 ? half : 0) : 0,
           dy: c?.stype === 'Radial' ? ({ 2: .082, 4: .099, 5: .13 } as Record<number, number>)[c.sdef || 0] || 0 : idx === 2 ? -.2 : 0,
@@ -1350,37 +1427,7 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     if (!ownerObj && ownerId !== 0) throw new Error(`Invalid label owner ${ownerId}`);
     for (const l of lblList) {
       const pos = l.pos || [ownerObj?.x || 0, ownerObj?.y || 0];
-      const fontInfo = new Uint8Array(36);
-      const fontDv = new DataView(fontInfo.buffer);
-      fontDv.setInt32(8, Math.round(l.fh || 9), true); // native font height
-      fontDv.setInt32(24, 400, true); // native font weight
-      const lblObj: any = {
-        _class: 'CSldLabel',
-        id: l.id,
-        rot: l.rot ?? 0.0,
-        layer: l.layer ?? (ownerObj?.layer ?? 4),
-        flag0: 0,
-        f1: 1,
-        f2: 1,
-        f3: 1,
-        color: l.color ?? 0xffffff,
-        comp_pre_map: new Uint8Array(12),
-        map_raw: new Uint8Array(0),
-        comp_annots: [],
-        comp_post_map: new Uint8Array(isV51 ? 37 : 33),
-        x: pos[0],
-        y: pos[1],
-        comp_post_xy: new Uint8Array(16),
-        labels: [],
-        text: l.text || '',
-        owner: ownerObj || null,
-        lbl_vis: l.vis === false ? 0 : 1,
-        lbl_bg: 0xffffff,
-        lbl_position: l.lpos ?? 0xffffffff, // free authored label; native ctor uses slot -1
-        lbl_font_info: fontInfo,
-        lbl_font_name: 'Arial',
-        lbl_font_tail: new Uint8Array(8),
-      };
+      const lblObj=createArchiveLabel(l,ownerObj,isV51);
       if(ownerObj)ownerObj.labels.push(lblObj);else unownedLabels.push(lblObj);
     }
   });
@@ -1420,8 +1467,8 @@ export function serializeSldBinary(doc: GaSldDocument, targetVersion = '2.0.51.1
     layers.push({
       _class: 'CSldLayer',
       layer_hdr: layerHdr,
-      name: activeNames[lIdx],
-      vis: 1,
+      name: doc.layers.find(l=>l.n===lIdx)?.desc ?? activeNames[lIdx],
+      vis: /^(Hidden|Invisible)$/.test(doc.layers.find(l=>l.n===lIdx)?.vis||'')?0:1,
       layer_lists: Array.from({ length: isV51 ? 22 : 21 }, () => []),
     });
   }
