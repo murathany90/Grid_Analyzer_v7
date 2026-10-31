@@ -57,3 +57,7 @@ Tek kullanıcı teslimi: `C:\projelerim\PSS-e_Eklentisi\dist\Grid_Analyzer_PSSE_
 Kota: başlangıç %0, ara kontroller %6/%13/%24/%46/%64/%76/%85 kullanım. Son %10 eşiğine yaklaşırken yeni kapsam açılmadı; kalan P0/P1 yukarıda açık tutuldu. Bu dosya tamamlanma raporu değildir.
 
 P1 UI okunabilirlik açık: yedi pilotta ölçülen görünür metin alt sınırı 4.60 px. Min. 8 px kabulü sağlanmadı; hangi metin sınıfının LOD ölçeğinin dışında kaldığı incelenmeli. Native GUI için başarı iddiası değildir.
+
+## Son bağımsız native kaydetme karşılaştırması
+
+`evidence/sld-v4/delivery-report.json` kimlik bazlı karşılaştırması: 42/42 nesne, kayıp ID 0, maksimum Link port konum farkı 0, font yüksekliği farkı 0. Buna karşılık PSS/E iki trafonun display indeksini **1 → 0** yaptı; 12 Link genişliğini **1** olarak yeniden yazdı, bir pasif üretim bağlantısının stilini 63736 yaptı. Dolayısıyla display-index alanını doğru serialize etmek tek başına PSS/E'nin yeniden bağlama/görünüm kurallarını çözmüyor. Bu somut farklar **P0 OPEN/BLOCKED** olarak kalıyor; parse/codec testiyle kapatılamaz. Bir sonraki native adım bu iki TR'nin MAP/bağlama, display-list ve görünüm varsayılanlarını gerçek PSS/E kayıtlarıyla incelemektir. Alan uydurulmamalıdır.
